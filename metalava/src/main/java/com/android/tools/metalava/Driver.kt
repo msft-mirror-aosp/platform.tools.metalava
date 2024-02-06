@@ -42,9 +42,11 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -468,7 +470,6 @@ private fun ActionContext.checkCompatibility(
     check: CheckRequest,
 ) {
     progressTracker.progress("Checking API compatibility ($check): ")
-    val signatureFile = check.file
 
     val apiType = check.apiType
     val generatedApiFile =
@@ -488,6 +489,7 @@ private fun ActionContext.checkCompatibility(
     //   check the lengths first and then compare contents byte for byte so that it exits
     //   quickly if they're different and does not do all the UTF-8 conversions.
     generatedApiFile?.let { apiFile ->
+        val signatureFile = check.files.last()
         val compatibilityCheckCanBeSkipped =
             signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
         // TODO(b/301282006): Remove global variable use when this can be tested properly
@@ -495,11 +497,13 @@ private fun ActionContext.checkCompatibility(
         if (compatibilityCheckCanBeSkipped) return
     }
 
-    val oldCodebase =
-        if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(signatureFile)
-        } else {
-            signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+    val oldCodebases =
+        check.files.map { signatureFile ->
+            if (signatureFile.path.endsWith(DOT_JAR)) {
+                loadFromJarFile(signatureFile)
+            } else {
+                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+            }
         }
 
     var baseApi: Codebase? = null
@@ -517,11 +521,15 @@ private fun ActionContext.checkCompatibility(
         )
     }
 
+    // The MergedCodebase assume that the codebases are in order from widest to narrowest which is
+    // the opposite of how they are supplied so this reverses them.
+    val mergedOldCodebases = MergedCodebase(oldCodebases.reversed())
+
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
-        oldCodebase,
+        mergedOldCodebases,
         apiType,
         baseApi,
         options.reporterCompatibilityReleased,
@@ -604,12 +612,17 @@ private fun ActionContext.loadFromSources(
             gatherSources(options.reporter, options.sourcePath)
         }
 
+    val commonSources =
+        if (options.commonSourcePath.isNotEmpty())
+            gatherSources(options.reporter, options.commonSourcePath)
+        else emptyList()
+
     progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
-            sources,
+            SourceSet(sources, options.sourcePath),
+            SourceSet(commonSources, options.commonSourcePath),
             "Codebase loaded from source folders",
-            sourcePath = options.sourcePath,
             classPath = options.classpath,
         )
 

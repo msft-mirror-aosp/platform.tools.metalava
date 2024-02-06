@@ -65,7 +65,7 @@ class CommonModelTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Foo {
-                            public void foo(int i) {}                        
+                            public void foo(int i) {}
                         }
                     """
                 ),
@@ -73,8 +73,8 @@ class CommonModelTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Bar extends Foo {
-                            public void foo(int i) {}                        
-                            public int bar(String s) {return s.length();}                        
+                            public void foo(int i) {}
+                            public int bar(String s) {return s.length();}
                         }
                     """
                 ),
@@ -89,6 +89,97 @@ class CommonModelTest : BaseModelTest() {
                     }
                 }
             )
+        }
+    }
+
+    @Test
+    fun `Test iterate and resolve unknown super classes`() {
+        // TODO(b/323516595): Find a better way.
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo extends test.pkg.Unknown {
+                            ctor public Foo();
+                          }
+                          public class Bar extends test.unknown.Foo {
+                            ctor public Bar();
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo extends test.pkg.Unknown {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Bar extends test.unknown.Foo {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            // Iterate over the codebase and try and find every item that is visited.
+            for (classItem in codebase.getPackages().allClasses()) {
+                // Resolve the super class which might trigger a change in the packages/classes.
+                classItem.superClass()
+            }
+        }
+    }
+
+    @Test
+    fun `Test iterate and resolve unknown interface classes`() {
+        // TODO(b/323516595): Find a better way.
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo implements test.pkg.Unknown {
+                            ctor public Foo();
+                          }
+                          public class Bar implements test.unknown.Foo {
+                            ctor public Bar();
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo implements test.pkg.Unknown {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Bar implements test.unknown.Foo {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            // Iterate over the codebase and try and find every item that is visited.
+            for (classItem in codebase.getPackages().allClasses()) {
+                for (interfaceType in classItem.interfaceTypes()) {
+                    // Resolve the interface type which might trigger a change in the
+                    // packages/classes.
+                    interfaceType.asClass()
+                }
+            }
         }
     }
 }
