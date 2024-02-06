@@ -342,4 +342,41 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
             assertThat((second.arguments[0] as WildcardTypeItem).superBound).isSameInstanceAs(first)
         }
     }
+
+    @Test
+    fun `Test same string, same type, different scopes`() {
+        // Tests that two types which have the same string and
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public class Foo<T> {
+                      }
+                      public class Foo.Inner1<U> {
+                        method public String bar1();
+                        method public int bar2();
+                        method public T bar3();
+                      }
+                      public class Foo.Inner2<U> {
+                        method public String bar1();
+                        method public int bar2();
+                        method public T bar3();
+                      }
+                    }
+                """
+            ),
+        ) {
+            val inner1 = codebase.assertClass("test.pkg.Foo.Inner1")
+            val inner2 = codebase.assertClass("test.pkg.Foo.Inner2")
+
+            // Make sure that all the methods of inner1 and inner2 use the same type even though
+            // they have a different set of type parameters in scope.
+            for ((method1, method2) in inner1.methods().zip(inner2.methods())) {
+                assertWithMessage("method ${method1.name()}")
+                    .that(method1.returnType())
+                    .isSameInstanceAs(method2.returnType())
+            }
+        }
+    }
 }
