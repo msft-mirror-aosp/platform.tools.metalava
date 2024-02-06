@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -177,6 +178,37 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
             assertThat(bar1Param).isInstanceOf(ClassTypeItem::class.java)
             assertThat(bar2Param).isInstanceOf(VariableTypeItem::class.java)
             assertThat(bar3Param).isInstanceOf(ClassTypeItem::class.java)
+
+            assertThat(bar1Param).isSameInstanceAs(bar3Param)
+        }
+    }
+
+    @Test
+    fun `Test caching of type variables collide with int`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar1(int);
+                        method public <int> void bar2(int);
+                        method public void bar3(int);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo")
+
+            // Get the type of the parameter of all the methods.
+            val (bar1Param, bar2Param, bar3Param) = foo.methods().map { it.parameters()[0].type() }
+
+            // Even though all the method's parameter types are the same string representation they
+            // have two different types.
+            assertThat(bar1Param).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat(bar2Param).isInstanceOf(VariableTypeItem::class.java)
+            assertThat(bar3Param).isInstanceOf(PrimitiveTypeItem::class.java)
 
             assertThat(bar1Param).isSameInstanceAs(bar3Param)
         }
