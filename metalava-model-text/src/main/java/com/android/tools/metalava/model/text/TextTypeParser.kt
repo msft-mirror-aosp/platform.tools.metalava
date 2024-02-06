@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeUse
 import kotlin.collections.HashMap
@@ -43,14 +44,13 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
      */
     private data class Key(val forceClassToBeNonNull: Boolean, val type: String)
 
-    /** The cache from [Key] to [TextTypeItem]. */
-    private val typeCache = HashMap<Key, TextTypeItem>()
+    /** The cache from [Key] to [CacheEntry]. */
+    private val typeCache = HashMap<Key, CacheEntry>()
 
     internal var requests = 0
     internal var cacheSkip = 0
     internal var cacheHit = 0
-    internal val cacheSize
-        get() = typeCache.size
+    internal var cacheSize = 0
 
     /** [TextTypeModifiers] that are empty but set [TextTypeModifiers.nullability] to null. */
     private val nonNullTypeModifiers =
@@ -119,14 +119,12 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         return if (typeParameterScope.isEmpty() && annotations.isEmpty()) {
             val key = Key(forceClassToBeNonNull, type)
 
-            // Check it in the cache and if not found then create it and put it into the cache
-            typeCache[key]?.also { cacheHit++ }
-                ?: run {
-                    // Create it, cache it and return
-                    parseType(type, typeParameterScope, annotations, forceClassToBeNonNull).also {
-                        typeCache[key] = it
-                    }
-                }
+            // Get the cache entry for the supplied type and forceClassToBeNonNull.
+            val result =
+                typeCache.computeIfAbsent(key) { CacheEntry(it.type, it.forceClassToBeNonNull) }
+
+            // Get the appropriate [TypeItem], creating one if necessary.
+            result.getTypeItem()
         } else {
             cacheSkip++
             parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
@@ -717,6 +715,43 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                     return
                 }
             }
+        }
+    }
+
+    /**
+     * The cache entry, that contains the [TypeItem] that has been produced from the [type] and
+     * [forceClassToBeNonNull] properties.
+     */
+    internal inner class CacheEntry(
+        /** The string type from which the [TextTypeItem] will be parsed. */
+        private val type: String,
+
+        /**
+         * Indicates whether an outermost [ClassTypeItem] is forced to be [TypeNullability.NONNULL].
+         *
+         * It is passed into [parseType] and if `true` it will cause the top level class type to be
+         * treated as if it was being parsed when [kotlinStyleNulls] is `true` as that sets
+         * [TypeNullability.NONNULL] by default.
+         */
+        private val forceClassToBeNonNull: Boolean,
+    ) {
+        /** The cached [TextTypeItem]. */
+        private lateinit var typeItem: TextTypeItem
+
+        /** Get the [TypeItem] for this type depending on the setting of [forceClassToBeNonNull]. */
+        fun getTypeItem(): TextTypeItem {
+            if (!::typeItem.isInitialized) {
+                typeItem = createTypeItem()
+                cacheSize++
+            } else {
+                cacheHit++
+            }
+            return typeItem
+        }
+
+        /** Create a new [TypeItem] for [type] with the given [forceClassToBeNonNull] setting. */
+        private fun createTypeItem(): TextTypeItem {
+            return parseType(type, TypeParameterScope.empty, emptyList(), forceClassToBeNonNull)
         }
     }
 }
