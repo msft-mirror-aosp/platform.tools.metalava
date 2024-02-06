@@ -78,10 +78,10 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 7315,
-                            typeCacheRequests = 179041,
-                            typeCacheSkip = 9383,
-                            typeCacheHit = 161407,
-                            typeCacheSize = 8251,
+                            typeCacheRequests = 178110,
+                            typeCacheSkip = 0,
+                            typeCacheHit = 165224,
+                            typeCacheSize = 12886,
                         )
                     )
             }
@@ -104,10 +104,10 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 346,
-                            typeCacheRequests = 6882,
-                            typeCacheSkip = 216,
-                            typeCacheHit = 6095,
-                            typeCacheSize = 571,
+                            typeCacheRequests = 6876,
+                            typeCacheSkip = 0,
+                            typeCacheHit = 6114,
+                            typeCacheSize = 762,
                         )
                     )
             }
@@ -125,22 +125,22 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test non-empty scope is not cached but could be`() {
+    fun `Test non-type parameter based type in a non-empty scope is cached`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("int", nonEmptyScope)
             val second = parser.obtainTypeFromString("int", nonEmptyScope)
 
-            assertThat(first).isNotSameInstanceAs(second)
+            assertThat(first).isSameInstanceAs(second)
         }
     }
 
     @Test
-    fun `Test type that references a type parameter is not cached`() {
+    fun `Test type that references a type parameter is cached`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("T", nonEmptyScope)
             val second = parser.obtainTypeFromString("T", nonEmptyScope)
 
-            assertThat(first).isNotSameInstanceAs(second)
+            assertThat(first).isSameInstanceAs(second)
         }
     }
 

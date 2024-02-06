@@ -113,10 +113,8 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         // same cache key for both so that they reuse cached types where possible.
         val forceClassToBeNonNull = typeUse == TypeUse.SUPER_TYPE || kotlinStyleNulls
 
-        // Only use the cache if there are no type parameters to prevent identically named type
-        // variables from different contexts being parsed as the same type.
-        // Also don't use the cache when there are type-use annotations not contained in the string.
-        return if (typeParameterScope.isEmpty() && annotations.isEmpty()) {
+        // Don't use the cache when there are type-use annotations not contained in the string.
+        return if (annotations.isEmpty()) {
             val key = Key(forceClassToBeNonNull, type)
 
             // Get the cache entry for the supplied type and forceClassToBeNonNull.
@@ -124,7 +122,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                 typeCache.computeIfAbsent(key) { CacheEntry(it.type, it.forceClassToBeNonNull) }
 
             // Get the appropriate [TypeItem], creating one if necessary.
-            result.getTypeItem()
+            result.getTypeItem(typeParameterScope)
         } else {
             cacheSkip++
             parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
@@ -735,23 +733,33 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
          */
         private val forceClassToBeNonNull: Boolean,
     ) {
-        /** The cached [TextTypeItem]. */
-        private lateinit var typeItem: TextTypeItem
+        /** Map from [TypeParameterScope] to the [TextTypeItem] created for it. */
+        private val scopeToItem = mutableMapOf<TypeParameterScope, TextTypeItem>()
 
         /** Get the [TypeItem] for this type depending on the setting of [forceClassToBeNonNull]. */
-        fun getTypeItem(): TextTypeItem {
-            if (!::typeItem.isInitialized) {
-                typeItem = createTypeItem()
-                cacheSize++
-            } else {
+        fun getTypeItem(typeParameterScope: TypeParameterScope): TextTypeItem {
+            scopeToItem[typeParameterScope]?.let { scopeTypeItem ->
                 cacheHit++
+                return scopeTypeItem
             }
+
+            // Parse the [type] to produce a [TypeItem].
+            val typeItem = createTypeItem(typeParameterScope)
+            cacheSize++
+
+            // Cache the [TypeItem].
+            scopeToItem[typeParameterScope] = typeItem
+
+            // Return it.
             return typeItem
         }
 
-        /** Create a new [TypeItem] for [type] with the given [forceClassToBeNonNull] setting. */
-        private fun createTypeItem(): TextTypeItem {
-            return parseType(type, TypeParameterScope.empty, emptyList(), forceClassToBeNonNull)
+        /**
+         * Create a new [TypeItem] for [type] with the given [forceClassToBeNonNull] setting and for
+         * the requested [typeParameterScope].
+         */
+        private fun createTypeItem(typeParameterScope: TypeParameterScope): TextTypeItem {
+            return parseType(type, typeParameterScope, emptyList(), forceClassToBeNonNull)
         }
     }
 }
