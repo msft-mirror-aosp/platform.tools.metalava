@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 
 internal class TurbineTypeParameterItem(
     codebase: TurbineBasedCodebase,
@@ -42,7 +43,7 @@ internal class TurbineTypeParameterItem(
     override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun type(): VariableTypeItem {
-        return TurbineVariableTypeItem(TurbineTypeModifiers(emptyList()), this)
+        return TurbineVariableTypeItem(DefaultTypeModifiers.create(emptyList()), this)
     }
 
     override fun equals(other: Any?): Boolean {

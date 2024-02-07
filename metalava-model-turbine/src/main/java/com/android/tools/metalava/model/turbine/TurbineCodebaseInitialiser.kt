@@ -36,9 +36,11 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -553,7 +555,7 @@ internal open class TurbineCodebaseInitialiser(
                 type as PrimTy
                 val annotations = createAnnotations(type.annos())
                 // Primitives are always non-null.
-                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.NONNULL)
+                val modifiers = DefaultTypeModifiers.create(annotations, TypeNullability.NONNULL)
                 when (type.primkind()) {
                     PrimKind.BOOLEAN -> TurbinePrimitiveTypeItem(modifiers, Primitive.BOOLEAN)
                     PrimKind.BYTE -> TurbinePrimitiveTypeItem(modifiers, Primitive.BYTE)
@@ -586,7 +588,7 @@ internal open class TurbineCodebaseInitialiser(
             TyKind.TY_VAR -> {
                 type as TyVar
                 val annotations = createAnnotations(type.annos())
-                val modifiers = TurbineTypeModifiers(annotations)
+                val modifiers = DefaultTypeModifiers.create(annotations)
                 val typeParameter = codebase.findTypeParameter(type.sym())
                 TurbineVariableTypeItem(modifiers, typeParameter)
             }
@@ -594,7 +596,7 @@ internal open class TurbineCodebaseInitialiser(
                 type as WildTy
                 val annotations = createAnnotations(type.annotations())
                 // Wildcards themselves don't have a defined nullability.
-                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.UNDEFINED)
+                val modifiers = DefaultTypeModifiers.create(annotations, TypeNullability.UNDEFINED)
                 when (type.boundKind()) {
                     BoundKind.UPPER -> {
                         val upperBound = createWildcardBound(type.bound())
@@ -618,13 +620,13 @@ internal open class TurbineCodebaseInitialiser(
             TyKind.VOID_TY ->
                 TurbinePrimitiveTypeItem(
                     // Primitives are always non-null.
-                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
+                    DefaultTypeModifiers.create(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
             TyKind.NONE_TY ->
                 TurbinePrimitiveTypeItem(
                     // Primitives are always non-null.
-                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
+                    DefaultTypeModifiers.create(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
             TyKind.ERROR_TY -> {
@@ -632,7 +634,7 @@ internal open class TurbineCodebaseInitialiser(
                 type as ErrorTy
                 TurbineClassTypeItem(
                     codebase,
-                    TurbineTypeModifiers(emptyList(), TypeNullability.UNDEFINED),
+                    DefaultTypeModifiers.create(emptyList(), TypeNullability.UNDEFINED),
                     type.name(),
                     emptyList(),
                     null,
@@ -647,12 +649,12 @@ internal open class TurbineCodebaseInitialiser(
     private fun createArrayType(type: ArrayTy, isVarArg: Boolean): TypeItem {
         // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse
         // order. This method attaches annotations in the correct order by applying them in reverse
-        val modifierStack = ArrayDeque<TurbineTypeModifiers>()
+        val modifierStack = ArrayDeque<TypeModifiers>()
         var curr: Type = type
         while (curr.tyKind() == TyKind.ARRAY_TY) {
             curr as ArrayTy
             val annotations = createAnnotations(curr.annos())
-            modifierStack.addLast(TurbineTypeModifiers(annotations))
+            modifierStack.addLast(DefaultTypeModifiers.create(annotations))
             curr = curr.elementType()
         }
         var componentType = createType(curr, false)
@@ -669,7 +671,7 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createSimpleArrayType(
-        modifiers: TurbineTypeModifiers,
+        modifiers: TypeModifiers,
         componentType: TypeItem,
         isVarArg: Boolean
     ): TypeItem {
@@ -684,7 +686,7 @@ internal open class TurbineCodebaseInitialiser(
         // Super types are always NONNULL.
         val nullability = if (typeUse == TypeUse.SUPER_TYPE) TypeNullability.NONNULL else null
         val annotations = createAnnotations(type.annos())
-        val modifiers = TurbineTypeModifiers(annotations, nullability)
+        val modifiers = DefaultTypeModifiers.create(annotations, nullability)
         val qualifiedName = getQualifiedName(type.sym().binaryName())
         val parameters = type.targs().map { createType(it, false) as TypeArgumentTypeItem }
         return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)

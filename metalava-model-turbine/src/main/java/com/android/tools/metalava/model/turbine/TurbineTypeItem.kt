@@ -25,16 +25,17 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
 internal sealed class TurbineTypeItem(
-    override val modifiers: TurbineTypeModifiers,
+    override val modifiers: TypeModifiers,
 ) : DefaultTypeItem()
 
 internal class TurbinePrimitiveTypeItem(
-    modifiers: TurbineTypeModifiers,
+    modifiers: TypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(): PrimitiveTypeItem =
@@ -42,7 +43,7 @@ internal class TurbinePrimitiveTypeItem(
 }
 
 internal class TurbineArrayTypeItem(
-    modifiers: TurbineTypeModifiers,
+    modifiers: TypeModifiers,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
 ) : ArrayTypeItem, TurbineTypeItem(modifiers) {
@@ -53,7 +54,7 @@ internal class TurbineArrayTypeItem(
 
 internal class TurbineClassTypeItem(
     private val codebase: Codebase,
-    modifiers: TurbineTypeModifiers,
+    modifiers: TypeModifiers,
     override val qualifiedName: String,
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
@@ -80,7 +81,7 @@ internal class TurbineClassTypeItem(
 }
 
 internal class TurbineVariableTypeItem(
-    modifiers: TurbineTypeModifiers,
+    modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
 ) : VariableTypeItem, TurbineTypeItem(modifiers) {
     override val name: String = asTypeParameter.name()
@@ -90,7 +91,7 @@ internal class TurbineVariableTypeItem(
 }
 
 internal class TurbineWildcardTypeItem(
-    modifiers: TurbineTypeModifiers,
+    modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
 ) : WildcardTypeItem, TurbineTypeItem(modifiers) {
