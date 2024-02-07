@@ -54,5 +54,5 @@ internal class TurbineTypeModifiers(
         nullability = newNullability
     }
 
-    internal fun duplicate() = TurbineTypeModifiers(annotations.toMutableList())
+    override fun duplicate() = TurbineTypeModifiers(annotations.toMutableList())
 }
