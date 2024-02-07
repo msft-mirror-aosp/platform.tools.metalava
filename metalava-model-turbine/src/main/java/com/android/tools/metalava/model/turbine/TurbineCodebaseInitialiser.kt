@@ -557,9 +557,7 @@ internal open class TurbineCodebaseInitialiser(
                 },
             )
 
-        val tyParamList = TurbineTypeParameterList(codebase)
-        tyParamList.typeParameters = typeParameters
-        return Pair(tyParamList, typeItemFactory)
+        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
     }
 
     /**

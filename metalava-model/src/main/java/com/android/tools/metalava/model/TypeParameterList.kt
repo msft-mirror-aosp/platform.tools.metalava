@@ -49,7 +49,11 @@ interface TypeParameterList {
     }
 }
 
-abstract class DefaultTypeParameterList : TypeParameterList {
+class DefaultTypeParameterList(private var typeParameters: List<TypeParameterItem>) :
+    TypeParameterList {
+
+    override fun typeParameters(): List<TypeParameterItem> = typeParameters
+
     private val toString by lazy {
         buildString {
             if (typeParameters().isNotEmpty()) {
