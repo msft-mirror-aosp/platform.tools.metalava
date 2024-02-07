@@ -18,42 +18,24 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterList(
+internal class TextTypeParameterList(
     val codebase: TextCodebase,
-    private var owner: TypeParameterListOwner?,
-    private val typeListString: String
+    private val typeParameters: List<TextTypeParameterItem>,
 ) : TypeParameterList {
-    private var typeParameters: List<TextTypeParameterItem>? = null
-
-    override fun toString(): String = typeListString
+    override fun toString() = typeParameters.joinToString(prefix = "<", postfix = ">")
 
     override fun typeParameters(): List<TypeParameterItem> {
-        if (typeParameters == null) {
-            val strings = TextTypeParser.typeParameterStrings(typeListString)
-            val list = ArrayList<TextTypeParameterItem>(strings.size)
-            strings.mapTo(list) { TextTypeParameterItem.create(codebase, owner, it) }
-            typeParameters = list
-        }
-        return typeParameters!!
-    }
-
-    internal fun setOwner(newOwner: TypeParameterListOwner) {
-        owner = newOwner
-        typeParameters?.forEach { it.setOwner(newOwner) }
+        return typeParameters
     }
 
     companion object {
-        /**
-         * Creates a [TextTypeParameterList] without a set owner, for type parameters created before
-         * their owners are. The owner should be set after it is created.
-         *
-         * The [typeListString] should be the string representation of a list of type parameters,
-         * like "<A>" or "<A, B extends java.lang.String, C>".
-         */
-        fun create(codebase: TextCodebase, typeListString: String): TypeParameterList {
-            return TextTypeParameterList(codebase, owner = null, typeListString)
+        /** Creates a [TextTypeParameterList]. */
+        fun create(
+            codebase: TextCodebase,
+            typeParameters: List<TextTypeParameterItem>,
+        ): TypeParameterList {
+            return TextTypeParameterList(codebase, typeParameters)
         }
     }
 }

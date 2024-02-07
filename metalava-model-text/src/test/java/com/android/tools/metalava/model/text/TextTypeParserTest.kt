@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -25,7 +24,7 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Assert
 import org.junit.Test
 
-class TextTypeParserTest : Assertions {
+class TextTypeParserTest : BaseTextCodebaseTest() {
     @Test
     fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
@@ -78,40 +77,6 @@ class TextTypeParserTest : Assertions {
             .isEqualTo(Pair(listOf("X"), ".Inner"))
         assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X, Y, Z>.Inner<A, B, C>"))
             .isEqualTo(Pair(listOf("X", "Y", "Z"), ".Inner<A, B, C>"))
-    }
-
-    @Test
-    fun `Test caching of type variables`() {
-        val codebase =
-            ApiFile.parseApi(
-                "test",
-                """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public class Foo<A> {
-                        method public void bar1<B extends java.lang.String>(B p0);
-                        method public void bar2<B extends java.lang.String>(B p0);
-                        method public void bar3<C>(java.util.List<C> p0);
-                        method public void bar4<C>(java.util.List<C> p0);
-                      }
-                    }
-                """
-                    .trimIndent()
-            )
-        val foo = codebase.assertClass("test.pkg.Foo")
-        assertThat(foo.methods()).hasSize(4)
-
-        val bar1Param = foo.methods()[0].parameters()[0].type()
-        val bar2Param = foo.methods()[1].parameters()[0].type()
-
-        // The type variable should not be reused between methods
-        assertThat(bar1Param).isNotSameInstanceAs(bar2Param)
-
-        val bar3Param = foo.methods()[2].parameters()[0].type()
-        val bar4Param = foo.methods()[3].parameters()[0].type()
-
-        // The type referencing a type variable should not be reused between methods
-        assertThat(bar3Param).isNotSameInstanceAs(bar4Param)
     }
 
     @Test
@@ -413,9 +378,10 @@ class TextTypeParserTest : Assertions {
         )
     }
 
-    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
+    private val typeParser = TextTypeParser(ApiFile.parseApi("test", "") as TextCodebase)
 
-    private fun parseType(type: String) = typeParser.obtainTypeFromString(type)
+    private fun parseType(type: String) =
+        typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
 
     /**
      * Tests that [inputType] is parsed as an [ArrayTypeItem] with component type equal to
@@ -453,17 +419,17 @@ class TextTypeParserTest : Assertions {
 
     /**
      * Tests that [inputType] is parsed as a [ClassTypeItem] with qualified name equal to
-     * [expectedQualifiedName] and parameters equal to [expectedParameterTypes].
+     * [expectedQualifiedName] and [ClassTypeItem.arguments] is equal to [expectedTypeArguments].
      */
     private fun testClassType(
         inputType: String,
         expectedQualifiedName: String,
-        expectedParameterTypes: List<TypeItem>
+        expectedTypeArguments: List<TypeItem>
     ) {
         val type = parseType(inputType)
         assertThat(type).isInstanceOf(ClassTypeItem::class.java)
         assertThat((type as ClassTypeItem).qualifiedName).isEqualTo(expectedQualifiedName)
-        assertThat((type as ClassTypeItem).parameters).isEqualTo(expectedParameterTypes)
+        assertThat((type as ClassTypeItem).arguments).isEqualTo(expectedTypeArguments)
     }
 
     @Test
@@ -471,7 +437,7 @@ class TextTypeParserTest : Assertions {
         testClassType(
             inputType = "String",
             expectedQualifiedName = "java.lang.String",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testArrayType(
             inputType = "String[]",
@@ -490,27 +456,27 @@ class TextTypeParserTest : Assertions {
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.lang.annotation.@NonNull Annotation",
             expectedQualifiedName = "java.lang.annotation.Annotation",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.util.Map.@NonNull Entry<a.A,b.B>",
             expectedQualifiedName = "java.util.Map.Entry",
-            expectedParameterTypes = listOf(parseType("a.A"), parseType("b.B"))
+            expectedTypeArguments = listOf(parseType("a.A"), parseType("b.B"))
         )
         testClassType(
             inputType = "java.util.@NonNull Set<java.util.Map.@NonNull Entry<a.A,b.B>>",
             expectedQualifiedName = "java.util.Set",
-            expectedParameterTypes = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
+            expectedTypeArguments = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
         )
     }
 }

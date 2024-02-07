@@ -21,14 +21,13 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
 
-open class TextMethodItem(
+internal open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
     containingClass: ClassItem,
@@ -36,10 +35,7 @@ open class TextMethodItem(
     private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
     position: SourcePositionInfo
-) :
-    TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers),
-    MethodItem,
-    TypeParameterListOwner {
+) : TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers), MethodItem {
     init {
         @Suppress("LeakingThis") modifiers.setOwner(this)
         parameters.forEach { it.containingMethod = this }
@@ -113,20 +109,6 @@ open class TextMethodItem(
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
 
-    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass() as TextClassItem?
-    }
-
-    override fun resolveParameter(variable: String): TypeParameterItem? {
-        for (t in typeParameterList.typeParameters()) {
-            if (t.simpleName() == variable) {
-                return t
-            }
-        }
-
-        return (containingClass() as TextClassItem).resolveParameter(variable)
-    }
-
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
@@ -165,16 +147,16 @@ open class TextMethodItem(
         get() = isEnumSyntheticMethod()
 
     private val throwsTypes = mutableListOf<String>()
-    private var throwsClasses: List<ClassItem>? = null
+    private var throwsClasses: List<ThrowableType>? = null
 
     fun throwsTypeNames(): List<String> {
         return throwsTypes
     }
 
-    override fun throwsTypes(): List<ClassItem> =
+    override fun throwsTypes(): List<ThrowableType> =
         if (throwsClasses == null) emptyList() else throwsClasses!!
 
-    fun setThrowsList(throwsClasses: List<ClassItem>) {
+    fun setThrowsList(throwsClasses: List<ThrowableType>) {
         this.throwsClasses = throwsClasses
     }
 
@@ -183,10 +165,6 @@ open class TextMethodItem(
     fun addException(throwsType: String) {
         throwsTypes += throwsType
     }
-
-    private val varargs: Boolean = parameters.any { it.isVarArgs() }
-
-    fun isVarArg(): Boolean = varargs
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 

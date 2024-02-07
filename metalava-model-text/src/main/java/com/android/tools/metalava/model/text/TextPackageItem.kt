@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 
-class TextPackageItem(
+internal class TextPackageItem(
     codebase: TextCodebase,
     private val name: String,
     modifiers: DefaultModifierList,
@@ -44,18 +44,6 @@ class TextPackageItem(
         classes.add(classInfo)
         classesNames.add(classFullName)
     }
-
-    internal fun pruneClassList() {
-        val iterator = classes.listIterator()
-        while (iterator.hasNext()) {
-            val cls = iterator.next()
-            if (cls.isInnerClass()) {
-                iterator.remove()
-            }
-        }
-    }
-
-    internal fun classList(): List<ClassItem> = classes
 
     override fun topLevelClasses(): Sequence<ClassItem> = classes.asSequence()
 

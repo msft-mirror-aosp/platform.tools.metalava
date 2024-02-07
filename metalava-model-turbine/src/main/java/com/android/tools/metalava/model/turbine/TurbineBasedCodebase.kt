@@ -33,7 +33,7 @@ import java.io.File
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
 
-open class TurbineBasedCodebase(
+internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
@@ -69,6 +69,8 @@ open class TurbineBasedCodebase(
     override fun findClass(className: String): TurbineClassItem? {
         return classMap[className]
     }
+
+    override fun resolveClass(className: String) = findOrCreateClass(className)
 
     fun findOrCreateClass(className: String): TurbineClassItem? {
         return initializer.findOrCreateClass(className)

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -176,11 +175,9 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             assertThat(classTypeParamBound).isInstanceOf(ClassTypeItem::class.java)
             assertThat((classTypeParamBound as ClassTypeItem).qualifiedName)
                 .isEqualTo("test.pkg.Foo")
-            assertThat(classTypeParamBound.parameters).hasSize(1)
-            val classTypeParamBoundParam = classTypeParamBound.parameters.single()
-            assertThat(classTypeParamBoundParam).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((classTypeParamBoundParam as VariableTypeItem).asTypeParameter)
-                .isEqualTo(classTypeParam)
+            assertThat(classTypeParamBound.arguments).hasSize(1)
+            val classTypeParamBoundTypeArgument = classTypeParamBound.arguments.single()
+            classTypeParamBoundTypeArgument.assertReferencesTypeParameter(classTypeParam)
 
             val method = clazz.methods().single()
             val methodTypeParam = method.typeParameterList().typeParameters().single()
@@ -188,11 +185,9 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             assertThat(methodTypeParamBound).isInstanceOf(ClassTypeItem::class.java)
             assertThat((methodTypeParamBound as ClassTypeItem).qualifiedName)
                 .isEqualTo("test.pkg.Foo")
-            assertThat(methodTypeParamBound.parameters).hasSize(1)
-            val methodTypeParamBoundParam = methodTypeParamBound.parameters.single()
-            assertThat(methodTypeParamBoundParam).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((methodTypeParamBoundParam as VariableTypeItem).asTypeParameter)
-                .isEqualTo(methodTypeParam)
+            assertThat(methodTypeParamBound.arguments).hasSize(1)
+            val methodTypeParamBoundTypeArgument = methodTypeParamBound.arguments.single()
+            methodTypeParamBoundTypeArgument.assertReferencesTypeParameter(methodTypeParam)
         }
     }
 
@@ -231,13 +226,11 @@ class CommonTypeParameterItemTest : BaseModelTest() {
 
             // A extends C
             val aBound = a.typeBounds().single()
-            assertThat(aBound).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((aBound as VariableTypeItem).asTypeParameter).isEqualTo(c)
+            aBound.assertReferencesTypeParameter(c)
 
             // B extends A
             val bBound = b.typeBounds().single()
-            assertThat(bBound).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bBound as VariableTypeItem).asTypeParameter).isEqualTo(a)
+            bBound.assertReferencesTypeParameter(a)
 
             // C
             assertThat(c.typeBounds()).isEmpty()
@@ -283,9 +276,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val methodTypeParam = method.typeParameterList().typeParameters().single()
             assertThat(methodTypeParam.toSource()).isEqualTo("E extends T")
             val methodTypeParamBound = methodTypeParam.typeBounds().single()
-            assertThat(methodTypeParamBound).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((methodTypeParamBound as VariableTypeItem).asTypeParameter)
-                .isEqualTo(clazzTypeParam)
+            methodTypeParamBound.assertReferencesTypeParameter(clazzTypeParam)
         }
     }
 
@@ -425,10 +416,64 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val typeParameter = method.typeParameterList().typeParameters().single()
             val typeVariable = method.returnType()
 
-            assertThat(typeVariable).isInstanceOf(VariableTypeItem::class.java)
-            val toType = typeParameter.toType()
-            assertThat(toType).isEqualTo(typeVariable)
-            assertThat(toType).isInstanceOf(VariableTypeItem::class.java)
+            typeVariable.assertReferencesTypeParameter(typeParameter)
+            assertThat(typeParameter.type()).isEqualTo(typeVariable)
+        }
+    }
+
+    @Test
+    fun `Test type parameter with annotations`() {
+        val typeParameterAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    import java.lang.annotation.*;
+                    import static java.lang.annotation.ElementType.TYPE_PARAMETER;
+                    import static java.lang.annotation.RetentionPolicy.SOURCE;
+                    @Retention(SOURCE)
+                    @Target({TYPE_PARAMETER})
+                    public @interface TypeParameterAnnotation {
+                    }
+                """
+            )
+        runCodebaseTest(
+            inputSet(
+                typeParameterAnnotation,
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo<@TypeParameterAnnotation T> {
+                            private Foo() {}
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeParameterAnnotation,
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo<@TypeParameterAnnotation T>
+                        private constructor()
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo<@test.pkg.TypeParameterAnnotation T> {
+                          }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val typeParameter = fooClass.typeParameterList().typeParameters().single()
+            val annotation = typeParameter.modifiers.annotations().single()
+            assertThat(annotation.qualifiedName).isEqualTo("test.pkg.TypeParameterAnnotation")
         }
     }
 }

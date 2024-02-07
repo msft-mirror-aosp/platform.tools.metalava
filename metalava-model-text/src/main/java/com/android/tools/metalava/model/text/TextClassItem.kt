@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
@@ -26,42 +28,28 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 import java.util.function.Predicate
 
-open class TextClassItem(
+internal open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
     modifiers: DefaultModifierList,
-    private var isInterface: Boolean = false,
-    private var isEnum: Boolean = false,
-    internal var isAnnotation: Boolean = false,
+    override val classKind: ClassKind = ClassKind.CLASS,
     val qualifiedName: String = "",
-    val qualifiedTypeName: String = qualifiedName,
-    var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    val fullName: String = simpleName,
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
-) :
-    TextItem(codebase = codebase, position = position, modifiers = modifiers),
-    ClassItem,
-    TypeParameterListOwner {
-
-    init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
-        if (typeParameterList is TextTypeParameterList) {
-            @Suppress("LeakingThis") typeParameterList.setOwner(this)
-        }
-    }
-
-    override val isTypeParameter: Boolean = false
+) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
 
     override var artifact: String? = null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is ClassItem) return false
+        if (javaClass != other?.javaClass) return false
+
+        other as TextClassItem
 
         return qualifiedName == other.qualifiedName()
     }
@@ -70,12 +58,12 @@ open class TextClassItem(
         return qualifiedName.hashCode()
     }
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypes
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     override fun allInterfaces(): Sequence<ClassItem> {
         return sequenceOf(
                 // Add this if and only if it is an interface.
-                if (isInterface) sequenceOf(this) else emptySequence(),
+                if (classKind == ClassKind.INTERFACE) sequenceOf(this) else emptySequence(),
                 interfaceTypes.asSequence().map { it.asClass() }.filterNotNull(),
             )
             .flatten()
@@ -93,12 +81,6 @@ open class TextClassItem(
         return false
     }
 
-    override fun isInterface(): Boolean = isInterface
-
-    override fun isAnnotationType(): Boolean = isAnnotation
-
-    override fun isEnum(): Boolean = isEnum
-
     var containingClass: ClassItem? = null
 
     override fun containingClass(): ClassItem? = containingClass
@@ -109,14 +91,6 @@ open class TextClassItem(
         this.containingPackage = containingPackage
     }
 
-    fun setIsAnnotationType(isAnnotation: Boolean) {
-        this.isAnnotation = isAnnotation
-    }
-
-    fun setIsEnum(isEnum: Boolean) {
-        this.isEnum = isEnum
-    }
-
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage ?: error(this)
 
@@ -124,48 +98,39 @@ open class TextClassItem(
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
 
-    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass as? TypeParameterListOwner
-    }
+    private var superClassType: ClassTypeItem? = null
 
-    override fun resolveParameter(variable: String): TypeParameterItem? {
-        if (hasTypeVariables()) {
-            for (t in typeParameterList().typeParameters()) {
-                if (t.simpleName() == variable) {
-                    return t
-                }
-            }
-        }
+    override fun superClass(): ClassItem? = superClassType?.asClass()
 
-        return null
-    }
+    override fun superClassType(): ClassTypeItem? = superClassType
 
-    private var superClass: ClassItem? = null
-    private var superClassType: TypeItem? = null
-
-    override fun superClass(): ClassItem? = superClass
-
-    override fun superClassType(): TypeItem? = superClassType
-
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
-        this.superClass = superClass
+    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
     }
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
-        this.interfaceTypes = interfaceTypes.toMutableList()
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
+        this.interfaceTypes = interfaceTypes
     }
 
-    private var typeInfo: TextTypeItem? = null
+    private var typeInfo: TextClassTypeItem? = null
 
-    override fun toType(): TextTypeItem {
+    override fun type(): TextClassTypeItem {
         if (typeInfo == null) {
-            typeInfo = codebase.typeResolver.obtainTypeFromClass(this)
+            val params = typeParameterList.typeParameters().map { it.type() }
+            // Create a [TextTypeItem] representing the type of this class.
+            typeInfo =
+                TextClassTypeItem(
+                    codebase,
+                    qualifiedName,
+                    params,
+                    containingClass()?.type(),
+                    codebase.emptyTypeModifiers,
+                )
         }
         return typeInfo!!
     }
 
-    private var interfaceTypes = mutableListOf<TypeItem>()
+    private var interfaceTypes = emptyList<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()
@@ -178,10 +143,6 @@ open class TextClassItem(
     override fun fields(): List<FieldItem> = fields
 
     override fun properties(): List<PropertyItem> = properties
-
-    fun addInterface(itf: TypeItem) {
-        interfaceTypes.add(itf)
-    }
 
     fun addConstructor(constructor: TextConstructorItem) {
         constructors += constructor
@@ -231,9 +192,7 @@ open class TextClassItem(
         return retention!!
     }
 
-    private var fullName: String = name
-
-    override fun simpleName(): String = name.substring(name.lastIndexOf('.') + 1)
+    override fun simpleName(): String = simpleName
 
     override fun fullName(): String = fullName
 
@@ -253,26 +212,17 @@ open class TextClassItem(
     companion object {
         internal fun createStubClass(
             codebase: TextCodebase,
-            name: String,
+            qualifiedName: String,
             isInterface: Boolean
         ): TextClassItem {
-            val index = if (name.endsWith(">")) name.indexOf('<') else -1
-            val qualifiedName = if (index == -1) name else name.substring(0, index)
-            val typeParameterList =
-                if (index == -1) {
-                    TypeParameterList.NONE
-                } else {
-                    TextTypeParameterList.create(codebase, name.substring(index))
-                }
             val fullName = getFullName(qualifiedName)
             val cls =
                 TextClassItem(
                     codebase = codebase,
-                    name = fullName,
                     qualifiedName = qualifiedName,
-                    isInterface = isInterface,
+                    fullName = fullName,
+                    classKind = if (isInterface) ClassKind.INTERFACE else ClassKind.CLASS,
                     modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                    typeParameterList = typeParameterList
                 )
             cls.emit = false // it's a stub
 
