@@ -42,7 +42,7 @@ internal class TurbineTypeParameterItem(
     override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun type(): VariableTypeItem {
-        return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), this)
+        return TurbineVariableTypeItem(TurbineTypeModifiers(emptyList()), this)
     }
 
     override fun equals(other: Any?): Boolean {

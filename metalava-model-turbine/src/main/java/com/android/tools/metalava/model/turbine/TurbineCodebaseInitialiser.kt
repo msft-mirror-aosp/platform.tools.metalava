@@ -555,16 +555,14 @@ internal open class TurbineCodebaseInitialiser(
                 // Primitives are always non-null.
                 val modifiers = TurbineTypeModifiers(annotations, TypeNullability.NONNULL)
                 when (type.primkind()) {
-                    PrimKind.BOOLEAN ->
-                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BOOLEAN)
-                    PrimKind.BYTE -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BYTE)
-                    PrimKind.CHAR -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.CHAR)
-                    PrimKind.DOUBLE ->
-                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.DOUBLE)
-                    PrimKind.FLOAT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.FLOAT)
-                    PrimKind.INT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.INT)
-                    PrimKind.LONG -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.LONG)
-                    PrimKind.SHORT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.SHORT)
+                    PrimKind.BOOLEAN -> TurbinePrimitiveTypeItem(modifiers, Primitive.BOOLEAN)
+                    PrimKind.BYTE -> TurbinePrimitiveTypeItem(modifiers, Primitive.BYTE)
+                    PrimKind.CHAR -> TurbinePrimitiveTypeItem(modifiers, Primitive.CHAR)
+                    PrimKind.DOUBLE -> TurbinePrimitiveTypeItem(modifiers, Primitive.DOUBLE)
+                    PrimKind.FLOAT -> TurbinePrimitiveTypeItem(modifiers, Primitive.FLOAT)
+                    PrimKind.INT -> TurbinePrimitiveTypeItem(modifiers, Primitive.INT)
+                    PrimKind.LONG -> TurbinePrimitiveTypeItem(modifiers, Primitive.LONG)
+                    PrimKind.SHORT -> TurbinePrimitiveTypeItem(modifiers, Primitive.SHORT)
                     else ->
                         throw IllegalStateException("Invalid primitive type in API surface: $type")
                 }
@@ -590,7 +588,7 @@ internal open class TurbineCodebaseInitialiser(
                 val annotations = createAnnotations(type.annos())
                 val modifiers = TurbineTypeModifiers(annotations)
                 val typeParameter = codebase.findTypeParameter(type.sym())
-                TurbineVariableTypeItem(codebase, modifiers, typeParameter)
+                TurbineVariableTypeItem(modifiers, typeParameter)
             }
             TyKind.WILD_TY -> {
                 type as WildTy
@@ -600,18 +598,18 @@ internal open class TurbineCodebaseInitialiser(
                 when (type.boundKind()) {
                     BoundKind.UPPER -> {
                         val upperBound = createWildcardBound(type.bound())
-                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
+                        TurbineWildcardTypeItem(modifiers, upperBound, null)
                     }
                     BoundKind.LOWER -> {
                         // LowerBounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(ClassTy.OBJECT)
                         val lowerBound = createWildcardBound(type.bound())
-                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, lowerBound)
+                        TurbineWildcardTypeItem(modifiers, upperBound, lowerBound)
                     }
                     BoundKind.NONE -> {
                         // Unbounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(ClassTy.OBJECT)
-                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
+                        TurbineWildcardTypeItem(modifiers, upperBound, null)
                     }
                     else ->
                         throw IllegalStateException("Invalid wildcard type in API surface: $type")
@@ -619,14 +617,12 @@ internal open class TurbineCodebaseInitialiser(
             }
             TyKind.VOID_TY ->
                 TurbinePrimitiveTypeItem(
-                    codebase,
                     // Primitives are always non-null.
                     TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
             TyKind.NONE_TY ->
                 TurbinePrimitiveTypeItem(
-                    codebase,
                     // Primitives are always non-null.
                     TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
@@ -677,7 +673,7 @@ internal open class TurbineCodebaseInitialiser(
         componentType: TurbineTypeItem,
         isVarArg: Boolean
     ): TurbineTypeItem {
-        return TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
+        return TurbineArrayTypeItem(modifiers, componentType, isVarArg)
     }
 
     private fun createSimpleClassType(

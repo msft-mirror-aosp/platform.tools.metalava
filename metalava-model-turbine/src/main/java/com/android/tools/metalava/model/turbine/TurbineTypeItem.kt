@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -29,28 +30,24 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
 internal sealed class TurbineTypeItem(
-    val codebase: TurbineBasedCodebase,
     override val modifiers: TurbineTypeModifiers,
-) : DefaultTypeItem(codebase) {}
+) : DefaultTypeItem()
 
 internal class TurbinePrimitiveTypeItem(
-    codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val kind: Primitive,
-) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : PrimitiveTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(): PrimitiveTypeItem =
-        TurbinePrimitiveTypeItem(codebase, modifiers.duplicate(), kind)
+        TurbinePrimitiveTypeItem(modifiers.duplicate(), kind)
 }
 
 internal class TurbineArrayTypeItem(
-    codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val componentType: TurbineTypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : ArrayTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(componentType: TypeItem): ArrayTypeItem {
         return TurbineArrayTypeItem(
-            codebase,
             modifiers.duplicate(),
             componentType as TurbineTypeItem,
             isVarargs
@@ -59,12 +56,12 @@ internal class TurbineArrayTypeItem(
 }
 
 internal class TurbineClassTypeItem(
-    codebase: TurbineBasedCodebase,
+    private val codebase: Codebase,
     modifiers: TurbineTypeModifiers,
     override val qualifiedName: String,
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
-) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : ClassTypeItem, TurbineTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
@@ -87,28 +84,25 @@ internal class TurbineClassTypeItem(
 }
 
 internal class TurbineVariableTypeItem(
-    codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : VariableTypeItem, TurbineTypeItem(modifiers) {
     override val name: String = asTypeParameter.name()
 
     override fun duplicate(): VariableTypeItem =
-        TurbineVariableTypeItem(codebase, modifiers.duplicate(), asTypeParameter)
+        TurbineVariableTypeItem(modifiers.duplicate(), asTypeParameter)
 }
 
 internal class TurbineWildcardTypeItem(
-    codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : WildcardTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): TurbineWildcardTypeItem {
         return TurbineWildcardTypeItem(
-            codebase,
             modifiers.duplicate(),
             extendsBound,
             superBound,

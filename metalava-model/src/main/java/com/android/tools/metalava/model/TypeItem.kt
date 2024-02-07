@@ -348,7 +348,7 @@ interface TypeItem {
  */
 typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
 
-abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
+abstract class DefaultTypeItem() : TypeItem {
 
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
@@ -362,13 +362,7 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         spaceBetweenParameters: Boolean
     ): String {
         return toTypeString(
-            TypeStringConfiguration(
-                codebase,
-                annotations,
-                kotlinStyleNulls,
-                filter,
-                spaceBetweenParameters
-            )
+            TypeStringConfiguration(annotations, kotlinStyleNulls, filter, spaceBetweenParameters)
         )
     }
 
@@ -409,7 +403,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         /**
          * Configuration options for how to represent a type as a string.
          *
-         * @param codebase The codebase the type is in.
          * @param annotations Whether to include annotations on the type.
          * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
          *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
@@ -418,7 +411,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
          * @param spaceBetweenParameters Whether to include a space between class type params.
          */
         private data class TypeStringConfiguration(
-            val codebase: Codebase,
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
             val filter: Predicate<Item>? = null,
@@ -564,7 +556,7 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                     val filter = configuration.filter ?: return@filter true
                     val qualifiedName = annotation.qualifiedName ?: return@filter true
                     val annotationClass =
-                        configuration.codebase.findClass(qualifiedName) ?: return@filter true
+                        annotation.codebase.findClass(qualifiedName) ?: return@filter true
                     filter.test(annotationClass)
                 }
             if (annotations.isEmpty()) return

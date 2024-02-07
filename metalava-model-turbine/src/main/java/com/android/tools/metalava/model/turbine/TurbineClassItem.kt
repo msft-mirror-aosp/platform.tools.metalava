@@ -183,7 +183,7 @@ internal open class TurbineClassItem(
 
     private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
         val mods = TurbineTypeModifiers(typeParam.modifiers.annotations())
-        return TurbineVariableTypeItem(codebase, mods, typeParam)
+        return TurbineVariableTypeItem(mods, typeParam)
     }
 
     override fun typeParameterList(): TypeParameterList = typeParameters
