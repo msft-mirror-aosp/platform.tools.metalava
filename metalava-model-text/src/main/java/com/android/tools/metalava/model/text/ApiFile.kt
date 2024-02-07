@@ -729,7 +729,12 @@ private constructor(
         val (typeParameterList, typeParameterScope) =
             if (typeParameterListString == "")
                 Pair(TypeParameterList.NONE, outerClassTypeParameterScope)
-            else createTypeParameterList(outerClassTypeParameterScope, typeParameterListString)
+            else
+                createTypeParameterList(
+                    outerClassTypeParameterScope,
+                    "class $qualifiedName",
+                    typeParameterListString,
+                )
 
         // Decide which type parameter list and scope to actually use.
         //
@@ -1278,7 +1283,14 @@ private constructor(
         return if (typeParameterListString.isEmpty()) {
             Pair(TypeParameterList.NONE, enclosingTypeParameterScope)
         } else {
-            createTypeParameterList(enclosingTypeParameterScope, typeParameterListString)
+            // Use the line number as a part of the description of the scope as at this point there
+            // is no other information available.
+            val scopeDescription = "line ${tokenizer.line}"
+            createTypeParameterList(
+                enclosingTypeParameterScope,
+                scopeDescription,
+                typeParameterListString
+            )
         }
     }
 
@@ -1293,6 +1305,7 @@ private constructor(
      */
     private fun createTypeParameterList(
         enclosingTypeParameterScope: TypeParameterScope,
+        scopeDescription: String,
         typeParameterListString: String
     ): Pair<TypeParameterList, TypeParameterScope> {
         // A type parameter list can contain cycles between its type parameters, e.g.
@@ -1318,7 +1331,7 @@ private constructor(
         // scope that can be used to resolve the type parameters, including self references
         // between the ones in this list.
         val typeParameters = itemToBoundsList.keys.toList()
-        val scope = enclosingTypeParameterScope.nestedScope(typeParameters)
+        val scope = enclosingTypeParameterScope.nestedScope(scopeDescription, typeParameters)
 
         // Complete the initialization of the `TextTypeParameterItem`s by converting each bounds
         // string into a `TypeItem`.
@@ -1692,7 +1705,10 @@ internal class ReferenceResolver(
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
             val typeParameterScope =
-                classTypeParameterScope.nestedScope(methodItem.typeParameterList().typeParameters())
+                classTypeParameterScope.nestedScope(
+                    methodItem.name(),
+                    methodItem.typeParameterList().typeParameters()
+                )
             val throwsList =
                 names.map { exception ->
                     // Search in this codebase, then possibly check for a type parameter, if not

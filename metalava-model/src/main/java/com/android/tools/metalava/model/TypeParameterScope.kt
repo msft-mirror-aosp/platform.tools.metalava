@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import java.lang.StringBuilder
+
 /**
  * The set of [TypeParameterItem]s that are in scope.
  *
@@ -52,11 +54,19 @@ sealed class TypeParameterScope private constructor() {
     /**
      * Create a nested [TypeParameterScope] that will delegate to this one for any
      * [TypeParameterItem]s that it cannot find.
+     *
+     * @param description is some helpful information about this scope that will be useful to track
+     *   down issues when a type parameter could not be found.
+     * @param typeParameters if this is empty then this method will return [this], otherwise it will
+     *   create a new [TypeParameterScope] that delegates to this one.
      */
-    fun nestedScope(typeParameters: List<TypeParameterItem>) =
+    fun nestedScope(
+        description: String,
+        typeParameters: List<TypeParameterItem>,
+    ): TypeParameterScope =
         // If the typeParameters is empty then just reuse this one, otherwise create a new scope
         // delegating to this.
-        if (typeParameters.isEmpty()) this else MapWrapper(typeParameters, this)
+        if (typeParameters.isEmpty()) this else MapWrapper(description, typeParameters, this)
 
     /** Finds the closest [TypeParameterItem] with the specified name. */
     abstract fun findTypeParameter(name: String): TypeParameterItem?
@@ -77,12 +87,16 @@ sealed class TypeParameterScope private constructor() {
                 // Construct a scope from the owner.
                 from(owner.containingClass())
                     // Nest this inside it.
-                    .nestedScope(owner.typeParameterList().typeParameters())
+                    .nestedScope(
+                        description = "class ${owner.qualifiedName()}",
+                        owner.typeParameterList().typeParameters(),
+                    )
             }
         }
     }
 
     private class MapWrapper(
+        private val description: String,
         list: List<TypeParameterItem>,
         private val enclosingScope: TypeParameterScope
     ) : TypeParameterScope() {
@@ -130,8 +144,25 @@ sealed class TypeParameterScope private constructor() {
         }
 
         override fun toString(): String {
-            return nameToTypeParameterItem.keys.joinToString(prefix = "Scope(", postfix = ")") {
-                "<$it>"
+            return buildString {
+                appendTo(this)
+                var scope = enclosingScope
+                while (scope is MapWrapper) {
+                    append(" -> ")
+                    scope.appendTo(this)
+                    scope = scope.enclosingScope
+                }
+            }
+        }
+
+        /** Append information about this scope to the [builder], for debug purposes. */
+        private fun appendTo(builder: StringBuilder) {
+            builder.apply {
+                append("Scope(<")
+                nameToTypeParameterItem.keys.joinTo(this)
+                append("> for ")
+                append(description)
+                append(")")
             }
         }
     }
