@@ -24,9 +24,7 @@ import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.source.SourceCodebase
-import com.google.turbine.binder.sym.TyVarSymbol
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 
@@ -47,9 +45,6 @@ internal open class TurbineBasedCodebase(
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
-
-    /** Map from type parameter symbol to the corresponding type parameter item */
-    private lateinit var typeParameterMap: MutableMap<TyVarSymbol, TypeParameterItem>
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -74,10 +69,6 @@ internal open class TurbineBasedCodebase(
 
     fun findOrCreateClass(className: String): TurbineClassItem? {
         return initializer.findOrCreateClass(className)
-    }
-
-    fun findTypeParameter(sym: TyVarSymbol): TypeParameterItem {
-        return typeParameterMap[sym]!!
     }
 
     override fun findPackage(pkgName: String): PackageItem? {
@@ -112,15 +103,10 @@ internal open class TurbineBasedCodebase(
         packageMap.put(packageItem.qualifiedName(), packageItem)
     }
 
-    fun addTypeParameter(sym: TyVarSymbol, item: TypeParameterItem) {
-        typeParameterMap.put(sym, item)
-    }
-
     fun initialize(units: List<CompUnit>, classpath: List<File>) {
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
         classMap = HashMap(CLASS_ESTIMATE)
         packageMap = HashMap(PACKAGE_ESTIMATE)
-        typeParameterMap = HashMap(CLASS_ESTIMATE)
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
         initializer.initialize()
     }

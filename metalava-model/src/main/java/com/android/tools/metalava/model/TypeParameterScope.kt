@@ -68,8 +68,22 @@ sealed class TypeParameterScope private constructor() {
         // delegating to this.
         if (typeParameters.isEmpty()) this else MapWrapper(description, typeParameters, this)
 
-    /** Finds the closest [TypeParameterItem] with the specified name. */
+    /**
+     * Finds the closest [TypeParameterItem] with the specified name.
+     *
+     * If none exists then returns `null`. This should only be used when it is not known if the name
+     * is a type parameter. Otherwise, call [getTypeParameter].
+     */
     abstract fun findTypeParameter(name: String): TypeParameterItem?
+
+    /**
+     * Finds the closest [TypeParameterItem] with the specified name.
+     *
+     * If none exists then fail. This should only be used when it is not known that the name is a
+     * type parameter. Otherwise, call [findTypeParameter].
+     */
+    fun getTypeParameter(name: String) =
+        findTypeParameter(name) ?: error("Could not find type parameter $name in $this")
 
     /** Finds the scope that provides at least one of the supplied [names] or [empty] otherwise. */
     abstract fun findSignificantScope(names: Set<String>): TypeParameterScope
