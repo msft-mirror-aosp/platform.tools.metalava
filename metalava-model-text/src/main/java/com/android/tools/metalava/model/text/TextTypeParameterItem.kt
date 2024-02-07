@@ -81,7 +81,7 @@ internal class TextTypeParameterItem(
          * This extracts the [isReified] and [name] from the [typeParameterString] and creates a
          * [TextTypeParameterItem] with those properties initialized but the [bounds] is not.
          *
-         * This must ONLY be used by [TextTypeParameterList.create] as that will complete the
+         * This must ONLY be used by [ApiFile.createTypeParameterList] as that will complete the
          * initialization of the [bounds] property.
          */
         fun create(

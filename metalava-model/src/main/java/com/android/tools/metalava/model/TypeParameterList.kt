@@ -49,7 +49,7 @@ interface TypeParameterList {
     }
 }
 
-class DefaultTypeParameterList(private var typeParameters: List<TypeParameterItem>) :
+open class DefaultTypeParameterList(private var typeParameters: List<TypeParameterItem>) :
     TypeParameterList {
 
     override fun typeParameters(): List<TypeParameterItem> = typeParameters

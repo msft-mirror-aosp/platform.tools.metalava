@@ -1305,7 +1305,7 @@ private constructor(
     }
 
     /**
-     * Creates a [TextTypeParameterList].
+     * Creates a [TypeParameterList] and accompanying [TypeParameterScope].
      *
      * The [typeParameterListString] should be the string representation of a list of type
      * parameters, like "<A>" or "<A, B extends java.lang.String, C>".
@@ -1341,7 +1341,7 @@ private constructor(
                 },
             )
 
-        return Pair(TextTypeParameterList.create(codebase, typeParameters), typeItemFactory)
+        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
     }
 
     /**
