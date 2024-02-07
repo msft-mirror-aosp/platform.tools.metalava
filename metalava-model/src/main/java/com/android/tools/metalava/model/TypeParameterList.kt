@@ -68,4 +68,40 @@ abstract class DefaultTypeParameterList : TypeParameterList {
     override fun toString(): String {
         return toString
     }
+
+    companion object {
+        /**
+         * Create a [TypeParameterList] from model specific parameter and bounds information.
+         *
+         * @param inputParams a map from the model specific parameter [P] to the corresponding model
+         *   specific bounds [B].
+         * @param paramFactory a function that will create a [TypeParameterItem] from the model
+         *   specified parameter [P] and then register, so it can be found by [boundsFactory].
+         * @param boundsSetter a function that will create a list of [BoundTypeItem] from the model
+         *   specific bounds and store it in [TypeParameterItem.typeBounds].
+         * @param P the model specific type parameter type.
+         * @param B the model specific bounds type.
+         */
+        fun <I : TypeParameterItem, P, B> createListOfTypeParameterItems(
+            inputParams: Map<P, B>,
+            paramFactory: (P, B) -> I,
+            boundsSetter: (I, B) -> List<BoundsTypeItem>,
+        ): List<TypeParameterItem> {
+
+            // First, create a Map from [TypeParameterItem] to model specific bounds. Using the
+            // [paramFactory] to convert the model specific parameter to a [TypeParameterItem].
+            val typeParameterItemToBounds =
+                inputParams.map { (param, bounds) -> paramFactory(param, bounds) to bounds }.toMap()
+
+            // Secondly, create and set the bounds in the [TypeParameterItem].
+            for ((typeParameter, bounds) in typeParameterItemToBounds) {
+                val boundsTypeItem = boundsSetter(typeParameter, bounds)
+                if (typeParameter.typeBounds() !== boundsTypeItem)
+                    error("boundsSetter did not set bounds")
+            }
+
+            // Create a List<TypeParameterItem> from the keys.
+            return typeParameterItemToBounds.keys.toList()
+        }
+    }
 }

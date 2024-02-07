@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -698,22 +699,16 @@ internal open class TurbineCodebaseInitialiser(
     ): TypeParameterList {
         if (tyParams.isEmpty()) return TypeParameterList.NONE
 
+        // Create a list of [TypeParameterItem]s from turbine specific classes.
+        val typeParameters =
+            DefaultTypeParameterList.createListOfTypeParameterItems(
+                tyParams,
+                { sym, tyParam -> createTypeParameter(sym, tyParam) },
+                { item, bounds -> createTypeParameterBounds(bounds).also { item.bounds = it } },
+            )
+
         val tyParamList = TurbineTypeParameterList(codebase)
-
-        // Create and register all the TypeParameterItems in the list without bounds and group them
-        // together with the corresponding TyVarInfo from which the bounds will be constructed.
-        // This needs to be done separately to creating the type bounds as the type bounds can form
-        // cycles within and between type parameters in a list.
-        val paramAndTyParam =
-            tyParams.map { (sym, tyParam) -> createTypeParameter(sym, tyParam) to tyParam }.toMap()
-
-        // Now, update each TypeParameterItem with their bounds.
-        for ((typeParamItem, tyParam) in paramAndTyParam) {
-            typeParamItem.bounds = createTypeParameterBounds(tyParam)
-        }
-
-        // Finally, store the parameter list.
-        tyParamList.typeParameters = paramAndTyParam.keys.toList()
+        tyParamList.typeParameters = typeParameters
         return tyParamList
     }
 
