@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.TypeItemFactory
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.Type
@@ -122,7 +123,7 @@ internal class TurbineTypeItemFactory(
                 val annotations = initializer.createAnnotations(type.annos())
                 val modifiers = DefaultTypeModifiers.create(annotations)
                 val typeParameter = typeParameterScope.getTypeParameter(type.sym().name())
-                TurbineVariableTypeItem(modifiers, typeParameter)
+                DefaultVariableTypeItem(modifiers, typeParameter)
             }
             Type.TyKind.WILD_TY -> {
                 type as Type.WildTy

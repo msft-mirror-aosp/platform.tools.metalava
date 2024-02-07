@@ -26,8 +26,6 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
-import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
 internal sealed class TurbineTypeItem(
@@ -78,16 +76,6 @@ internal class TurbineClassTypeItem(
             outerClass as? TurbineClassTypeItem
         )
     }
-}
-
-internal class TurbineVariableTypeItem(
-    modifiers: TypeModifiers,
-    override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, TurbineTypeItem(modifiers) {
-    override val name: String = asTypeParameter.name()
-
-    override fun duplicate(): VariableTypeItem =
-        TurbineVariableTypeItem(modifiers.duplicate(), asTypeParameter)
 }
 
 internal class TurbineWildcardTypeItem(

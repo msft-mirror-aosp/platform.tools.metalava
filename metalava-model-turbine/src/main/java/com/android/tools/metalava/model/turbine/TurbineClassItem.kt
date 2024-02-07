@@ -27,7 +27,9 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
 
@@ -178,9 +180,9 @@ internal open class TurbineClassItem(
         return asType!!
     }
 
-    private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
+    private fun createVariableType(typeParam: TurbineTypeParameterItem): VariableTypeItem {
         val mods = DefaultTypeModifiers.create(typeParam.modifiers.annotations())
-        return TurbineVariableTypeItem(mods, typeParam)
+        return DefaultVariableTypeItem(mods, typeParam)
     }
 
     override fun typeParameterList(): TypeParameterList = typeParameters
