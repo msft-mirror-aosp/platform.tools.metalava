@@ -19,14 +19,11 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.google.turbine.binder.sym.TyVarSymbol
 
 internal class TurbineTypeParameterItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineModifierItem,
-    internal val symbol: TyVarSymbol,
-    private val name: String = symbol.name(),
-    private val bounds: List<BoundsTypeItem>,
+    private val name: String,
 ) :
     TurbineItem(
         codebase,
@@ -34,6 +31,8 @@ internal class TurbineTypeParameterItem(
         "",
     ),
     TypeParameterItem {
+
+    lateinit var bounds: List<BoundsTypeItem>
 
     override fun name() = name
 
@@ -43,7 +42,7 @@ internal class TurbineTypeParameterItem(
     override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun type(): VariableTypeItem {
-        return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), symbol)
+        return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), this)
     }
 
     override fun equals(other: Any?): Boolean {

@@ -588,7 +588,8 @@ internal open class TurbineCodebaseInitialiser(
                 type as TyVar
                 val annotations = createAnnotations(type.annos())
                 val modifiers = TurbineTypeModifiers(annotations)
-                TurbineVariableTypeItem(codebase, modifiers, type.sym())
+                val typeParameter = codebase.findTypeParameter(type.sym())
+                TurbineVariableTypeItem(codebase, modifiers, typeParameter)
             }
             TyKind.WILD_TY -> {
                 type as WildTy
@@ -698,26 +699,46 @@ internal open class TurbineCodebaseInitialiser(
         if (tyParams.isEmpty()) return TypeParameterList.NONE
 
         val tyParamList = TurbineTypeParameterList(codebase)
-        val result = mutableListOf<TurbineTypeParameterItem>()
-        for ((sym, tyParam) in tyParams) {
-            result.add(createTypeParameter(sym, tyParam))
+
+        // Create and register all the TypeParameterItems in the list without bounds and group them
+        // together with the corresponding TyVarInfo from which the bounds will be constructed.
+        // This needs to be done separately to creating the type bounds as the type bounds can form
+        // cycles within and between type parameters in a list.
+        val paramAndTyParam =
+            tyParams.map { (sym, tyParam) -> createTypeParameter(sym, tyParam) to tyParam }.toMap()
+
+        // Now, update each TypeParameterItem with their bounds.
+        for ((typeParamItem, tyParam) in paramAndTyParam) {
+            typeParamItem.bounds = createTypeParameterBounds(tyParam)
         }
-        tyParamList.typeParameters = result
+
+        // Finally, store the parameter list.
+        tyParamList.typeParameters = paramAndTyParam.keys.toList()
         return tyParamList
     }
 
+    /**
+     * Create the [TurbineTypeParameterItem] without any bounds and register it so that any uses of
+     * it within the type bounds, e.g. `<E extends Enum<E>>`, or from other type parameters within
+     * the same [TypeParameterList] can be resolved.
+     */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): TurbineTypeParameterItem {
+        val modifiers =
+            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
+        val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, name = sym.name())
+        modifiers.setOwner(typeParamItem)
+        codebase.addTypeParameter(sym, typeParamItem)
+        return typeParamItem
+    }
+
+    /** Create the bounds of a [TurbineTypeParameterItem]. */
+    private fun createTypeParameterBounds(param: TyVarInfo): List<BoundsTypeItem> {
         val typeBounds = mutableListOf<BoundsTypeItem>()
         val upperBounds = param.upperBound()
         upperBounds.bounds().mapTo(typeBounds) { createType(it, false) as BoundsTypeItem }
         param.lowerBound()?.let { typeBounds.add(createType(it, false) as BoundsTypeItem) }
-        val modifiers =
-            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
-        val typeParamItem =
-            TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
-        modifiers.setOwner(typeParamItem)
-        codebase.addTypeParameter(sym, typeParamItem)
-        return typeParamItem
+
+        return typeBounds.toList()
     }
 
     /** This method sets up the inner class hierarchy. */

@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.google.turbine.binder.sym.TyVarSymbol
 
 internal sealed class TurbineTypeItem(
     val codebase: TurbineBasedCodebase,
@@ -90,13 +89,12 @@ internal class TurbineClassTypeItem(
 internal class TurbineVariableTypeItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
-    private val symbol: TyVarSymbol
+    override val asTypeParameter: TypeParameterItem,
 ) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override val name: String = symbol.name()
-    override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
+    override val name: String = asTypeParameter.name()
 
     override fun duplicate(): VariableTypeItem =
-        TurbineVariableTypeItem(codebase, modifiers.duplicate(), symbol)
+        TurbineVariableTypeItem(codebase, modifiers.duplicate(), asTypeParameter)
 }
 
 internal class TurbineWildcardTypeItem(
