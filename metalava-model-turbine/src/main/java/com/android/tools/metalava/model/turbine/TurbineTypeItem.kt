@@ -43,15 +43,11 @@ internal class TurbinePrimitiveTypeItem(
 
 internal class TurbineArrayTypeItem(
     modifiers: TurbineTypeModifiers,
-    override val componentType: TurbineTypeItem,
+    override val componentType: TypeItem,
     override val isVarargs: Boolean,
 ) : ArrayTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(componentType: TypeItem): ArrayTypeItem {
-        return TurbineArrayTypeItem(
-            modifiers.duplicate(),
-            componentType as TurbineTypeItem,
-            isVarargs
-        )
+        return TurbineArrayTypeItem(modifiers.duplicate(), componentType, isVarargs)
     }
 }
 

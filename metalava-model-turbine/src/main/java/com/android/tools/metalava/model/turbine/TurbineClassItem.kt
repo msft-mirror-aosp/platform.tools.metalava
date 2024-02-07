@@ -212,7 +212,7 @@ internal open class TurbineClassItem(
                 codebase,
                 method.getSymbol(),
                 this,
-                retType as TurbineTypeItem,
+                retType,
                 mods,
                 method.typeParameterList(),
                 method.documentation

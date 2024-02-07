@@ -547,7 +547,7 @@ internal open class TurbineCodebaseInitialiser(
         type: Type,
         isVarArg: Boolean,
         typeUse: TypeUse = TypeUse.GENERAL,
-    ): TurbineTypeItem {
+    ): TypeItem {
         return when (val kind = type.tyKind()) {
             TyKind.PRIM_TY -> {
                 type as PrimTy
@@ -644,7 +644,7 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createWildcardBound(type: Type) = createType(type, false) as ReferenceTypeItem
 
-    private fun createArrayType(type: ArrayTy, isVarArg: Boolean): TurbineTypeItem {
+    private fun createArrayType(type: ArrayTy, isVarArg: Boolean): TypeItem {
         // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse
         // order. This method attaches annotations in the correct order by applying them in reverse
         val modifierStack = ArrayDeque<TurbineTypeModifiers>()
@@ -670,9 +670,9 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createSimpleArrayType(
         modifiers: TurbineTypeModifiers,
-        componentType: TurbineTypeItem,
+        componentType: TypeItem,
         isVarArg: Boolean
-    ): TurbineTypeItem {
+    ): TypeItem {
         return TurbineArrayTypeItem(modifiers, componentType, isVarArg)
     }
 

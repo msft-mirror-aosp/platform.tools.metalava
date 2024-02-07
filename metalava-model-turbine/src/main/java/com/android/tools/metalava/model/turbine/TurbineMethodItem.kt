@@ -30,7 +30,7 @@ internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
     private val containingClass: ClassItem,
-    protected var returnType: TurbineTypeItem,
+    protected var returnType: TypeItem,
     modifiers: DefaultModifierList,
     private val typeParameters: TypeParameterList,
     documentation: String,
@@ -104,7 +104,7 @@ internal open class TurbineMethodItem(
                 codebase,
                 methodSymbol,
                 targetContainingClass,
-                retType as TurbineTypeItem,
+                retType,
                 mods,
                 typeParameters,
                 documentation
