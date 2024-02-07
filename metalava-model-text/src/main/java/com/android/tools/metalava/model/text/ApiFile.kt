@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MetalavaApi
@@ -1308,39 +1309,28 @@ private constructor(
         scopeDescription: String,
         typeParameterListString: String
     ): Pair<TypeParameterList, TypeParameterScope> {
-        // A type parameter list can contain cycles between its type parameters, e.g.
-        //     class Node<L extends Node<L, R>, R extends Node<L, R>>
-        // Parsing that requires a multi-stage approach.
-        // 1. Separate the list into a mapping from `TextTypeParameterItem` that have not yet
-        //    had their `bounds` property initialized to the bounds string list.
-        // 2. Create a nested scope of the enclosing scope which includes the type parameters.
-        //    That will allow references between them to be resolved.
-        // 3. Completing the initialization by converting each bounds string into a TypeItem.
-
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
         val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
 
-        // Creating a mapping from a `TextTypeParameterItem` to the bounds string list.
-        val itemToBoundsList =
-            typeParameterStrings.associateBy({ TextTypeParameterItem.create(codebase, it) }) {
-                extractTypeParameterBoundsStringList(it)
-            }
-
-        // Extract the `TextTypeParameterItem`s into a list and then use that to construct a
-        // scope that can be used to resolve the type parameters, including self references
-        // between the ones in this list.
-        val typeParameters = itemToBoundsList.keys.toList()
-        val scope = enclosingTypeParameterScope.nestedScope(scopeDescription, typeParameters)
-
-        // Complete the initialization of the `TextTypeParameterItem`s by converting each bounds
-        // string into a `TypeItem`.
-        for ((typeParameterItem, boundsStringList) in itemToBoundsList) {
-            typeParameterItem.bounds =
-                boundsStringList.map {
-                    typeParser.obtainTypeFromString(it, scope) as BoundsTypeItem
-                }
-        }
+        // Create the List<TypeParameterItem>s and the corresponding TypeParameterScope that can be
+        // used to resolve TypeParameterItems from the scope. This performs the construction in two
+        // stages to handle cycles between the parameters.
+        val (typeParameters, scope) =
+            DefaultTypeParameterList.createTypeParameterItemsAndScope(
+                enclosingTypeParameterScope,
+                scopeDescription,
+                typeParameterStrings,
+                // Create a `TextTypeParameterItem` from the type parameter string.
+                { TextTypeParameterItem.create(codebase, it) },
+                // Create, set and return the [BoundsTypeItem] list.
+                { scope, item, typeParameterString ->
+                    val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
+                    boundsStringList
+                        .map { typeParser.obtainTypeFromString(it, scope) as BoundsTypeItem }
+                        .also { item.bounds = it }
+                },
+            )
 
         return Pair(TextTypeParameterList.create(codebase, typeParameters), scope)
     }
