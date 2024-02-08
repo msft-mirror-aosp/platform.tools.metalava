@@ -20,12 +20,12 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MemberItem
 
-abstract class TextMemberItem(
+internal abstract class TextMemberItem(
     codebase: TextCodebase,
     private val name: String,
     private val containingClass: ClassItem,
     position: SourcePositionInfo,
-    override var modifiers: DefaultModifierList
+    modifiers: DefaultModifierList
 ) : TextItem(codebase, position = position, modifiers = modifiers), MemberItem {
 
     override fun name(): String = name

@@ -16,30 +16,31 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.intellij.psi.PsiTypeParameterListOwner
 
 internal class PsiTypeParameterList(
     val codebase: PsiBasedCodebase,
-    private val psiTypeParameterList: com.intellij.psi.PsiTypeParameterList
-) : TypeParameterList {
-    override fun toString(): String {
-        return PsiTypeItem.typeParameterList(psiTypeParameterList) ?: ""
-    }
+    private val typeParameters: List<TypeParameterItem>,
+) : DefaultTypeParameterList() {
 
-    override fun typeParameterNames(): List<String> {
-        val parameters = psiTypeParameterList.typeParameters
-        val list = ArrayList<String>(parameters.size)
-        for (parameter in parameters) {
-            list.add(parameter.name ?: continue)
+    override fun typeParameters() = typeParameters
+
+    companion object {
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiOwner: PsiTypeParameterListOwner
+        ): TypeParameterList {
+            val psiTypeParameterList = psiOwner.typeParameterList ?: return TypeParameterList.NONE
+
+            val typeParameters =
+                psiTypeParameterList.typeParameters.map {
+                    PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() }
+                }
+
+            return PsiTypeParameterList(codebase, typeParameters)
         }
-        return list
-    }
-
-    override fun typeParameters(): List<TypeParameterItem> {
-        val parameters = psiTypeParameterList.typeParameters
-        val list = ArrayList<TypeParameterItem>(parameters.size)
-        parameters.mapTo(list) { PsiTypeParameterItem.create(codebase, it) }
-        return list
     }
 }

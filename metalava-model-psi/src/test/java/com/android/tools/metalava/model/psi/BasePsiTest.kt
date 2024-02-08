@@ -17,22 +17,21 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
-import kotlin.test.assertNotNull
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-open class BasePsiTest : TemporaryFolderOwner {
+open class BasePsiTest : TemporaryFolderOwner, Assertions {
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
@@ -54,6 +53,17 @@ open class BasePsiTest : TemporaryFolderOwner {
     fun testCodebase(
         vararg sources: TestFile,
         classPath: List<File> = emptyList(),
+        isK2: Boolean = false,
+        action: (Codebase) -> Unit,
+    ) {
+        testCodebase(sources.toList(), emptyList(), classPath, isK2, action)
+    }
+
+    fun testCodebase(
+        sources: List<TestFile>,
+        commonSources: List<TestFile>,
+        classPath: List<File> = emptyList(),
+        isK2: Boolean = false,
         action: (Codebase) -> Unit,
     ) {
         projectDir = temporaryFolder.newFolder()
@@ -64,9 +74,11 @@ open class BasePsiTest : TemporaryFolderOwner {
                 createTestCodebase(
                     environmentManager,
                     projectDir,
-                    sources.toList(),
+                    sources,
+                    commonSources,
                     classPath,
                     reporter,
+                    isK2,
                 )
             action(codebase)
         }
@@ -87,28 +99,34 @@ open class BasePsiTest : TemporaryFolderOwner {
         environmentManager: EnvironmentManager,
         directory: File,
         sources: List<TestFile>,
+        commonSources: List<TestFile>,
         classPath: List<File>,
         reporter: Reporter,
+        isK2: Boolean = false,
     ): Codebase {
+        val (sourceDirectory, commonDirectory) =
+            if (commonSources.isEmpty()) {
+                directory to null
+            } else {
+                temporaryFolder.newFolder() to temporaryFolder.newFolder()
+            }
         return environmentManager
-            .createSourceParser(reporter, noOpAnnotationManager)
+            .createSourceParser(reporter, noOpAnnotationManager, useK2Uast = isK2)
             .parseSources(
-                sources = sources.map { it.createFile(directory) },
+                createSourceSet(sources, sourceDirectory),
+                createSourceSet(commonSources, commonDirectory),
                 description = "Test Codebase",
-                sourcePath = listOf(directory),
                 classPath = classPath,
             )
     }
 
-    fun Codebase.assertClass(qualifiedName: String): ClassItem {
-        val classItem = this.findClass(qualifiedName)
-        assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
-        return classItem
-    }
-
-    fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
-        val methodItem = this.findMethod(methodName, parameters)
-        assertNotNull(methodItem) { "Expected $methodName to be defined" }
-        return methodItem
+    protected fun createSourceSet(
+        sources: List<TestFile>,
+        sourceDirectory: File?,
+    ): SourceSet {
+        return SourceSet(
+            sources.map { it.createFile(sourceDirectory) },
+            listOfNotNull(sourceDirectory)
+        )
     }
 }

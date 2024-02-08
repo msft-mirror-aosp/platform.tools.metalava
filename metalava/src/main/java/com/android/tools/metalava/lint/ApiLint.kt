@@ -17,7 +17,7 @@
 package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
-import com.android.tools.metalava.ApiPredicate
+import com.android.tools.metalava.ANDROID_FLAGGED_API
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -56,6 +56,7 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -91,11 +92,9 @@ import com.android.tools.metalava.reporter.Issues.BUILDER_SET_STYLE
 import com.android.tools.metalava.reporter.Issues.CALLBACK_INTERFACE
 import com.android.tools.metalava.reporter.Issues.CALLBACK_METHOD_NAME
 import com.android.tools.metalava.reporter.Issues.CALLBACK_NAME
-import com.android.tools.metalava.reporter.Issues.COMMON_ARGS_FIRST
 import com.android.tools.metalava.reporter.Issues.COMPILE_TIME_CONSTANT
 import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
-import com.android.tools.metalava.reporter.Issues.CONSISTENT_ARGUMENT_ORDER
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
@@ -104,6 +103,7 @@ import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
+import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
 import com.android.tools.metalava.reporter.Issues.GENERIC_CALLBACKS
@@ -150,7 +150,6 @@ import com.android.tools.metalava.reporter.Issues.PERCENTAGE_INT
 import com.android.tools.metalava.reporter.Issues.PROTECTED_MEMBER
 import com.android.tools.metalava.reporter.Issues.PUBLIC_TYPEDEF
 import com.android.tools.metalava.reporter.Issues.RAW_AIDL
-import com.android.tools.metalava.reporter.Issues.REGISTRATION_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_STYLE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_VALUE_FIELD_NAME
@@ -181,6 +180,7 @@ import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
 import java.util.Locale
 import java.util.function.Predicate
+import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UMethod
@@ -192,27 +192,52 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
  * The [ApiLint] analyzer checks the API against a known set of preferred API practices by the
  * Android API council.
  */
-class ApiLint(
+class ApiLint
+private constructor(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
-    private val reporter: Reporter,
+    reporter: Reporter,
     private val manifest: Manifest,
-    config: ApiVisitor.Config,
+    config: Config,
 ) :
     ApiVisitor(
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
-        filterEmit =
-            ApiPredicate(includeApisForStubPurposes = false, config = config.apiPredicateConfig),
+        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(config.apiPredicateConfig),
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
-        fieldComparator = FieldItem.comparator,
     ) {
+
     /** Predicate that checks if the item appears in the signature file. */
     private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
+
+    /** [Reporter] that filters out items that are not relevant for the current API surface. */
+    inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
+        override fun report(id: Issue, item: Item?, message: String, location: Location): Boolean {
+
+            if (item != null) {
+                // Don't flag api warnings on deprecated APIs; these are obviously already known to
+                // be problematic.
+                if (item.effectivelyDeprecated) {
+                    return false
+                }
+
+                // With show annotations we might be flagging API that is filtered out: hide these
+                // here
+                val testItem = if (item is ParameterItem) item.containingMethod() else item
+                if (!filterEmit.test(testItem)) {
+                    return false
+                }
+            }
+
+            return delegate.report(id, item, message, location)
+        }
+    }
+
+    private val reporter: Reporter = FilteringReporter(reporter)
 
     private fun report(
         id: Issue,
@@ -220,29 +245,15 @@ class ApiLint(
         message: String,
         location: Location = Location.unknownLocationAndBaselineKey
     ) {
-        // Don't flag api warnings on deprecated APIs; these are obviously already known to
-        // be problematic.
-        if (item.deprecated) {
-            return
-        }
-
-        if (item is ParameterItem && item.containingMethod().deprecated) {
-            return
-        }
-
-        // With show annotations we might be flagging API that is filtered out: hide these here
-        val testItem = if (item is ParameterItem) item.containingMethod() else item
-        if (!filterEmit.test(testItem)) {
-            return
-        }
-
         reporter.report(id, item, message, location)
     }
 
-    fun check() {
+    private fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
-            CodebaseComparator()
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
                 .compare(
                     object : ComparisonVisitor() {
                         override fun added(new: Item) {
@@ -272,14 +283,7 @@ class ApiLint(
         }
     }
 
-    override fun skip(item: Item): Boolean {
-        return super.skip(item) ||
-            item is ClassItem && !isInteresting(item) ||
-            item is MethodItem && !isInteresting(item.containingClass()) ||
-            item is FieldItem && !isInteresting(item.containingClass())
-    }
-
-    private val kotlinInterop = KotlinInteropChecks(reporter)
+    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
@@ -341,7 +345,7 @@ class ApiLint(
         checkParcelable(cls, methods, constructors, fields)
         checkRegistrationMethods(cls, methods)
         checkHelperClasses(cls, methods, fields)
-        checkBuilder(cls, methods, constructors, superClass)
+        checkBuilder(cls, methods, constructors, superClass, interfaces)
         checkAidl(cls, superClass, interfaces)
         checkInternal(cls)
         checkLayering(cls, methodsAndConstructors, fields)
@@ -365,9 +369,7 @@ class ApiLint(
         checkExtends(cls)
         checkTypedef(cls)
         checkHasFlaggedApi(cls)
-
-        // TODO: Not yet working
-        // checkOverloadArgs(cls, methods)
+        checkFlaggedApiLiteral(cls)
     }
 
     private fun checkField(field: FieldItem) {
@@ -383,6 +385,7 @@ class ApiLint(
         checkSettingKeys(field)
         checkNullableCollections(field.type(), field)
         checkHasFlaggedApi(field)
+        checkFlaggedApiLiteral(field)
     }
 
     private fun checkMethod(method: MethodItem, filterReference: Predicate<Item>) {
@@ -400,6 +403,48 @@ class ApiLint(
         checkContextFirst(method)
         checkListenerLast(method)
         checkHasFlaggedApi(method)
+        checkFlaggedApiLiteral(method)
+    }
+
+    private fun checkFlaggedApiLiteral(item: Item) {
+        if (item.codebase.preFiltered) {
+            // Flag constants aren't ever API, so prefiltered codebases would always only contain
+            // literals.
+            return
+        }
+
+        val annotation =
+            item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
+        val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
+
+        if (attr.value.resolve() == null) {
+            val value = attr.value.value() as? String
+            if (value == attr.value.toSource()) {
+                // For a string literal, source and value are never the same, so this happens only
+                // when a reference isn't resolvable.
+                return
+            }
+
+            val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
+
+            val replacement =
+                if (field != null) {
+                    val (fieldSource, fieldItem) = field
+                    if (fieldItem != null) {
+                        fieldSource
+                    } else {
+                        "$fieldSource, however this flag doesn't seem to exist"
+                    }
+                } else {
+                    "furthermore, the current flag literal seems to be malformed"
+                }
+
+            report(
+                FLAGGED_API_LITERAL,
+                item,
+                "@FlaggedApi contains a string literal, but should reference the field generated by aconfig ($replacement).",
+            )
+        }
     }
 
     private fun checkEnums(cls: ClassItem) {
@@ -929,35 +974,19 @@ class ApiLint(
             val name = method.name()
             // the python version looks for any substring, but that includes a lot of other stuff,
             // like plurals
-            if (name.endsWith("Callback")) {
+            if (name.endsWith("Callback") || name.endsWith("Listener")) {
                 if (name.startsWith("register")) {
                     val unregister = "unregister" + name.substring(8) // "register".length
                     ensureMatched(cls, methods, method, unregister)
                 } else if (name.startsWith("unregister")) {
-                    val unregister = "register" + name.substring(10) // "unregister".length
-                    ensureMatched(cls, methods, method, unregister)
-                }
-                if (name.startsWith("add") || name.startsWith("remove")) {
-                    report(
-                        REGISTRATION_NAME,
-                        method,
-                        "Callback methods should be named register/unregister; was $name"
-                    )
-                }
-            } else if (name.endsWith("Listener")) {
-                if (name.startsWith("add")) {
-                    val unregister = "remove" + name.substring(3) // "add".length
-                    ensureMatched(cls, methods, method, unregister)
+                    val register = "register" + name.substring(10) // "unregister".length
+                    ensureMatched(cls, methods, method, register)
+                } else if (name.startsWith("add")) {
+                    val remove = "remove" + name.substring(3) // "add".length
+                    ensureMatched(cls, methods, method, remove)
                 } else if (name.startsWith("remove") && !name.startsWith("removeAll")) {
-                    val unregister = "add" + name.substring(6) // "remove".length
-                    ensureMatched(cls, methods, method, unregister)
-                }
-                if (name.startsWith("register") || name.startsWith("unregister")) {
-                    report(
-                        REGISTRATION_NAME,
-                        method,
-                        "Listener methods should be named add/remove; was $name"
-                    )
+                    val add = "add" + name.substring(6) // "remove".length
+                    ensureMatched(cls, methods, method, add)
                 }
             }
         }
@@ -1120,12 +1149,16 @@ class ApiLint(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
         constructors: Sequence<ConstructorItem>,
-        superClass: ClassItem?
+        superClass: ClassItem?,
+        interfaces: Sequence<TypeItem>,
     ) {
         if (!cls.simpleName().endsWith("Builder")) {
             return
         }
         if (superClass != null && !superClass.isJavaLangObject()) {
+            return
+        }
+        if (interfaces.any()) {
             return
         }
         if (cls.isTopLevelClass()) {
@@ -1155,7 +1188,7 @@ class ApiLint(
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.toType()
+        val clsType = cls.type()
 
         for (method in methods) {
             val name = method.name()
@@ -1630,7 +1663,7 @@ class ApiLint(
                     else -> "Type of ${item.describe()}"
                 }
 
-            val erased = type.toErasedTypeString(item)
+            val erased = type.toErasedTypeString()
             report(
                 NULLABLE_COLLECTION,
                 item,
@@ -1672,12 +1705,20 @@ class ApiLint(
     }
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
-        for (exception in method.filteredThrowsTypes(filterReference)) {
+        for (throwableType in method.filteredThrowsTypes(filterReference)) {
             if (method.isEnumSyntheticMethod()) continue
-            if (isUncheckedException(exception)) {
+            // Get the throwable class, which for a type parameter will be the lower bound. A
+            // method that throws a type parameter is treated as if it throws its lower bound, so
+            // it makes sense for this check to treat it as if it was replaced with its lower bound.
+            val throwableClass = throwableType.throwableClass ?: continue
+            if (isUncheckedException(throwableClass)) {
                 report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
+            } else if (throwableType.isTypeParameter) {
+                // Preserve legacy behavior where the following check did nothing for type
+                // parameters as a type parameters qualifiedName(), which is just its name without
+                // any package or containing class could never match a qualified exception name.
             } else {
-                when (val qualifiedName = exception.qualifiedName()) {
+                when (val qualifiedName = throwableClass.qualifiedName()) {
                     "java.lang.Exception",
                     "java.lang.Throwable",
                     "java.lang.Error" -> {
@@ -1788,7 +1829,7 @@ class ApiLint(
         }
         if (
             !itemOrAnyContainingClasses {
-                it.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }
+                it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
             }
         ) {
             val elidedField =
@@ -1828,9 +1869,9 @@ class ApiLint(
             val type = item.type()
             val inherited =
                 when (item) {
-                    is ParameterItem -> item.containingMethod().inheritedMethod
-                    is FieldItem -> item.inheritedField
-                    is MethodItem -> item.inheritedMethod
+                    is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                    is FieldItem -> item.inheritedFromAncestor
+                    is MethodItem -> item.inheritedFromAncestor
                     else -> false
                 }
             if (inherited) {
@@ -1900,8 +1941,6 @@ class ApiLint(
                     }
                 }
                 is MethodItem -> {
-                    // We don't enforce this check on constructors
-                    if (item.isConstructor()) return
                     if (item.modifiers.isNullable()) {
                         if (anySuperMethodLacksNullnessInfo(item)) {
                             report(
@@ -1948,7 +1987,8 @@ class ApiLint(
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            !superMethod.hasNullnessInfo() && superMethod.returnType() !is VariableTypeItem
+            !superMethod.modifiers.hasNullnessInfo() &&
+                superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -1982,7 +2022,9 @@ class ApiLint(
             }
         }
 
-        val qualifiedName = type.asClass()?.qualifiedName() ?: return
+        // Only report issues with an actual type and not a generic type that extends Number as
+        // there is nothing that can be done to avoid auto-boxing when using generic types.
+        val qualifiedName = (type as? ClassTypeItem)?.asClass()?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }
@@ -2028,78 +2070,6 @@ class ApiLint(
                     fields.none { !it.modifiers.isStatic() }
             ) {
                 report(STATIC_UTILS, cls, "Fully-static utility classes must not have constructor")
-            }
-        }
-    }
-
-    private fun checkOverloadArgs(cls: ClassItem, methods: Sequence<MethodItem>) {
-        if (cls.qualifiedName().startsWith("android.opengl")) {
-            return
-        }
-
-        val overloads = mutableMapOf<String, MutableList<MethodItem>>()
-        for (method in methods) {
-            if (!method.deprecated) {
-                val name = method.name()
-                val list =
-                    overloads[name]
-                        ?: run {
-                            val new = mutableListOf<MethodItem>()
-                            overloads[name] = new
-                            new
-                        }
-                list.add(method)
-            }
-        }
-
-        // Look for arguments common across all overloads
-        fun cluster(args: List<ParameterItem>): MutableSet<String> {
-            val count = mutableMapOf<String, Int>()
-            val res = mutableSetOf<String>()
-            for (parameter in args) {
-                val a = parameter.type().toTypeString()
-                val currCount = count[a] ?: 1
-                res.add("$a#$currCount")
-                count[a] = currCount + 1
-            }
-            return res
-        }
-
-        for ((_, methodList) in overloads.entries) {
-            if (methodList.size <= 1) {
-                continue
-            }
-
-            val commonArgs = cluster(methodList[0].parameters())
-            for (m in methodList) {
-                val clustered = cluster(m.parameters())
-                commonArgs.removeAll(clustered)
-            }
-            if (commonArgs.isEmpty()) {
-                continue
-            }
-
-            // Require that all common arguments are present at the start of the signature
-            var lockedSig: List<ParameterItem>? = null
-            val commonArgCount = commonArgs.size
-            for (m in methodList) {
-                val sig = m.parameters().subList(0, commonArgCount)
-                val cluster = cluster(sig)
-                if (!cluster.containsAll(commonArgs)) {
-                    report(
-                        COMMON_ARGS_FIRST,
-                        m,
-                        "Expected common arguments ${commonArgs.joinToString()}} at beginning of overloaded method ${m.describe()}"
-                    )
-                } else if (lockedSig == null) {
-                    lockedSig = sig
-                } else if (lockedSig != sig) {
-                    report(
-                        CONSISTENT_ARGUMENT_ORDER,
-                        m,
-                        "Expected consistent argument ordering between overloads: ${lockedSig.joinToString()}}"
-                    )
-                }
             }
         }
     }
@@ -3002,25 +2972,31 @@ class ApiLint(
     private fun checkExtends(cls: ClassItem) {
         // Call cls.superClass().extends() instead of cls.extends() since extends returns true for
         // self
-        val superCls = cls.superClass() ?: return
-        if (superCls.extends("android.os.AsyncTask")) {
-            report(
-                FORBIDDEN_SUPER_CLASS,
-                cls,
-                "${cls.simpleName()} should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead"
-            )
-        }
-        if (superCls.extends("android.app.Activity")) {
-            report(
-                FORBIDDEN_SUPER_CLASS,
-                cls,
-                "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
-            )
+        val superCls = cls.superClass()
+        if (superCls != null) {
+            if (superCls.extends("android.os.AsyncTask")) {
+                report(
+                    FORBIDDEN_SUPER_CLASS,
+                    cls,
+                    "${cls.simpleName()} should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead"
+                )
+            }
+            if (superCls.extends("android.app.Activity")) {
+                report(
+                    FORBIDDEN_SUPER_CLASS,
+                    cls,
+                    "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
+                )
+            }
         }
         badFutureTypes
             .firstOrNull { cls.extendsOrImplements(it) }
             ?.let {
-                val extendOrImplement = if (cls.extends(it)) "extend" else "implement"
+                // The `badFutureTypes` is a mixture of classes and interfaces. So, when selecting
+                // the verb it is necessary to use `extend` if this class is an interface or a class
+                // extending another class, and `implement` otherwise.
+                val extendOrImplement =
+                    if (cls.isInterface() || cls.extends(it)) "extend" else "implement"
                 report(
                     BAD_FUTURE,
                     cls,
@@ -3122,18 +3098,25 @@ class ApiLint(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun isInteresting(cls: ClassItem): Boolean {
-        val name = cls.qualifiedName()
-        for (prefix in options.checkApiIgnorePrefix) {
-            if (name.startsWith(prefix)) {
-                return false
-            }
-        }
-        return true
-    }
-
     companion object {
+
+        /**
+         * Check the supplied [codebase] to see if it adheres to the API lint rules enforced by this
+         * class, reporting any issues that it finds.
+         *
+         * If [oldCodebase] is provided then it will ignore any issues that are present in the
+         * [oldCodebase] as there is little that can be done to rectify those.
+         */
+        fun check(
+            codebase: Codebase,
+            oldCodebase: Codebase?,
+            reporter: Reporter,
+            manifest: Manifest,
+            config: Config,
+        ) {
+            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, config)
+            apiLint.check()
+        }
 
         private data class GetterSetterPattern(val getter: String, val setter: String)
 
@@ -3180,8 +3163,6 @@ class ApiLint(
             listOf("java.util.concurrent.CompletableFuture", "java.util.concurrent.Future")
 
         private val listenableFuture = "com.google.common.util.concurrent.ListenableFuture"
-
-        private val flaggedApi = "android.annotation.FlaggedApi"
 
         /**
          * Classes for manipulating file descriptors directly, where using ParcelFileDescriptor
@@ -3333,6 +3314,38 @@ class ApiLint(
                         s.replace(acronym, replacement)
                     }
             }
+        }
+
+        /**
+         * Heuristically converts the given string [literal] into a reference to the equivalent
+         * `aconfig`-generated `Flags.java` field.
+         *
+         * @return a pair of the field reference as Java / Kotlin source, and the referenced field
+         *   item (if found in [codebase]); or `null` if the literal cannot be converted.
+         */
+        private fun aconfigFlagLiteralToFieldOrNull(
+            codebase: Codebase,
+            literal: String
+        ): Pair<String, FieldItem?>? {
+            if (literal.contains('/')) {
+                return null
+            }
+            val parts = literal.split('.')
+
+            val flag = parts.lastOrNull() ?: return null
+            val flagField = "FLAG_" + flag.toUpperCaseAsciiOnly()
+            val pkg = parts.dropLast(1).joinToString(separator = ".")
+            val className = "$pkg.Flags"
+            val fieldSource = "$className.$flagField"
+
+            val clazzOrNull = codebase.findClass(className)
+            val fieldOrNull =
+                clazzOrNull?.findField(
+                    flagField,
+                    includeSuperClasses = true,
+                    includeInterfaces = true
+                )
+            return fieldSource to fieldOrNull
         }
     }
 }

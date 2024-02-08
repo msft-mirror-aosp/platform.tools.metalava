@@ -87,6 +87,7 @@ class ConvertJarsToSignatureFiles(
                 ActionContext(
                     progressTracker = progressTracker,
                     reporter = reporter,
+                    reporterApiLint = reporter, // Use the same reporter for everything.
                     sourceParser = sourceParser,
                 )
             val jarCodebase =
@@ -135,27 +136,6 @@ class ConvertJarsToSignatureFiles(
                 assert(!SUPPORT_TYPE_USE_ANNOTATIONS) {
                     "We'll need to rewrite type annotations here too"
                 }
-            }
-
-            // Sadly the old signature files have some APIs recorded as deprecated which
-            // are not in fact deprecated in the jar files. Try to pull this back in.
-
-            val oldRemovedFile = File(root, "prebuilts/sdk/$api/public/api/removed.txt")
-            if (oldRemovedFile.isFile) {
-                val oldCodebase = signatureFileLoader.load(oldRemovedFile)
-                val visitor =
-                    object : ComparisonVisitor() {
-                        override fun compare(old: MethodItem, new: MethodItem) {
-                            new.removed = true
-                            progressTracker.progress("Removed $old")
-                        }
-
-                        override fun compare(old: FieldItem, new: FieldItem) {
-                            new.removed = true
-                            progressTracker.progress("Removed $old")
-                        }
-                    }
-                CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
             }
 
             // Read deprecated attributes. Seem to be missing from code model;

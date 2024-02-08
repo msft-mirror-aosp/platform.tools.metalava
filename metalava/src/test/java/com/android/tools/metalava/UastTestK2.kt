@@ -139,44 +139,123 @@ class UastTestK2 : UastTestBase() {
             api =
                 """
                 package test.pkg {
+                  @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                  }
+                  public interface TestInterface {
+                    method @Deprecated public int getPOld_deprecatedOnGetter();
+                    method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                    method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                    method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                    method @Deprecated public int getPOld_deprecatedOnProperty();
+                    method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                    method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                    method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                    method public int getPOld_deprecatedOnSetter();
+                    method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
+                    method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
+                    method public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
+                    method public void setPOld_deprecatedOnGetter(int);
+                    method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                    method public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                    method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                    method @Deprecated public void setPOld_deprecatedOnProperty(int);
+                    method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                    method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                    method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                    method @Deprecated public void setPOld_deprecatedOnSetter(int);
+                    method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                    method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                    method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                    property @Deprecated public int pOld_deprecatedOnGetter;
+                    property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                    property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                    property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                    property @Deprecated public int pOld_deprecatedOnProperty;
+                    property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                    property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                    property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                    property public abstract int pOld_deprecatedOnSetter;
+                    property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                    property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                    property public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
+                  }
                   public final class Test_accessors {
                     ctor public Test_accessors();
                     method public String? getPNew_accessors();
+                    method public String? getPOld_accessors_deprecatedOnGetter();
+                    method public String? getPOld_accessors_deprecatedOnProperty();
                     method public String? getPOld_accessors_deprecatedOnSetter();
                     method public void setPNew_accessors(String?);
                     method public void setPOld_accessors_deprecatedOnGetter(String?);
+                    method public void setPOld_accessors_deprecatedOnProperty(String?);
+                    method public void setPOld_accessors_deprecatedOnSetter(String?);
                     property public final String? pNew_accessors;
+                    property public String? pOld_accessors_deprecatedOnGetter;
+                    property public String? pOld_accessors_deprecatedOnProperty;
                     property public final String? pOld_accessors_deprecatedOnSetter;
                   }
                   public final class Test_getter {
                     ctor public Test_getter();
                     method public String? getPNew_getter();
+                    method public String? getPOld_getter_deprecatedOnGetter();
+                    method public String? getPOld_getter_deprecatedOnProperty();
                     method public String? getPOld_getter_deprecatedOnSetter();
                     method public void setPNew_getter(String?);
-                    method @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
+                    method public void setPOld_getter_deprecatedOnGetter(String?);
+                    method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
+                    method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
                     property public final String? pNew_getter;
+                    property public String? pOld_getter_deprecatedOnGetter;
+                    property public String? pOld_getter_deprecatedOnProperty;
                     property public final String? pOld_getter_deprecatedOnSetter;
                   }
                   public final class Test_noAccessor {
                     ctor public Test_noAccessor();
                     method public String getPNew_noAccessor();
-                    method @Deprecated public String getPOld_noAccessor_deprecatedOnSetter();
+                    method @Deprecated public String getPOld_noAccessor_deprecatedOnGetter();
+                    method @Deprecated public String getPOld_noAccessor_deprecatedOnProperty();
+                    method public String getPOld_noAccessor_deprecatedOnSetter();
                     method public void setPNew_noAccessor(String);
-                    method @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
+                    method public void setPOld_noAccessor_deprecatedOnGetter(String);
+                    method @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String);
+                    method @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String);
                     property public final String pNew_noAccessor;
-                    property @Deprecated public final String pOld_noAccessor_deprecatedOnSetter;
+                    property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
+                    property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
+                    property public final String pOld_noAccessor_deprecatedOnSetter;
                   }
                   public final class Test_setter {
                     ctor public Test_setter();
                     method public String? getPNew_setter();
-                    method @Deprecated public String? getPOld_setter_deprecatedOnSetter();
+                    method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
+                    method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
+                    method public String? getPOld_setter_deprecatedOnSetter();
                     method public void setPNew_setter(String?);
                     method public void setPOld_setter_deprecatedOnGetter(String?);
+                    method public void setPOld_setter_deprecatedOnProperty(String?);
+                    method public void setPOld_setter_deprecatedOnSetter(String?);
                     property public final String? pNew_setter;
-                    property @Deprecated public final String? pOld_setter_deprecatedOnSetter;
+                    property @Deprecated public String? pOld_setter_deprecatedOnGetter;
+                    property @Deprecated public String? pOld_setter_deprecatedOnProperty;
+                    property public final String? pOld_setter_deprecatedOnSetter;
                   }
                 }
             """
         )
+    }
+
+    @Test
+    fun `actual typealias -- without value class -- K2`() {
+        `actual typealias -- without value class`(isK2 = true)
+    }
+
+    @Test
+    fun `actual typealias -- without common split -- K2`() {
+        `actual typealias -- without common split`(isK2 = true)
+    }
+
+    @Test
+    fun `actual typealias -- K2`() {
+        `actual typealias`(isK2 = true)
     }
 }

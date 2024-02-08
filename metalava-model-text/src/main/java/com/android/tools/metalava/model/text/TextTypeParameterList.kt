@@ -18,52 +18,24 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterList(
+internal class TextTypeParameterList(
     val codebase: TextCodebase,
-    var owner: TypeParameterListOwner?,
-    private val typeListString: String
+    private val typeParameters: List<TypeParameterItem>,
 ) : TypeParameterList {
-    private var typeParameters: List<TypeParameterItem>? = null
-    private var typeParameterNames: List<String>? = null
-
-    override fun toString(): String = typeListString
-
-    override fun typeParameterNames(): List<String> {
-        if (typeParameterNames == null) {
-            //     TODO: Delete this method now that I'm doing it differently:
-            // typeParameterNames(typeListString)
-            val typeParameters = typeParameters()
-            val names = ArrayList<String>(typeParameters.size)
-            for (parameter in typeParameters) {
-                names.add(parameter.simpleName())
-            }
-            typeParameterNames = names
-        }
-        return typeParameterNames!!
-    }
+    override fun toString() = typeParameters.joinToString(prefix = "<", postfix = ">")
 
     override fun typeParameters(): List<TypeParameterItem> {
-        if (typeParameters == null) {
-            val strings = TextTypeParser.typeParameterStrings(typeListString)
-            val list = ArrayList<TypeParameterItem>(strings.size)
-            strings.mapTo(list) { TextTypeParameterItem.create(codebase, owner, it) }
-            typeParameters = list
-        }
-        return typeParameters!!
+        return typeParameters
     }
 
     companion object {
-        /**
-         * Creates a [TextTypeParameterList] without a set owner, for type parameters created before
-         * their owners are. The owner should be set after it is created.
-         *
-         * The [typeListString] should be the string representation of a list of type parameters,
-         * like "<A>" or "<A, B extends java.lang.String, C>".
-         */
-        fun create(codebase: TextCodebase, typeListString: String): TypeParameterList {
-            return TextTypeParameterList(codebase, owner = null, typeListString)
+        /** Creates a [TextTypeParameterList]. */
+        fun create(
+            codebase: TextCodebase,
+            typeParameters: List<TypeParameterItem>,
+        ): TypeParameterList {
+            return TextTypeParameterList(codebase, typeParameters)
         }
     }
 }

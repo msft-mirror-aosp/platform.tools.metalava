@@ -19,10 +19,13 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterScope
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert
 import org.junit.Test
 
-class TextTypeParserTest {
+class TextTypeParserTest : BaseTextCodebaseTest() {
     @Test
     fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
@@ -35,6 +38,32 @@ class TextTypeParserTest {
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
+        assertThat(
+                TextTypeParser.typeParameterStrings("<java.util.List<java.lang.String>[]>")
+                    .toString()
+            )
+            .isEqualTo("[java.util.List<java.lang.String>[]]")
+    }
+
+    @Test
+    fun `Test type parameter strings with annotations`() {
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                )
+            )
+            .containsExactly("java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer")
+        assertThat(TextTypeParser.typeParameterStrings("<@test.pkg.C String>"))
+            .containsExactly("@test.pkg.C String")
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer, @test.pkg.C String>"
+                )
+            )
+            .containsExactly(
+                "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+                "@test.pkg.C String"
+            )
     }
 
     @Test
@@ -52,47 +81,38 @@ class TextTypeParserTest {
     }
 
     @Test
-    fun `Test caching of type variables`() {
-        val codebase =
-            ApiFile.parseApi(
-                "test",
-                """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public class Foo<A> {
-                        method public void bar1<B extends java.lang.String>(B p0);
-                        method public void bar2<B extends java.lang.String>(B p0);
-                        method public void bar3<C>(java.util.List<C> p0);
-                        method public void bar4<C>(java.util.List<C> p0);
-                      }
-                    }
-                """
-                    .trimIndent()
-            )
-        val foo = codebase.findClass("test.pkg.Foo")
-        assertThat(foo).isNotNull()
-        assertThat(foo!!.methods()).hasSize(4)
-
-        val bar1Param = foo.methods()[0].parameters()[0].type()
-        val bar2Param = foo.methods()[1].parameters()[0].type()
-
-        // The type variable should not be reused between methods
-        assertThat(bar1Param).isNotSameInstanceAs(bar2Param)
-
-        val bar3Param = foo.methods()[2].parameters()[0].type()
-        val bar4Param = foo.methods()[3].parameters()[0].type()
-
-        // The type referencing a type variable should not be reused between methods
-        assertThat(bar3Param).isNotSameInstanceAs(bar4Param)
+    fun `Test splitting Kotlin nullability suffix`() {
+        assertThat(TextTypeParser.splitNullabilitySuffix("String!", true))
+            .isEqualTo(Pair("String", TypeNullability.PLATFORM))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String?", true))
+            .isEqualTo(Pair("String", TypeNullability.NULLABLE))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String", true))
+            .isEqualTo(Pair("String", TypeNullability.NONNULL))
+        // Check that wildcards work
+        assertThat(TextTypeParser.splitNullabilitySuffix("?", true))
+            .isEqualTo(Pair("?", TypeNullability.UNDEFINED))
+        assertThat(TextTypeParser.splitNullabilitySuffix("T", true))
+            .isEqualTo(Pair("T", TypeNullability.NONNULL))
     }
 
     @Test
-    fun `Test splitting Kotlin nullability suffix`() {
-        assertThat(TextTypeParser.splitNullabilitySuffix("String!")).isEqualTo(Pair("String", "!"))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String?")).isEqualTo(Pair("String", "?"))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String")).isEqualTo(Pair("String", ""))
-        // Check that wildcards work
-        assertThat(TextTypeParser.splitNullabilitySuffix("?")).isEqualTo(Pair("?", ""))
+    fun `Test splitting Kotlin nullability suffix when kotlinStyleNulls is false`() {
+        assertThat(TextTypeParser.splitNullabilitySuffix("String", false))
+            .isEqualTo(Pair("String", null))
+        assertThat(TextTypeParser.splitNullabilitySuffix("?", false)).isEqualTo(Pair("?", null))
+
+        Assert.assertThrows(
+            "Format does not support Kotlin-style null type syntax: String!",
+            ApiParseException::class.java
+        ) {
+            TextTypeParser.splitNullabilitySuffix("String!", false)
+        }
+        Assert.assertThrows(
+            "Format does not support Kotlin-style null type syntax: String?",
+            ApiParseException::class.java
+        ) {
+            TextTypeParser.splitNullabilitySuffix("String?", false)
+        }
     }
 
     /**
@@ -344,11 +364,25 @@ class TextTypeParserTest {
             expectedParams = ".Inner<P2>",
             expectedAnnotations = emptyList()
         )
+        testClassAnnotations(
+            original = "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+            expectedClassName = "java.lang.Integer",
+            expectedParams = null,
+            expectedAnnotations = listOf("@androidx.annotation.IntRange(from=5,to=10)")
+        )
+        testClassAnnotations(
+            original =
+                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
+            expectedClassName = "java.util.List",
+            expectedParams = "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
+            expectedAnnotations = emptyList()
+        )
     }
 
-    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
+    private val typeParser = TextTypeParser(ApiFile.parseApi("test", "") as TextCodebase)
 
-    private fun parseType(type: String) = typeParser.obtainTypeFromString(type)
+    private fun parseType(type: String) =
+        typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
 
     /**
      * Tests that [inputType] is parsed as an [ArrayTypeItem] with component type equal to
@@ -386,17 +420,17 @@ class TextTypeParserTest {
 
     /**
      * Tests that [inputType] is parsed as a [ClassTypeItem] with qualified name equal to
-     * [expectedQualifiedName] and parameters equal to [expectedParameterTypes].
+     * [expectedQualifiedName] and [ClassTypeItem.arguments] is equal to [expectedTypeArguments].
      */
     private fun testClassType(
         inputType: String,
         expectedQualifiedName: String,
-        expectedParameterTypes: List<TypeItem>
+        expectedTypeArguments: List<TypeItem>
     ) {
         val type = parseType(inputType)
         assertThat(type).isInstanceOf(ClassTypeItem::class.java)
         assertThat((type as ClassTypeItem).qualifiedName).isEqualTo(expectedQualifiedName)
-        assertThat((type as ClassTypeItem).parameters).isEqualTo(expectedParameterTypes)
+        assertThat((type as ClassTypeItem).arguments).isEqualTo(expectedTypeArguments)
     }
 
     @Test
@@ -404,7 +438,7 @@ class TextTypeParserTest {
         testClassType(
             inputType = "String",
             expectedQualifiedName = "java.lang.String",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testArrayType(
             inputType = "String[]",
@@ -423,27 +457,27 @@ class TextTypeParserTest {
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.lang.annotation.@NonNull Annotation",
             expectedQualifiedName = "java.lang.annotation.Annotation",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.util.Map.@NonNull Entry<a.A,b.B>",
             expectedQualifiedName = "java.util.Map.Entry",
-            expectedParameterTypes = listOf(parseType("a.A"), parseType("b.B"))
+            expectedTypeArguments = listOf(parseType("a.A"), parseType("b.B"))
         )
         testClassType(
             inputType = "java.util.@NonNull Set<java.util.Map.@NonNull Entry<a.A,b.B>>",
             expectedQualifiedName = "java.util.Set",
-            expectedParameterTypes = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
+            expectedTypeArguments = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
         )
     }
 }

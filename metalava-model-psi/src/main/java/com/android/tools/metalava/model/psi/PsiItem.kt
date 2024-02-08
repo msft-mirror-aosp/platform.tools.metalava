@@ -21,18 +21,14 @@ import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
+import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
-import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
-import org.jetbrains.kotlin.analysis.api.types.KtType
-import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
-import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
@@ -45,11 +41,10 @@ import org.jetbrains.uast.sourcePsiElement
 abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
-    val element: PsiElement,
+    element: PsiElement,
     override val modifiers: PsiModifierItem,
     override var documentation: String
-) : DefaultItem() {
-    @Suppress("LeakingThis") override var deprecated: Boolean = modifiers.isDeprecated()
+) : DefaultItem(modifiers) {
 
     @Suppress(
         "LeakingThis"
@@ -62,23 +57,6 @@ internal constructor(
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 
-    // a property with a lazily calculated default value
-    inner class LazyDelegate<T>(val defaultValueProvider: () -> T) : ReadWriteProperty<PsiItem, T> {
-        private var currentValue: T? = null
-
-        override operator fun setValue(thisRef: PsiItem, property: KProperty<*>, value: T) {
-            currentValue = value
-        }
-
-        override operator fun getValue(thisRef: PsiItem, property: KProperty<*>): T {
-            if (currentValue == null) {
-                currentValue = defaultValueProvider()
-            }
-
-            return currentValue!!
-        }
-    }
-
     override var originallyHidden: Boolean by LazyDelegate {
         documentation.contains('@') &&
             (documentation.contains("@hide") ||
@@ -90,7 +68,7 @@ internal constructor(
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     /** Returns the PSI element for this item */
-    open fun psi(): PsiElement = element
+    abstract fun psi(): PsiElement
 
     override fun location(): Location {
         return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
@@ -100,8 +78,6 @@ internal constructor(
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
-    override fun isCloned(): Boolean = false
-
     override fun hasInheritedGenericType(): Boolean = _hasInheritedGenericType
 
     private val _hasInheritedGenericType by lazy {
@@ -109,7 +85,7 @@ internal constructor(
         // That is, we should keep the nullable annotation for that return type.
         if (this is MethodItem && modifiers.isSuspend()) return@lazy false
 
-        when (val sourcePsi = (element as? UElement)?.sourcePsi) {
+        when (sourcePsi) {
             is KtCallableDeclaration -> {
                 analyze(sourcePsi) {
                     // NB: We should not use [KtDeclaration.getReturnKtType]; see its comment:
@@ -134,25 +110,11 @@ internal constructor(
         }
     }
 
-    // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
-    private fun KtAnalysisSession.isInheritedGenericType(ktType: KtType): Boolean {
-        return ktType is KtTypeParameterType &&
-            // explicitly nullable, e.g., T?
-            !ktType.isMarkedNullable &&
-            // non-null upper bound, e.g., T : Any
-            nullability(ktType) != KtTypeNullability.NON_NULLABLE
-    }
-
-    // Mimic `nullability` in `...uast.kotlin.internal.firKotlinInternalUastUtils`
-    private fun KtAnalysisSession.nullability(ktType: KtType): KtTypeNullability {
-        return if (ktType.canBeNull) KtTypeNullability.NULLABLE else KtTypeNullability.NON_NULLABLE
-    }
-
     /** Get a mutable version of modifiers for this item */
     override fun mutableModifiers(): MutableModifierList = modifiers
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
-        if (element is PsiCompiledElement) {
+        if (psi() is PsiCompiledElement) {
             return null
         }
         if (documentation.isBlank()) {
@@ -235,8 +197,7 @@ internal constructor(
             return
         }
 
-        documentation =
-            mergeDocumentation(documentation, element, comment.trim(), tagSection, append)
+        documentation = mergeDocumentation(documentation, psi(), comment.trim(), tagSection, append)
     }
 
     private fun addUniqueTag(
@@ -317,7 +278,7 @@ internal constructor(
     }
 
     override fun isKotlin(): Boolean {
-        return isKotlin(element)
+        return isKotlin(psi())
     }
 
     companion object {
