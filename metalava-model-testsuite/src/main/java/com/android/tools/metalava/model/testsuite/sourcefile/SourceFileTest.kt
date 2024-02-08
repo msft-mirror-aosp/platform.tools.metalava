@@ -52,6 +52,7 @@ class CommonSourceFileTest : BaseModelTest() {
                         import test.Test;
                         import empty.*;
                         import test.pkg1.Test2;
+                        import java.util.*;
 
                         /** {@link method} {@link Inner} {@link Test}*/
                         public class Test {
@@ -111,7 +112,8 @@ class CommonSourceFileTest : BaseModelTest() {
             val packageImport = Import(pkgItem)
 
             // Only class imports that are referenced in documentation are included.
-            // The wildcard imports are always included (except for empty packages).
+            // The wildcard imports are always included (except for empty packages and packages from
+            // classpath).
             // Method and Field imports don't seem to resolve and are not included.
             assertEquals(
                 setOf(classImport, innerClassImport, packageImport),
