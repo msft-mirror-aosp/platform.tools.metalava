@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem

@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
-
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.TypeParameterItem
+package com.android.tools.metalava.model
 
 /**
  * The set of [TypeParameterItem]s that are in scope.
@@ -47,7 +44,7 @@ import com.android.tools.metalava.model.TypeParameterItem
  * unless great care is taken to use identity comparison for [MapWrapper.nameToTypeParameterItem]
  * contents it would break caching and have every type `T` reference the same type parameter.
  */
-internal sealed class TypeParameterScope private constructor() {
+sealed class TypeParameterScope private constructor() {
 
     /** True if there are no type parameters in scope. */
     fun isEmpty() = this === empty

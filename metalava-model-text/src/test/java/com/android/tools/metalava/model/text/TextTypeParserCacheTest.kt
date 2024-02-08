@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.testing.getAndroidTxt
