@@ -4,9 +4,6 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[psi,java]
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
-  Test throws method class does not exist[psi,java]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
   Test nullability of outer classes[psi,java]

@@ -237,7 +237,6 @@ internal constructor(
         val method = template as PsiMethodItem
         val newMethod = PsiMethodItem.create(codebase, this, method)
 
-        newMethod.setThrowsTypes(method.throwsTypes())
         newMethod.finishInitialization()
 
         // Remember which class this method was copied from.
