@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.bestGuessAtFullName
 
@@ -42,14 +43,17 @@ internal class StubClassBuilder(
     /** The modifiers are set to `public` because otherwise there is no point in creating it. */
     val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
 
+    var superClassType: ClassTypeItem? = null
+
     private fun build(): TextClassItem =
         TextClassItem(
-            codebase = codebase,
-            qualifiedName = qualifiedName,
-            fullName = fullName,
-            classKind = classKind,
-            modifiers = modifiers,
-        )
+                codebase = codebase,
+                qualifiedName = qualifiedName,
+                fullName = fullName,
+                classKind = classKind,
+                modifiers = modifiers,
+            )
+            .also { item -> item.setSuperClassType(superClassType) }
 
     companion object {
         /**

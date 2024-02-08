@@ -28,16 +28,13 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
-import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MetalavaApi
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
@@ -276,11 +273,6 @@ private constructor(
      * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
      */
     private fun postProcess() {
-        // Use this as the context for resolving references.
-        ReferenceResolver.resolveReferences(codebase) {
-            typeItemFactoryForClass(it).typeParameterScope
-        }
-
         // Resolve all super class types that were found in the signature file.
         // TODO(b/323516595): Find a better way.
         for (superClassType in superClassTypesForResolution) {
@@ -913,7 +905,7 @@ private constructor(
         method.setTypeParameterList(typeParameterList)
         token = tokenizer.requireToken()
         if ("throws" == token) {
-            token = parseThrows(tokenizer, method)
+            token = parseThrows(tokenizer, method, typeItemFactory)
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -987,11 +979,13 @@ private constructor(
         method =
             TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
         method.setTypeParameterList(typeParameterList)
-        if ("throws" == token) {
-            token = parseThrows(tokenizer, method)
-        }
-        if ("default" == token) {
-            token = parseDefault(tokenizer, method)
+        when (token) {
+            "throws" -> {
+                token = parseThrows(tokenizer, method, typeItemFactory)
+            }
+            "default" -> {
+                token = parseDefault(tokenizer, method)
+            }
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1512,30 +1506,41 @@ private constructor(
         }
     }
 
-    private fun parseThrows(tokenizer: Tokenizer, method: TextMethodItem): String {
+    private fun parseThrows(
+        tokenizer: Tokenizer,
+        method: TextMethodItem,
+        typeItemFactory: TextTypeItemFactory,
+    ): String {
         var token = tokenizer.requireToken()
-        var comma = true
-        while (true) {
-            when (token) {
-                ";" -> {
-                    return token
-                }
-                "," -> {
-                    if (comma) {
-                        throw ApiParseException("Expected exception, got ','", tokenizer)
+        val throwsList = buildList {
+            var comma = true
+            while (true) {
+                when (token) {
+                    ";" -> {
+                        break
                     }
-                    comma = true
-                }
-                else -> {
-                    if (!comma) {
-                        throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
+                    "," -> {
+                        if (comma) {
+                            throw ApiParseException("Expected exception, got ','", tokenizer)
+                        }
+                        comma = true
                     }
-                    comma = false
-                    method.addException(token)
+                    else -> {
+                        if (!comma) {
+                            throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
+                        }
+                        comma = false
+                        val exceptionType = typeItemFactory.getExceptionType(token)
+                        add(ThrowableType.ofExceptionType(exceptionType))
+                    }
                 }
+                token = tokenizer.requireToken()
             }
-            token = tokenizer.requireToken()
         }
+
+        method.setThrowsList(throwsList)
+
+        return token
     }
 
     /**
@@ -1660,94 +1665,6 @@ private constructor(
         val typeCacheHit: Int,
         val typeCacheSize: Int,
     )
-}
-
-/** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
-internal class ReferenceResolver(
-    private val codebase: TextCodebase,
-    private val classScopeProvider: (ClassItem) -> TypeParameterScope,
-) {
-    /**
-     * A list of all the classes in the text codebase.
-     *
-     * This takes a copy of the `values` collection rather than use it correctly to avoid
-     * [ConcurrentModificationException].
-     */
-    private val classes = codebase.mAllClasses.values.toList()
-
-    companion object {
-        fun resolveReferences(
-            codebase: TextCodebase,
-            classScopeProvider: (ClassItem) -> TypeParameterScope = { TypeParameterScope.empty },
-        ) {
-            val resolver = ReferenceResolver(codebase, classScopeProvider)
-            resolver.resolveReferences()
-        }
-    }
-
-    fun resolveReferences() {
-        resolveThrowsClasses()
-    }
-
-    private fun resolveThrowsClasses() {
-        for (cl in classes) {
-            val classTypeParameterScope = classScopeProvider(cl)
-            for (methodItem in cl.constructors()) {
-                resolveThrowsClasses(classTypeParameterScope, methodItem)
-            }
-            for (methodItem in cl.methods()) {
-                resolveThrowsClasses(classTypeParameterScope, methodItem)
-            }
-        }
-    }
-
-    private fun resolveThrowsClasses(
-        classTypeParameterScope: TypeParameterScope,
-        methodItem: MethodItem
-    ) {
-        val methodInfo = methodItem as TextMethodItem
-        val names = methodInfo.throwsTypeNames()
-        if (names.isNotEmpty()) {
-            val typeParameterScope =
-                classTypeParameterScope.nestedScope(
-                    methodItem.name(),
-                    methodItem.typeParameterList().typeParameters()
-                )
-            val throwsList =
-                names.map { exception ->
-                    // Search in this codebase, then possibly check for a type parameter, if not
-                    // found then fall back to searching in a base codebase and finally creating a
-                    // stub.
-                    codebase.findClassInCodebase(exception)?.let { ThrowableType.ofClass(it) }
-                        ?: typeParameterScope.findTypeParameter(exception)?.let {
-                            ThrowableType.ofTypeParameter(it)
-                        }
-                            ?: getOrCreateThrowableClass(exception)
-                }
-            methodInfo.setThrowsList(throwsList)
-        }
-    }
-
-    private fun getOrCreateThrowableClass(exception: String): ThrowableType {
-        // Exception not provided by this codebase. Either try and retrieve it from a base codebase
-        // or create a stub.
-        val exceptionClass = codebase.getOrCreateClass(exception)
-
-        // A class retrieved from another codebase is assumed to have been fully resolved by the
-        // codebase. However, a stub that has just been created will need some additional work. A
-        // stub can be differentiated from a ClassItem retrieved from another codebase because it
-        // belongs to this codebase and is a TextClassItem.
-        if (exceptionClass.codebase == codebase && exceptionClass is TextClassItem) {
-            // An exception class needs to extend Throwable, unless it is Throwable in
-            // which case it does not need modifying.
-            if (exception != JAVA_LANG_THROWABLE) {
-                val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
-                exceptionClass.setSuperClassType(throwableClass.type())
-            }
-        }
-
-        return ThrowableType.ofClass(exceptionClass)
-    }
 }
 
 private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) {

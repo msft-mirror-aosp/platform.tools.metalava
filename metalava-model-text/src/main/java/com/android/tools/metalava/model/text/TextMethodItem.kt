@@ -136,8 +136,7 @@ internal open class TextMethodItem(
 
         duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
-        duplicated.throwsTypes.addAll(throwsTypes)
-        duplicated.throwsClasses = throwsClasses
+        duplicated.throwsTypes = this.throwsTypes
         duplicated.typeParameterList = typeParameterList
 
         return duplicated
@@ -146,25 +145,15 @@ internal open class TextMethodItem(
     override val synthetic: Boolean
         get() = isEnumSyntheticMethod()
 
-    private val throwsTypes = mutableListOf<String>()
-    private var throwsClasses: List<ThrowableType>? = null
+    private var throwsTypes: List<ThrowableType> = emptyList()
 
-    fun throwsTypeNames(): List<String> {
-        return throwsTypes
-    }
-
-    override fun throwsTypes(): List<ThrowableType> =
-        if (throwsClasses == null) emptyList() else throwsClasses!!
+    override fun throwsTypes(): List<ThrowableType> = this.throwsTypes
 
     fun setThrowsList(throwsClasses: List<ThrowableType>) {
-        this.throwsClasses = throwsClasses
+        this.throwsTypes = throwsClasses
     }
 
     override fun parameters(): List<ParameterItem> = parameters
-
-    fun addException(throwsType: String) {
-        throwsTypes += throwsType
-    }
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 

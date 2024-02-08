@@ -164,7 +164,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val throwable = codebase.assertClass("java.lang.Throwable")
+            val throwable = codebase.assertResolvedClass("java.lang.Throwable")
             // This should probably be Object.
             assertNull(throwable.superClass())
 
@@ -189,7 +189,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val throwable = codebase.assertClass("java.lang.Throwable")
+            val throwable = codebase.assertResolvedClass("java.lang.Throwable")
+
+            val exceptionType =
+                codebase.assertClass("test.pkg.Foo").methods().single().throwsTypes().single()
+
+            // Force the unknown exception class to be resolved, creating a stub in the process. It
+            // is checked below.
+            exceptionType.classItem
+
             val unknownExceptionClass = codebase.assertClass("other.UnknownException")
             // Make sure the stub UnknownException is initialized correctly.
             assertSame(throwable, unknownExceptionClass.superClass())

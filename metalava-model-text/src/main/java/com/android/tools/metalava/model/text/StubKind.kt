@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 
 /** The kind of the stub class that must be created. */
 internal enum class StubKind(
@@ -25,4 +26,10 @@ internal enum class StubKind(
 ) {
     CLASS({}),
     INTERFACE({ classKind = ClassKind.INTERFACE }),
+    THROWABLE({
+        // Throwables must extend `java.lang.Throwable`, unless they are `java.lang.Throwable`.
+        if (qualifiedName != JAVA_LANG_THROWABLE) {
+            superClassType = codebase.resolveClass(JAVA_LANG_THROWABLE).type()
+        }
+    }),
 }
