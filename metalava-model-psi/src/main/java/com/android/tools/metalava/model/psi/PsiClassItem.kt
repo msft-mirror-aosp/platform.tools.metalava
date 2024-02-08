@@ -56,6 +56,8 @@ internal constructor(
     private val hasImplicitDefaultConstructor: Boolean,
     override val classKind: ClassKind,
     private val typeParameterList: TypeParameterList,
+    private val superClassType: ClassTypeItem?,
+    private var interfaceTypes: List<ClassTypeItem>,
     modifiers: PsiModifierItem,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
@@ -90,10 +92,7 @@ internal constructor(
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    private var superClass: ClassItem? = null
-    private var superClassType: ClassTypeItem? = null
-
-    override fun superClass(): ClassItem? = superClass
+    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
@@ -151,7 +150,6 @@ internal constructor(
     }
 
     private lateinit var innerClasses: List<PsiClassItem>
-    private lateinit var interfaceTypes: List<ClassTypeItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
@@ -220,53 +218,6 @@ internal constructor(
         }
         for (inner in innerClasses) {
             inner.finishInitialization()
-        }
-
-        // Delay initializing super classes and implemented interfaces for all inner classes: they
-        // may refer
-        // to *other* inner classes in this class, which would lead to an attempt to construct
-        // recursively. Instead, we wait until all the inner classes have been constructed, and at
-        // the very end, initialize super classes and interfaces recursively.
-        if (psiClass.containingClass == null) {
-            initializeSuperClasses()
-        }
-    }
-
-    private fun initializeSuperClasses() {
-        val isInterface = isInterface()
-
-        // Get the interfaces from the appropriate list.
-        val interfaces =
-            if (isInterface || isAnnotationType()) {
-                // An interface uses "extends <interfaces>", either explicitly for normal interfaces
-                // or implicitly for annotations.
-                psiClass.extendsListTypes
-            } else {
-                // A class uses "extends <interfaces>".
-                psiClass.implementsListTypes
-            }
-
-        // Map them to PsiTypeItems.
-        val interfaceTypes =
-            interfaces.map {
-                codebase.getSuperType(it).also { type ->
-                    // ensure that we initialize classes eagerly too, so that they're registered etc
-                    type.asClass()
-                }
-            }
-        setInterfaceTypes(interfaceTypes)
-
-        if (!isInterface) {
-            // Set the super class type for classes
-            val superClassPsiType = psiClass.superClassType as? PsiType
-            superClassPsiType?.let { superType ->
-                this.superClassType = codebase.getSuperType(superType)
-                this.superClass = this.superClassType?.asClass()
-            }
-        }
-
-        for (inner in innerClasses) {
-            inner.initializeSuperClasses()
         }
     }
 
@@ -365,6 +316,27 @@ internal constructor(
             // it as they may reference a type parameter in the list.
             val typeParameterList = PsiTypeParameterList.create(codebase, psiClass)
 
+            // Construct the super class type if needed and available.
+            val superClassType =
+                if (classKind != ClassKind.INTERFACE) {
+                    val superClassPsiType = psiClass.superClassType as? PsiType
+                    superClassPsiType?.let { superType -> codebase.getSuperType(superType) }
+                } else null
+
+            // Get the interfaces from the appropriate list.
+            val interfaces =
+                if (classKind == ClassKind.INTERFACE || classKind == ClassKind.ANNOTATION_TYPE) {
+                    // An interface uses "extends <interfaces>", either explicitly for normal
+                    // interfaces or implicitly for annotations.
+                    psiClass.extendsListTypes
+                } else {
+                    // A class uses "extends <interfaces>".
+                    psiClass.implementsListTypes
+                }
+
+            // Map them to PsiTypeItems.
+            val interfaceTypes = interfaces.map { codebase.getSuperType(it) }
+
             val item =
                 PsiClassItem(
                     codebase = codebase,
@@ -374,10 +346,12 @@ internal constructor(
                     qualifiedName = qualifiedName,
                     classKind = classKind,
                     typeParameterList = typeParameterList,
+                    superClassType = superClassType,
+                    interfaceTypes = interfaceTypes,
                     hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     documentation = commentText,
                     modifiers = modifiers,
-                    fromClassPath = fromClassPath
+                    fromClassPath = fromClassPath,
                 )
             item.modifiers.setOwner(item)
 
