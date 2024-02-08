@@ -318,16 +318,11 @@ internal open class TurbineCodebaseInitialiser(
 
         // Setup the SuperClass
         if (!classItem.isInterface()) {
-            val superClassItem =
-                cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
                 if (superClassType == null) null else createSuperType(superClassType)
-            classItem.setSuperClass(superClassItem, superClassTypeItem)
+            classItem.setSuperClassType(superClassTypeItem)
         }
-
-        // Set direct interfaces
-        classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
         // Set interface types
         classItem.setInterfaceTypes(cls.interfaceTypes().map { createSuperType(it) })

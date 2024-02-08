@@ -326,21 +326,38 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
             ),
         ) {
+            // Make sure that classes (and containing package) from the source have been loaded into
+            // the codebase and will be emitted.
             val pkgItem = codebase.assertPackage("test.pkg")
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val utilPkgItem = codebase.assertPackage("java.util")
-            val utilClassItem = codebase.assertClass("java.util.Date")
-            val langPkgItem = codebase.assertPackage("java.lang")
-            val objectClassItem = codebase.assertClass("java.lang.Object")
-            assertEquals(utilClassItem, classItem.superClass())
-            assertEquals(objectClassItem, utilClassItem.superClass())
-            assertEquals(3, utilClassItem.allInterfaces().count())
-            assertEquals(false, utilPkgItem.emit)
-            assertEquals(false, utilClassItem.emit)
-            assertEquals(false, langPkgItem.emit)
-            assertEquals(false, objectClassItem.emit)
             assertEquals(true, pkgItem.emit)
+            val classItem = codebase.assertClass("test.pkg.Test")
             assertEquals(true, classItem.emit)
+
+            // Force the Test super class (java.util.Date) to be resolved.
+            val classItemSuperClass = classItem.superClass()
+
+            // Check that the class and package have been loaded but will not be emitted.
+            val utilPkgItem = codebase.assertPackage("java.util")
+            assertEquals(false, utilPkgItem.emit)
+            val utilClassItem = codebase.assertClass("java.util.Date")
+            assertEquals(false, utilClassItem.emit)
+
+            // Check that the Test super class is expected.
+            assertEquals(utilClassItem, classItemSuperClass)
+
+            // Force the Date super class (java.lang.Object) to be resolved.
+            val utilClassSuperClass = utilClassItem.superClass()
+
+            // Check that the class and package have been loaded but will not be emitted.
+            val langPkgItem = codebase.assertPackage("java.lang")
+            assertEquals(false, langPkgItem.emit)
+            val objectClassItem = codebase.assertClass("java.lang.Object")
+            assertEquals(false, objectClassItem.emit)
+
+            // Check that the Date super class is expected.
+            assertEquals(objectClassItem, utilClassSuperClass)
+
+            assertEquals(3, utilClassItem.allInterfaces().count())
         }
     }
 

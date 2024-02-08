@@ -52,13 +52,9 @@ internal open class TurbineClassItem(
 
     internal lateinit var innerClasses: List<TurbineClassItem>
 
-    private var superClass: TurbineClassItem? = null
-
     private var superClassType: ClassTypeItem? = null
 
-    internal lateinit var directInterfaces: List<TurbineClassItem>
-
-    private var allInterfaces: List<TurbineClassItem>? = null
+    private var allInterfaces: List<ClassItem>? = null
 
     internal lateinit var containingPackage: TurbinePackageItem
 
@@ -78,9 +74,9 @@ internal open class TurbineClassItem(
 
     private var retention: AnnotationRetention? = null
 
-    override fun allInterfaces(): Sequence<TurbineClassItem> {
+    override fun allInterfaces(): Sequence<ClassItem> {
         if (allInterfaces == null) {
-            val interfaces = mutableSetOf<TurbineClassItem>()
+            val interfaces = mutableSetOf<ClassItem>()
 
             // Add self as interface if applicable
             if (isInterface()) {
@@ -93,15 +89,16 @@ internal open class TurbineClassItem(
             }
 
             // Add all the interfaces of direct interfaces
-            directInterfaces.map { itf -> itf.allInterfaces().forEach { interfaces.add(it) } }
+            interfaceTypesList.forEach { interfaceType ->
+                val itf = interfaceType.asClass()
+                itf?.allInterfaces()?.forEach { interfaces.add(it) }
+            }
 
             allInterfaces = interfaces.toList()
         }
 
         return allInterfaces!!.asSequence()
     }
-
-    internal fun directInterfaces(): List<TurbineClassItem> = directInterfaces
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -160,12 +157,11 @@ internal open class TurbineClassItem(
         interfaceTypesList = interfaceTypes
     }
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
-        this.superClass = superClass as? TurbineClassItem
+    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
     }
 
-    override fun superClass(): TurbineClassItem? = superClass
+    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
