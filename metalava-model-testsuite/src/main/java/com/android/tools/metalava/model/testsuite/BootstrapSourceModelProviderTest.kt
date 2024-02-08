@@ -948,11 +948,13 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                          class Inner {}
                     }
+                    class Test1 {}
                 """
             ),
         ) {
             val pkgItem = codebase.assertPackage("test.pkg")
             val classItem = codebase.assertClass("test.pkg.Test")
+            val classItem1 = codebase.assertClass("test.pkg.Test1")
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
             val methodItem = classItem.methods().single()
             val fieldItem = classItem.assertField("field")
@@ -985,6 +987,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("/** Field Doc */", fieldItem.documentation)
             assertEquals("", fieldItem1.documentation)
             assertEquals("", pkgItem.documentation)
+            assertEquals(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
 

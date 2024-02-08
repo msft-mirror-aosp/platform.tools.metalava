@@ -79,6 +79,7 @@ import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.tree.Tree.Literal
+import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
@@ -116,6 +117,9 @@ internal open class TurbineCodebaseInitialiser(
     private lateinit var envClassMap: CompoundEnv<ClassSymbol, BytecodeBoundClass>
 
     private lateinit var index: TopLevelIndex
+
+    /** Map between Class declaration and the corresponding source CompUnit */
+    private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf<TyDecl, CompUnit>()
 
     /**
      * Binds the units with the help of Turbine's binder.
@@ -203,6 +207,7 @@ internal open class TurbineCodebaseInitialiser(
                 doc = codebase.getHeaderComments(source)
             }
             findOrCreatePackage(pkgName, doc)
+            unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
         }
     }
 
@@ -309,10 +314,13 @@ internal open class TurbineCodebaseInitialiser(
                 enclosingClassTypeParameterScope,
                 "class $qualifiedName",
             )
+        // Create the sourcefile
         val sourceFile =
-            if (isTopClass && !isFromClassPath)
-                TurbineSourceFile(codebase, (cls as SourceTypeBoundClass).source().source())
-            else null
+            if (isTopClass && !isFromClassPath) {
+                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
+                    TurbineSourceFile(codebase, it.source().source(), it.imports())
+                }
+            } else null
         val classItem =
             TurbineClassItem(
                 codebase,
