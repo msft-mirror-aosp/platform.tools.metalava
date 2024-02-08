@@ -93,10 +93,15 @@ internal open class TurbineBasedCodebase(
     }
 
     fun addClass(classItem: TurbineClassItem, isTopClass: Boolean) {
+        val qualifiedName = classItem.qualifiedName()
+        val existing = classMap.put(qualifiedName, classItem)
+        if (existing != null) {
+            error("Attempted to register $qualifiedName twice, $classItem and $existing")
+        }
+
         if (isTopClass) {
             topLevelClassesFromSource.add(classItem)
         }
-        classMap.put(classItem.qualifiedName(), classItem)
     }
 
     fun addPackage(packageItem: TurbinePackageItem) {

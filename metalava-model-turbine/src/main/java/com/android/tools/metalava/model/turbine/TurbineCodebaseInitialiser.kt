@@ -224,17 +224,34 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createAllClasses() {
-        val classes = sourceClassMap.keys
-        for (cls in classes) {
+        for ((classSymbol, sourceBoundClass) in sourceClassMap) {
 
             // Turbine considers package-info as class and creates one for empty packages which is
             // not consistent with Psi
-            if (cls.simpleName() == "package-info") {
+            if (classSymbol.simpleName() == "package-info") {
                 continue
             }
 
-            findOrCreateClass(cls)
+            // Ignore inner classes, they will be created when the outer class is created.
+            if (sourceBoundClass.owner() != null) {
+                continue
+            }
+
+            createTopLevelClassAndContents(classSymbol)
         }
+    }
+
+    val ClassSymbol.isTopClass
+        get() = !binaryName().contains('$')
+
+    /**
+     * Create top level classes, their inner classes and all the other members.
+     *
+     * All the classes are registered by name and so can be found by [findOrCreateClass].
+     */
+    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol) {
+        if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
+        createClass(classSymbol, TypeParameterScope.empty)
     }
 
     /** Tries to create a class if not already present in codebase's classmap */
@@ -248,39 +265,10 @@ internal open class TurbineCodebaseInitialiser(
 
             // Create the top level class, along with any inner classes and register them all by
             // name.
-            topClassSym?.let { createClass(topClassSym, TypeParameterScope.empty) }
+            topClassSym?.let { createTopLevelClassAndContents(topClassSym) }
 
             // Now try and find the actual class by name.
             classItem = codebase.findClass(name)
-        }
-
-        return classItem
-    }
-
-    /** Creates a class if not already present in codebase's classmap */
-    private fun findOrCreateClass(sym: ClassSymbol): TurbineClassItem {
-        val className = getQualifiedName(sym.binaryName())
-        var classItem = codebase.findClass(className)
-        if (classItem == null) {
-            // For inner classes, create the outer class first if not created.
-            if (sym.binaryName().contains("$")) {
-                // This will get the symbol for the top class even though the class name is for the
-                // inner class.
-                val topClassSym = getClassSymbol(className)!!
-
-                // It is guaranteed that the top class does not exist because if it did then it
-                // would have created the inner classes and the inner class would have been found
-                // above. Therefore, create the top level class, along with any inner classes and
-                // register them all by name.
-                createClass(topClassSym, TypeParameterScope.empty)
-
-                // The previous call will have created the inner class so get it now. The inner
-                // class is guaranteed to exist because otherwise Turbine would not have created a
-                // ClassSymbol for it.
-                classItem = codebase.findClass(className)!!
-            } else {
-                classItem = createClass(sym, TypeParameterScope.empty)
-            }
         }
 
         return classItem
