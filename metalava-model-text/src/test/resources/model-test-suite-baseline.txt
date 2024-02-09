@@ -18,3 +18,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations[text,signature]
+
+com.android.tools.metalava.model.text.ApiFileTest
+  Test unknown interface should still be marked as such[text,signature]

@@ -18,10 +18,12 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
@@ -418,6 +420,30 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         )
+    }
+
+    @Test
+    fun `Test unknown interface should still be marked as such`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo implements test.unknown.Interface {
+                        }
+                    }
+                """
+            ),
+        ) {
+            // Resolve the class. Even though it does not exist, the text model will fabricate an
+            // instance.
+            val unknownInterfaceClass =
+                codebase.assertResolvedClass("test.pkg.Foo").interfaceTypes().single().asClass()
+            assertNotNull(unknownInterfaceClass)
+
+            // Make sure that the fabricated instance is of the correct structure.
+            assertThat(unknownInterfaceClass.classKind).isEqualTo(ClassKind.INTERFACE)
+        }
     }
 
     @Test
