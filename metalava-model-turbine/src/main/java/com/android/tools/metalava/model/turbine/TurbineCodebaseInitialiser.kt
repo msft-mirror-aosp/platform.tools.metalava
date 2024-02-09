@@ -311,7 +311,7 @@ internal open class TurbineCodebaseInitialiser(
         val sourceFile =
             if (isTopClass && !isFromClassPath) {
                 classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
-                    TurbineSourceFile(codebase, it.source().source(), it.imports())
+                    TurbineSourceFile(codebase, it)
                 }
             } else null
         val classItem =
