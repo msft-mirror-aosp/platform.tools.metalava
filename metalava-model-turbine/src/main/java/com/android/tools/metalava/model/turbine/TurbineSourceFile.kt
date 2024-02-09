@@ -26,7 +26,7 @@ internal class TurbineSourceFile(
     val imports: List<ImportDecl>,
 ) : SourceFile {
 
-    override fun getHeaderComments(): String? = codebase.getHeaderComments(source)
+    override fun getHeaderComments(): String? = getHeaderComments(source)
 
     override fun classes(): Sequence<ClassItem> = TODO("b/295800205")
 
