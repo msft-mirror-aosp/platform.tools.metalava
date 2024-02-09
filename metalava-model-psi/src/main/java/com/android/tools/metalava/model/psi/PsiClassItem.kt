@@ -356,8 +356,7 @@ internal constructor(
             item.modifiers.setOwner(item)
             item.containingClass = containingClassItem
 
-            // Register this class now so it's present when calling Codebase.findOrCreateClass for
-            // inner classes below
+            // Register this class now.
             codebase.registerClass(item)
 
             // Construct the children
@@ -534,7 +533,12 @@ internal constructor(
                     val result =
                         psiInnerClasses
                             .asSequence()
-                            .map { codebase.findOrCreateClass(it) }
+                            .map {
+                                codebase.createClass(
+                                    psiClass = it,
+                                    containingClassItem = item,
+                                )
+                            }
                             .toMutableList()
                     result
                 }
