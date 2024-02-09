@@ -895,9 +895,15 @@ open class PsiBasedCodebase(
 
     override fun toString(): String = description
 
-    /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
-    internal fun registerClass(cls: PsiClassItem) {
-        classMap[cls.qualifiedName()] = cls
+    /** Add a class to the codebase. Called from [PsiClassItem.create]. */
+    internal fun registerClass(classItem: PsiClassItem) {
+        val qualifiedName = classItem.qualifiedName()
+        val existing = classMap.put(qualifiedName, classItem)
+        if (existing != null) {
+            error("Attempted to register $qualifiedName twice, $classItem and $existing")
+        }
+
+        classMap[qualifiedName] = classItem
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
