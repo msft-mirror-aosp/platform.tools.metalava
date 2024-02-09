@@ -31,7 +31,7 @@ sealed interface ThrowableType {
      * The underlying [ClassItem], if available; must only be called if [isTypeParameter] is
      * `false`.
      */
-    val classItem: ClassItem
+    val classItem: ClassItem?
 
     /**
      * The underlying [TypeParameterItem], if available; must only be called if [isTypeParameter] is
@@ -147,14 +147,14 @@ sealed interface ThrowableType {
         override val isTypeParameter
             get() = false
 
-        override val classItem: ClassItem
-            get() = classTypeItem.asClass() ?: error("Cannot resolve $this to a class")
+        override val classItem: ClassItem?
+            get() = classTypeItem.asClass()
 
         override val typeParameterItem: TypeParameterItem
             get() = error("Cannot access `typeParameterItem` on $this")
 
         /** The [classItem] is a subclass of [java.lang.Throwable] */
-        override val throwableClass: ClassItem
+        override val throwableClass: ClassItem?
             get() = classItem
 
         override fun description() = qualifiedName()
