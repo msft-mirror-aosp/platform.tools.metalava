@@ -1,4 +1,4 @@
-// Copyright (C) 2023 The Android Open Source Project
+// Copyright (C) 2018 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,18 +16,38 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-java_library_host {
-    name: "metalava-model-turbine",
-    visibility: ["//tools/metalava:__subpackages__"],
+// The metalava application. This must be built in this directory because the
+// path to this is hard-coded in Bazel rules that use metalava.
+java_binary_host {
+    name: "metalava",
+    visibility: [
+        "//visibility:private",
+    ],
     srcs: [
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    java_resource_dirs: ["src/main/resources/"],
-    libs: [
+    java_resources: [":metalava-version"],
+    static_libs: [
+        "jsr305",
+        "jsr330",
+        "kotlin-reflect",
         "metalava-model",
-        "metalava-reporter",
+        "metalava-model-psi",
         "metalava-model-source",
+        "metalava-model-text",
+        "metalava-model-turbine",
+        "metalava-reporter",
         "metalava-tools-common-m2-deps",
+        "metalava-gradle-plugin-deps",
+        "gson-prebuilt-jar-2.9.1",
     ],
+    main_class: "com.android.tools.metalava.Driver",
+    target: {
+        host: {
+            dist: {
+                targets: ["sdk"],
+            },
+        },
+    },
 }
