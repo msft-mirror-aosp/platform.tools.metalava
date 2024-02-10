@@ -77,8 +77,9 @@ const val METHOD_ESTIMATE = 1000
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
  *
- * After creation, a list of PSI file or a JAR file is passed to [initialize]. This creates package
- * and class items along with their members. This process is broken into two phases:
+ * After creation, a list of PSI file is passed to [initializeFromSources] or a JAR file is passed
+ * to [initializeFromJar]. This creates package and class items along with their members. This
+ * process is broken into two phases:
  *
  * First, [initializing] is set to true, and class items are created from the supplied sources. If
  * [fromClasspath] is false, these are main classes of the codebase and have [ClassItem.emit] set to
@@ -135,7 +136,11 @@ open class PsiBasedCodebase(
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
-    /** Map from package name to list of classes in that package. Only used during [initialize]. */
+    /**
+     * Map from package name to list of classes in that package. Initialized in [initializeFromJar]
+     * and [initializeFromSources], updated by [registerPackageClass], and used and cleared in
+     * [finishInitialization].
+     */
     private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
 
     /** A set of packages to hide */
@@ -148,10 +153,11 @@ open class PsiBasedCodebase(
     private lateinit var topLevelClassesFromSource: MutableList<PsiClassItem>
 
     /**
-     * Set to true in [initialize] for the first pass of creating class items for all classes in the
-     * codebase sources and false for the second pass of creating class items for the supertypes of
-     * the codebase classes. New class items created in the supertypes pass must come from the
-     * classpath (dependencies) since all source classes have been created.
+     * Set to true in [initializeFromJar] and [initializeFromSources] for the first pass of creating
+     * class items for all classes in the codebase sources and false for the second pass of creating
+     * class items for the supertypes of the codebase classes. New class items created in the
+     * supertypes pass must come from the classpath (dependencies) since all source classes have
+     * been created.
      *
      * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
      * and [ClassItem.isFromClassPath] to true for classpath classes. It is also used in
@@ -163,7 +169,7 @@ open class PsiBasedCodebase(
 
     private lateinit var emptyPackage: PsiPackageItem
 
-    internal fun initialize(
+    internal fun initializeFromSources(
         uastEnvironment: UastEnvironment,
         psiFiles: List<PsiFile>,
         packages: PackageDocs,
@@ -288,8 +294,22 @@ open class PsiBasedCodebase(
             }
         }
 
+        finishInitialization(packages)
+    }
+
+    /**
+     * Finish initialising this codebase.
+     *
+     * Involves:
+     * * Constructing packages, setting [emptyPackage].
+     * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
+     *   interfaces referenced from the source code but provided on the class path.
+     */
+    internal fun finishInitialization(packages: PackageDocs?) {
+
         // Next construct packages
-        val overviewDocs = packages.overviewDocs
+        val packageDocs = packages?.packageDocs ?: emptyMap()
+        val overviewDocs = packages?.overviewDocs ?: emptyMap()
         for ((pkgName, classes) in packageClasses) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
@@ -406,7 +426,7 @@ open class PsiBasedCodebase(
         return packageItem
     }
 
-    internal fun initialize(
+    internal fun initializeFromJar(
         uastEnvironment: UastEnvironment,
         jarFile: File,
         preFiltered: Boolean = false,
@@ -476,30 +496,10 @@ open class PsiBasedCodebase(
             reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
         }
 
-        // Next construct packages
-        for ((pkgName, packageClasses) in packageToClasses) {
-            val psiPackage = findPsiPackage(pkgName)
-            if (psiPackage == null) {
-                println("Could not find package $pkgName")
-                continue
-            }
-
-            packageClasses.sortWith(ClassItem.fullNameComparator)
-            // When loading from a jar there is no package documentation.
-            registerPackage(pkgName, psiPackage, packageClasses)
-        }
-
-        emptyPackage = findPackage("")!!
-
-        initializing = false
         hideClassesFromJars = true
 
-        // Finish initialization
-        for (pkg in packageMap.values) {
-            pkg.finishInitialization()
-        }
-
-        packageClasses.clear() // Not used after this point
+        // When loading from a jar there is no package documentation.
+        finishInitialization(null)
     }
 
     private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
