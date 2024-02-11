@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.bestGuessAtFullName
 import java.util.function.Predicate
 
 internal open class TextClassItem(
@@ -41,17 +42,7 @@ internal open class TextClassItem(
     val fullName: String = simpleName,
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
-) :
-    TextItem(codebase = codebase, position = position, modifiers = modifiers),
-    ClassItem,
-    TypeParameterListOwner {
-
-    init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
-        if (typeParameterList is TextTypeParameterList) {
-            @Suppress("LeakingThis") typeParameterList.setOwner(this)
-        }
-    }
+) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
 
     override var artifact: String? = null
 
@@ -108,24 +99,18 @@ internal open class TextClassItem(
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
 
-    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass as? TypeParameterListOwner
-    }
-
-    private var superClass: ClassItem? = null
     private var superClassType: ClassTypeItem? = null
 
-    override fun superClass(): ClassItem? = superClass
+    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
-        this.superClass = superClass
+    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
     }
 
     override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
-        this.interfaceTypes = interfaceTypes.toMutableList()
+        this.interfaceTypes = interfaceTypes
     }
 
     private var typeInfo: TextClassTypeItem? = null
@@ -146,7 +131,7 @@ internal open class TextClassItem(
         return typeInfo!!
     }
 
-    private var interfaceTypes = mutableListOf<ClassTypeItem>()
+    private var interfaceTypes = emptyList<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()
@@ -159,10 +144,6 @@ internal open class TextClassItem(
     override fun fields(): List<FieldItem> = fields
 
     override fun properties(): List<PropertyItem> = properties
-
-    fun addInterface(itf: ClassTypeItem) {
-        interfaceTypes.add(itf)
-    }
 
     fun addConstructor(constructor: TextConstructorItem) {
         constructors += constructor
@@ -235,7 +216,7 @@ internal open class TextClassItem(
             qualifiedName: String,
             isInterface: Boolean
         ): TextClassItem {
-            val fullName = getFullName(qualifiedName)
+            val fullName = bestGuessAtFullName(qualifiedName)
             val cls =
                 TextClassItem(
                     codebase = codebase,
@@ -247,24 +228,6 @@ internal open class TextClassItem(
             cls.emit = false // it's a stub
 
             return cls
-        }
-
-        private fun getFullName(qualifiedName: String): String {
-            var end = -1
-            val length = qualifiedName.length
-            var prev = qualifiedName[length - 1]
-            for (i in length - 2 downTo 0) {
-                val c = qualifiedName[i]
-                if (c == '.' && prev.isUpperCase()) {
-                    end = i + 1
-                }
-                prev = c
-            }
-            if (end != -1) {
-                return qualifiedName.substring(end)
-            }
-
-            return qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         }
     }
 }
