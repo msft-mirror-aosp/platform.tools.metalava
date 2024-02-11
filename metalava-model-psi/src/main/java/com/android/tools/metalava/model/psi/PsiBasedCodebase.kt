@@ -298,6 +298,33 @@ open class PsiBasedCodebase(
     }
 
     /**
+     * Finish initializing a [PsiClassItem] by calling [PsiClassItem.finishedInitialization].
+     *
+     * This must only be called when [initializing] is `false`.
+     *
+     * It will invoke [PsiClassItem.finishInitialization] immediately and add it directly to the
+     * [PsiPackageItem].
+     */
+    private fun finishClassInitialization(classItem: PsiClassItem) {
+        if (initializing) {
+            error("incorrectly called on $classItem when initializing=`true`")
+        }
+
+        classItem.finishInitialization()
+        val pkgName = getPackageName(classItem.psiClass)
+        val pkg = findPackage(pkgName)
+        if (pkg == null) {
+            val psiPackage = findPsiPackage(pkgName)
+            if (psiPackage != null) {
+                val packageItem = registerPackage(pkgName, psiPackage, null)
+                packageItem.addClass(classItem)
+            }
+        } else {
+            pkg.addClass(classItem)
+        }
+    }
+
+    /**
      * Finish initialising this codebase.
      *
      * Involves:
@@ -567,18 +594,7 @@ open class PsiBasedCodebase(
             val packageName = getPackageName(clz)
             registerPackageClass(packageName, classItem)
         } else {
-            classItem.finishInitialization()
-            val pkgName = getPackageName(clz)
-            val pkg = findPackage(pkgName)
-            if (pkg == null) {
-                val psiPackage = findPsiPackage(pkgName)
-                if (psiPackage != null) {
-                    val packageItem = registerPackage(pkgName, psiPackage, null)
-                    packageItem.addClass(classItem)
-                }
-            } else {
-                pkg.addClass(classItem)
-            }
+            finishClassInitialization(classItem)
         }
 
         return classItem
