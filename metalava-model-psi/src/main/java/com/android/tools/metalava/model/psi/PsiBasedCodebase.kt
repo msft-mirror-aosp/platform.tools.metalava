@@ -611,8 +611,6 @@ open class PsiBasedCodebase(
             // TODO: Cache for adjacent files!
             val packageName = getPackageName(psiClass)
             registerPackageClass(packageName, classItem)
-        } else {
-            finishClassInitialization(classItem)
         }
 
         return classItem
@@ -732,6 +730,9 @@ open class PsiBasedCodebase(
             } else {
                 createClass(missingPsiClass, containingClassItem)
             }
+
+        // Make sure that the created class has been properly initialized.
+        finishClassInitialization(createdClassItem)
 
         // Select the class item to return.
         return if (missingPsiClass == psiClass) {
