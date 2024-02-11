@@ -141,7 +141,7 @@ open class PsiBasedCodebase(
      * and [initializeFromSources], updated by [registerPackageClass], and used and cleared in
      * [finishInitialization].
      */
-    private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
+    private var packageClasses: MutableMap<String, MutableList<PsiClassItem>>? = null
 
     /** A set of packages to hide */
     private lateinit var hiddenPackages: MutableMap<String, Boolean?>
@@ -189,7 +189,7 @@ open class PsiBasedCodebase(
 
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
-        packageClasses[""] = ArrayList()
+        packageClasses!![""] = ArrayList()
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
@@ -310,7 +310,7 @@ open class PsiBasedCodebase(
         // Next construct packages
         val packageDocs = packages?.packageDocs ?: emptyMap()
         val overviewDocs = packages?.overviewDocs ?: emptyMap()
-        for ((pkgName, classes) in packageClasses) {
+        for ((pkgName, classes) in packageClasses!!) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
@@ -326,6 +326,10 @@ open class PsiBasedCodebase(
                 overviewDocs[pkgName],
             )
         }
+
+        // Not used after this point.
+        packageClasses = null
+
         initializing = false
 
         emptyPackage = findPackage("")!!
@@ -342,8 +346,6 @@ open class PsiBasedCodebase(
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
         addParentPackages(packageMap.values)
-
-        packageClasses.clear() // Not used after this point
     }
 
     override fun dispose() {
@@ -444,7 +446,7 @@ open class PsiBasedCodebase(
         hiddenPackages = HashMap(100)
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
-        packageClasses[""] = ArrayList()
+        packageClasses!![""] = ArrayList()
         this.methodMap = HashMap(1000)
         val packageToClasses: MutableMap<String, MutableList<PsiClassItem>> =
             HashMap(PACKAGE_ESTIMATE)
@@ -503,10 +505,10 @@ open class PsiBasedCodebase(
     }
 
     private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
-        var list = packageClasses[packageName]
+        var list = packageClasses!![packageName]
         if (list == null) {
             list = ArrayList()
-            packageClasses[packageName] = list
+            packageClasses!![packageName] = list
         }
 
         list.add(cls)
@@ -558,11 +560,13 @@ open class PsiBasedCodebase(
             }
         }
 
-        // TODO: Cache for adjacent files!
-        val packageName = getPackageName(clz)
-        registerPackageClass(packageName, classItem)
-
-        if (!initializing) {
+        if (initializing) {
+            // If initializing then keep track of the class in [packageClasses]. This is not needed
+            // after initializing as [packageClasses] is not needed then.
+            // TODO: Cache for adjacent files!
+            val packageName = getPackageName(clz)
+            registerPackageClass(packageName, classItem)
+        } else {
             classItem.finishInitialization()
             val pkgName = getPackageName(clz)
             val pkg = findPackage(pkgName)
