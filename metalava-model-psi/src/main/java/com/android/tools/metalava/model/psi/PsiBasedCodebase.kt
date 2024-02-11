@@ -311,21 +311,12 @@ open class PsiBasedCodebase(
         emptyPackage = findPackage("")!!
 
         // Finish initialization
+        // Take a copy of the list just in case additional classes are added during iteration that
+        // require additional packages to be added. Those classes will have their
+        // [PsiClassItem.finishInitialization] called so there is no need to handle them here.
         val initialPackages = ArrayList(packageMap.values)
-        var registeredCount =
-            packageMap.size // classes added after this point will have indices >= original
         for (pkg in initialPackages) {
             pkg.finishInitialization()
-        }
-
-        // Finish initialization of any additional classes that were registered during
-        // the above initialization (recursively)
-        while (registeredCount < packageMap.size) {
-            val added = packageMap.values.minus(initialPackages)
-            registeredCount = packageMap.size
-            for (pkg in added) {
-                pkg.finishInitialization()
-            }
         }
 
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
