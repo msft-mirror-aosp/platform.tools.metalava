@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.TypeItemFactory
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.Type
 
@@ -34,22 +35,29 @@ import com.google.turbine.type.Type
 internal class TurbineTypeItemFactory(
     private val codebase: TurbineBasedCodebase,
     private val initializer: TurbineCodebaseInitialiser,
-    val typeParameterScope: TypeParameterScope,
-) {
+    override val typeParameterScope: TypeParameterScope,
+) : TypeItemFactory<Type, TypeItem, TurbineTypeItemFactory> {
 
-    fun nestedFactory(scope: TypeParameterScope): TurbineTypeItemFactory {
+    override fun nestedFactory(scope: TypeParameterScope): TurbineTypeItemFactory {
         return if (scope === typeParameterScope) this
         else TurbineTypeItemFactory(codebase, initializer, scope)
     }
 
     /** Create a [BoundsTypeItem]. */
-    internal fun createBoundsTypeItem(type: Type) = createType(type, false) as BoundsTypeItem
+    override fun getBoundsType(underlyingType: Type) =
+        getGeneralType(underlyingType) as BoundsTypeItem
+
+    override fun getGeneralType(underlyingType: Type) = createType(underlyingType, false)
+
+    override fun getInterfaceType(underlyingType: Type) = createSuperType(underlyingType)
+
+    override fun getSuperClassType(underlyingType: Type) = createSuperType(underlyingType)
 
     /**
      * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
      * `implements` list.
      */
-    internal fun createSuperType(type: Type): ClassTypeItem =
+    private fun createSuperType(type: Type): ClassTypeItem =
         createType(type, false, TypeUse.SUPER_TYPE) as ClassTypeItem
 
     internal fun createType(
@@ -159,7 +167,7 @@ internal class TurbineTypeItemFactory(
         }
     }
 
-    private fun createWildcardBound(type: Type) = createType(type, false) as ReferenceTypeItem
+    private fun createWildcardBound(type: Type) = getGeneralType(type) as ReferenceTypeItem
 
     private fun createArrayType(type: Type.ArrayTy, isVarArg: Boolean): TypeItem {
         // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse
@@ -172,7 +180,7 @@ internal class TurbineTypeItemFactory(
             modifierStack.addLast(DefaultTypeModifiers.create(annotations))
             curr = curr.elementType()
         }
-        var componentType = createType(curr, false)
+        var componentType = getGeneralType(curr)
         while (modifierStack.isNotEmpty()) {
             val modifiers = modifierStack.removeFirst()
             if (modifierStack.isEmpty()) {
@@ -203,7 +211,7 @@ internal class TurbineTypeItemFactory(
         val annotations = initializer.createAnnotations(type.annos())
         val modifiers = DefaultTypeModifiers.create(annotations, nullability)
         val qualifiedName = initializer.getQualifiedName(type.sym().binaryName())
-        val parameters = type.targs().map { createType(it, false) as TypeArgumentTypeItem }
+        val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
         return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
     }
 }

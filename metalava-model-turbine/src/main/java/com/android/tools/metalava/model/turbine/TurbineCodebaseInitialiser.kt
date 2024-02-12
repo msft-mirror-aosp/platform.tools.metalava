@@ -322,13 +322,13 @@ internal open class TurbineCodebaseInitialiser(
             val superClassType = cls.superClassType()
             val superClassTypeItem =
                 if (superClassType == null) null
-                else classTypeItemFactory.createSuperType(superClassType)
+                else classTypeItemFactory.getSuperClassType(superClassType)
             classItem.setSuperClassType(superClassTypeItem)
         }
 
         // Set interface types
         classItem.setInterfaceTypes(
-            cls.interfaceTypes().map { classTypeItemFactory.createSuperType(it) }
+            cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
         )
 
         // Create fields
@@ -578,8 +578,8 @@ internal open class TurbineCodebaseInitialiser(
         val typeBounds = mutableListOf<BoundsTypeItem>()
         val upperBounds = param.upperBound()
 
-        upperBounds.bounds().mapTo(typeBounds) { typeItemFactory.createBoundsTypeItem(it) }
-        param.lowerBound()?.let { typeBounds.add(typeItemFactory.createBoundsTypeItem(it)) }
+        upperBounds.bounds().mapTo(typeBounds) { typeItemFactory.getBoundsType(it) }
+        param.lowerBound()?.let { typeBounds.add(typeItemFactory.getBoundsType(it)) }
 
         return typeBounds.toList()
     }
@@ -615,7 +615,7 @@ internal open class TurbineCodebaseInitialiser(
                         annotations,
                         isDeprecated(field.decl()?.javadoc())
                     )
-                val type = typeItemFactory.createType(field.type(), false)
+                val type = typeItemFactory.getGeneralType(field.type())
                 val documentation = field.decl()?.javadoc() ?: ""
                 val fieldItem =
                     TurbineFieldItem(
@@ -663,9 +663,8 @@ internal open class TurbineCodebaseInitialiser(
                             codebase,
                             method.sym(),
                             classItem,
-                            methodTypeItemFactory.createType(
+                            methodTypeItemFactory.getGeneralType(
                                 method.returnType(),
-                                false,
                             ),
                             methodModifierItem,
                             typeParams,
@@ -745,9 +744,8 @@ internal open class TurbineCodebaseInitialiser(
                             name,
                             constructor.sym(),
                             classItem,
-                            constructorTypeItemFactory.createType(
+                            constructorTypeItemFactory.getGeneralType(
                                 constructor.returnType(),
-                                false,
                             ),
                             constructorModifierItem,
                             typeParams,
@@ -809,7 +807,7 @@ internal open class TurbineCodebaseInitialiser(
     ): List<ThrowableType> {
         return throwsTypes.map { type ->
             val exceptionTypeItem =
-                enclosingTypeItemFactory.createType(type, false) as ExceptionTypeItem
+                enclosingTypeItemFactory.getGeneralType(type) as ExceptionTypeItem
             ThrowableType.ofExceptionType(exceptionTypeItem)
         }
     }
