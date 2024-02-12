@@ -288,7 +288,7 @@ open class PsiBasedCodebase(
                                 multifileClassNames.add(ktLightClass.facadeClassFqName)
                             }
                         }
-                        topLevelClassesFromSource += createClass(psiClass)
+                        topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
                     }
                 }
             }
@@ -506,7 +506,7 @@ open class PsiBasedCodebase(
                         } else {
                             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
 
-                            val classItem = createClass(psiClass)
+                            val classItem = createTopLevelClassAndContents(psiClass)
                             topLevelClassesFromSource.add(classItem)
 
                             val packageName = getPackageName(psiClass)
@@ -566,6 +566,16 @@ open class PsiBasedCodebase(
         }
 
         return false
+    }
+
+    /**
+     * Create top level classes, their inner classes and all the other members.
+     *
+     * All the classes are registered by name and so can be found by [findOrCreateClass].
+     */
+    private fun createTopLevelClassAndContents(psiClass: PsiClass): PsiClassItem {
+        if (psiClass.containingClass != null) error("$psiClass is not a top level class")
+        return createClass(psiClass)
     }
 
     private fun createClass(clz: PsiClass): PsiClassItem {
@@ -645,6 +655,53 @@ open class PsiBasedCodebase(
         return findOrCreateClass(psiClass)
     }
 
+    /**
+     * Identifies a point in the [PsiClassItem] nesting structure where new [PsiClassItem]s need
+     * inserting.
+     */
+    data class NewClassInsertionPoint(
+        /**
+         * The [PsiClass] that is the root of the nested classes that need creation, is a top level
+         * class if [containingClassItem] is `null`.
+         */
+        val missingPsiClass: PsiClass,
+
+        /** The containing class item, or `null` if the top level. */
+        val containingClassItem: PsiClassItem?,
+    )
+
+    /**
+     * Called when no [PsiClassItem] was found by [findClass]`([PsiClass]) when called on
+     * [psiClass].
+     *
+     * The purpose of this is to find where a new [PsiClassItem] should be inserted in the nested
+     * class structure. It finds the outermost [PsiClass] with no associated [PsiClassItem] but
+     * which is either a top level class or whose containing [PsiClass] does have an associated
+     * [PsiClassItem]. That is the point where new classes need to be created.
+     *
+     * e.g. if the nesting structure is `A.B.C` and `A` has already been created then the insertion
+     * point would consist of [PsiClassItem] for `A` (the containing class item) and the [PsiClass]
+     * for `B` (the outermost [PsiClass] with no associated item).
+     *
+     * If none had already been created then it would return an insertion point consisting of no
+     * containing class item and the [PsiClass] for `A`.
+     */
+    private fun findNewClassInsertionPoint(psiClass: PsiClass): NewClassInsertionPoint {
+        var current = psiClass
+        do {
+            // If the current has no containing class then it has reached the top level class so
+            // return an insertion point that has no containing class item and the current class.
+            val containing = current.containingClass ?: return NewClassInsertionPoint(current, null)
+
+            // If the containing class has a matching class item then return an insertion point that
+            // uses that containing class item and the current class.
+            findClass(containing)?.let { containingClassItem ->
+                return NewClassInsertionPoint(current, containingClassItem)
+            }
+            current = containing
+        } while (true)
+    }
+
     internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
         if (psiClass is PsiTypeParameter) {
             error(
@@ -652,34 +709,31 @@ open class PsiBasedCodebase(
             )
         }
 
-        val existing = findClass(psiClass)
-        if (existing != null) {
-            return existing
+        // If it has already been created then return it.
+        findClass(psiClass)?.let {
+            return it
         }
 
-        var curr = psiClass.containingClass
-        if (curr != null && findClass(curr) == null) {
-            // Make sure we construct outer/top level classes first
-            if (findClass(curr) == null) {
-                while (true) {
-                    val containing = curr?.containingClass
-                    if (containing == null) {
-                        break
-                    } else {
-                        curr = containing
-                    }
-                }
-                curr!!
-                createClass(
-                    curr
-                ) // this will also create inner classes, which should now be in the map
-                val inner = findClass(psiClass)
-                inner!! // should be there now
-                return inner
+        // Otherwise, find an insertion point at which new classes should be created.
+        val (missingPsiClass, containingClassItem) = findNewClassInsertionPoint(psiClass)
+
+        // Create a top level or nested class as appropriate.
+        val createdClassItem =
+            if (containingClassItem == null) {
+                createTopLevelClassAndContents(missingPsiClass)
+            } else {
+                createClass(missingPsiClass)
             }
-        }
 
-        return existing ?: return createClass(psiClass)
+        // Select the class item to return.
+        return if (missingPsiClass == psiClass) {
+            // The created class item was what was requested so just return it.
+            createdClassItem
+        } else {
+            // Otherwise, a nested class was requested so find it. It was created when its
+            // containing class was created.
+            findClass(psiClass)!!
+        }
     }
 
     internal fun findClass(psiType: PsiType): PsiClassItem? {
