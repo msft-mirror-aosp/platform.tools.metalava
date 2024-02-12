@@ -974,7 +974,12 @@ open class PsiBasedCodebase(
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
-            error("Attempted to register $qualifiedName twice, $classItem and $existing")
+            reporter.report(
+                Issues.DUPLICATE_SOURCE_CLASS,
+                classItem,
+                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.location().path}"
+            )
+            return
         }
 
         classMap[qualifiedName] = classItem
