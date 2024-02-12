@@ -128,8 +128,15 @@ internal class TextCodebase(
             }
         }
 
-        val stubClass = TextClassItem.createStubClass(this, name, isInterface)
-        mAllClasses[name] = stubClass
+        // Build a stub class of the required kind.
+        val requiredStubKind = if (isInterface) StubKind.INTERFACE else StubKind.CLASS
+        val stubClass =
+            StubClassBuilder.build(this, name) {
+                // Apply stub kind specific mutations to the stub class being built.
+                requiredStubKind.mutator(this)
+            }
+
+        registerClass(stubClass)
         stubClass.emit = false
 
         val fullName = stubClass.fullName()
