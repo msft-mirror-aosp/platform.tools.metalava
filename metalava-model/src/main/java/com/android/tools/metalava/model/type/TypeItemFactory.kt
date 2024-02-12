@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 
 /**
@@ -35,24 +36,39 @@ import com.android.tools.metalava.model.TypeParameterScope
  *
  * @param T the underlying model specific representation of a type.
  * @param I the model specific specialization of [TypeItem].
+ * @param F the type of the factory implementation.
  */
-interface TypeItemFactory<in T, out I : TypeItem> {
+interface TypeItemFactory<in T, out I : TypeItem, F : TypeItemFactory<T, I, F>> {
+
+    /**
+     * The [TypeParameterScope] that is used by this factory to resolve references to
+     * [TypeParameterItem]s.
+     */
+    val typeParameterScope: TypeParameterScope
+
+    /**
+     * Create a [TypeItemFactory] that uses [scope] to resolve references to [TypeParameterItem]s.
+     *
+     * Returns `this` if [scope] is the same instances as [typeParameterScope], otherwise returns a
+     * new [TypeItemFactory] with [scope] as its [typeParameterScope].
+     */
+    fun nestedFactory(scope: TypeParameterScope): F
 
     /** Get a type suitable for use in a wildcard type bounds clause. */
-    fun getBoundsType(underlyingType: T, typeParameterScope: TypeParameterScope): BoundsTypeItem
+    fun getBoundsType(underlyingType: T): BoundsTypeItem
 
     /**
      * Get a general type suitable for use anywhere not covered by one of the more specific type
      * methods in this.
      */
-    fun getGeneralType(underlyingType: T, typeParameterScope: TypeParameterScope): I
+    fun getGeneralType(underlyingType: T): I
 
     /**
      * Get a type suitable for use in an `implements` list of a concrete class, or an `extends` list
      * of an interface class.
      */
-    fun getInterfaceType(underlyingType: T, typeParameterScope: TypeParameterScope): ClassTypeItem
+    fun getInterfaceType(underlyingType: T): ClassTypeItem
 
     /** Get a type suitable for use in an `extends` clause of a concrete class. */
-    fun getSuperClassType(underlyingType: T, typeParameterScope: TypeParameterScope): ClassTypeItem
+    fun getSuperClassType(underlyingType: T): ClassTypeItem
 }

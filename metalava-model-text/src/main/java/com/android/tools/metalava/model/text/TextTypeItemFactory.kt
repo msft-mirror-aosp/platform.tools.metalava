@@ -22,17 +22,23 @@ import com.android.tools.metalava.model.type.TypeItemFactory
 
 internal class TextTypeItemFactory(
     private val typeParser: TextTypeParser,
-) : TypeItemFactory<String, TextTypeItem> {
+    override val typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
+) : TypeItemFactory<String, TextTypeItem, TextTypeItemFactory> {
 
-    override fun getBoundsType(underlyingType: String, typeParameterScope: TypeParameterScope) =
+    override fun nestedFactory(scope: TypeParameterScope): TextTypeItemFactory {
+        return if (scope === this.typeParameterScope) this
+        else TextTypeItemFactory(typeParser, scope)
+    }
+
+    override fun getBoundsType(underlyingType: String) =
         typeParser.obtainTypeFromString(underlyingType, typeParameterScope) as BoundsTypeItem
 
-    override fun getGeneralType(underlyingType: String, typeParameterScope: TypeParameterScope) =
+    override fun getGeneralType(underlyingType: String): TextTypeItem =
         typeParser.obtainTypeFromString(underlyingType, typeParameterScope)
 
-    override fun getInterfaceType(underlyingType: String, typeParameterScope: TypeParameterScope) =
+    override fun getInterfaceType(underlyingType: String) =
         typeParser.getSuperType(underlyingType, typeParameterScope)
 
-    override fun getSuperClassType(underlyingType: String, typeParameterScope: TypeParameterScope) =
+    override fun getSuperClassType(underlyingType: String) =
         typeParser.getSuperType(underlyingType, typeParameterScope)
 }
