@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ThrowableType
@@ -819,8 +818,7 @@ internal open class TurbineCodebaseInitialiser(
         enclosingTypeItemFactory: TurbineTypeItemFactory
     ): List<ThrowableType> {
         return throwsTypes.map { type ->
-            val exceptionTypeItem =
-                enclosingTypeItemFactory.getGeneralType(type) as ExceptionTypeItem
+            val exceptionTypeItem = enclosingTypeItemFactory.getExceptionType(type)
             ThrowableType.ofExceptionType(exceptionTypeItem)
         }
     }

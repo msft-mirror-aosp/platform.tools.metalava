@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -51,6 +52,9 @@ internal class TurbineTypeItemFactory(
     /** Create a [BoundsTypeItem]. */
     override fun getBoundsType(underlyingType: Type) =
         getGeneralType(underlyingType) as BoundsTypeItem
+
+    override fun getExceptionType(underlyingType: Type) =
+        getGeneralType(underlyingType) as ExceptionTypeItem
 
     override fun getGeneralType(underlyingType: Type) = createType(underlyingType, false)
 

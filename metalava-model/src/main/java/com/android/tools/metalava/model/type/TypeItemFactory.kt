@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -57,6 +58,9 @@ interface TypeItemFactory<in T, out I : TypeItem, F : TypeItemFactory<T, I, F>> 
 
     /** Get a type suitable for use in a wildcard type bounds clause. */
     fun getBoundsType(underlyingType: T): BoundsTypeItem
+
+    /** Get a type suitable for use in a `throws` list. */
+    fun getExceptionType(underlyingType: T): ExceptionTypeItem
 
     /**
      * Get a general type suitable for use anywhere not covered by one of the more specific type

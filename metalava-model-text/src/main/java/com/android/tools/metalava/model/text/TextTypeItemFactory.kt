@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.TypeItemFactory
@@ -38,6 +39,9 @@ internal class TextTypeItemFactory(
 
     override fun getBoundsType(underlyingType: String) =
         typeParser.obtainTypeFromString(underlyingType, typeParameterScope) as BoundsTypeItem
+
+    override fun getExceptionType(underlyingType: String) =
+        typeParser.obtainTypeFromString(underlyingType, typeParameterScope) as ExceptionTypeItem
 
     override fun getGeneralType(underlyingType: String): TextTypeItem =
         typeParser.obtainTypeFromString(underlyingType, typeParameterScope)
