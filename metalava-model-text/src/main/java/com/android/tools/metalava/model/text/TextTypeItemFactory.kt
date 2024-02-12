@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.TypeItemFactory
 
 internal class TextTypeItemFactory(
+    private val codebase: TextCodebase,
     private val typeParser: TextTypeParser,
     override val typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : TypeItemFactory<String, TextTypeItem, TextTypeItemFactory> {
@@ -31,7 +32,8 @@ internal class TextTypeItemFactory(
         typeParameters: List<TypeParameterItem>
     ): TextTypeItemFactory {
         val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
-        return if (scope === typeParameterScope) this else TextTypeItemFactory(typeParser, scope)
+        return if (scope === typeParameterScope) this
+        else TextTypeItemFactory(codebase, typeParser, scope)
     }
 
     override fun getBoundsType(underlyingType: String) =
@@ -41,7 +43,9 @@ internal class TextTypeItemFactory(
         typeParser.obtainTypeFromString(underlyingType, typeParameterScope)
 
     override fun getInterfaceType(underlyingType: String) =
-        typeParser.getSuperType(underlyingType, typeParameterScope)
+        typeParser.getSuperType(underlyingType, typeParameterScope).also { classTypeItem ->
+            codebase.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
+        }
 
     override fun getSuperClassType(underlyingType: String) =
         typeParser.getSuperType(underlyingType, typeParameterScope)

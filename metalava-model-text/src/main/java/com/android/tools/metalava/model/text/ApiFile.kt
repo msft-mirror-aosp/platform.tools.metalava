@@ -58,7 +58,7 @@ private constructor(
 ) {
 
     /**
-     * Provides support for parsing and caching `TypeItem` instances.
+     * Provides support for parsing and caching [TypeItem]s.
      *
      * Defer creation until after the first file has been read and [kotlinStyleNulls] has been set
      * to a non-null value to ensure that it picks up the correct setting of [kotlinStyleNulls].
@@ -72,7 +72,7 @@ private constructor(
      * Defer creation as it depends on [typeParser].
      */
     private val globalTypeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(typeParser) }
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
