@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.InputFormat
@@ -44,16 +43,14 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
             .toSet()
 
     override fun createCodebaseAndRun(
-        tempDir: File,
-        input: List<TestFile>,
-        test: (Codebase) -> Unit,
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (Codebase) -> Unit
     ) {
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
             val codebase =
                 createTestCodebase(
                     environmentManager,
-                    tempDir,
-                    input,
+                    inputs,
                     listOf(getAndroidJar()),
                 )
             test(codebase)
@@ -62,15 +59,14 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
 
     private fun createTestCodebase(
         environmentManager: EnvironmentManager,
-        directory: File,
-        sources: List<TestFile>,
+        inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
     ): Codebase {
         val reporter = BasicReporter(PrintWriter(System.err))
         return environmentManager
             .createSourceParser(reporter, noOpAnnotationManager)
             .parseSources(
-                SourceSet(sources.map { it.createFile(directory) }, listOf(directory)),
+                SourceSet(inputs.mainSourceDir.createFiles(), listOf(inputs.mainSourceDir.dir)),
                 SourceSet.empty(),
                 description = "Test Codebase",
                 classPath = classPath,

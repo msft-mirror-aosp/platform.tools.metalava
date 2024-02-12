@@ -30,14 +30,30 @@ interface ModelSuiteRunner {
     /** The set of supported [InputFormat]s that this runner can handle. */
     val supportedInputFormats: Set<InputFormat>
 
+    /** A source directory and its contents. */
+    data class SourceDir(
+        /** The directory in which [contents] will be created. */
+        val dir: File,
+
+        /** The contents of [dir]. */
+        val contents: List<TestFile>,
+    ) {
+        fun createFiles() = contents.map { it.createFile(dir) }
+    }
+
+    /** Inputs for the test. */
+    data class TestInputs(
+        /** The main sources that will be loaded into the [Codebase] to be tested. */
+        val mainSourceDir: SourceDir,
+    )
+
     /**
-     * Create a [Codebase] from the supplied [input] files and then run a test on that [Codebase].
+     * Create a [Codebase] from the supplied [inputs] and then run a test on that [Codebase].
      *
-     * Implementations of this consume [input] to create a [Codebase] on which the test is run.
+     * Implementations of this consume [inputs] to create a [Codebase] on which the test is run.
      */
     fun createCodebaseAndRun(
-        tempDir: File,
-        input: List<TestFile>,
+        inputs: TestInputs,
         test: (Codebase) -> Unit,
     )
 
