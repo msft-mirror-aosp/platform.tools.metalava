@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
@@ -35,6 +34,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ThrowableType
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
@@ -65,6 +65,14 @@ private constructor(
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
+
+    /**
+     * Provides support for creating [TypeItem]s for specific uses.
+     *
+     * Defer creation as it depends on [typeParser].
+     */
+    private val typeItemFactory by
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(typeParser) }
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -269,7 +277,7 @@ private constructor(
      */
     private fun postProcess() {
         // Use this as the context for resolving references.
-        ReferenceResolver.resolveReferences(codebase, typeParser) { typeParameterScopeForClass(it) }
+        ReferenceResolver.resolveReferences(codebase) { typeParameterScopeForClass(it) }
 
         // Resolve all super class types that were found in the signature file.
         // TODO(b/323516595): Find a better way.
@@ -433,7 +441,11 @@ private constructor(
 
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
             val superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
-            superClassType = typeParser.getSuperType(superClassTypeString, typeParameterScope)
+            superClassType =
+                typeItemFactory.getSuperClassType(
+                    superClassTypeString,
+                    typeParameterScope,
+                )
             token = tokenizer.current
         }
 
@@ -446,7 +458,7 @@ private constructor(
                 } else if ("," != token) {
                     val interfaceTypeString = parseSuperTypeString(tokenizer, token)
                     val interfaceType =
-                        typeParser.getSuperType(interfaceTypeString, typeParameterScope)
+                        typeItemFactory.getInterfaceType(interfaceTypeString, typeParameterScope)
                     interfaceTypes.add(interfaceType)
                     token = tokenizer.current
                 } else {
@@ -934,7 +946,7 @@ private constructor(
 
         tokenizer.assertIdent(token)
 
-        val returnType: TextTypeItem
+        val returnType: TypeItem
         val parameters: List<TextParameterItem>
         val name: String
         if (format.kotlinNameTypeOrder) {
@@ -1010,7 +1022,7 @@ private constructor(
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        var type: TextTypeItem
+        var type: TypeItem
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
@@ -1168,7 +1180,7 @@ private constructor(
         return modifiers
     }
 
-    private fun parseValue(type: TextTypeItem, value: String?, tokenizer: Tokenizer): Any? {
+    private fun parseValue(type: TypeItem, value: String?, tokenizer: Tokenizer): Any? {
         return if (value != null) {
             if (type is PrimitiveTypeItem) {
                 parsePrimitiveValue(type, value, tokenizer)
@@ -1237,7 +1249,7 @@ private constructor(
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        val type: TextTypeItem
+        val type: TypeItem
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
@@ -1301,7 +1313,7 @@ private constructor(
      * The [typeParameterListString] should be the string representation of a list of type
      * parameters, like "<A>" or "<A, B extends java.lang.String, C>".
      *
-     * @return a [Pair] of [TypeParameterList] and [TypeParameterScope] that contains those type
+     * @return a [Pair] of [TypeParameterList] and [TextTypeItemFactory] that contains those type
      *   parameters.
      */
     private fun createTypeParameterList(
@@ -1327,7 +1339,7 @@ private constructor(
                 { scope, item, typeParameterString ->
                     val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
                     boundsStringList
-                        .map { typeParser.obtainTypeFromString(it, scope) as BoundsTypeItem }
+                        .map { typeItemFactory.getBoundsType(it, scope) }
                         .also { item.bounds = it }
                 },
             )
@@ -1375,7 +1387,7 @@ private constructor(
             val modifiers = parseModifiers(tokenizer, token, null)
             token = tokenizer.current
 
-            val type: TextTypeItem
+            val type: TypeItem
             val name: String
             val publicName: String?
             if (format.kotlinNameTypeOrder) {
@@ -1560,7 +1572,7 @@ private constructor(
             token = tokenizer.current
         }
 
-        val parsedType = typeParser.obtainTypeFromString(type, typeParameterScope)
+        val parsedType = typeItemFactory.getGeneralType(type, typeParameterScope)
         if (typeParser.kotlinStyleNulls) {
             // Treat varargs as non-null for consistency with the psi model.
             if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
@@ -1649,7 +1661,6 @@ private constructor(
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
 internal class ReferenceResolver(
     private val codebase: TextCodebase,
-    private val typeParser: TextTypeParser,
     private val classScopeProvider: (ClassItem) -> TypeParameterScope,
 ) {
     /**
@@ -1663,10 +1674,9 @@ internal class ReferenceResolver(
     companion object {
         fun resolveReferences(
             codebase: TextCodebase,
-            typeParser: TextTypeParser,
             classScopeProvider: (ClassItem) -> TypeParameterScope = { TypeParameterScope.empty },
         ) {
-            val resolver = ReferenceResolver(codebase, typeParser, classScopeProvider)
+            val resolver = ReferenceResolver(codebase, classScopeProvider)
             resolver.resolveReferences()
         }
     }
