@@ -295,6 +295,7 @@ internal constructor(
         fun create(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
+            containingClassItem: PsiClassItem?,
             fromClassPath: Boolean
         ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
@@ -353,6 +354,7 @@ internal constructor(
                     fromClassPath = fromClassPath,
                 )
             item.modifiers.setOwner(item)
+            item.containingClass = containingClassItem
 
             // Register this class now so it's present when calling Codebase.findOrCreateClass for
             // inner classes below
@@ -532,11 +534,7 @@ internal constructor(
                     val result =
                         psiInnerClasses
                             .asSequence()
-                            .map {
-                                val inner = codebase.findOrCreateClass(it)
-                                inner.containingClass = item
-                                inner
-                            }
+                            .map { codebase.findOrCreateClass(it) }
                             .toMutableList()
                     result
                 }

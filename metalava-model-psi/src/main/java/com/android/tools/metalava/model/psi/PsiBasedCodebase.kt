@@ -575,13 +575,21 @@ open class PsiBasedCodebase(
      */
     private fun createTopLevelClassAndContents(psiClass: PsiClass): PsiClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
-        return createClass(psiClass)
+        return createClass(psiClass, null)
     }
 
-    private fun createClass(clz: PsiClass): PsiClassItem {
+    internal fun createClass(
+        psiClass: PsiClass,
+        containingClassItem: PsiClassItem?,
+    ): PsiClassItem {
         // If initializing is true, this class is from source
         val classItem =
-            PsiClassItem.create(this, clz, fromClassPath = fromClasspath || !initializing)
+            PsiClassItem.create(
+                this,
+                psiClass,
+                containingClassItem,
+                fromClassPath = fromClasspath || !initializing,
+            )
         // Set emit to true for source classes but false for classpath classes
         classItem.emit = !classItem.isFromClassPath()
 
@@ -591,7 +599,7 @@ open class PsiBasedCodebase(
             if (
                 classItem.simpleName().startsWith("I") &&
                     classItem.isFromClassPath() &&
-                    clz.interfaces.any { it.qualifiedName == "android.os.IInterface" }
+                    psiClass.interfaces.any { it.qualifiedName == "android.os.IInterface" }
             ) {
                 classItem.hidden = true
             }
@@ -601,7 +609,7 @@ open class PsiBasedCodebase(
             // If initializing then keep track of the class in [packageClasses]. This is not needed
             // after initializing as [packageClasses] is not needed then.
             // TODO: Cache for adjacent files!
-            val packageName = getPackageName(clz)
+            val packageName = getPackageName(psiClass)
             registerPackageClass(packageName, classItem)
         } else {
             finishClassInitialization(classItem)
@@ -722,7 +730,7 @@ open class PsiBasedCodebase(
             if (containingClassItem == null) {
                 createTopLevelClassAndContents(missingPsiClass)
             } else {
-                createClass(missingPsiClass)
+                createClass(missingPsiClass, containingClassItem)
             }
 
         // Select the class item to return.
