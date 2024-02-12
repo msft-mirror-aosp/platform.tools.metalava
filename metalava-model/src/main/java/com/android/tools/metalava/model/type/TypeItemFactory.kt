@@ -47,12 +47,13 @@ interface TypeItemFactory<in T, out I : TypeItem, F : TypeItemFactory<T, I, F>> 
     val typeParameterScope: TypeParameterScope
 
     /**
-     * Create a [TypeItemFactory] that uses [scope] to resolve references to [TypeParameterItem]s.
+     * Create a [TypeItemFactory] that can resolve references to the [typeParameters].
      *
-     * Returns `this` if [scope] is the same instances as [typeParameterScope], otherwise returns a
-     * new [TypeItemFactory] with [scope] as its [typeParameterScope].
+     * Returns `this` if [typeParameters] is empty, otherwise returns a new [TypeItemFactory] with a
+     * new [typeParameterScope] with the specified [scopeDescription] and containing the supplied
+     * [typeParameters].
      */
-    fun nestedFactory(scope: TypeParameterScope): F
+    fun nestedFactory(scopeDescription: String, typeParameters: List<TypeParameterItem>): F
 
     /** Get a type suitable for use in a wildcard type bounds clause. */
     fun getBoundsType(underlyingType: T): BoundsTypeItem

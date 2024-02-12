@@ -1329,27 +1329,24 @@ private constructor(
         // parameter.
         val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
 
-        // Create the List<TypeParameterItem>s and the corresponding TypeParameterScope that can be
-        // used to resolve TypeParameterItems from the scope. This performs the construction in two
+        // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
+        // used to resolve TypeParameterItems from the list. This performs the construction in two
         // stages to handle cycles between the parameters.
-        val (typeParameters, scope) =
-            DefaultTypeParameterList.createTypeParameterItemsAndScope(
-                enclosingTypeItemFactory.typeParameterScope,
+        val (typeParameters, typeItemFactory) =
+            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+                enclosingTypeItemFactory,
                 scopeDescription,
                 typeParameterStrings,
                 // Create a `TextTypeParameterItem` from the type parameter string.
                 { TextTypeParameterItem.create(codebase, it) },
                 // Create, set and return the [BoundsTypeItem] list.
-                { scope, item, typeParameterString ->
+                { typeItemFactory, item, typeParameterString ->
                     val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
-                    val typeItemFactory = enclosingTypeItemFactory.nestedFactory(scope)
                     boundsStringList
                         .map { typeItemFactory.getBoundsType(it) }
                         .also { item.bounds = it }
                 },
             )
-
-        val typeItemFactory = enclosingTypeItemFactory.nestedFactory(scope)
 
         return Pair(TextTypeParameterList.create(codebase, typeParameters), typeItemFactory)
     }

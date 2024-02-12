@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
@@ -38,7 +39,11 @@ internal class TurbineTypeItemFactory(
     override val typeParameterScope: TypeParameterScope,
 ) : TypeItemFactory<Type, TypeItem, TurbineTypeItemFactory> {
 
-    override fun nestedFactory(scope: TypeParameterScope): TurbineTypeItemFactory {
+    override fun nestedFactory(
+        scopeDescription: String,
+        typeParameters: List<TypeParameterItem>
+    ): TurbineTypeItemFactory {
+        val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
         return if (scope === typeParameterScope) this
         else TurbineTypeItemFactory(codebase, initializer, scope)
     }

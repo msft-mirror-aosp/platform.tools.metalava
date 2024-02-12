@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.TypeItemFactory
 
@@ -25,9 +26,12 @@ internal class TextTypeItemFactory(
     override val typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : TypeItemFactory<String, TextTypeItem, TextTypeItemFactory> {
 
-    override fun nestedFactory(scope: TypeParameterScope): TextTypeItemFactory {
-        return if (scope === this.typeParameterScope) this
-        else TextTypeItemFactory(typeParser, scope)
+    override fun nestedFactory(
+        scopeDescription: String,
+        typeParameters: List<TypeParameterItem>
+    ): TextTypeItemFactory {
+        val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
+        return if (scope === typeParameterScope) this else TextTypeItemFactory(typeParser, scope)
     }
 
     override fun getBoundsType(underlyingType: String) =

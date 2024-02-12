@@ -539,21 +539,19 @@ internal open class TurbineCodebaseInitialiser(
         if (tyParams.isEmpty()) return Pair(TypeParameterList.NONE, enclosingClassTypeItemFactory)
 
         // Create a list of [TypeParameterItem]s from turbine specific classes.
-        val (typeParameters, scope) =
-            DefaultTypeParameterList.createTypeParameterItemsAndScope(
-                enclosingClassTypeItemFactory.typeParameterScope,
+        val (typeParameters, typeItemFactory) =
+            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+                enclosingClassTypeItemFactory,
                 description,
                 tyParams.toList(),
                 { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
-                { scope, item, (_, tParam) ->
-                    val typeItemFactory = enclosingClassTypeItemFactory.nestedFactory(scope)
+                { typeItemFactory, item, (_, tParam) ->
                     createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
                 },
             )
 
         val tyParamList = TurbineTypeParameterList(codebase)
         tyParamList.typeParameters = typeParameters
-        val typeItemFactory = enclosingClassTypeItemFactory.nestedFactory(scope)
         return Pair(tyParamList, typeItemFactory)
     }
 
