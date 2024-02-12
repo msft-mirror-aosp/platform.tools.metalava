@@ -34,26 +34,27 @@ import com.google.turbine.type.Type
 internal class TurbineTypeItemFactory(
     private val codebase: TurbineBasedCodebase,
     private val initializer: TurbineCodebaseInitialiser,
+    val typeParameterScope: TypeParameterScope,
 ) {
 
+    fun nestedFactory(scope: TypeParameterScope): TurbineTypeItemFactory {
+        return if (scope === typeParameterScope) this
+        else TurbineTypeItemFactory(codebase, initializer, scope)
+    }
+
     /** Create a [BoundsTypeItem]. */
-    internal fun createBoundsTypeItem(type: Type, typeParameterScope: TypeParameterScope) =
-        createType(type, false, typeParameterScope) as BoundsTypeItem
+    internal fun createBoundsTypeItem(type: Type) = createType(type, false) as BoundsTypeItem
 
     /**
      * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
      * `implements` list.
      */
-    internal fun createSuperType(
-        type: Type,
-        typeParameterScope: TypeParameterScope
-    ): ClassTypeItem =
-        createType(type, false, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
+    internal fun createSuperType(type: Type): ClassTypeItem =
+        createType(type, false, TypeUse.SUPER_TYPE) as ClassTypeItem
 
     internal fun createType(
         type: Type,
         isVarArg: Boolean,
-        typeParameterScope: TypeParameterScope,
         typeUse: TypeUse = TypeUse.GENERAL,
     ): TypeItem {
         return when (val kind = type.tyKind()) {
@@ -84,7 +85,7 @@ internal class TurbineTypeItemFactory(
                 }
             }
             Type.TyKind.ARRAY_TY -> {
-                createArrayType(type as Type.ArrayTy, isVarArg, typeParameterScope)
+                createArrayType(type as Type.ArrayTy, isVarArg)
             }
             Type.TyKind.CLASS_TY -> {
                 type as Type.ClassTy
@@ -95,8 +96,7 @@ internal class TurbineTypeItemFactory(
                 for (simpleClass in type.classes()) {
                     // For all outer class types, set the nullability to non-null.
                     outerClass?.modifiers?.setNullability(TypeNullability.NONNULL)
-                    outerClass =
-                        createSimpleClassType(simpleClass, outerClass, typeParameterScope, typeUse)
+                    outerClass = createSimpleClassType(simpleClass, outerClass, typeUse)
                 }
                 outerClass!!
             }
@@ -114,20 +114,18 @@ internal class TurbineTypeItemFactory(
                 val modifiers = DefaultTypeModifiers.create(annotations, TypeNullability.UNDEFINED)
                 when (type.boundKind()) {
                     Type.WildTy.BoundKind.UPPER -> {
-                        val upperBound = createWildcardBound(type.bound(), typeParameterScope)
+                        val upperBound = createWildcardBound(type.bound())
                         TurbineWildcardTypeItem(modifiers, upperBound, null)
                     }
                     Type.WildTy.BoundKind.LOWER -> {
                         // LowerBounded types have java.lang.Object as upper bound
-                        val upperBound =
-                            createWildcardBound(Type.ClassTy.OBJECT, typeParameterScope)
-                        val lowerBound = createWildcardBound(type.bound(), typeParameterScope)
+                        val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
+                        val lowerBound = createWildcardBound(type.bound())
                         TurbineWildcardTypeItem(modifiers, upperBound, lowerBound)
                     }
                     Type.WildTy.BoundKind.NONE -> {
                         // Unbounded types have java.lang.Object as upper bound
-                        val upperBound =
-                            createWildcardBound(Type.ClassTy.OBJECT, typeParameterScope)
+                        val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
                         TurbineWildcardTypeItem(modifiers, upperBound, null)
                     }
                     else ->
@@ -161,14 +159,9 @@ internal class TurbineTypeItemFactory(
         }
     }
 
-    private fun createWildcardBound(type: Type, typeParameterScope: TypeParameterScope) =
-        createType(type, false, typeParameterScope) as ReferenceTypeItem
+    private fun createWildcardBound(type: Type) = createType(type, false) as ReferenceTypeItem
 
-    private fun createArrayType(
-        type: Type.ArrayTy,
-        isVarArg: Boolean,
-        typeParameterScope: TypeParameterScope,
-    ): TypeItem {
+    private fun createArrayType(type: Type.ArrayTy, isVarArg: Boolean): TypeItem {
         // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse
         // order. This method attaches annotations in the correct order by applying them in reverse
         val modifierStack = ArrayDeque<TypeModifiers>()
@@ -179,7 +172,7 @@ internal class TurbineTypeItemFactory(
             modifierStack.addLast(DefaultTypeModifiers.create(annotations))
             curr = curr.elementType()
         }
-        var componentType = createType(curr, false, typeParameterScope)
+        var componentType = createType(curr, false)
         while (modifierStack.isNotEmpty()) {
             val modifiers = modifierStack.removeFirst()
             if (modifierStack.isEmpty()) {
@@ -203,7 +196,6 @@ internal class TurbineTypeItemFactory(
     private fun createSimpleClassType(
         type: Type.ClassTy.SimpleClassTy,
         outerClass: TurbineClassTypeItem?,
-        typeParameterScope: TypeParameterScope,
         typeUse: TypeUse = TypeUse.GENERAL,
     ): TurbineClassTypeItem {
         // Super types are always NONNULL.
@@ -211,8 +203,7 @@ internal class TurbineTypeItemFactory(
         val annotations = initializer.createAnnotations(type.annos())
         val modifiers = DefaultTypeModifiers.create(annotations, nullability)
         val qualifiedName = initializer.getQualifiedName(type.sym().binaryName())
-        val parameters =
-            type.targs().map { createType(it, false, typeParameterScope) as TypeArgumentTypeItem }
+        val parameters = type.targs().map { createType(it, false) as TypeArgumentTypeItem }
         return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
     }
 }

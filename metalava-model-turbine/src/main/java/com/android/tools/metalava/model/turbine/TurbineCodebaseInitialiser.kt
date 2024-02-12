@@ -105,7 +105,8 @@ internal open class TurbineCodebaseInitialiser(
     /** Map between Class declaration and the corresponding source CompUnit */
     private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf<TyDecl, CompUnit>()
 
-    private val typeItemFactory = TurbineTypeItemFactory(codebase, this)
+    private val globalTypeItemFactory =
+        TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
 
     /**
      * Binds the units with the help of Turbine's binder.
@@ -235,7 +236,7 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun createTopLevelClassAndContents(classSymbol: ClassSymbol) {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
-        createClass(classSymbol, TypeParameterScope.empty)
+        createClass(classSymbol, globalTypeItemFactory)
     }
 
     /** Tries to create a class if not already present in codebase's classmap */
@@ -260,7 +261,7 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createClass(
         sym: ClassSymbol,
-        enclosingClassTypeParameterScope: TypeParameterScope,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ): TurbineClassItem {
 
         var cls: TypeBoundClass? = sourceClassMap[sym]
@@ -287,10 +288,10 @@ internal open class TurbineCodebaseInitialiser(
                 annotations,
                 isDeprecated(documentation)
             )
-        val (typeParameters, classTypeParameterScope) =
+        val (typeParameters, classTypeItemFactory) =
             createTypeParameters(
                 cls.typeParameterTypes(),
-                enclosingClassTypeParameterScope,
+                enclosingClassTypeItemFactory,
                 "class $qualifiedName",
             )
         // Create the sourcefile
@@ -321,25 +322,23 @@ internal open class TurbineCodebaseInitialiser(
             val superClassType = cls.superClassType()
             val superClassTypeItem =
                 if (superClassType == null) null
-                else typeItemFactory.createSuperType(superClassType, classTypeParameterScope)
+                else classTypeItemFactory.createSuperType(superClassType)
             classItem.setSuperClassType(superClassTypeItem)
         }
 
         // Set interface types
         classItem.setInterfaceTypes(
-            cls.interfaceTypes().map {
-                typeItemFactory.createSuperType(it, classTypeParameterScope)
-            }
+            cls.interfaceTypes().map { classTypeItemFactory.createSuperType(it) }
         )
 
         // Create fields
-        createFields(classItem, cls.fields(), classTypeParameterScope)
+        createFields(classItem, cls.fields(), classTypeItemFactory)
 
         // Create methods
-        createMethods(classItem, cls.methods(), classTypeParameterScope)
+        createMethods(classItem, cls.methods(), classTypeItemFactory)
 
         // Create constructors
-        createConstructors(classItem, cls.methods(), classTypeParameterScope)
+        createConstructors(classItem, cls.methods(), classTypeItemFactory)
 
         // Add to the codebase
         codebase.addClass(classItem, isTopClass)
@@ -361,7 +360,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Create InnerClasses.
         val children = cls.children()
-        createInnerClasses(classItem, children.values.asList(), classTypeParameterScope)
+        createInnerClasses(classItem, children.values.asList(), classTypeItemFactory)
 
         return classItem
     }
@@ -533,28 +532,29 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createTypeParameters(
         tyParams: ImmutableMap<TyVarSymbol, TyVarInfo>,
-        enclosingClassTypeParameterScope: TypeParameterScope,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         description: String,
-    ): Pair<TypeParameterList, TypeParameterScope> {
+    ): Pair<TypeParameterList, TurbineTypeItemFactory> {
 
-        if (tyParams.isEmpty())
-            return Pair(TypeParameterList.NONE, enclosingClassTypeParameterScope)
+        if (tyParams.isEmpty()) return Pair(TypeParameterList.NONE, enclosingClassTypeItemFactory)
 
         // Create a list of [TypeParameterItem]s from turbine specific classes.
         val (typeParameters, scope) =
             DefaultTypeParameterList.createTypeParameterItemsAndScope(
-                enclosingClassTypeParameterScope,
+                enclosingClassTypeItemFactory.typeParameterScope,
                 description,
                 tyParams.toList(),
                 { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
                 { scope, item, (_, tParam) ->
-                    createTypeParameterBounds(tParam, scope).also { item.bounds = it }
+                    val typeItemFactory = enclosingClassTypeItemFactory.nestedFactory(scope)
+                    createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
                 },
             )
 
         val tyParamList = TurbineTypeParameterList(codebase)
         tyParamList.typeParameters = typeParameters
-        return Pair(tyParamList, scope)
+        val typeItemFactory = enclosingClassTypeItemFactory.nestedFactory(scope)
+        return Pair(tyParamList, typeItemFactory)
     }
 
     /**
@@ -573,17 +573,13 @@ internal open class TurbineCodebaseInitialiser(
     /** Create the bounds of a [TurbineTypeParameterItem]. */
     private fun createTypeParameterBounds(
         param: TyVarInfo,
-        typeParameterScope: TypeParameterScope,
+        typeItemFactory: TurbineTypeItemFactory,
     ): List<BoundsTypeItem> {
         val typeBounds = mutableListOf<BoundsTypeItem>()
         val upperBounds = param.upperBound()
 
-        upperBounds.bounds().mapTo(typeBounds) {
-            typeItemFactory.createBoundsTypeItem(it, typeParameterScope)
-        }
-        param.lowerBound()?.let {
-            typeBounds.add(typeItemFactory.createBoundsTypeItem(it, typeParameterScope))
-        }
+        upperBounds.bounds().mapTo(typeBounds) { typeItemFactory.createBoundsTypeItem(it) }
+        param.lowerBound()?.let { typeBounds.add(typeItemFactory.createBoundsTypeItem(it)) }
 
         return typeBounds.toList()
     }
@@ -592,11 +588,11 @@ internal open class TurbineCodebaseInitialiser(
     private fun createInnerClasses(
         classItem: TurbineClassItem,
         innerClasses: ImmutableList<ClassSymbol>,
-        enclosingClassTypeParameterScope: TypeParameterScope
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory
     ) {
         classItem.innerClasses =
             innerClasses.map { cls ->
-                val innerClassItem = createClass(cls, enclosingClassTypeParameterScope)
+                val innerClassItem = createClass(cls, enclosingClassTypeItemFactory)
                 innerClassItem.containingClass = classItem
                 fixCtorReturnType(innerClassItem)
                 innerClassItem
@@ -607,7 +603,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createFields(
         classItem: TurbineClassItem,
         fields: ImmutableList<FieldInfo>,
-        typeParameterScope: TypeParameterScope,
+        typeItemFactory: TurbineTypeItemFactory,
     ) {
         classItem.fields =
             fields.map { field ->
@@ -619,7 +615,7 @@ internal open class TurbineCodebaseInitialiser(
                         annotations,
                         isDeprecated(field.decl()?.javadoc())
                     )
-                val type = typeItemFactory.createType(field.type(), false, typeParameterScope)
+                val type = typeItemFactory.createType(field.type(), false)
                 val documentation = field.decl()?.javadoc() ?: ""
                 val fieldItem =
                     TurbineFieldItem(
@@ -641,7 +637,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createMethods(
         classItem: TurbineClassItem,
         methods: List<MethodInfo>,
-        enclosingClassTypeParameterScope: TypeParameterScope,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         val methodItems =
             methods
@@ -655,10 +651,10 @@ internal open class TurbineCodebaseInitialiser(
                             annotations,
                             isDeprecated(method.decl()?.javadoc())
                         )
-                    val (typeParams, methodTypeParameterScope) =
+                    val (typeParams, methodTypeItemFactory) =
                         createTypeParameters(
                             method.tyParams(),
-                            enclosingClassTypeParameterScope,
+                            enclosingClassTypeItemFactory,
                             method.name(),
                         )
                     val documentation = method.decl()?.javadoc() ?: ""
@@ -667,19 +663,18 @@ internal open class TurbineCodebaseInitialiser(
                             codebase,
                             method.sym(),
                             classItem,
-                            typeItemFactory.createType(
+                            methodTypeItemFactory.createType(
                                 method.returnType(),
                                 false,
-                                methodTypeParameterScope
                             ),
                             methodModifierItem,
                             typeParams,
                             getCommentedDoc(documentation),
                         )
                     methodModifierItem.setOwner(methodItem)
-                    createParameters(methodItem, method.parameters(), methodTypeParameterScope)
+                    createParameters(methodItem, method.parameters(), methodTypeItemFactory)
                     methodItem.throwableTypes =
-                        getThrowsList(method.exceptions(), methodTypeParameterScope)
+                        getThrowsList(method.exceptions(), methodTypeItemFactory)
                     methodItem
                 }
         // Ignore default enum methods
@@ -690,7 +685,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createParameters(
         methodItem: TurbineMethodItem,
         parameters: List<ParamInfo>,
-        typeParameterScope: TypeParameterScope
+        typeItemFactory: TurbineTypeItemFactory
     ) {
         methodItem.parameters =
             parameters.mapIndexed { idx, parameter ->
@@ -701,7 +696,6 @@ internal open class TurbineCodebaseInitialiser(
                     typeItemFactory.createType(
                         parameter.type(),
                         parameterModifierItem.isVarArg(),
-                        typeParameterScope,
                     )
                 val parameterItem =
                     TurbineParameterItem(
@@ -720,7 +714,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createConstructors(
         classItem: TurbineClassItem,
         methods: List<MethodInfo>,
-        enclosingClassTypeParameterScope: TypeParameterScope,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         var hasImplicitDefaultConstructor = false
         classItem.constructors =
@@ -735,10 +729,10 @@ internal open class TurbineCodebaseInitialiser(
                             annotations,
                             isDeprecated(constructor.decl()?.javadoc())
                         )
-                    val (typeParams, constructorTypeParameterScope) =
+                    val (typeParams, constructorTypeItemFactory) =
                         createTypeParameters(
                             constructor.tyParams(),
-                            enclosingClassTypeParameterScope,
+                            enclosingClassTypeItemFactory,
                             constructor.name(),
                         )
                     hasImplicitDefaultConstructor =
@@ -751,10 +745,9 @@ internal open class TurbineCodebaseInitialiser(
                             name,
                             constructor.sym(),
                             classItem,
-                            typeItemFactory.createType(
+                            constructorTypeItemFactory.createType(
                                 constructor.returnType(),
                                 false,
-                                constructorTypeParameterScope
                             ),
                             constructorModifierItem,
                             typeParams,
@@ -764,10 +757,10 @@ internal open class TurbineCodebaseInitialiser(
                     createParameters(
                         constructorItem,
                         constructor.parameters(),
-                        constructorTypeParameterScope
+                        constructorTypeItemFactory
                     )
                     constructorItem.throwableTypes =
-                        getThrowsList(constructor.exceptions(), constructorTypeParameterScope)
+                        getThrowsList(constructor.exceptions(), constructorTypeItemFactory)
                     constructorItem
                 }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
@@ -812,12 +805,11 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun getThrowsList(
         throwsTypes: List<Type>,
-        enclosingTypeParameterScope: TypeParameterScope
+        enclosingTypeItemFactory: TurbineTypeItemFactory
     ): List<ThrowableType> {
         return throwsTypes.map { type ->
             val exceptionTypeItem =
-                typeItemFactory.createType(type, false, enclosingTypeParameterScope)
-                    as ExceptionTypeItem
+                enclosingTypeItemFactory.createType(type, false) as ExceptionTypeItem
             ThrowableType.ofExceptionType(exceptionTypeItem)
         }
     }
