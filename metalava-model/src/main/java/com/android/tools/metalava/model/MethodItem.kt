@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import java.util.function.Predicate
 
 @MetalavaApi
-interface MethodItem : MemberItem {
+interface MethodItem : MemberItem, TypeParameterListOwner {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
@@ -58,12 +58,6 @@ interface MethodItem : MemberItem {
         }
     }
 
-    /**
-     * Any type parameters for the class, if any, as a source string (with fully qualified class
-     * names)
-     */
-    @MetalavaApi fun typeParameterList(): TypeParameterList
-
     /** Types of exceptions that this method can throw */
     fun throwsTypes(): List<ThrowableType>
 
@@ -91,15 +85,22 @@ interface MethodItem : MemberItem {
         throwableTypes: LinkedHashSet<ThrowableType>
     ): LinkedHashSet<ThrowableType> {
         for (throwableType in throwsTypes()) {
-            if (throwableType.isTypeParameter || predicate.test(throwableType.classItem)) {
+            if (throwableType.isTypeParameter) {
                 throwableTypes.add(throwableType)
             } else {
-                // Excluded, but it may have super class throwables that are included; if so,
-                // include those.
-                throwableType.classItem
-                    .allSuperClasses()
-                    .firstOrNull { superClass -> predicate.test(superClass) }
-                    ?.let { superClass -> throwableTypes.add(ThrowableType.ofClass(superClass)) }
+                val classItem = throwableType.classItem ?: continue
+                if (predicate.test(classItem)) {
+                    throwableTypes.add(throwableType)
+                } else {
+                    // Excluded, but it may have super class throwables that are included; if so,
+                    // include those.
+                    classItem
+                        .allSuperClasses()
+                        .firstOrNull { superClass -> predicate.test(superClass) }
+                        ?.let { superClass ->
+                            throwableTypes.add(ThrowableType.ofClass(superClass))
+                        }
+                }
             }
         }
         return throwableTypes
