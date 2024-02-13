@@ -63,7 +63,7 @@ internal class PsiTypeParameterItem(
             if (refs.isEmpty()) {
                 emptyList()
             } else {
-                refs.mapNotNull { codebase.typeItemFactory.getType(it) as BoundsTypeItem }
+                refs.mapNotNull { codebase.typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
             }
     }
 

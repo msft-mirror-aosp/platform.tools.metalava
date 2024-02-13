@@ -16,20 +16,57 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.type.TypeItemFactory
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiType
 import org.jetbrains.uast.kotlin.isKotlin
 
-/** Creates [PsiTypeItem]s from [PsiType]s and an optional context [PsiElement]. */
-internal class PsiTypeItemFactory(val codebase: PsiBasedCodebase) {
+/**
+ * Encapsulates a [PsiType] and an optional context [PsiElement] for use with [PsiTypeItemFactory].
+ */
+data class PsiTypeInfo(val psiType: PsiType, val context: PsiElement? = null)
+
+/**
+ * Creates [PsiTypeItem]s from [PsiType]s and an optional context [PsiElement], encapsulated within
+ * [PsiTypeInfo].
+ */
+internal class PsiTypeItemFactory(val codebase: PsiBasedCodebase) :
+    TypeItemFactory<PsiTypeInfo, PsiTypeItemFactory> {
+
+    override val typeParameterScope
+        get() = error("unsupported")
+
+    override fun nestedFactory(scopeDescription: String, typeParameters: List<TypeParameterItem>) =
+        error("unsupported")
+
+    override fun getBoundsType(underlyingType: PsiTypeInfo) =
+        getType(underlyingType) as BoundsTypeItem
+
+    override fun getExceptionType(underlyingType: PsiTypeInfo) =
+        getType(underlyingType) as ExceptionTypeItem
+
+    override fun getGeneralType(underlyingType: PsiTypeInfo) = getType(underlyingType)
+
+    override fun getInterfaceType(underlyingType: PsiTypeInfo) =
+        getSuperType(underlyingType.psiType)
+
+    override fun getSuperClassType(underlyingType: PsiTypeInfo) =
+        getSuperType(underlyingType.psiType)
 
     /**
      * Creates a [PsiClassTypeItem] that is suitable for use as a super type, e.g. in an `extends`
      * or `implements` list.
      */
-    internal fun getSuperType(psiType: PsiType): PsiClassTypeItem {
+    private fun getSuperType(psiType: PsiType): PsiClassTypeItem {
         return getType(psiType, typeUse = TypeUse.SUPER_TYPE) as PsiClassTypeItem
+    }
+
+    private fun getType(psiTypeInfo: PsiTypeInfo, typeUse: TypeUse = TypeUse.GENERAL): PsiTypeItem {
+        return getType(psiTypeInfo.psiType, psiTypeInfo.context, typeUse)
     }
 
     /**

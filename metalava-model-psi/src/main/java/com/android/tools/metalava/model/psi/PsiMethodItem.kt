@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
@@ -439,7 +438,7 @@ open class PsiMethodItem(
                 // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
                 .map { psiType ->
                     ThrowableType.ofExceptionType(
-                        typeItemFactory.getType(psiType) as ExceptionTypeItem
+                        typeItemFactory.getExceptionType(PsiTypeInfo(psiType))
                     )
                 }
                 // We're sorting the names here even though outputs typically do their own sorting,

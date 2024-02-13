@@ -329,7 +329,9 @@ internal constructor(
             val superClassType =
                 if (classKind != ClassKind.INTERFACE) {
                     val superClassPsiType = psiClass.superClassType as? PsiType
-                    superClassPsiType?.let { superType -> typeItemFactory.getSuperType(superType) }
+                    superClassPsiType?.let { superType ->
+                        typeItemFactory.getSuperClassType(PsiTypeInfo(superType))
+                    }
                 } else null
 
             // Get the interfaces from the appropriate list.
@@ -344,7 +346,8 @@ internal constructor(
                 }
 
             // Map them to PsiTypeItems.
-            val interfaceTypes = interfaces.map { typeItemFactory.getSuperType(it) }
+            val interfaceTypes =
+                interfaces.map { typeItemFactory.getInterfaceType(PsiTypeInfo(it)) }
 
             val item =
                 PsiClassItem(
