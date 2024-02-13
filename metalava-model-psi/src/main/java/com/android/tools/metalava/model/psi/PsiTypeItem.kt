@@ -129,11 +129,31 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
                     )
                 is PsiClassType -> {
                     val psiClass = psiType.resolve()
-                    if (psiClass is PsiTypeParameter) {
+                    val typeParameterScope = typeItemFactory.typeParameterScope
+                    val typeParameterItem =
+                        when (psiClass) {
+                            // If the type resolves to a PsiTypeParameter then the TypeParameterItem
+                            // must exist.
+                            is PsiTypeParameter -> {
+                                val name = psiClass.qualifiedName ?: psiType.name
+                                typeParameterScope.getTypeParameter(name)
+                            }
+                            // If the type could not be resolved then the TypeParameterItem might
+                            // exist.
+                            null ->
+                                psiType.className?.let { name ->
+                                    typeParameterScope.findTypeParameter(name)
+                                }
+                            // Else it is not a TypeParameterItem.
+                            else -> null
+                        }
+
+                    if (typeParameterItem != null) {
                         PsiVariableTypeItem.create(
                             codebase = codebase,
                             psiType = psiType,
                             kotlinType = kotlinType,
+                            typeParameterItem = typeParameterItem,
                         )
                     } else {
                         PsiClassTypeItem.create(
@@ -476,31 +496,31 @@ internal class PsiClassTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
 internal class PsiVariableTypeItem(
-    private val codebase: PsiBasedCodebase,
     psiType: PsiType,
-    override val name: String,
     override val modifiers: PsiTypeModifiers,
+    override val asTypeParameter: TypeParameterItem,
 ) : VariableTypeItem, PsiTypeItem(psiType) {
-    override val asTypeParameter: TypeParameterItem by lazy {
-        val cls = (psiType as PsiClassType).resolve() ?: error("Could not resolve $psiType")
-        codebase.findTypeParameter(cls as PsiTypeParameter)
-    }
+
+    override val name: String = asTypeParameter.name()
 
     override fun duplicate(): PsiVariableTypeItem =
         PsiVariableTypeItem(
-            codebase = codebase,
             psiType = psiType,
-            name = name,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers.duplicate(),
+            asTypeParameter = asTypeParameter,
         )
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, psiType: PsiClassType, kotlinType: KotlinTypeInfo?) =
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiType: PsiClassType,
+            kotlinType: KotlinTypeInfo?,
+            typeParameterItem: TypeParameterItem,
+        ) =
             PsiVariableTypeItem(
-                codebase = codebase,
                 psiType = psiType,
-                name = psiType.name,
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+                asTypeParameter = typeParameterItem,
             )
     }
 }

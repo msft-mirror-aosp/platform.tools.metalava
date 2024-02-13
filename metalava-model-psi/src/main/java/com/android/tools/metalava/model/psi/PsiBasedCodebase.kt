@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
@@ -769,34 +768,6 @@ open class PsiBasedCodebase(
             }
         }
         return null
-    }
-
-    /**
-     * Find a [PsiTypeParameterItem] representing [PsiTypeParameter].
-     *
-     * The corresponding [TypeParameterItem] must always exist, otherwise the source code has
-     * serious syntactic and/or semantic errors.
-     */
-    internal fun findTypeParameter(psiTypeParameter: PsiTypeParameter): TypeParameterItem {
-        // Find the [TypeParameterListOwner] of the type parameter by searching for the
-        // [MethodItem]/[ClassItem] corresponding to the underlying [PsiTypeParameter]'s owner.
-        val psiOwner = psiTypeParameter.owner
-        val typeParameterListOwner =
-            when (psiOwner) {
-                is PsiMethod -> findMethod(psiOwner)
-                is PsiClass -> findClass(psiOwner)
-                else -> null
-            }
-                ?: error("Could not find or recognize owner $psiOwner")
-
-        // Search through the owner's [TypeParameterList] to find the parameter with the matching
-        // name and return that.
-        val typeParameterList = typeParameterListOwner.typeParameterList()
-        val name = psiTypeParameter.name
-        return typeParameterList.typeParameters().firstOrNull { it.name() == name }
-            ?: error(
-                "Could not find type parameter $name in $typeParameterList of $typeParameterListOwner"
-            )
     }
 
     internal fun getClassType(cls: PsiClass): PsiClassType =

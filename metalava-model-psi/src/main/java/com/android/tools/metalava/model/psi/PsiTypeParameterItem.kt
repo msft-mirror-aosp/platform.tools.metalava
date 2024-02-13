@@ -42,8 +42,9 @@ internal class PsiTypeParameterItem(
     override fun name() = name
 
     override fun type(): VariableTypeItem {
-        return codebase.globalTypeItemFactory.getType(codebase.getClassType(psiClass))
-            as VariableTypeItem
+        val psiType = codebase.getClassType(psiClass)
+        val typeModifiers = PsiTypeModifiers.create(codebase, psiType, null)
+        return PsiVariableTypeItem(psiType, typeModifiers, this)
     }
 
     override fun psi() = psiClass
@@ -54,19 +55,7 @@ internal class PsiTypeParameterItem(
         return isReified(psiClass as? PsiTypeParameter)
     }
 
-    private lateinit var bounds: List<BoundsTypeItem>
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        val refs = psiClass.extendsList.referencedTypes
-        bounds =
-            if (refs.isEmpty()) {
-                emptyList()
-            } else {
-                refs.mapNotNull { codebase.globalTypeItemFactory.getBoundsType(PsiTypeInfo(it)) }
-            }
-    }
+    internal lateinit var bounds: List<BoundsTypeItem>
 
     override fun toString(): String {
         return String.format("%s [0x%x]", name, System.identityHashCode(this))

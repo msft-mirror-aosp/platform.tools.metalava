@@ -117,7 +117,14 @@ internal class PsiTypeItemFactory(
         // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class
         // has any type parameters then the PsiType will include references to those parameters.
         val psiTypeWithTypeParametersIfAny = codebase.getClassType(psiClassItem.psiClass)
-        return PsiTypeItem.create(codebase, psiTypeWithTypeParametersIfAny, null, this)
-            as PsiClassTypeItem
+        // Create a PsiTypeItemFactory that will correctly resolve any references to the class's
+        // type parameters.
+        val classTypeItemFactory = from(psiClassItem)
+        return PsiTypeItem.create(
+            codebase,
+            psiTypeWithTypeParametersIfAny,
+            null,
+            classTypeItemFactory
+        ) as PsiClassTypeItem
     }
 }
