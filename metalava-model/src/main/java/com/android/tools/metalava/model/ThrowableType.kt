@@ -57,87 +57,6 @@ sealed interface ThrowableType {
     /** The fully qualified name, will be the simple name of a [TypeParameterItem]. */
     fun qualifiedName(): String
 
-    /** A wrapper of [ClassItem] that implements [ThrowableType]. */
-    private class ThrowableClassItem(override val classItem: ClassItem) : ThrowableType {
-
-        /* This is never a type parameter. */
-        override val isTypeParameter
-            get() = false
-
-        override val typeParameterItem: TypeParameterItem
-            get() = error("Cannot access `typeParameterItem` on $this")
-
-        /** The [classItem] is a subclass of [java.lang.Throwable] */
-        override val throwableClass: ClassItem
-            get() = classItem
-
-        override fun description() = qualifiedName()
-
-        override fun fullName() = classItem.fullName()
-
-        override fun qualifiedName() = classItem.qualifiedName()
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as ThrowableClassItem
-
-            if (classItem != other.classItem) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            return classItem.hashCode()
-        }
-
-        override fun toString() = classItem.toString()
-    }
-
-    /** A wrapper of [TypeParameterItem] that implements [ThrowableType]. */
-    private class ThrowableTypeParameterItem(override val typeParameterItem: TypeParameterItem) :
-        ThrowableType {
-
-        /** This is always a type parameter. */
-        override val isTypeParameter
-            get() = true
-
-        /** The [typeParameterItem] has no underlying [ClassItem]. */
-        override val classItem: ClassItem
-            get() = error("Cannot access classItem of $this")
-
-        /** The [throwableClass] is the lower bounds of [typeParameterItem]. */
-        override val throwableClass: ClassItem?
-            get() = typeParameterItem.typeBounds().firstNotNullOfOrNull { it.asClass() }
-
-        override fun description() =
-            "${typeParameterItem.name()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
-
-        /** A TypeParameterItem name is not prefixed by a containing class. */
-        override fun fullName() = typeParameterItem.name()
-
-        /** A TypeParameterItem name is not qualified by the package. */
-        override fun qualifiedName() = typeParameterItem.name()
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as ThrowableTypeParameterItem
-
-            if (typeParameterItem != other.typeParameterItem) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            return typeParameterItem.hashCode()
-        }
-
-        override fun toString() = typeParameterItem.toString()
-    }
-
     /** A wrapper of [ExceptionTypeItem] that implements [ThrowableType]. */
     private class ThrowableExceptionTypeItem(val exceptionTypeItem: ExceptionTypeItem) :
         ThrowableType {
@@ -208,15 +127,6 @@ sealed interface ThrowableType {
     }
 
     companion object {
-        /** Get a [ThrowableType] wrapper around [ClassItem] */
-        fun ofClass(classItem: ClassItem): ThrowableType =
-            if (classItem is TypeParameterItem) error("Must not call this with a TypeParameterItem")
-            else ThrowableClassItem(classItem)
-
-        /** Get a [ThrowableType] wrapper around [TypeParameterItem] */
-        fun ofTypeParameter(classItem: TypeParameterItem): ThrowableType =
-            ThrowableTypeParameterItem(classItem)
-
         /** Get a [ThrowableType] wrapper around an [ExceptionTypeItem] */
         fun ofExceptionType(exceptionType: ExceptionTypeItem): ThrowableType =
             ThrowableExceptionTypeItem(exceptionType)

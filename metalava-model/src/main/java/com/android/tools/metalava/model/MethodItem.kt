@@ -98,7 +98,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
                         .allSuperClasses()
                         .firstOrNull { superClass -> predicate.test(superClass) }
                         ?.let { superClass ->
-                            throwableTypes.add(ThrowableType.ofClass(superClass))
+                            throwableTypes.add(ThrowableType.ofExceptionType(superClass.type()))
                         }
                 }
             }
