@@ -176,7 +176,7 @@ internal constructor(
         private set
 
     override fun type(): ClassTypeItem =
-        codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
+        codebase.typeItemFactory.getType(codebase.getClassType(psiClass)) as ClassTypeItem
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
@@ -300,11 +300,12 @@ internal constructor(
             return false
         }
 
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
             containingClassItem: PsiClassItem?,
-            fromClassPath: Boolean
+            typeItemFactory: PsiTypeItemFactory,
+            fromClassPath: Boolean,
         ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
                 error(
@@ -328,7 +329,7 @@ internal constructor(
             val superClassType =
                 if (classKind != ClassKind.INTERFACE) {
                     val superClassPsiType = psiClass.superClassType as? PsiType
-                    superClassPsiType?.let { superType -> codebase.getSuperType(superType) }
+                    superClassPsiType?.let { superType -> typeItemFactory.getSuperType(superType) }
                 } else null
 
             // Get the interfaces from the appropriate list.
@@ -343,7 +344,7 @@ internal constructor(
                 }
 
             // Map them to PsiTypeItems.
-            val interfaceTypes = interfaces.map { codebase.getSuperType(it) }
+            val interfaceTypes = interfaces.map { typeItemFactory.getSuperType(it) }
 
             val item =
                 PsiClassItem(
@@ -400,7 +401,13 @@ internal constructor(
             var noArgConstructor: PsiConstructorItem? = null
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
-                    val constructor = PsiConstructorItem.create(codebase, item, psiMethod)
+                    val constructor =
+                        PsiConstructorItem.create(
+                            codebase,
+                            item,
+                            psiMethod,
+                            typeItemFactory,
+                        )
                     // After KT-13495, "all constructors of `sealed` classes now have `protected`
                     // visibility by default," and (S|U)LC follows that (hence the same in UAST).
                     // However, that change was made to allow more flexible class hierarchy and
@@ -429,7 +436,7 @@ internal constructor(
                 } else if (classKind == ClassKind.ENUM && psiMethod is SyntheticElement) {
                     // skip
                 } else {
-                    val method = PsiMethodItem.create(codebase, item, psiMethod)
+                    val method = PsiMethodItem.create(codebase, item, psiMethod, typeItemFactory)
                     methods.add(method)
                 }
             }
@@ -458,7 +465,9 @@ internal constructor(
             val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
-                psiFields.asSequence().mapTo(fields) { PsiFieldItem.create(codebase, item, it) }
+                psiFields.asSequence().mapTo(fields) {
+                    PsiFieldItem.create(codebase, item, it, typeItemFactory)
+                }
             }
 
             if (classKind == ClassKind.INTERFACE) {

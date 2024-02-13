@@ -164,7 +164,7 @@ open class PsiMethodItem(
                 override fun visitThrowExpression(node: UThrowExpression): Boolean {
                     val type = node.thrownExpression.getExpressionType()
                     if (type != null) {
-                        val exceptionClass = codebase.getType(type).asClass()
+                        val exceptionClass = codebase.typeItemFactory.getType(type).asClass()
                         if (exceptionClass != null && !isCaught(exceptionClass, node)) {
                             exceptions.add(exceptionClass)
                         }
@@ -224,7 +224,13 @@ open class PsiMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        val duplicated = create(codebase, targetContainingClass, psiMethod)
+        val duplicated =
+            create(
+                codebase,
+                targetContainingClass,
+                psiMethod,
+                codebase.typeItemFactory,
+            )
 
         duplicated.inheritedFrom = containingClass
 
@@ -283,7 +289,8 @@ open class PsiMethodItem(
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            typeItemFactory: PsiTypeItemFactory,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
             // UAST workaround: @JvmName for UMethod with fake LC PSI
@@ -314,9 +321,9 @@ open class PsiMethodItem(
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val typeParameterList = PsiTypeParameterList.create(codebase, psiMethod)
-            val parameters = parameterList(codebase, psiMethod)
+            val parameters = parameterList(codebase, psiMethod, typeItemFactory)
             val psiReturnType = psiMethod.returnType
-            val returnType = codebase.getType(psiReturnType!!, psiMethod)
+            val returnType = typeItemFactory.getType(psiReturnType!!, psiMethod)
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -328,7 +335,7 @@ open class PsiMethodItem(
                     returnType = returnType,
                     parameters = parameters,
                     typeParameterList = typeParameterList,
-                    throwsTypes = throwsTypes(codebase, psiMethod),
+                    throwsTypes = throwsTypes(psiMethod, typeItemFactory),
                 )
             method.modifiers.setOwner(method)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
@@ -405,22 +412,23 @@ open class PsiMethodItem(
 
         internal fun parameterList(
             codebase: PsiBasedCodebase,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            typeItemFactory: PsiTypeItemFactory,
         ): List<PsiParameterItem> {
             return if (psiMethod is UMethod) {
                 psiMethod.uastParameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index)
+                    PsiParameterItem.create(codebase, parameter, index, typeItemFactory)
                 }
             } else {
                 psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index)
+                    PsiParameterItem.create(codebase, parameter, index, typeItemFactory)
                 }
             }
         }
 
         internal fun throwsTypes(
-            codebase: PsiBasedCodebase,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            typeItemFactory: PsiTypeItemFactory,
         ): List<ThrowableType> {
             val throwsClassTypes = psiMethod.throwsList.referencedTypes
             if (throwsClassTypes.isEmpty()) {
@@ -430,7 +438,9 @@ open class PsiMethodItem(
             return throwsClassTypes
                 // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
                 .map { psiType ->
-                    ThrowableType.ofExceptionType(codebase.getType(psiType) as ExceptionTypeItem)
+                    ThrowableType.ofExceptionType(
+                        typeItemFactory.getType(psiType) as ExceptionTypeItem
+                    )
                 }
                 // We're sorting the names here even though outputs typically do their own sorting,
                 // since for example the MethodItem.sameSignature check wants to do an

@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -68,7 +67,6 @@ import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
-import org.jetbrains.uast.kotlin.isKotlin
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
@@ -166,6 +164,9 @@ open class PsiBasedCodebase(
     private var initializing = false
 
     private var hideClassesFromJars = true
+
+    /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
+    internal val typeItemFactory = PsiTypeItemFactory(this)
 
     private lateinit var emptyPackage: PsiPackageItem
 
@@ -588,6 +589,7 @@ open class PsiBasedCodebase(
                 this,
                 psiClass,
                 containingClassItem,
+                typeItemFactory,
                 fromClassPath = fromClasspath || !initializing,
             )
         // Set emit to true for source classes but false for classpath classes
@@ -797,38 +799,6 @@ open class PsiBasedCodebase(
     internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
         getFactory().createDocCommentFromText(string, parent)
 
-    /**
-     * Creates a [PsiClassTypeItem] that is suitable for use as a super type, e.g. in an `extends`
-     * or `implements` list.
-     */
-    internal fun getSuperType(psiType: PsiType): PsiClassTypeItem {
-        return getType(psiType, typeUse = TypeUse.SUPER_TYPE) as PsiClassTypeItem
-    }
-
-    /**
-     * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
-     * information for Kotlin types.
-     */
-    internal fun getType(
-        psiType: PsiType,
-        context: PsiElement? = null,
-        typeUse: TypeUse = TypeUse.GENERAL
-    ): PsiTypeItem {
-        val kotlinTypeInfo =
-            if (context != null && isKotlin(context)) {
-                KotlinTypeInfo.fromContext(context)
-            } else {
-                null
-            }
-
-        // Note: We do *not* cache these; it turns out that storing PsiType instances
-        // in a map is bad for performance; it has a very expensive equals operation
-        // for some type comparisons (and we sometimes end up with unexpected results,
-        // e.g. where we fetch an "equals" type from the map but its representation
-        // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType, kotlinTypeInfo, typeUse)
-    }
-
     internal fun getType(psiClass: PsiClass): PsiTypeItem {
         // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class has
         // any type parameters then the PsiType will include references to those parameters.
@@ -875,7 +845,7 @@ open class PsiBasedCodebase(
             val updatedMethod = psiClass.findMethodBySignature(method, true)
             val result = methods[updatedMethod!!]
             if (result == null) {
-                val extra = PsiMethodItem.create(this, cls, updatedMethod)
+                val extra = PsiMethodItem.create(this, cls, updatedMethod, typeItemFactory)
                 methods[method] = extra
                 methods[updatedMethod] = extra
                 if (!initializing) {

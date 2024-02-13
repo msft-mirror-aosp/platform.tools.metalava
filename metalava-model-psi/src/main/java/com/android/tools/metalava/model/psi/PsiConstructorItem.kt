@@ -84,10 +84,11 @@ private constructor(
     }
 
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            typeItemFactory: PsiTypeItemFactory,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
@@ -96,7 +97,7 @@ private constructor(
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val typeParameterList = PsiTypeParameterList.create(codebase, psiMethod)
-            val parameters = parameterList(codebase, psiMethod)
+            val parameters = parameterList(codebase, psiMethod, typeItemFactory)
             val constructor =
                 PsiConstructorItem(
                     codebase = codebase,
@@ -110,7 +111,7 @@ private constructor(
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     typeParameterList = typeParameterList,
-                    throwsTypes = throwsTypes(codebase, psiMethod),
+                    throwsTypes = throwsTypes(psiMethod, typeItemFactory),
                 )
             constructor.modifiers.setOwner(constructor)
             return constructor
