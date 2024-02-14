@@ -36,7 +36,7 @@ sealed interface ThrowableType {
     val typeParameterItem: TypeParameterItem
 
     /**
-     * The optional [ClassItem] that is a subclass of [java.lang.Throwable].
+     * The optional [ClassItem] that should be a subclass of [java.lang.Throwable].
      *
      * When the underlying [classItem] is a [TypeParameterItem] this will return the erased type
      * class, if available, or `null` otherwise. When the underlying [classItem] is not a
@@ -81,9 +81,7 @@ sealed interface ThrowableType {
                 when (exceptionTypeItem) {
                     is ClassTypeItem -> exceptionTypeItem.asClass()
                     is VariableTypeItem ->
-                        exceptionTypeItem.asTypeParameter.typeBounds().firstNotNullOfOrNull {
-                            it.asClass()
-                        }
+                        exceptionTypeItem.asTypeParameter.asErasedType()?.asClass()
                 }
 
         override fun toTypeString() = exceptionTypeItem.toTypeString()
