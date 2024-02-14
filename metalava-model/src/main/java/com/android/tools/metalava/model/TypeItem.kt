@@ -690,7 +690,32 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
-sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {}
+sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
+    /**
+     * The best guess of the full name, i.e. the qualified class name without the package but
+     * including the outer class names.
+     *
+     * This is not something that can be accurately determined solely by examining the reference or
+     * even the import as there is no distinction made between a package name and a class name. Java
+     * naming conventions do say that package names should start with a lower case letter and class
+     * names should start with an upper case letter, but they are not enforced so cannot be fully
+     * relied upon.
+     *
+     * It is possible that in some contexts a model could provide a better full name than guessing
+     * from the fully qualified name, e.g. a reference within the same package, however that is not
+     * something that will be supported by all models and so attempting to use that could lead to
+     * subtle model differences that could break users of the models.
+     *
+     * The only way to fully determine the full name is to resolve the class and extract it from
+     * there but this avoids resolving a class as it can be expensive. Instead, this just makes the
+     * best guess assuming normal Java conventions.
+     */
+    @Deprecated(
+        "Do not use as full name is only ever a best guess based on naming conventions; use the full type string instead",
+        ReplaceWith("toTypeString()")
+    )
+    fun fullName(): String = bestGuessAtFullName(toTypeString())
+}
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {

@@ -303,7 +303,7 @@ class JDiffXmlWriter(
         if (throws.any()) {
             throws.sortedWith(ThrowableType.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
-                writer.print(type.fullName())
+                @Suppress("DEPRECATION") writer.print(type.fullName())
                 writer.print("\" type=\"")
                 writer.print(type.toTypeString())
                 writer.println("\">")

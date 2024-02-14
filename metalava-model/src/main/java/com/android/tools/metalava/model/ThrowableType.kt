@@ -47,7 +47,7 @@ sealed interface ThrowableType {
     /** A description of the `ThrowableType`, suitable for use in reports. */
     fun description(): String
 
-    /** The full name of the underlying [classItem]. */
+    /** The full name of the underlying class. */
     fun fullName(): String
 
     /** The fully qualified name, will be the simple name of a [TypeParameterItem]. */
@@ -85,8 +85,6 @@ sealed interface ThrowableType {
                             it.asClass()
                         }
                 }
-
-        override fun fullName() = fullName
 
         override fun toTypeString() = exceptionTypeItem.toTypeString()
 
