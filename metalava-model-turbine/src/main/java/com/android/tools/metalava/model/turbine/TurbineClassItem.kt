@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.google.turbine.binder.sym.ClassSymbol
@@ -70,7 +71,7 @@ internal open class TurbineClassItem(
 
     private lateinit var interfaceTypesList: List<ClassTypeItem>
 
-    private var asType: TurbineClassTypeItem? = null
+    private var asType: ClassTypeItem? = null
 
     internal var hasImplicitDefaultConstructor = false
 
@@ -167,13 +168,13 @@ internal open class TurbineClassItem(
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
-    override fun type(): TurbineClassTypeItem {
+    override fun type(): ClassTypeItem {
         if (asType == null) {
             val parameters =
                 typeParameterList.map { createVariableType(it as TurbineTypeParameterItem) }
             val mods = DefaultTypeModifiers.create(modifiers.annotations())
             val outerClassType = containingClass?.type()
-            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
+            asType = DefaultClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
         }
         return asType!!
     }
