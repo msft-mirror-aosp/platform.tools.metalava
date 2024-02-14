@@ -47,6 +47,12 @@ class DefaultTypeModifiers(
     override fun duplicate() = DefaultTypeModifiers(annotations.toMutableList(), nullability)
 
     companion object {
+        /**
+         * Create a [DefaultTypeModifiers].
+         *
+         * If [knownNullability] is `null` then this will compute nullability from the
+         * [annotations], if any, and if not then default to platform nullness.
+         */
         fun create(
             annotations: List<AnnotationItem>,
             knownNullability: TypeNullability? = null,

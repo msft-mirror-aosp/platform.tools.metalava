@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeUse
@@ -183,7 +184,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
 internal class PsiPrimitiveTypeItem(
     psiType: PsiType,
     override val kind: PrimitiveTypeItem.Primitive,
-    override val modifiers: PsiTypeModifiers,
+    override val modifiers: TypeModifiers,
 ) : PrimitiveTypeItem, PsiTypeItem(psiType) {
     override fun duplicate(): PsiPrimitiveTypeItem =
         PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers.duplicate())
@@ -222,7 +223,7 @@ internal class PsiArrayTypeItem(
     psiType: PsiType,
     override val componentType: PsiTypeItem,
     override val isVarargs: Boolean,
-    override val modifiers: PsiTypeModifiers,
+    override val modifiers: TypeModifiers,
 ) : ArrayTypeItem, PsiTypeItem(psiType) {
     override fun duplicate(componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
@@ -262,7 +263,7 @@ internal class PsiClassTypeItem(
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: PsiClassTypeItem?,
     override val className: String,
-    override val modifiers: PsiTypeModifiers,
+    override val modifiers: TypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(psiType) {
 
     private val asClassCache by
@@ -497,7 +498,7 @@ internal class PsiClassTypeItem(
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
 internal class PsiVariableTypeItem(
     psiType: PsiType,
-    override val modifiers: PsiTypeModifiers,
+    override val modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
 ) : VariableTypeItem, PsiTypeItem(psiType) {
 
@@ -530,7 +531,7 @@ internal class PsiWildcardTypeItem(
     psiType: PsiType,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-    override val modifiers: PsiTypeModifiers,
+    override val modifiers: TypeModifiers,
 ) : WildcardTypeItem, PsiTypeItem(psiType) {
     override fun duplicate(
         extendsBound: ReferenceTypeItem?,
