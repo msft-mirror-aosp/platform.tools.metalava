@@ -25,29 +25,20 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
 internal sealed class TextTypeItem(
     override val modifiers: TypeModifiers,
-) : DefaultTypeItem() {
-
-    internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
-}
+) : DefaultTypeItem() {}
 
 /** A [PrimitiveTypeItem] parsed from a signature file. */
 internal class TextPrimitiveTypeItem(
     override val kind: PrimitiveTypeItem.Primitive,
     modifiers: TypeModifiers
 ) : PrimitiveTypeItem, TextTypeItem(modifiers) {
-    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextPrimitiveTypeItem(kind, modifiers.duplicate(withNullability))
-    }
-
-    // Text types are immutable, so the modifiers don't actually need to be duplicated.
-    override fun duplicate(): PrimitiveTypeItem = this
+    override fun duplicate(): PrimitiveTypeItem = TextPrimitiveTypeItem(kind, modifiers.duplicate())
 }
 
 /** An [ArrayTypeItem] parsed from a signature file. */
@@ -56,12 +47,9 @@ internal class TextArrayTypeItem(
     override val isVarargs: Boolean,
     modifiers: TypeModifiers
 ) : ArrayTypeItem, TextTypeItem(modifiers) {
-    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextArrayTypeItem(componentType, isVarargs, modifiers.duplicate(withNullability))
-    }
 
     override fun duplicate(componentType: TypeItem): ArrayTypeItem {
-        return TextArrayTypeItem(componentType, isVarargs, modifiers)
+        return TextArrayTypeItem(componentType, isVarargs, modifiers.duplicate())
     }
 }
 
@@ -80,21 +68,17 @@ internal class TextClassTypeItem(
 
     override fun asClass() = asClassCache
 
-    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextClassTypeItem(
-            codebase,
-            qualifiedName,
-            arguments,
-            outerClassType,
-            modifiers.duplicate(withNullability)
-        )
-    }
-
     override fun duplicate(
         outerClass: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
-        return TextClassTypeItem(codebase, qualifiedName, arguments, outerClass, modifiers)
+        return TextClassTypeItem(
+            codebase,
+            qualifiedName,
+            arguments,
+            outerClass,
+            modifiers.duplicate()
+        )
     }
 }
 
@@ -105,12 +89,9 @@ internal class TextVariableTypeItem(
     modifiers: TypeModifiers
 ) : VariableTypeItem, TextTypeItem(modifiers) {
 
-    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextVariableTypeItem(name, asTypeParameter, modifiers.duplicate(withNullability))
+    override fun duplicate(): VariableTypeItem {
+        return TextVariableTypeItem(name, asTypeParameter, modifiers.duplicate())
     }
-
-    // Text types are immutable, so the modifiers don't actually need to be duplicated.
-    override fun duplicate(): VariableTypeItem = this
 }
 
 /** A [WildcardTypeItem] parsed from a signature file. */
@@ -119,14 +100,11 @@ internal class TextWildcardTypeItem(
     override val superBound: ReferenceTypeItem?,
     modifiers: TypeModifiers
 ) : WildcardTypeItem, TextTypeItem(modifiers) {
-    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextWildcardTypeItem(extendsBound, superBound, modifiers.duplicate(withNullability))
-    }
 
     override fun duplicate(
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): WildcardTypeItem {
-        return TextWildcardTypeItem(extendsBound, superBound, modifiers)
+        return TextWildcardTypeItem(extendsBound, superBound, modifiers.duplicate())
     }
 }

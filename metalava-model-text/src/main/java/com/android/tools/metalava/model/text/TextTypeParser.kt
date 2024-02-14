@@ -78,7 +78,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         return getSuperType(standardClassName, TypeParameterScope.empty)
     }
 
-    /** A [TextTypeItem] representing `java.lang.Object`, suitable for general use. */
+    /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType: ReferenceTypeItem
         get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty) as ReferenceTypeItem
 
@@ -93,18 +93,18 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         obtainTypeFromString(type, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
 
     /**
-     * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
-     * the type parameters from [typeParameterScope], if applicable.
+     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
+     * type parameters from [typeParameterScope], if applicable.
      */
     fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
         typeUse: TypeUse = TypeUse.GENERAL,
-    ): TextTypeItem = cachedParseType(type, typeParameterScope, emptyList(), typeUse)
+    ): TypeItem = cachedParseType(type, typeParameterScope, emptyList(), typeUse)
 
     /**
-     * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
-     * the type parameters from [typeParameterScope], if applicable.
+     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
+     * type parameters from [typeParameterScope], if applicable.
      *
      * Used internally, as it has an extra [annotations] parameter that allows the annotations on
      * array components to be correctly associated with the correct component. They are optional
@@ -115,7 +115,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         typeParameterScope: TypeParameterScope,
         annotations: List<String> = emptyList(),
         typeUse: TypeUse = TypeUse.GENERAL,
-    ): TextTypeItem {
+    ): TypeItem {
         requests++
 
         // Class types used as super types, i.e. in an extends or implements list are forced to be
@@ -139,14 +139,14 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         }
     }
 
-    /** Converts the [type] to a [TextTypeItem] in the context of the [typeParameterScope]. */
+    /** Converts the [type] to a [TypeItem] in the context of the [typeParameterScope]. */
     private fun parseType(
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
         // Forces a [ClassTypeItem] to have [TypeNullability.NONNULL]
         forceClassToBeNonNull: Boolean = false,
-    ): TextTypeItem {
+    ): TypeItem {
         val (unannotated, annotationsFromString) = trimLeadingAnnotations(type)
         val allAnnotations = annotations + annotationsFromString
         val (withoutNullability, nullability) =
@@ -721,7 +721,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
      * [forceClassToBeNonNull] properties.
      */
     internal inner class CacheEntry(
-        /** The string type from which the [TextTypeItem] will be parsed. */
+        /** The string type from which the [TypeItem] will be parsed. */
         private val type: String,
 
         /**
@@ -734,7 +734,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         private val forceClassToBeNonNull: Boolean,
     ) {
         /**
-         * Map from [TypeParameterScope] to the [TextTypeItem] created for it.
+         * Map from [TypeParameterScope] to the [TypeItem] created for it.
          *
          * The [TypeParameterScope] that will be used to cache a type depends on the unqualified
          * names used in the type. It will use the closest enclosing scope of the one supplied that
@@ -742,7 +742,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
          *
          * See [TypeParameterScope.findSignificantScope].
          */
-        private val scopeToItem = mutableMapOf<TypeParameterScope, TextTypeItem>()
+        private val scopeToItem = mutableMapOf<TypeParameterScope, TypeItem>()
 
         /**
          * The set of unqualified names used by [type].
@@ -756,7 +756,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         private lateinit var unqualifiedNamesInType: Set<String>
 
         /** Get the [TypeItem] for this type depending on the setting of [forceClassToBeNonNull]. */
-        fun getTypeItem(typeParameterScope: TypeParameterScope): TextTypeItem {
+        fun getTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
             // If this is not the first time through then check to see if anything suitable has been
             // cached.
             val scopeForCachingOrNull =
@@ -805,7 +805,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
          * Create a new [TypeItem] for [type] with the given [forceClassToBeNonNull] setting and for
          * the requested [typeParameterScope].
          */
-        private fun createTypeItem(typeParameterScope: TypeParameterScope): TextTypeItem {
+        private fun createTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
             return parseType(type, typeParameterScope, emptyList(), forceClassToBeNonNull)
         }
     }
