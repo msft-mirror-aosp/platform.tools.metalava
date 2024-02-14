@@ -34,6 +34,7 @@ internal open class TurbineMethodItem(
     modifiers: DefaultModifierList,
     private val typeParameters: TypeParameterList,
     documentation: String,
+    private val defaultValue: String,
 ) : TurbineItem(codebase, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
@@ -106,7 +107,8 @@ internal open class TurbineMethodItem(
                 retType,
                 mods,
                 typeParameters,
-                documentation
+                documentation,
+                defaultValue,
             )
         mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params
@@ -139,4 +141,6 @@ internal open class TurbineMethodItem(
     }
 
     internal fun getSymbol(): MethodSymbol = methodSymbol
+
+    override fun defaultValue(): String = defaultValue
 }
