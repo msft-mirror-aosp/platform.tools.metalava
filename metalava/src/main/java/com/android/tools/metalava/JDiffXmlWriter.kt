@@ -305,7 +305,7 @@ class JDiffXmlWriter(
                 writer.print("<exception name=\"")
                 writer.print(type.fullName())
                 writer.print("\" type=\"")
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
                 writer.println("\">")
                 writer.println("</exception>")
             }

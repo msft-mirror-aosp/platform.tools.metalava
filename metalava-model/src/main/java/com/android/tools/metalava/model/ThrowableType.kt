@@ -51,7 +51,7 @@ sealed interface ThrowableType {
     fun fullName(): String
 
     /** The fully qualified name, will be the simple name of a [TypeParameterItem]. */
-    fun qualifiedName(): String
+    fun toTypeString(): String
 
     /** A wrapper of [ExceptionTypeItem] that implements [ThrowableType]. */
     private open class ThrowableExceptionTypeItem(val exceptionTypeItem: ExceptionTypeItem) :
@@ -88,18 +88,14 @@ sealed interface ThrowableType {
 
         override fun description() =
             when (exceptionTypeItem) {
-                is ClassTypeItem -> qualifiedName()
+                is ClassTypeItem -> toTypeString()
                 is VariableTypeItem ->
                     "${typeParameterItem.name()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
             }
 
         override fun fullName() = fullName
 
-        override fun qualifiedName() =
-            when (exceptionTypeItem) {
-                is ClassTypeItem -> exceptionTypeItem.qualifiedName
-                is VariableTypeItem -> exceptionTypeItem.name
-            }
+        override fun toTypeString() = exceptionTypeItem.toTypeString()
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
