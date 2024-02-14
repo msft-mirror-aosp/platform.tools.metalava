@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import java.util.function.Predicate
 
 internal open class TextClassItem(
@@ -110,19 +111,19 @@ internal open class TextClassItem(
         this.interfaceTypes = interfaceTypes
     }
 
-    private var typeInfo: TextClassTypeItem? = null
+    private var typeInfo: ClassTypeItem? = null
 
-    override fun type(): TextClassTypeItem {
+    override fun type(): ClassTypeItem {
         if (typeInfo == null) {
             val params = typeParameterList.map { it.type() }
             // Create a [TextTypeItem] representing the type of this class.
             typeInfo =
-                TextClassTypeItem(
+                DefaultClassTypeItem(
                     codebase,
+                    codebase.emptyTypeModifiers,
                     qualifiedName,
                     params,
                     containingClass()?.type(),
-                    codebase.emptyTypeModifiers,
                 )
         }
         return typeInfo!!

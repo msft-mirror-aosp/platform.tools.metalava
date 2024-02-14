@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
@@ -31,7 +32,12 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.type.DefaultArrayTypeItem
+import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
@@ -182,8 +188,8 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     }
 
     /**
-     * Try parsing [type] as a primitive. This will return a non-null [TextPrimitiveTypeItem] if
-     * [type] exactly matches a primitive name.
+     * Try parsing [type] as a primitive. This will return a non-null [PrimitiveTypeItem] if [type]
+     * exactly matches a primitive name.
      *
      * [type] should have annotations and nullability markers stripped, with [original] as the
      * complete annotated type. Once annotations are properly handled (b/300081840), preserving
@@ -194,7 +200,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         type: String,
         annotations: List<String>,
         nullability: TypeNullability?
-    ): TextPrimitiveTypeItem? {
+    ): PrimitiveTypeItem? {
         val kind =
             when (type) {
                 "byte" -> PrimitiveTypeItem.Primitive.BYTE
@@ -211,12 +217,12 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             throw ApiParseException("Invalid nullability suffix on primitive: $original")
         }
-        return TextPrimitiveTypeItem(kind, modifiers(annotations, TypeNullability.NONNULL))
+        return DefaultPrimitiveTypeItem(modifiers(annotations, TypeNullability.NONNULL), kind)
     }
 
     /**
-     * Try parsing [type] as an array. This will return a non-null [TextArrayTypeItem] if [type]
-     * ends with `[]` or `...`.
+     * Try parsing [type] as an array. This will return a non-null [ArrayTypeItem] if [type] ends
+     * with `[]` or `...`.
      *
      * The context [typeParameterScope] are used to parse the component type of the array.
      */
@@ -225,7 +231,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         componentAnnotations: List<String>,
         nullability: TypeNullability?,
         typeParameterScope: TypeParameterScope
-    ): TextArrayTypeItem? {
+    ): ArrayTypeItem? {
         // Check if this is a regular array or varargs.
         val (inner, varargs) =
             if (type.endsWith("...")) {
@@ -297,16 +303,16 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         // Create the component type of the outermost array by building up the inner component type.
         val componentType =
             componentModifiers.fold(deepComponentType) { component, modifiers ->
-                TextArrayTypeItem(component, false, modifiers)
+                DefaultArrayTypeItem(modifiers, component, false)
             }
 
         // Create the outer array.
-        return TextArrayTypeItem(componentType, varargs, arrayModifiers)
+        return DefaultArrayTypeItem(arrayModifiers, componentType, varargs)
     }
 
     /**
-     * Try parsing [type] as a wildcard. This will return a non-null [TextWildcardTypeItem] if
-     * [type] begins with `?`.
+     * Try parsing [type] as a wildcard. This will return a non-null [WildcardTypeItem] if [type]
+     * begins with `?`.
      *
      * The context [typeParameterScope] are needed to parse the bounds of the wildcard.
      *
@@ -317,34 +323,34 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
         nullability: TypeNullability?
-    ): TextWildcardTypeItem? {
+    ): WildcardTypeItem? {
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
         // Unbounded wildcard type: there is an implicit Object extends bound
         if (type == "?")
-            return TextWildcardTypeItem(
+            return DefaultWildcardTypeItem(
+                modifiers(annotations, TypeNullability.UNDEFINED),
                 objectType,
                 null,
-                modifiers(annotations, TypeNullability.UNDEFINED)
             )
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
-            TextWildcardTypeItem(
+            DefaultWildcardTypeItem(
+                modifiers(annotations, TypeNullability.UNDEFINED),
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
-                modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
-            TextWildcardTypeItem(
+            DefaultWildcardTypeItem(
+                modifiers(annotations, TypeNullability.UNDEFINED),
                 // All wildcards have an implicit Object extends bound
                 objectType,
                 getWildcardBound(superBound, typeParameterScope),
-                modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else {
             throw ApiParseException(
@@ -373,8 +379,8 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     }
 
     /**
-     * Parse the [type] as a class. This function will always return a non-null [TextClassTypeItem],
-     * so it should only be used when it is certain that [type] is not a different kind of type.
+     * Parse the [type] as a class. This function will always return a non-null [ClassTypeItem], so
+     * it should only be used when it is certain that [type] is not a different kind of type.
      *
      * The context [typeParameterScope] are used to parse the parameters of the class type.
      *
@@ -385,7 +391,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
         nullability: TypeNullability?
-    ): TextClassTypeItem {
+    ): ClassTypeItem {
         return createClassType(type, null, typeParameterScope, annotations, nullability)
     }
 
@@ -397,11 +403,11 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
      */
     private fun createClassType(
         type: String,
-        outerClassType: TextClassTypeItem?,
+        outerClassType: ClassTypeItem?,
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
         nullability: TypeNullability?
-    ): TextClassTypeItem {
+    ): ClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
 
         val qualifiedName =
@@ -427,7 +433,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                 modifiers(classAnnotations + annotations, nullability)
             }
         val classType =
-            TextClassTypeItem(codebase, qualifiedName, arguments, outerClassType, classModifiers)
+            DefaultClassTypeItem(codebase, classModifiers, qualifiedName, arguments, outerClassType)
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
