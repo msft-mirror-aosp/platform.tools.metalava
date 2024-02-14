@@ -92,4 +92,13 @@ internal class PsiTypeItemFactory(val codebase: PsiBasedCodebase) :
         // is slightly different to what was intended
         return PsiTypeItem.create(codebase, psiType, kotlinTypeInfo, typeUse)
     }
+
+    /** Get a [PsiClassTypeItem] to represent the [PsiClassItem]. */
+    fun getClassTypeForClass(psiClassItem: PsiClassItem): PsiClassTypeItem {
+        // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class
+        // has any type parameters then the PsiType will include references to those parameters.
+        val psiTypeWithTypeParametersIfAny = codebase.getClassType(psiClassItem.psiClass)
+        return PsiTypeItem.create(codebase, psiTypeWithTypeParametersIfAny, null)
+            as PsiClassTypeItem
+    }
 }

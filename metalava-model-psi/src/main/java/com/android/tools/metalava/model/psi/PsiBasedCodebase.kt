@@ -799,13 +799,6 @@ open class PsiBasedCodebase(
     internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
         getFactory().createDocCommentFromText(string, parent)
 
-    internal fun getType(psiClass: PsiClass): PsiTypeItem {
-        // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class has
-        // any type parameters then the PsiType will include references to those parameters.
-        val psiTypeWithTypeParametersIfAny = getFactory().createType(psiClass, PsiSubstitutor.EMPTY)
-        return PsiTypeItem.create(this, psiTypeWithTypeParametersIfAny, null)
-    }
-
     private fun getPackageName(clz: PsiClass): String {
         var top: PsiClass? = clz
         while (top?.containingClass != null) {
