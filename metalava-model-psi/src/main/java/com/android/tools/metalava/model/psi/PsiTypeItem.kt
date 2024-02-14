@@ -49,7 +49,10 @@ import org.jetbrains.kotlin.analysis.api.types.KtTypeMappingMode
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
 /** Represents a type backed by PSI */
-sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
+sealed class PsiTypeItem(
+    val psiType: PsiType,
+    modifiers: TypeModifiers,
+) : DefaultTypeItem(modifiers) {
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
@@ -184,8 +187,8 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
 internal class PsiPrimitiveTypeItem(
     psiType: PsiType,
     override val kind: PrimitiveTypeItem.Primitive,
-    override val modifiers: TypeModifiers,
-) : PrimitiveTypeItem, PsiTypeItem(psiType) {
+    modifiers: TypeModifiers,
+) : PrimitiveTypeItem, PsiTypeItem(psiType, modifiers) {
     override fun duplicate(): PsiPrimitiveTypeItem =
         PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers.duplicate())
 
@@ -223,8 +226,8 @@ internal class PsiArrayTypeItem(
     psiType: PsiType,
     override val componentType: PsiTypeItem,
     override val isVarargs: Boolean,
-    override val modifiers: TypeModifiers,
-) : ArrayTypeItem, PsiTypeItem(psiType) {
+    modifiers: TypeModifiers,
+) : ArrayTypeItem, PsiTypeItem(psiType, modifiers) {
     override fun duplicate(componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
             psiType = psiType,
@@ -263,8 +266,8 @@ internal class PsiClassTypeItem(
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: PsiClassTypeItem?,
     override val className: String,
-    override val modifiers: TypeModifiers,
-) : ClassTypeItem, PsiTypeItem(psiType) {
+    modifiers: TypeModifiers,
+) : ClassTypeItem, PsiTypeItem(psiType, modifiers) {
 
     private val asClassCache by
         lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
@@ -498,9 +501,9 @@ internal class PsiClassTypeItem(
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
 internal class PsiVariableTypeItem(
     psiType: PsiType,
-    override val modifiers: TypeModifiers,
+    modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, PsiTypeItem(psiType) {
+) : VariableTypeItem, PsiTypeItem(psiType, modifiers) {
 
     override val name: String = asTypeParameter.name()
 
@@ -531,8 +534,8 @@ internal class PsiWildcardTypeItem(
     psiType: PsiType,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-    override val modifiers: TypeModifiers,
-) : WildcardTypeItem, PsiTypeItem(psiType) {
+    modifiers: TypeModifiers,
+) : WildcardTypeItem, PsiTypeItem(psiType, modifiers) {
     override fun duplicate(
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?

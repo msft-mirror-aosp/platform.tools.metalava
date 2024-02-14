@@ -22,9 +22,9 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 
 class DefaultVariableTypeItem(
-    override val modifiers: TypeModifiers,
+    modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, DefaultTypeItem() {
+) : VariableTypeItem, DefaultTypeItem(modifiers) {
 
     override val name: String = asTypeParameter.name()
 

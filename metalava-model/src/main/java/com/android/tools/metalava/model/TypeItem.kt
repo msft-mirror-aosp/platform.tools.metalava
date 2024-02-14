@@ -352,7 +352,9 @@ interface TypeItem {
  */
 typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
 
-abstract class DefaultTypeItem() : TypeItem {
+abstract class DefaultTypeItem(
+    final override val modifiers: TypeModifiers,
+) : TypeItem {
 
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String

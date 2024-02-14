@@ -34,7 +34,7 @@ import com.android.tools.metalava.model.type.TypeItemFactory
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.Type
 
-/** Creates [TurbineTypeItem]s from [Type]s. */
+/** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
     private val codebase: TurbineBasedCodebase,
     private val initializer: TurbineCodebaseInitialiser,

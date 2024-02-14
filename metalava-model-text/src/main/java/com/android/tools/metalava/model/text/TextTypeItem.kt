@@ -27,15 +27,11 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.WildcardTypeItem
 
-internal sealed class TextTypeItem(
-    override val modifiers: TypeModifiers,
-) : DefaultTypeItem() {}
-
 /** A [PrimitiveTypeItem] parsed from a signature file. */
 internal class TextPrimitiveTypeItem(
     override val kind: PrimitiveTypeItem.Primitive,
     modifiers: TypeModifiers
-) : PrimitiveTypeItem, TextTypeItem(modifiers) {
+) : PrimitiveTypeItem, DefaultTypeItem(modifiers) {
     override fun duplicate(): PrimitiveTypeItem = TextPrimitiveTypeItem(kind, modifiers.duplicate())
 }
 
@@ -44,7 +40,7 @@ internal class TextArrayTypeItem(
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
     modifiers: TypeModifiers
-) : ArrayTypeItem, TextTypeItem(modifiers) {
+) : ArrayTypeItem, DefaultTypeItem(modifiers) {
 
     override fun duplicate(componentType: TypeItem): ArrayTypeItem {
         return TextArrayTypeItem(componentType, isVarargs, modifiers.duplicate())
@@ -58,7 +54,7 @@ internal class TextClassTypeItem(
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: ClassTypeItem?,
     modifiers: TypeModifiers
-) : ClassTypeItem, TextTypeItem(modifiers) {
+) : ClassTypeItem, DefaultTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
@@ -85,7 +81,7 @@ internal class TextWildcardTypeItem(
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
     modifiers: TypeModifiers
-) : WildcardTypeItem, TextTypeItem(modifiers) {
+) : WildcardTypeItem, DefaultTypeItem(modifiers) {
 
     override fun duplicate(
         extendsBound: ReferenceTypeItem?,
