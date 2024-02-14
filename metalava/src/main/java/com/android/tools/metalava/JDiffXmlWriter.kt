@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
@@ -26,7 +27,6 @@ import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -301,7 +301,7 @@ class JDiffXmlWriter(
                 else -> method.filteredThrowsTypes(filterReference).asSequence()
             }
         if (throws.any()) {
-            throws.sortedWith(ThrowableType.fullNameComparator).forEach { type ->
+            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 @Suppress("DEPRECATION") writer.print(type.fullName())
                 writer.print("\" type=\"")

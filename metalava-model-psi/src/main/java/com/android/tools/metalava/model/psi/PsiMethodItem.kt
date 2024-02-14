@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
@@ -53,7 +53,7 @@ open class PsiMethodItem(
     private val returnType: PsiTypeItem,
     private val parameters: List<PsiParameterItem>,
     private val typeParameterList: TypeParameterList,
-    private val throwsTypes: List<ThrowableType>
+    private val throwsTypes: List<ExceptionTypeItem>
 ) :
     PsiMemberItem(
         codebase = codebase,
@@ -438,7 +438,7 @@ open class PsiMethodItem(
         internal fun throwsTypes(
             psiMethod: PsiMethod,
             enclosingTypeItemFactory: PsiTypeItemFactory,
-        ): List<ThrowableType> {
+        ): List<ExceptionTypeItem> {
             val throwsClassTypes = psiMethod.throwsList.referencedTypes
             if (throwsClassTypes.isEmpty()) {
                 return emptyList()
@@ -446,16 +446,12 @@ open class PsiMethodItem(
 
             return throwsClassTypes
                 // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
-                .map { psiType ->
-                    ThrowableType.ofExceptionType(
-                        enclosingTypeItemFactory.getExceptionType(PsiTypeInfo(psiType))
-                    )
-                }
+                .map { psiType -> enclosingTypeItemFactory.getExceptionType(PsiTypeInfo(psiType)) }
                 // We're sorting the names here even though outputs typically do their own sorting,
                 // since for example the MethodItem.sameSignature check wants to do an
                 // element-by-element comparison to see if the signature matches, and that should
                 // match overrides even if they specify their elements in different orders.
-                .sortedWith(ThrowableType.fullNameComparator)
+                .sortedWith(ExceptionTypeItem.fullNameComparator)
         }
     }
 

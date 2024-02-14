@@ -725,6 +725,12 @@ sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
         ReplaceWith("toTypeString()")
     )
     fun fullName(): String = bestGuessAtFullName(toTypeString())
+
+    companion object {
+        /** A partial ordering over [ExceptionTypeItem] comparing [ExceptionTypeItem] full names. */
+        val fullNameComparator: Comparator<ExceptionTypeItem> =
+            Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
+    }
 }
 
 /** Represents a primitive type, like int or boolean. */

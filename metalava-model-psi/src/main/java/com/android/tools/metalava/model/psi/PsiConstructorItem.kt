@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -40,7 +40,7 @@ private constructor(
     parameters: List<PsiParameterItem>,
     returnType: PsiTypeItem,
     typeParameterList: TypeParameterList,
-    throwsTypes: List<ThrowableType>,
+    throwsTypes: List<ExceptionTypeItem>,
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :

@@ -30,9 +30,9 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
@@ -816,11 +816,8 @@ internal open class TurbineCodebaseInitialiser(
     private fun getThrowsList(
         throwsTypes: List<Type>,
         enclosingTypeItemFactory: TurbineTypeItemFactory
-    ): List<ThrowableType> {
-        return throwsTypes.map { type ->
-            val exceptionTypeItem = enclosingTypeItemFactory.getExceptionType(type)
-            ThrowableType.ofExceptionType(exceptionTypeItem)
-        }
+    ): List<ExceptionTypeItem> {
+        return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
     private fun getCommentedDoc(doc: String): String {

@@ -59,7 +59,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     }
 
     /** Types of exceptions that this method can throw */
-    fun throwsTypes(): List<ThrowableType>
+    fun throwsTypes(): List<ExceptionTypeItem>
 
     /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
@@ -73,7 +73,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return false
     }
 
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ThrowableType> {
+    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
@@ -82,28 +82,26 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     private fun filteredThrowsTypes(
         predicate: Predicate<Item>,
-        throwableTypes: LinkedHashSet<ThrowableType>
-    ): LinkedHashSet<ThrowableType> {
-        for (throwableType in throwsTypes()) {
-            if (throwableType is VariableTypeItem) {
-                throwableTypes.add(throwableType)
+        throwsTypes: LinkedHashSet<ExceptionTypeItem>
+    ): LinkedHashSet<ExceptionTypeItem> {
+        for (exceptionType in throwsTypes()) {
+            if (exceptionType is VariableTypeItem) {
+                throwsTypes.add(exceptionType)
             } else {
-                val classItem = throwableType.erasedClass ?: continue
+                val classItem = exceptionType.erasedClass ?: continue
                 if (predicate.test(classItem)) {
-                    throwableTypes.add(throwableType)
+                    throwsTypes.add(exceptionType)
                 } else {
                     // Excluded, but it may have super class throwables that are included; if so,
                     // include those.
                     classItem
                         .allSuperClasses()
                         .firstOrNull { superClass -> predicate.test(superClass) }
-                        ?.let { superClass ->
-                            throwableTypes.add(ThrowableType.ofExceptionType(superClass.type()))
-                        }
+                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
                 }
             }
         }
-        return throwableTypes
+        return throwsTypes
     }
 
     /**

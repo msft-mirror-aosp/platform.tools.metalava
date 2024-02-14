@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
@@ -1531,14 +1530,14 @@ private constructor(
                         }
                         comma = false
                         val exceptionType = typeItemFactory.getExceptionType(token)
-                        add(ThrowableType.ofExceptionType(exceptionType))
+                        add(exceptionType)
                     }
                 }
                 token = tokenizer.requireToken()
             }
         }
 
-        method.setThrowsList(throwsList)
+        method.setThrowsTypes(throwsList)
 
         return token
     }

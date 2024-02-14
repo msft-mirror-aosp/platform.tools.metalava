@@ -18,10 +18,10 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
@@ -145,11 +145,11 @@ internal open class TextMethodItem(
     override val synthetic: Boolean
         get() = isEnumSyntheticMethod()
 
-    private var throwsTypes: List<ThrowableType> = emptyList()
+    private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 
-    override fun throwsTypes(): List<ThrowableType> = this.throwsTypes
+    override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
 
-    fun setThrowsList(throwsClasses: List<ThrowableType>) {
+    fun setThrowsTypes(throwsClasses: List<ExceptionTypeItem>) {
         this.throwsTypes = throwsClasses
     }
 
