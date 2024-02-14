@@ -56,6 +56,14 @@ interface TypeItem {
     fun hashCodeForType(): Int
 
     /**
+     * Provide a helpful description of the type, for use in error messages.
+     *
+     * This is not suitable for use in signature or stubs as while it defaults to [toTypeString] for
+     * most types it is overridden by others to provide additional information.
+     */
+    fun description(): String = toTypeString()
+
+    /**
      * Generates a string for this type.
      *
      * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
@@ -682,7 +690,7 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
-sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem
+sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {}
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
@@ -848,6 +856,9 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
+
+    override fun description() =
+        "$name (extends ${this.asTypeParameter.asErasedType()?.description() ?: "unknown type"})}"
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
