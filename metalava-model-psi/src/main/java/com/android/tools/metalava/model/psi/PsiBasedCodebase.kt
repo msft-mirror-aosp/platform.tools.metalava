@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -166,7 +167,7 @@ open class PsiBasedCodebase(
     private var hideClassesFromJars = true
 
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
-    internal val typeItemFactory = PsiTypeItemFactory(this)
+    internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     private lateinit var emptyPackage: PsiPackageItem
 
@@ -576,12 +577,13 @@ open class PsiBasedCodebase(
      */
     private fun createTopLevelClassAndContents(psiClass: PsiClass): PsiClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
-        return createClass(psiClass, null)
+        return createClass(psiClass, null, globalTypeItemFactory)
     }
 
     internal fun createClass(
         psiClass: PsiClass,
         containingClassItem: PsiClassItem?,
+        enclosingClassTypeItemFactory: PsiTypeItemFactory,
     ): PsiClassItem {
         // If initializing is true, this class is from source
         val classItem =
@@ -589,7 +591,7 @@ open class PsiBasedCodebase(
                 this,
                 psiClass,
                 containingClassItem,
-                typeItemFactory,
+                enclosingClassTypeItemFactory,
                 fromClassPath = fromClasspath || !initializing,
             )
         // Set emit to true for source classes but false for classpath classes
@@ -730,7 +732,11 @@ open class PsiBasedCodebase(
             if (containingClassItem == null) {
                 createTopLevelClassAndContents(missingPsiClass)
             } else {
-                createClass(missingPsiClass, containingClassItem)
+                createClass(
+                    missingPsiClass,
+                    containingClassItem,
+                    globalTypeItemFactory.from(containingClassItem)
+                )
             }
 
         // Make sure that the created class has been properly initialized.
@@ -838,7 +844,8 @@ open class PsiBasedCodebase(
             val updatedMethod = psiClass.findMethodBySignature(method, true)
             val result = methods[updatedMethod!!]
             if (result == null) {
-                val extra = PsiMethodItem.create(this, cls, updatedMethod, typeItemFactory)
+                val extra =
+                    PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
                 methods[method] = extra
                 methods[updatedMethod] = extra
                 if (!initializing) {

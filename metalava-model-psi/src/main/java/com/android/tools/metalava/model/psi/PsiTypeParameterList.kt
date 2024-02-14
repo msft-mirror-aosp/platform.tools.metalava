@@ -31,16 +31,24 @@ internal class PsiTypeParameterList(
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
+            enclosingTypeItemFactory: PsiTypeItemFactory,
+            scopeDescription: String,
             psiOwner: PsiTypeParameterListOwner
-        ): TypeParameterList {
-            val psiTypeParameterList = psiOwner.typeParameterList ?: return TypeParameterList.NONE
+        ): Pair<TypeParameterList, PsiTypeItemFactory> {
+            val psiTypeParameterList =
+                psiOwner.typeParameterList
+                    ?: return Pair(TypeParameterList.NONE, enclosingTypeItemFactory)
 
             val typeParameters =
                 psiTypeParameterList.typeParameters.map {
                     PsiTypeParameterItem.create(codebase, it)
                 }
 
-            return PsiTypeParameterList(codebase, typeParameters)
+            // Get a nested factory containing any new parameters.
+            val typeItemFactory =
+                enclosingTypeItemFactory.nestedFactory(scopeDescription, typeParameters)
+
+            return Pair(PsiTypeParameterList(codebase, typeParameters), typeItemFactory)
         }
     }
 }

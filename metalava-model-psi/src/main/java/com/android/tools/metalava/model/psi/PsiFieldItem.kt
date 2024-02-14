@@ -93,7 +93,7 @@ class PsiFieldItem(
                 codebase,
                 targetContainingClass as PsiClassItem,
                 psiField,
-                codebase.typeItemFactory
+                codebase.globalTypeItemFactory.from(targetContainingClass),
             )
         duplicated.inheritedFrom = containingClass
         duplicated.finishInitialization()
@@ -134,13 +134,13 @@ class PsiFieldItem(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             psiField: PsiField,
-            typeItemFactory: PsiTypeItemFactory,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory
         ): PsiFieldItem {
             val name = psiField.name
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = typeItemFactory.getType(psiField.type, psiField)
+            val fieldType = enclosingClassTypeItemFactory.getType(psiField.type, psiField)
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 

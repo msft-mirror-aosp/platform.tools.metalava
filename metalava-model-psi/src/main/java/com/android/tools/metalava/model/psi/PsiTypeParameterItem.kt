@@ -42,7 +42,8 @@ internal class PsiTypeParameterItem(
     override fun name() = name
 
     override fun type(): VariableTypeItem {
-        return codebase.typeItemFactory.getType(codebase.getClassType(psiClass)) as VariableTypeItem
+        return codebase.globalTypeItemFactory.getType(codebase.getClassType(psiClass))
+            as VariableTypeItem
     }
 
     override fun psi() = psiClass
@@ -63,7 +64,7 @@ internal class PsiTypeParameterItem(
             if (refs.isEmpty()) {
                 emptyList()
             } else {
-                refs.mapNotNull { codebase.typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
+                refs.mapNotNull { codebase.globalTypeItemFactory.getBoundsType(PsiTypeInfo(it)) }
             }
     }
 

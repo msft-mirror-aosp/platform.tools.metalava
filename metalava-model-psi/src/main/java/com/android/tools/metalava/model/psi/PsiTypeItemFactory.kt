@@ -17,8 +17,11 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.type.TypeItemFactory
 import com.intellij.psi.PsiElement
@@ -34,14 +37,30 @@ data class PsiTypeInfo(val psiType: PsiType, val context: PsiElement? = null)
  * Creates [PsiTypeItem]s from [PsiType]s and an optional context [PsiElement], encapsulated within
  * [PsiTypeInfo].
  */
-internal class PsiTypeItemFactory(val codebase: PsiBasedCodebase) :
-    TypeItemFactory<PsiTypeInfo, PsiTypeItemFactory> {
+internal class PsiTypeItemFactory(
+    val codebase: PsiBasedCodebase,
+    override val typeParameterScope: TypeParameterScope
+) : TypeItemFactory<PsiTypeInfo, PsiTypeItemFactory> {
 
-    override val typeParameterScope
-        get() = error("unsupported")
+    /** Construct a [PsiTypeItemFactory] suitable for creating types within [classItem]. */
+    fun from(classItem: ClassItem): PsiTypeItemFactory {
+        val scope = TypeParameterScope.from(classItem)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
+    }
 
-    override fun nestedFactory(scopeDescription: String, typeParameters: List<TypeParameterItem>) =
-        error("unsupported")
+    /** Construct a [PsiTypeItemFactory] suitable for creating types within [methodItem]. */
+    fun from(methodItem: MethodItem): PsiTypeItemFactory {
+        val scope = TypeParameterScope.from(methodItem)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
+    }
+
+    override fun nestedFactory(
+        scopeDescription: String,
+        typeParameters: List<TypeParameterItem>
+    ): PsiTypeItemFactory {
+        val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
+        return if (scope === typeParameterScope) this else PsiTypeItemFactory(codebase, scope)
+    }
 
     override fun getBoundsType(underlyingType: PsiTypeInfo) =
         getType(underlyingType) as BoundsTypeItem
@@ -90,7 +109,7 @@ internal class PsiTypeItemFactory(val codebase: PsiBasedCodebase) :
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different to what was intended
-        return PsiTypeItem.create(codebase, psiType, kotlinTypeInfo, typeUse)
+        return PsiTypeItem.create(codebase, psiType, kotlinTypeInfo, this, typeUse)
     }
 
     /** Get a [PsiClassTypeItem] to represent the [PsiClassItem]. */
@@ -98,7 +117,7 @@ internal class PsiTypeItemFactory(val codebase: PsiBasedCodebase) :
         // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class
         // has any type parameters then the PsiType will include references to those parameters.
         val psiTypeWithTypeParametersIfAny = codebase.getClassType(psiClassItem.psiClass)
-        return PsiTypeItem.create(codebase, psiTypeWithTypeParametersIfAny, null)
+        return PsiTypeItem.create(codebase, psiTypeWithTypeParametersIfAny, null, this)
             as PsiClassTypeItem
     }
 }

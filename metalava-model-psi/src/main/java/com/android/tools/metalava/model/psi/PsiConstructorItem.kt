@@ -88,7 +88,7 @@ private constructor(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             psiMethod: PsiMethod,
-            typeItemFactory: PsiTypeItemFactory,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
@@ -96,8 +96,14 @@ private constructor(
             val modifiers = modifiers(codebase, psiMethod, commentText)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
-            val typeParameterList = PsiTypeParameterList.create(codebase, psiMethod)
-            val parameters = parameterList(codebase, psiMethod, typeItemFactory)
+            val (typeParameterList, constructorTypeItemFactory) =
+                PsiTypeParameterList.create(
+                    codebase,
+                    enclosingClassTypeItemFactory,
+                    "constructor $name",
+                    psiMethod
+                )
+            val parameters = parameterList(codebase, psiMethod, constructorTypeItemFactory)
             val constructor =
                 PsiConstructorItem(
                     codebase = codebase,
@@ -111,7 +117,7 @@ private constructor(
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     typeParameterList = typeParameterList,
-                    throwsTypes = throwsTypes(psiMethod, typeItemFactory),
+                    throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                 )
             constructor.modifiers.setOwner(constructor)
             return constructor
@@ -120,7 +126,7 @@ private constructor(
         fun createDefaultConstructor(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
-            psiClass: PsiClass
+            psiClass: PsiClass,
         ): PsiConstructorItem {
             val name = psiClass.name!!
 

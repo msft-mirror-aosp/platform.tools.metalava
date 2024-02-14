@@ -317,7 +317,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiParameter: PsiParameter,
             parameterIndex: Int,
-            typeItemFactory: PsiTypeItemFactory,
+            enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
@@ -349,7 +349,7 @@ internal constructor(
                 } else {
                     psiType
                 }
-            val type = typeItemFactory.getType(workaroundPsiType, psiParameter)
+            val type = enclosingMethodTypeItemFactory.getType(workaroundPsiType, psiParameter)
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,

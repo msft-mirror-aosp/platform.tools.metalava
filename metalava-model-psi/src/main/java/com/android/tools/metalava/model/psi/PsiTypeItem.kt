@@ -110,6 +110,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
             codebase: PsiBasedCodebase,
             psiType: PsiType,
             kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
             typeUse: TypeUse = TypeUse.GENERAL,
         ): PsiTypeItem {
             return when (psiType) {
@@ -124,6 +125,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
                         codebase = codebase,
                         psiType = psiType,
                         kotlinType = kotlinType,
+                        typeItemFactory = typeItemFactory,
                     )
                 is PsiClassType -> {
                     val psiClass = psiType.resolve()
@@ -139,6 +141,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
                             psiType = psiType,
                             kotlinType = kotlinType,
                             typeUse = typeUse,
+                            typeItemFactory = typeItemFactory,
                         )
                     }
                 }
@@ -147,6 +150,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
                         codebase = codebase,
                         psiType = psiType,
                         kotlinType = kotlinType,
+                        typeItemFactory = typeItemFactory,
                     )
                 // There are other [PsiType]s, but none can appear in API surfaces.
                 else -> throw IllegalStateException("Invalid type in API surface: $psiType")
@@ -213,11 +217,17 @@ internal class PsiArrayTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiArrayType,
             kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
         ) =
             PsiArrayTypeItem(
                 psiType = psiType,
                 componentType =
-                    create(codebase, psiType.componentType, kotlinType?.forArrayComponentType()),
+                    create(
+                        codebase,
+                        psiType.componentType,
+                        kotlinType?.forArrayComponentType(),
+                        typeItemFactory,
+                    ),
                 isVarargs = psiType is PsiEllipsisType,
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
             )
@@ -260,14 +270,27 @@ internal class PsiClassTypeItem(
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?,
             typeUse: TypeUse,
+            typeItemFactory: PsiTypeItemFactory,
         ): PsiClassTypeItem {
             val qualifiedName = computeQualifiedName(psiType)
             return PsiClassTypeItem(
                 codebase = codebase,
                 psiType = psiType,
                 qualifiedName = qualifiedName,
-                arguments = computeTypeArguments(codebase, psiType, kotlinType),
-                outerClassType = computeOuterClass(psiType, codebase, kotlinType),
+                arguments =
+                    computeTypeArguments(
+                        codebase,
+                        psiType,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
+                outerClassType =
+                    computeOuterClass(
+                        psiType,
+                        codebase,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
                 // This should be able to use `psiType.name`, but that sometimes returns null.
                 className = ClassTypeItem.computeClassName(qualifiedName),
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType, typeUse),
@@ -277,7 +300,8 @@ internal class PsiClassTypeItem(
         private fun computeTypeArguments(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory
         ): List<TypeArgumentTypeItem> {
             val psiParameters =
                 psiType.parameters.toList().ifEmpty {
@@ -294,7 +318,8 @@ internal class PsiClassTypeItem(
                 }
 
             return psiParameters.mapIndexed { i, param ->
-                create(codebase, param, kotlinType?.forParameter(i)) as TypeArgumentTypeItem
+                create(codebase, param, kotlinType?.forParameter(i), typeItemFactory)
+                    as TypeArgumentTypeItem
             }
         }
 
@@ -400,7 +425,7 @@ internal class PsiClassTypeItem(
             return psiTypeFromKotlin?.parameters?.toList() ?: emptyList()
         }
 
-        private fun computeQualifiedName(psiType: PsiClassType): String {
+        internal fun computeQualifiedName(psiType: PsiClassType): String {
             // It should be possible to do `psiType.rawType().canonicalText` instead, but this
             // doesn't
             // always work if psi is unable to resolve the reference.
@@ -411,7 +436,8 @@ internal class PsiClassTypeItem(
         private fun computeOuterClass(
             psiType: PsiClassType,
             codebase: PsiBasedCodebase,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory
         ): PsiClassTypeItem? {
             // TODO(b/300081840): this drops annotations on the outer class
             return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName
@@ -431,7 +457,12 @@ internal class PsiClassTypeItem(
                             // class declaration, so the resolved [psiType] provides context then.
                             psiType.psiContext ?: psiType.resolve()
                         )
-                    (create(codebase, psiOuterClassType, kotlinType?.forOuterClass())
+                    (create(
+                            codebase,
+                            psiOuterClassType,
+                            kotlinType?.forOuterClass(),
+                            typeItemFactory,
+                        )
                             as PsiClassTypeItem)
                         .apply {
                             // An outer class reference can't be null.
@@ -497,11 +528,24 @@ internal class PsiWildcardTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiWildcardType,
             kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
         ) =
             PsiWildcardTypeItem(
                 psiType = psiType,
-                extendsBound = createBound(psiType.extendsBound, codebase, kotlinType),
-                superBound = createBound(psiType.superBound, codebase, kotlinType),
+                extendsBound =
+                    createBound(
+                        psiType.extendsBound,
+                        codebase,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
+                superBound =
+                    createBound(
+                        psiType.superBound,
+                        codebase,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
             )
 
@@ -512,13 +556,14 @@ internal class PsiWildcardTypeItem(
         private fun createBound(
             bound: PsiType,
             codebase: PsiBasedCodebase,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
         ): ReferenceTypeItem? {
             return if (bound == PsiTypes.nullType()) {
                 null
             } else {
                 // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-                create(codebase, bound, kotlinType) as ReferenceTypeItem
+                create(codebase, bound, kotlinType, typeItemFactory) as ReferenceTypeItem
             }
         }
     }
