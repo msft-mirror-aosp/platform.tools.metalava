@@ -389,7 +389,7 @@ internal class JavaStubWriter(
                 if (i > 0) {
                     writer.print(", ")
                 }
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
             }
         }
     }

@@ -399,7 +399,7 @@ class SignatureWriter(
                 if (i > 0) {
                     write(", ")
                 }
-                write(type.qualifiedName())
+                write(type.toTypeString())
             }
         }
     }

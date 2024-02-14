@@ -291,8 +291,8 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
             for (i in throwsList12.indices) {
                 val p1 = throwsList12[i]
                 val p2 = throwsList2[i]
-                val pt1 = p1.qualifiedName()
-                val pt2 = p2.qualifiedName()
+                val pt1 = p1.toTypeString()
+                val pt2 = p2.toTypeString()
                 if (pt1 != pt2) { // assumes throws lists are sorted!
                     return false
                 }
