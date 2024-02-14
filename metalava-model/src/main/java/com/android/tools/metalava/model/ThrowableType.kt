@@ -24,18 +24,14 @@ package com.android.tools.metalava.model
  * separate type.
  */
 sealed interface ThrowableType {
-    /** True if [classItem] is a [TypeParameterItem]. */
-    val isTypeParameter: Boolean
-
     /**
-     * The underlying [ClassItem], if available; must only be called if [isTypeParameter] is
-     * `false`.
+     * The underlying [ClassItem], if available; must only be called if `this` is a [ClassTypeItem].
      */
     val classItem: ClassItem?
 
     /**
-     * The underlying [TypeParameterItem], if available; must only be called if [isTypeParameter] is
-     * `true`.
+     * The underlying [TypeParameterItem], if available; must only be called if `this` is a
+     * [VariableTypeItem].
      */
     val typeParameterItem: TypeParameterItem
 
@@ -58,7 +54,7 @@ sealed interface ThrowableType {
     fun qualifiedName(): String
 
     /** A wrapper of [ExceptionTypeItem] that implements [ThrowableType]. */
-    private class ThrowableExceptionTypeItem(val exceptionTypeItem: ExceptionTypeItem) :
+    private open class ThrowableExceptionTypeItem(val exceptionTypeItem: ExceptionTypeItem) :
         ThrowableType {
 
         private val fullName =
@@ -66,9 +62,6 @@ sealed interface ThrowableType {
                 is ClassTypeItem -> bestGuessAtFullName(exceptionTypeItem.qualifiedName)
                 is VariableTypeItem -> exceptionTypeItem.name
             }
-
-        override val isTypeParameter
-            get() = exceptionTypeItem is VariableTypeItem
 
         override val classItem: ClassItem?
             get() =
@@ -126,10 +119,27 @@ sealed interface ThrowableType {
         override fun toString() = exceptionTypeItem.toString()
     }
 
+    /**
+     * Temporarily extend [ThrowableExceptionTypeItem] to implement [ClassTypeItem] by delegation to
+     * aid in replacing [ThrowableType] with [ExceptionTypeItem].
+     */
+    private class ThrowableClassTypeItem(classTypeItem: ClassTypeItem) :
+        ThrowableExceptionTypeItem(classTypeItem), ClassTypeItem by classTypeItem
+
+    /**
+     * Temporarily extend [ThrowableExceptionTypeItem] to implement [VariableTypeItem] by delegation
+     * to aid in replacing [ThrowableType] with [ExceptionTypeItem].
+     */
+    private class ThrowableVariableTypeItem(variableTypeItem: VariableTypeItem) :
+        ThrowableExceptionTypeItem(variableTypeItem), VariableTypeItem by variableTypeItem
+
     companion object {
         /** Get a [ThrowableType] wrapper around an [ExceptionTypeItem] */
         fun ofExceptionType(exceptionType: ExceptionTypeItem): ThrowableType =
-            ThrowableExceptionTypeItem(exceptionType)
+            when (exceptionType) {
+                is ClassTypeItem -> ThrowableClassTypeItem(exceptionType)
+                is VariableTypeItem -> ThrowableVariableTypeItem(exceptionType)
+            }
 
         /** A partial ordering over [ThrowableType] comparing [ThrowableType.fullName]. */
         val fullNameComparator: Comparator<ThrowableType> = Comparator.comparing { it.fullName() }

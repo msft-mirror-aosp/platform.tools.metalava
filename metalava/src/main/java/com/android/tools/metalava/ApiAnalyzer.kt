@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -1378,7 +1379,7 @@ class ApiAnalyzer(
                 )
             }
             for (thrown in method.throwsTypes()) {
-                if (thrown.isTypeParameter) continue
+                if (thrown is VariableTypeItem) continue
                 val classItem = thrown.classItem ?: continue
                 cantStripThis(
                     classItem,

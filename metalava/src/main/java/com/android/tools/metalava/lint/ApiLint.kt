@@ -1713,7 +1713,7 @@ private constructor(
             val throwableClass = throwableType.throwableClass ?: continue
             if (isUncheckedException(throwableClass)) {
                 report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
-            } else if (throwableType.isTypeParameter) {
+            } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without
                 // any package or containing class could never match a qualified exception name.

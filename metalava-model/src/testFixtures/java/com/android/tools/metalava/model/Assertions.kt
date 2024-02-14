@@ -87,6 +87,14 @@ interface Assertions {
     }
 
     /**
+     * Temporary extension function to treat [ThrowableType] as [TypeItem] to aid in replacing
+     * [ThrowableType] with [ExceptionTypeItem].
+     */
+    fun ThrowableType.assertReferencesTypeParameter(typeParameter: TypeParameterItem) {
+        (this as TypeItem).assertReferencesTypeParameter(typeParameter)
+    }
+
+    /**
      * Check to make sure that this [TypeItem] is actually a [ClassTypeItem] and then run the
      * optional lambda on the [ClassTypeItem].
      */
