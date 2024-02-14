@@ -38,7 +38,7 @@ internal class TurbineTypeItemFactory(
     private val codebase: TurbineBasedCodebase,
     private val initializer: TurbineCodebaseInitialiser,
     override val typeParameterScope: TypeParameterScope,
-) : TypeItemFactory<Type, TypeItem, TurbineTypeItemFactory> {
+) : TypeItemFactory<Type, TurbineTypeItemFactory> {
 
     override fun nestedFactory(
         scopeDescription: String,

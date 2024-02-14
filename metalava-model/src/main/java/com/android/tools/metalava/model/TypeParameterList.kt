@@ -76,7 +76,7 @@ abstract class DefaultTypeParameterList : TypeParameterList {
          * Group up [typeParameters] and the [factory] that was used to resolve references when
          * creating their [BoundsTypeItem]s.
          */
-        data class TypeParametersAndFactory<F : TypeItemFactory<*, *, F>>(
+        data class TypeParametersAndFactory<F : TypeItemFactory<*, F>>(
             val typeParameters: List<TypeParameterItem>,
             val factory: F,
         )
@@ -108,9 +108,7 @@ abstract class DefaultTypeParameterList : TypeParameterList {
          * @param F the type of the model specific [TypeItemFactory].
          */
         fun <
-            I : TypeParameterItem,
-            P,
-            F : TypeItemFactory<*, *, F>> createTypeParameterItemsAndFactory(
+            I : TypeParameterItem, P, F : TypeItemFactory<*, F>> createTypeParameterItemsAndFactory(
             containingTypeItemFactory: F,
             scopeDescription: String,
             inputParams: List<P>,

@@ -36,10 +36,9 @@ import com.android.tools.metalava.model.TypeParameterScope
  * will be expanded as more type creation logic is moved inside.
  *
  * @param T the underlying model specific representation of a type.
- * @param I the model specific specialization of [TypeItem].
  * @param F the type of the factory implementation.
  */
-interface TypeItemFactory<in T, out I : TypeItem, F : TypeItemFactory<T, I, F>> {
+interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
 
     /**
      * The [TypeParameterScope] that is used by this factory to resolve references to
@@ -66,7 +65,7 @@ interface TypeItemFactory<in T, out I : TypeItem, F : TypeItemFactory<T, I, F>> 
      * Get a general type suitable for use anywhere not covered by one of the more specific type
      * methods in this.
      */
-    fun getGeneralType(underlyingType: T): I
+    fun getGeneralType(underlyingType: T): TypeItem
 
     /**
      * Get a type suitable for use in an `implements` list of a concrete class, or an `extends` list

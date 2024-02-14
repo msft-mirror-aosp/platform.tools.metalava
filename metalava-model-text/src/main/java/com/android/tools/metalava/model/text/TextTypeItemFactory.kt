@@ -27,7 +27,7 @@ internal class TextTypeItemFactory(
     private val codebase: TextCodebase,
     private val typeParser: TextTypeParser,
     override val typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
-) : TypeItemFactory<String, TextTypeItem, TextTypeItemFactory> {
+) : TypeItemFactory<String, TextTypeItemFactory> {
 
     override fun nestedFactory(
         scopeDescription: String,
