@@ -25,8 +25,6 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
-import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
 internal sealed class TextTypeItem(
@@ -79,18 +77,6 @@ internal class TextClassTypeItem(
             outerClass,
             modifiers.duplicate()
         )
-    }
-}
-
-/** A [VariableTypeItem] parsed from a signature file. */
-internal class TextVariableTypeItem(
-    override val name: String,
-    override val asTypeParameter: TypeParameterItem,
-    modifiers: TypeModifiers
-) : VariableTypeItem, TextTypeItem(modifiers) {
-
-    override fun duplicate(): VariableTypeItem {
-        return TextVariableTypeItem(name, asTypeParameter, modifiers.duplicate())
     }
 }
 

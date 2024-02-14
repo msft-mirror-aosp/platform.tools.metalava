@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
@@ -50,11 +52,10 @@ internal class TextTypeParameterItem(
                 }
             }
 
-    override fun type(): TextVariableTypeItem {
-        return TextVariableTypeItem(
-            name,
+    override fun type(): VariableTypeItem {
+        return DefaultVariableTypeItem(
+            TextTypeModifiers.create(codebase, emptyList(), null),
             this,
-            TextTypeModifiers.create(codebase, emptyList(), null)
         )
     }
 

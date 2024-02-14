@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
@@ -356,7 +357,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         cachedParseType(bound, typeParameterScope) as ReferenceTypeItem
 
     /**
-     * Try parsing [type] as a type variable. This will return a non-null [TextVariableTypeItem] if
+     * Try parsing [type] as a type variable. This will return a non-null [VariableTypeItem] if
      * [type] matches a parameter from [typeParameterScope].
      *
      * [type] should have annotations and nullability markers stripped.
@@ -366,9 +367,9 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
         nullability: TypeNullability?
-    ): TextVariableTypeItem? {
+    ): VariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
-        return TextVariableTypeItem(type, param, modifiers(annotations, nullability))
+        return DefaultVariableTypeItem(modifiers(annotations, nullability), param)
     }
 
     /**
