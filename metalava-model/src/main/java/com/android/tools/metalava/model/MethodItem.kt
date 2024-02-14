@@ -85,7 +85,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         throwableTypes: LinkedHashSet<ThrowableType>
     ): LinkedHashSet<ThrowableType> {
         for (throwableType in throwsTypes()) {
-            if (throwableType.isTypeParameter) {
+            if (throwableType is VariableTypeItem) {
                 throwableTypes.add(throwableType)
             } else {
                 val classItem = throwableType.classItem ?: continue
