@@ -24,13 +24,14 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
 internal sealed class TextTypeItem(
-    override val modifiers: TextTypeModifiers,
+    override val modifiers: TypeModifiers,
 ) : DefaultTypeItem() {
 
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
@@ -39,7 +40,7 @@ internal sealed class TextTypeItem(
 /** A [PrimitiveTypeItem] parsed from a signature file. */
 internal class TextPrimitiveTypeItem(
     override val kind: PrimitiveTypeItem.Primitive,
-    modifiers: TextTypeModifiers
+    modifiers: TypeModifiers
 ) : PrimitiveTypeItem, TextTypeItem(modifiers) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextPrimitiveTypeItem(kind, modifiers.duplicate(withNullability))
@@ -53,7 +54,7 @@ internal class TextPrimitiveTypeItem(
 internal class TextArrayTypeItem(
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
-    modifiers: TextTypeModifiers
+    modifiers: TypeModifiers
 ) : ArrayTypeItem, TextTypeItem(modifiers) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextArrayTypeItem(componentType, isVarargs, modifiers.duplicate(withNullability))
@@ -70,7 +71,7 @@ internal class TextClassTypeItem(
     override val qualifiedName: String,
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: ClassTypeItem?,
-    modifiers: TextTypeModifiers
+    modifiers: TypeModifiers
 ) : ClassTypeItem, TextTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
@@ -101,7 +102,7 @@ internal class TextClassTypeItem(
 internal class TextVariableTypeItem(
     override val name: String,
     override val asTypeParameter: TypeParameterItem,
-    modifiers: TextTypeModifiers
+    modifiers: TypeModifiers
 ) : VariableTypeItem, TextTypeItem(modifiers) {
 
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
@@ -116,7 +117,7 @@ internal class TextVariableTypeItem(
 internal class TextWildcardTypeItem(
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-    modifiers: TextTypeModifiers
+    modifiers: TypeModifiers
 ) : WildcardTypeItem, TextTypeItem(modifiers) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextWildcardTypeItem(extendsBound, superBound, modifiers.duplicate(withNullability))

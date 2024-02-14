@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
@@ -446,10 +447,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         return classType
     }
 
-    private fun modifiers(
-        annotations: List<String>,
-        nullability: TypeNullability?
-    ): TextTypeModifiers {
+    private fun modifiers(annotations: List<String>, nullability: TypeNullability?): TypeModifiers {
         return TextTypeModifiers.create(codebase, annotations, nullability)
     }
 
