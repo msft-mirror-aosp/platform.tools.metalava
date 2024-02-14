@@ -111,7 +111,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Make sure the stub Throwable is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(throwable, exception.classItem)
+            assertSame(throwable, exception.erasedClass)
         }
     }
 
@@ -146,7 +146,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Make sure the stub Throwable is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(error, exception.classItem)
+            assertSame(error, exception.erasedClass)
         }
     }
 
@@ -171,7 +171,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Make sure the stub Throwable is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(throwable, exception.classItem)
+            assertSame(throwable, exception.erasedClass)
         }
     }
 
@@ -196,7 +196,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Force the unknown exception class to be resolved, creating a stub in the process. It
             // is checked below.
-            exceptionType.classItem
+            exceptionType.erasedClass
 
             val unknownExceptionClass = codebase.assertClass("other.UnknownException")
             // Make sure the stub UnknownException is initialized correctly.
@@ -205,7 +205,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Make sure the stub UnknownException is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(unknownExceptionClass, exception.classItem)
+            assertSame(unknownExceptionClass, exception.erasedClass)
         }
     }
 
@@ -237,7 +237,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         // types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(unknownExceptionClass, exception.classItem)
+        assertSame(unknownExceptionClass, exception.erasedClass)
     }
 
     @Test

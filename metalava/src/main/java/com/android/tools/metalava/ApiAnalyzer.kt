@@ -1380,7 +1380,7 @@ class ApiAnalyzer(
             }
             for (thrown in method.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
-                val classItem = thrown.classItem ?: continue
+                val classItem = thrown.erasedClass ?: continue
                 cantStripThis(
                     classItem,
                     filter,

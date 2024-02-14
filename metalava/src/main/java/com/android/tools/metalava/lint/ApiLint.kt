@@ -1710,7 +1710,7 @@ private constructor(
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
-            val throwableClass = throwableType.throwableClass ?: continue
+            val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
                 report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
             } else if (throwableType is VariableTypeItem) {

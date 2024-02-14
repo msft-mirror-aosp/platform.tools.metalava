@@ -64,7 +64,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.throwableClass ?: continue
+            val throwableClass = type.erasedClass ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -88,7 +88,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
             if (throwableType is VariableTypeItem) {
                 throwableTypes.add(throwableType)
             } else {
-                val classItem = throwableType.classItem ?: continue
+                val classItem = throwableType.erasedClass ?: continue
                 if (predicate.test(classItem)) {
                     throwableTypes.add(throwableType)
                 } else {

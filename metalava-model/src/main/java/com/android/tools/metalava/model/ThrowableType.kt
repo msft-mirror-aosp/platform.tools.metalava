@@ -25,24 +25,12 @@ package com.android.tools.metalava.model
  */
 sealed interface ThrowableType {
     /**
-     * The underlying [ClassItem], if available; must only be called if `this` is a [ClassTypeItem].
-     */
-    val classItem: ClassItem?
-
-    /**
      * The underlying [TypeParameterItem], if available; must only be called if `this` is a
      * [VariableTypeItem].
      */
     val typeParameterItem: TypeParameterItem
 
-    /**
-     * The optional [ClassItem] that should be a subclass of [java.lang.Throwable].
-     *
-     * When the underlying [classItem] is a [TypeParameterItem] this will return the erased type
-     * class, if available, or `null` otherwise. When the underlying [classItem] is not a
-     * [TypeParameterItem] then this will just return [classItem].
-     */
-    val throwableClass: ClassItem?
+    val erasedClass: ClassItem?
 
     /** A description of the `ThrowableType`, suitable for use in reports. */
     fun description(): String
@@ -50,7 +38,6 @@ sealed interface ThrowableType {
     /** The full name of the underlying class. */
     fun fullName(): String
 
-    /** The fully qualified name, will be the simple name of a [TypeParameterItem]. */
     fun toTypeString(): String
 
     /** A wrapper of [ExceptionTypeItem] that implements [ThrowableType]. */
@@ -63,26 +50,10 @@ sealed interface ThrowableType {
                 is VariableTypeItem -> exceptionTypeItem.name
             }
 
-        override val classItem: ClassItem?
-            get() =
-                when (exceptionTypeItem) {
-                    is ClassTypeItem -> exceptionTypeItem.asClass()
-                    is VariableTypeItem -> error("Cannot access classItem of $this")
-                }
-
         override val typeParameterItem: TypeParameterItem
             get() =
                 (exceptionTypeItem as? VariableTypeItem)?.asTypeParameter
                     ?: error("Cannot access `typeParameterItem` on $this")
-
-        /** The [classItem] is a subclass of [java.lang.Throwable] */
-        override val throwableClass: ClassItem?
-            get() =
-                when (exceptionTypeItem) {
-                    is ClassTypeItem -> exceptionTypeItem.asClass()
-                    is VariableTypeItem ->
-                        exceptionTypeItem.asTypeParameter.asErasedType()?.asClass()
-                }
 
         override fun toTypeString() = exceptionTypeItem.toTypeString()
 

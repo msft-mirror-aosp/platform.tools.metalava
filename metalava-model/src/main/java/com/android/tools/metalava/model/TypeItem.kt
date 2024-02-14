@@ -692,6 +692,16 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  */
 sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
     /**
+     * Get the erased [ClassItem], if any.
+     *
+     * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
+     * types have been erased. This will cause an error if it is called on a [VariableTypeItem]
+     * whose [TypeParameterItem]'s upper bound is not a [ExceptionTypeItem]. However, that should
+     * never happen as it would be a compile time error.
+     */
+    val erasedClass: ClassItem?
+
+    /**
      * The best guess of the full name, i.e. the qualified class name without the package but
      * including the outer class names.
      *
@@ -818,6 +828,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      */
     val className: String
 
+    override val erasedClass: ClassItem?
+        get() = asClass()
+
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
@@ -881,6 +894,9 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
+
+    override val erasedClass: ClassItem?
+        get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
 
     override fun description() =
         "$name (extends ${this.asTypeParameter.asErasedType()?.description() ?: "unknown type"})}"
