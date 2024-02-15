@@ -41,7 +41,7 @@ internal open class TurbineClassItem(
     private val classSymbol: ClassSymbol,
     modifiers: TurbineModifierItem,
     override val classKind: ClassKind,
-    private val typeParameterList: TypeParameterList,
+    override val typeParameterList: TypeParameterList,
     documentation: String,
     private val source: SourceFile?
 ) : TurbineItem(codebase, modifiers, documentation), ClassItem {
@@ -184,8 +184,6 @@ internal open class TurbineClassItem(
         val mods = DefaultTypeModifiers.create(typeParam.modifiers.annotations())
         return DefaultVariableTypeItem(mods, typeParam)
     }
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 

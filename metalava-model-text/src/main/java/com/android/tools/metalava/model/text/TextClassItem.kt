@@ -40,7 +40,7 @@ internal open class TextClassItem(
     var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val fullName: String = simpleName,
     val annotations: List<String>? = null,
-    val typeParameterList: TypeParameterList = TypeParameterList.NONE
+    override val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
 
     override var artifact: String? = null
@@ -95,8 +95,6 @@ internal open class TextClassItem(
         containingClass?.containingPackage() ?: containingPackage ?: error(this)
 
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
 
     private var superClassType: ClassTypeItem? = null
 

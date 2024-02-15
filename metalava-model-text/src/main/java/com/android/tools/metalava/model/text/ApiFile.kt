@@ -901,7 +901,7 @@ private constructor(
                 parameters,
                 tokenizer.pos()
             )
-        method.setTypeParameterList(typeParameterList)
+        method.typeParameterList = typeParameterList
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method, typeItemFactory)
@@ -977,7 +977,7 @@ private constructor(
         }
         method =
             TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
-        method.setTypeParameterList(typeParameterList)
+        method.typeParameterList = typeParameterList
         when (token) {
             "throws" -> {
                 token = parseThrows(tokenizer, method, typeItemFactory)

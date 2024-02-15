@@ -101,13 +101,8 @@ internal open class TextMethodItem(
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    private var typeParameterList: TypeParameterList = TypeParameterList.NONE
-
-    fun setTypeParameterList(typeParameterList: TypeParameterList) {
-        this.typeParameterList = typeParameterList
-    }
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
+    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
+        internal set
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
