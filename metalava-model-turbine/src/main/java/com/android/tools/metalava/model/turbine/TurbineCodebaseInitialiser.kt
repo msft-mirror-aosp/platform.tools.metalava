@@ -243,7 +243,7 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun createTopLevelClassAndContents(classSymbol: ClassSymbol) {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
-        createClass(classSymbol, globalTypeItemFactory)
+        createClass(classSymbol, null, globalTypeItemFactory)
     }
 
     /** Tries to create a class if not already present in codebase's classmap */
@@ -280,6 +280,7 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createClass(
         sym: ClassSymbol,
+        containingClassItem: TurbineClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ): TurbineClassItem {
 
@@ -334,6 +335,7 @@ internal open class TurbineCodebaseInitialiser(
                 sourceFile,
             )
         modifierItem.setOwner(classItem)
+        classItem.containingClass = containingClassItem
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
         // Setup the SuperClass
@@ -366,9 +368,6 @@ internal open class TurbineCodebaseInitialiser(
         if (isTopClass) {
             classItem.containingPackage = pkgItem
             pkgItem.addTopClass(classItem)
-            // If the class is top class, fix the constructor return type right away. Otherwise wait
-            // for containingClass to be set via createInnerClasses
-            fixCtorReturnType(classItem)
         }
 
         // Do not emit to signature file if it is from classpath
@@ -606,12 +605,7 @@ internal open class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory
     ) {
         classItem.innerClasses =
-            innerClasses.map { cls ->
-                val innerClassItem = createClass(cls, enclosingClassTypeItemFactory)
-                innerClassItem.containingClass = classItem
-                fixCtorReturnType(innerClassItem)
-                innerClassItem
-            }
+            innerClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
     }
 
     /** This methods creates and sets the fields of a class */
@@ -765,9 +759,10 @@ internal open class TurbineCodebaseInitialiser(
                             name,
                             constructor.sym(),
                             classItem,
-                            constructorTypeItemFactory.getGeneralType(
-                                constructor.returnType(),
-                            ),
+                            // Turbine's Binder gives return type of constructors as void but the
+                            // model expects it to the type of object being created. So, use the
+                            // containing [ClassItem]'s type as the constructor return type.
+                            classItem.type(),
                             constructorModifierItem,
                             typeParams,
                             getCommentedDoc(documentation),
@@ -788,19 +783,6 @@ internal open class TurbineCodebaseInitialiser(
 
     internal fun getQualifiedName(binaryName: String): String {
         return binaryName.replace('/', '.').replace('$', '.')
-    }
-
-    /**
-     * Turbine's Binder gives return type of constructors as void. This needs to be changed to
-     * Class.toType().
-     */
-    private fun fixCtorReturnType(classItem: TurbineClassItem) {
-        val result =
-            classItem.constructors.map {
-                it.setReturnType(classItem.type())
-                it
-            }
-        classItem.constructors = result
     }
 
     /**
