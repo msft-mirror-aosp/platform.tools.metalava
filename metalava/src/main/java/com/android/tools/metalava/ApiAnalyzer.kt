@@ -1312,7 +1312,8 @@ class ApiAnalyzer(
         cl.superClass()?.let { superClass -> superItems.add(superClass) }
 
         for (superItem in superItems) {
-            if (superItem.isHiddenOrRemoved()) {
+            // allInterfaces includes cl itself if cl is an interface
+            if (superItem.isHiddenOrRemoved() && superItem != cl) {
                 // cl is a public class declared as extending a hidden superclass.
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
