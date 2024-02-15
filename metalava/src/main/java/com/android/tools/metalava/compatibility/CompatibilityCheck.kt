@@ -361,8 +361,8 @@ class CompatibilityCheck(
         }
 
         if (old.hasTypeVariables() || new.hasTypeVariables()) {
-            val oldTypeParamsCount = old.typeParameterList().typeParameterCount()
-            val newTypeParamsCount = new.typeParameterList().typeParameterCount()
+            val oldTypeParamsCount = old.typeParameterList().size
+            val newTypeParamsCount = new.typeParameterList().size
             if (oldTypeParamsCount > 0 && oldTypeParamsCount != newTypeParamsCount) {
                 report(
                     Issues.CHANGED_TYPE,

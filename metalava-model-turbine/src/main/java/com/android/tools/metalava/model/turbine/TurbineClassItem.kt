@@ -41,7 +41,7 @@ internal open class TurbineClassItem(
     private val classSymbol: ClassSymbol,
     modifiers: TurbineModifierItem,
     override val classKind: ClassKind,
-    private val typeParameters: TypeParameterList,
+    private val typeParameterList: TypeParameterList,
     documentation: String,
     private val source: SourceFile?
 ) : TurbineItem(codebase, modifiers, documentation), ClassItem {
@@ -131,7 +131,7 @@ internal open class TurbineClassItem(
         return TurbineConstructorItem.createDefaultConstructor(codebase, this, sym)
     }
 
-    override fun hasTypeVariables(): Boolean = typeParameters.typeParameterCount() > 0
+    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
@@ -185,7 +185,7 @@ internal open class TurbineClassItem(
         return DefaultVariableTypeItem(mods, typeParam)
     }
 
-    override fun typeParameterList(): TypeParameterList = typeParameters
+    override fun typeParameterList(): TypeParameterList = typeParameterList
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 

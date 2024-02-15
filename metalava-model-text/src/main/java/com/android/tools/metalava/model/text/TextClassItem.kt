@@ -94,7 +94,7 @@ internal open class TextClassItem(
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage ?: error(this)
 
-    override fun hasTypeVariables(): Boolean = typeParameterList.typeParameterCount() > 0
+    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
 
