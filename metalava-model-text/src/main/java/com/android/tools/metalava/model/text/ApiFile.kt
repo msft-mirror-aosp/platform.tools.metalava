@@ -1204,10 +1204,14 @@ private constructor(
         return modifiers
     }
 
-    private fun parseValue(type: TypeItem, value: String?, tokenizer: Tokenizer): Any? {
+    private fun parseValue(
+        type: TypeItem,
+        value: String?,
+        fileLocationTracker: FileLocationTracker,
+    ): Any? {
         return if (value != null) {
             if (type is PrimitiveTypeItem) {
-                parsePrimitiveValue(type, value, tokenizer)
+                parsePrimitiveValue(type, value, fileLocationTracker)
             } else if (type.isString()) {
                 if ("null" == value) {
                     null
@@ -1223,7 +1227,7 @@ private constructor(
     private fun parsePrimitiveValue(
         type: PrimitiveTypeItem,
         value: String,
-        tokenizer: Tokenizer
+        fileLocationTracker: FileLocationTracker,
     ): Any {
         return when (type.kind) {
             Primitive.BOOLEAN ->
@@ -1254,7 +1258,10 @@ private constructor(
                 }
             Primitive.CHAR -> value.toInt().toChar()
             Primitive.VOID ->
-                throw ApiParseException("Found value $value assigned to void type", tokenizer)
+                throw ApiParseException(
+                    "Found value $value assigned to void type",
+                    fileLocationTracker
+                )
         }
     }
 
@@ -1321,9 +1328,9 @@ private constructor(
         return if (typeParameterListString.isEmpty()) {
             Pair(TypeParameterList.NONE, enclosingTypeItemFactory)
         } else {
-            // Use the line number as a part of the description of the scope as at this point there
-            // is no other information available.
-            val scopeDescription = "line ${tokenizer.line}"
+            // Use the file location as a part of the description of the scope as at this point
+            // there is no other information available.
+            val scopeDescription = "${tokenizer.fileLocation()}"
             createTypeParameterList(
                 enclosingTypeItemFactory,
                 scopeDescription,
