@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.CommonModelTest
+  Test unknown inner class[turbine,java]
+
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation toSource() with compound expression values[turbine,java]
   annotation toSource() with constant literal values[turbine,java]
