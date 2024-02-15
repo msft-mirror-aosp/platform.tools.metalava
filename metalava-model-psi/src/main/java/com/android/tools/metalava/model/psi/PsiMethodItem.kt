@@ -50,7 +50,7 @@ open class PsiMethodItem(
     name: String,
     modifiers: PsiModifierItem,
     documentation: String,
-    private val returnType: PsiTypeItem,
+    private val returnType: TypeItem,
     private val parameters: List<PsiParameterItem>,
     override val typeParameterList: TypeParameterList,
     private val throwsTypes: List<ExceptionTypeItem>

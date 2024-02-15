@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -38,7 +39,7 @@ private constructor(
     modifiers: PsiModifierItem,
     documentation: String,
     parameters: List<PsiParameterItem>,
-    returnType: PsiTypeItem,
+    returnType: ClassTypeItem,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     val implicitConstructor: Boolean = false,
@@ -113,7 +114,7 @@ private constructor(
                     documentation = commentText,
                     modifiers = modifiers,
                     parameters = parameters,
-                    returnType = containingClass.type() as PsiClassTypeItem,
+                    returnType = containingClass.type(),
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     typeParameterList = typeParameterList,
@@ -144,7 +145,7 @@ private constructor(
                     documentation = "",
                     modifiers = modifiers,
                     parameters = emptyList(),
-                    returnType = containingClass.type() as PsiClassTypeItem,
+                    returnType = containingClass.type(),
                     implicitConstructor = true,
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
