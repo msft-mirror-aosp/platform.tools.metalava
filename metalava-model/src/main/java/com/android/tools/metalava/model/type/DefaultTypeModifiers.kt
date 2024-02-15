@@ -53,6 +53,7 @@ class DefaultTypeModifiers(
     }
 
     override fun setNullability(newNullability: TypeNullability) {
+        if (newNullability == nullability) return
         ensureMutable()
         nullability = newNullability
     }

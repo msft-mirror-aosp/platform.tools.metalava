@@ -156,6 +156,10 @@ internal open class TurbineCodebaseInitialiser(
         codebase.accept(
             object : BaseItemVisitor() {
                 override fun visitItem(item: Item) {
+                    // The ClassItem.type() is never nullable even if the class has an @Nullable
+                    // annotation.
+                    if (item is ClassItem) return
+
                     val type = item.type() ?: return
                     val implicitNullness = item.implicitNullness()
                     if (implicitNullness == true || item.modifiers.isNullable()) {

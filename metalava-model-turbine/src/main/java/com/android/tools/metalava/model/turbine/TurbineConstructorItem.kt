@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
@@ -28,7 +29,7 @@ internal class TurbineConstructorItem(
     private val name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
-    returnType: TypeItem,
+    returnType: ClassTypeItem,
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
     documentation: String,
