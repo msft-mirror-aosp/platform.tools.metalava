@@ -1679,12 +1679,8 @@ private constructor(
     }
 
     /**
-     * Parses a [TypeItem] from the [tokenizer], starting with the [startingToken] and ensuring that
-     * the full type string is gathered, even when there are type-use annotations. Once the full
-     * type string is found, this parses the type in the context of the [typeItemFactory].
-     *
-     * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
-     * that nullability to [annotations].
+     * Scans the token stream from [tokenizer] for a type string, starting with the [startingToken]
+     * and ensuring that the full type string is gathered, even when there are type-use annotations.
      *
      * After this method is called, `tokenizer.current` will point to the token after the type.
      *
@@ -1695,12 +1691,7 @@ private constructor(
      * To handle arrays with type-use annotations, this looks forward at the next token and includes
      * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
      */
-    private fun parseType(
-        tokenizer: Tokenizer,
-        startingToken: String,
-        typeItemFactory: TextTypeItemFactory,
-        annotations: MutableList<AnnotationItem>
-    ): TypeItem {
+    private fun scanForTypeString(tokenizer: Tokenizer, startingToken: String): String {
         var prev = getAnnotationCompleteToken(tokenizer, startingToken)
         var type = prev
         var token = tokenizer.current
@@ -1715,29 +1706,61 @@ private constructor(
             prev = token
             token = tokenizer.current
         }
+        return type
+    }
 
-        val parsedType = typeItemFactory.getGeneralType(type)
+    /**
+     * Scans for a type string using [scanForTypeString] and parses the result using
+     * [TextTypeItemFactory.getGeneralType].
+     */
+    private fun parseType(
+        tokenizer: Tokenizer,
+        startingToken: String,
+        typeItemFactory: TextTypeItemFactory,
+        annotations: MutableList<AnnotationItem>
+    ): TypeItem {
+        val typeString = scanForTypeString(tokenizer, startingToken)
+
+        val parsedType = typeItemFactory.getGeneralType(typeString)
+        return synchronizeNullability(parsedType, annotations)
+    }
+
+    /**
+     * Synchronize nullability annotations on the API item and [TypeNullability].
+     *
+     * If the type string uses a Kotlin nullability suffix, this adds an annotation representing
+     * that nullability to [itemAnnotations]. Otherwise, if the [TypeNullability] of the [typeItem]
+     * is [TypeNullability.PLATFORM] then it will update that if there is a relevant nullability
+     * annotation in [itemAnnotations].
+     *
+     * @param typeItem the type of the API item.
+     * @param itemAnnotations the API item's annotations.
+     */
+    private fun synchronizeNullability(
+        typeItem: TypeItem,
+        itemAnnotations: MutableList<AnnotationItem>
+    ): TypeItem {
         if (typeParser.kotlinStyleNulls) {
             // Treat varargs as non-null for consistency with the psi model.
-            if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
-                mergeAnnotations(annotations, ANDROIDX_NONNULL)
+            if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
+                mergeAnnotations(itemAnnotations, ANDROIDX_NONNULL)
             } else {
                 // Add an annotation to the context item for the type's nullability if applicable.
-                val nullability = parsedType.modifiers.nullability()
-                if (parsedType !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
-                    mergeAnnotations(annotations, ANDROIDX_NONNULL)
+                val nullability = typeItem.modifiers.nullability()
+                if (typeItem !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
+                    mergeAnnotations(itemAnnotations, ANDROIDX_NONNULL)
                 } else if (nullability == TypeNullability.NULLABLE) {
-                    mergeAnnotations(annotations, ANDROIDX_NULLABLE)
+                    mergeAnnotations(itemAnnotations, ANDROIDX_NULLABLE)
                 }
             }
-        } else if (parsedType.modifiers.nullability() == TypeNullability.PLATFORM) {
+        } else if (typeItem.modifiers.nullability() == TypeNullability.PLATFORM) {
             // See if the type has nullability from the context item annotations.
-            val nullabilityFromContext = annotations.typeNullability
+            val nullabilityFromContext = itemAnnotations.typeNullability
             if (nullabilityFromContext != null) {
-                return parsedType.duplicate(nullabilityFromContext)
+                return typeItem.duplicate(nullabilityFromContext)
             }
         }
-        return parsedType
+        return typeItem
     }
 
     /**
