@@ -1146,20 +1146,20 @@ private constructor(
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        var type: TypeItem
+        val typeString: String
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
+            typeString = scanForTypeString(tokenizer, token)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the name, then the type.
-            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
+            typeString = scanForTypeString(tokenizer, token)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
@@ -1167,21 +1167,30 @@ private constructor(
             token = tokenizer.requireToken()
         }
 
-        var value: Any? = null
-        if ("=" == token) {
-            token = tokenizer.requireToken(false)
-            value = parseValue(type, token, tokenizer)
-            token = tokenizer.requireToken()
-            // If this is an implicitly null constant, add the nullability.
-            if (
-                !typeParser.kotlinStyleNulls &&
-                    modifiers.isFinal() &&
-                    value != null &&
-                    type.modifiers.nullability() != TypeNullability.NONNULL
-            ) {
-                type = type.duplicate(TypeNullability.NONNULL)
-            }
+        // Get the optional value.
+        val valueString =
+            if ("=" == token) {
+                token = tokenizer.requireToken(false)
+                token.also { token = tokenizer.requireToken() }
+            } else null
+
+        // Parse the type string and then snychronize with the annotations.
+        val parsedType = classTypeItemFactory.getGeneralType(typeString)
+        var type = synchronizeNullability(parsedType, annotations)
+
+        // Parse the value string.
+        val value = valueString?.let { parseValue(type, valueString, tokenizer) }
+
+        // If this is an implicitly null constant, add the nullability.
+        if (
+            !typeParser.kotlinStyleNulls &&
+                modifiers.isFinal() &&
+                value != null &&
+                type.modifiers.nullability() != TypeNullability.NONNULL
+        ) {
+            type = type.duplicate(TypeNullability.NONNULL)
         }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
