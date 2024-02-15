@@ -21,10 +21,5 @@ sealed interface TypeParameterListOwner {
     /**
      * Any type parameters for the [Item], if there are no parameters then [TypeParameterList.NONE].
      */
-    fun typeParameterList() = typeParameterList
-
-    /**
-     * Any type parameters for the [Item], if there are no parameters then [TypeParameterList.NONE].
-     */
     val typeParameterList: TypeParameterList
 }

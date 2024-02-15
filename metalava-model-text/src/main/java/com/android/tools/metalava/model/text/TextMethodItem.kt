@@ -68,8 +68,8 @@ internal open class TextMethodItem(
             }
         }
 
-        val typeParameters1 = typeParameterList().typeParameters()
-        val typeParameters2 = other.typeParameterList().typeParameters()
+        val typeParameters1 = typeParameterList
+        val typeParameters2 = other.typeParameterList
 
         if (typeParameters1.size != typeParameters2.size) {
             return false

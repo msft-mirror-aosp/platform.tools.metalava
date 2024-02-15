@@ -170,9 +170,7 @@ internal open class TurbineClassItem(
     override fun type(): TurbineClassTypeItem {
         if (asType == null) {
             val parameters =
-                typeParameterList().typeParameters().map {
-                    createVariableType(it as TurbineTypeParameterItem)
-                }
+                typeParameterList.map { createVariableType(it as TurbineTypeParameterItem) }
             val mods = DefaultTypeModifiers.create(modifiers.annotations())
             val outerClassType = containingClass?.type()
             asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
@@ -211,7 +209,7 @@ internal open class TurbineClassItem(
                 this,
                 retType,
                 mods,
-                method.typeParameterList(),
+                method.typeParameterList,
                 method.documentation,
                 method.defaultValue(),
             )

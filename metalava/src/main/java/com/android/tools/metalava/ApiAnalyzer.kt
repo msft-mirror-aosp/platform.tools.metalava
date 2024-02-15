@@ -1289,7 +1289,7 @@ class ApiAnalyzer(
             )
         }
         // cant strip any of the type's generics
-        cantStripThis(cl.typeParameterList(), filter, notStrippable, stubImportPackages, cl)
+        cantStripThis(cl.typeParameterList, filter, notStrippable, stubImportPackages, cl)
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
@@ -1362,7 +1362,7 @@ class ApiAnalyzer(
                 continue
             }
             cantStripThis(
-                method.typeParameterList(),
+                method.typeParameterList,
                 filter,
                 notStrippable,
                 stubImportPackages,
@@ -1408,7 +1408,7 @@ class ApiAnalyzer(
         stubImportPackages: Set<String>?,
         context: Item
     ) {
-        for (typeParameter in typeParameterList.typeParameters()) {
+        for (typeParameter in typeParameterList) {
             for (bound in typeParameter.typeBounds()) {
                 cantStripThis(
                     bound,

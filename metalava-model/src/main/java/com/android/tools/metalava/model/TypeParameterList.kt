@@ -36,9 +36,6 @@ interface TypeParameterList : List<TypeParameterItem> {
     /** Implemented according to the general [java.util.List.hashCode] contract. */
     override fun hashCode(): Int
 
-    /** Returns the type parameters, if any */
-    fun typeParameters(): List<TypeParameterItem> = this
-
     companion object {
         private val emptyListDelegate = emptyList<TypeParameterItem>()
 
@@ -59,10 +56,10 @@ class DefaultTypeParameterList(private val typeParameters: List<TypeParameterIte
 
     private val toString by lazy {
         buildString {
-            if (typeParameters().isNotEmpty()) {
+            if (this@DefaultTypeParameterList.isNotEmpty()) {
                 append("<")
                 var first = true
-                for (param in typeParameters()) {
+                for (param in this@DefaultTypeParameterList) {
                     if (!first) {
                         append(", ")
                     }
