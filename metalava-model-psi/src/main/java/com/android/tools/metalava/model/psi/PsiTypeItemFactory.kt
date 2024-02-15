@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -24,6 +25,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -32,6 +34,7 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.TypeItemFactory
+import com.android.tools.metalava.model.typeNullability
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
@@ -94,6 +97,34 @@ internal class PsiTypeItemFactory(
 
     override fun getSuperClassType(underlyingType: PsiTypeInfo) =
         getSuperType(underlyingType.psiType)
+
+    override fun getFieldType(
+        underlyingType: PsiTypeInfo,
+        itemAnnotations: List<AnnotationItem>,
+        isEnumConstant: Boolean,
+        isFinal: Boolean,
+        isInitialValueNonNull: () -> Boolean,
+    ): TypeItem {
+        // Get the context nullability. Enum constants are always non-null, item annotations and
+        // whether a field is final and has a non-null value are used only if no other source of
+        // information about nullability is available.
+        val contextNullability =
+            if (isEnumConstant) ContextNullability.forceNonNull
+            else {
+                ContextNullability(
+                    inferNullability = {
+                        // Check annotations from the item first, and then whether the field is
+                        // final and has a non-null value.
+                        itemAnnotations.typeNullability
+                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
+                            else null
+                    }
+                )
+            }
+
+        // Get the field's type, passing in the context nullability.
+        return getType(underlyingType, contextNullability = contextNullability)
+    }
 
     /**
      * Creates a [PsiClassTypeItem] that is suitable for use as a super type, e.g. in an `extends`
