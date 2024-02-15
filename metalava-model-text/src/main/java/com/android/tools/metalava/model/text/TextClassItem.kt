@@ -29,7 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import java.util.function.Predicate
 
 internal open class TextClassItem(
@@ -111,22 +111,14 @@ internal open class TextClassItem(
         this.interfaceTypes = interfaceTypes
     }
 
-    private var typeInfo: ClassTypeItem? = null
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var cachedType: ClassTypeItem
 
     override fun type(): ClassTypeItem {
-        if (typeInfo == null) {
-            val params = typeParameterList.map { it.type() }
-            // Create a [TextTypeItem] representing the type of this class.
-            typeInfo =
-                DefaultClassTypeItem(
-                    codebase,
-                    codebase.emptyTypeModifiers,
-                    qualifiedName,
-                    params,
-                    containingClass()?.type(),
-                )
+        if (!::cachedType.isInitialized) {
+            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
         }
-        return typeInfo!!
+        return cachedType
     }
 
     private var interfaceTypes = emptyList<ClassTypeItem>()
