@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
-import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -33,7 +32,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.source.SourceLanguage
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.model.testsuite.runNullabilityTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -43,49 +42,6 @@ import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
 class CommonTypeModifiersTest : BaseModelTest() {
-
-    class NullabilityCodebaseContext(
-        codebaseContext: CodebaseContext<Codebase>,
-        /**
-         * True if nullness information came from annotations, false if it came from kotlin null
-         * suffixes.
-         */
-        val nullabilityFromAnnotations: Boolean,
-    ) : CodebaseContext<Codebase> by codebaseContext
-
-    /**
-     * Runs a test where it matters whether nullability is provided by annotations (which it is in
-     * [javaSource] and [annotatedSignature]) or kotlin null suffixes (which it is in [kotlinSource]
-     * and [kotlinNullsSignature]).
-     *
-     * Runs [test] for the nullability-through-annotations inputs with `true` as the boolean
-     * parameter, and runs [test] for the nullability-through-suffixes inputs with `false` as the
-     * boolean parameter.
-     */
-    private fun runNullabilityTest(
-        javaSource: TestFile,
-        annotatedSignature: TestFile,
-        kotlinSource: TestFile,
-        kotlinNullsSignature: TestFile,
-        test: NullabilityCodebaseContext.() -> Unit
-    ) {
-        runCodebaseTest(
-            inputSet(
-                javaSource,
-                KnownSourceFiles.libcoreNullableSource,
-                KnownSourceFiles.libcoreNonNullSource
-            ),
-            inputSet(annotatedSignature)
-        ) {
-            val context = NullabilityCodebaseContext(this, true)
-            context.test()
-        }
-
-        runCodebaseTest(kotlinSource, kotlinNullsSignature) {
-            val context = NullabilityCodebaseContext(this, false)
-            context.test()
-        }
-    }
 
     private fun assertNonNull(type: TypeItem, expectAnnotation: Boolean) {
         assertThat(type.modifiers.nullability()).isEqualTo(NONNULL)
