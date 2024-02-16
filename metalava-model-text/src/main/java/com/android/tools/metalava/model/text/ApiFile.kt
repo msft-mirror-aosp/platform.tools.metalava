@@ -860,7 +860,7 @@ private constructor(
 
     private fun parseConstructor(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        containingClass: TextClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -889,15 +889,13 @@ private constructor(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
         val parameters = parseParameterList(tokenizer, typeItemFactory)
-        // Constructors cannot return null.
-        val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
         method =
             TextConstructorItem(
                 codebase,
                 name,
-                cl,
+                containingClass,
                 modifiers,
-                ctorReturn,
+                containingClass.type(),
                 parameters,
                 tokenizer.pos()
             )
@@ -909,8 +907,8 @@ private constructor(
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        if (!cl.constructors().contains(method)) {
-            cl.addConstructor(method)
+        if (!containingClass.constructors().contains(method)) {
+            containingClass.addConstructor(method)
         }
     }
 
