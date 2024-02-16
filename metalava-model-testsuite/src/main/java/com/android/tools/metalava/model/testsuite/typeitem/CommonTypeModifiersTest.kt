@@ -43,6 +43,16 @@ import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
 class CommonTypeModifiersTest : BaseModelTest() {
+
+    class NullabilityCodebaseContext(
+        codebaseContext: CodebaseContext<Codebase>,
+        /**
+         * True if nullness information came from annotations, false if it came from kotlin null
+         * suffixes.
+         */
+        val nullabilityFromAnnotations: Boolean,
+    ) : CodebaseContext<Codebase> by codebaseContext
+
     /**
      * Runs a test where it matters whether nullability is provided by annotations (which it is in
      * [javaSource] and [annotatedSignature]) or kotlin null suffixes (which it is in [kotlinSource]
@@ -57,7 +67,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         annotatedSignature: TestFile,
         kotlinSource: TestFile,
         kotlinNullsSignature: TestFile,
-        test: (Codebase, Boolean) -> Unit
+        test: NullabilityCodebaseContext.() -> Unit
     ) {
         runCodebaseTest(
             inputSet(
@@ -67,10 +77,14 @@ class CommonTypeModifiersTest : BaseModelTest() {
             ),
             inputSet(annotatedSignature)
         ) {
-            test(codebase, true)
+            val context = NullabilityCodebaseContext(this, true)
+            context.test()
         }
 
-        runCodebaseTest(kotlinSource, kotlinNullsSignature) { test(codebase, false) }
+        runCodebaseTest(kotlinSource, kotlinNullsSignature) {
+            val context = NullabilityCodebaseContext(this, false)
+            context.test()
+        }
     }
 
     private fun assertNonNull(type: TypeItem, expectAnnotation: Boolean) {
@@ -947,7 +961,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase, _ ->
+        ) {
             val primitive = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             // Primitives are always non-null without an annotation needed
             assertNonNull(primitive, expectAnnotation = false)
@@ -1011,7 +1025,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase: Codebase, annotations: Boolean ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
@@ -1021,10 +1035,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             val nullableString = fooClass.assertMethod("nullableString", "").returnType()
-            assertNullable(nullableString, annotations)
+            assertNullable(nullableString, nullabilityFromAnnotations)
 
             val nonNullString = fooClass.assertMethod("nonNullString", "").returnType()
-            assertNonNull(nonNullString, annotations)
+            assertNonNull(nonNullString, nullabilityFromAnnotations)
         }
     }
 
@@ -1091,7 +1105,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase: Codebase, annotations: Boolean ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
@@ -1106,7 +1120,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
                 val platformStringNullableArray =
                     fooClass.assertMethod("platformStringNullableArray", "").returnType()
-                assertNullable(platformStringNullableArray, annotations)
+                assertNullable(platformStringNullableArray, nullabilityFromAnnotations)
                 assertPlatform((platformStringNullableArray as ArrayTypeItem).componentType)
             }
 
@@ -1117,21 +1131,24 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 assertPlatform(nonNullStringPlatformArray)
                 assertNonNull(
                     (nonNullStringPlatformArray as ArrayTypeItem).componentType,
-                    annotations
+                    nullabilityFromAnnotations
                 )
             }
 
             val nullableStringNonNullArray =
                 fooClass.assertMethod("nullableStringNonNullArray", "").returnType()
-            assertNonNull(nullableStringNonNullArray, annotations)
-            assertNullable((nullableStringNonNullArray as ArrayTypeItem).componentType, annotations)
+            assertNonNull(nullableStringNonNullArray, nullabilityFromAnnotations)
+            assertNullable(
+                (nullableStringNonNullArray as ArrayTypeItem).componentType,
+                nullabilityFromAnnotations
+            )
 
             val nullableStringNullableArray =
                 fooClass.assertMethod("nullableStringNullableArray", "").returnType()
-            assertNullable(nullableStringNullableArray, annotations)
+            assertNullable(nullableStringNullableArray, nullabilityFromAnnotations)
             assertNullable(
                 (nullableStringNullableArray as ArrayTypeItem).componentType,
-                annotations
+                nullabilityFromAnnotations
             )
         }
     }
@@ -1188,20 +1205,20 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase, annotations ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val array3d = fooClass.methods().single().returnType()
-            assertNonNull(array3d, annotations)
+            assertNonNull(array3d, nullabilityFromAnnotations)
 
             val array2d = (array3d as ArrayTypeItem).componentType
-            assertNullable(array2d, annotations)
+            assertNullable(array2d, nullabilityFromAnnotations)
 
             val array = (array2d as ArrayTypeItem).componentType
-            assertNonNull(array, annotations)
+            assertNonNull(array, nullabilityFromAnnotations)
 
             val string = (array as ArrayTypeItem).componentType
-            assertNullable(string, annotations)
+            assertNullable(string, nullabilityFromAnnotations)
         }
     }
 
@@ -1269,7 +1286,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase, annotations ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
@@ -1293,7 +1310,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 assertPlatform(nullableStringPlatformVararg)
                 assertNullable(
                     (nullableStringPlatformVararg as ArrayTypeItem).componentType,
-                    annotations
+                    nullabilityFromAnnotations
                 )
             }
 
@@ -1304,7 +1321,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         .parameters()
                         .single()
                         .type()
-                assertNullable(platformStringNullableVararg, annotations)
+                assertNullable(platformStringNullableVararg, nullabilityFromAnnotations)
                 assertPlatform((platformStringNullableVararg as ArrayTypeItem).componentType)
             }
 
@@ -1315,10 +1332,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         .parameters()
                         .single()
                         .type()
-                assertNullable(nullableStringNullableVararg, annotations)
+                assertNullable(nullableStringNullableVararg, nullabilityFromAnnotations)
                 assertNullable(
                     (nullableStringNullableVararg as ArrayTypeItem).componentType,
-                    annotations
+                    nullabilityFromAnnotations
                 )
             }
 
@@ -1329,10 +1346,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     .parameters()
                     .single()
                     .type()
-            assertNonNull(nullableStringNonNullVararg, annotations)
+            assertNonNull(nullableStringNonNullVararg, nullabilityFromAnnotations)
             assertNullable(
                 (nullableStringNonNullVararg as ArrayTypeItem).componentType,
-                annotations
+                nullabilityFromAnnotations
             )
         }
     }
@@ -1396,32 +1413,32 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase, annotations ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform type doesn't exist in Kotlin
             if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
                 val nullableListPlatformString =
                     fooClass.assertMethod("nullableListPlatformString", "").returnType()
-                assertNullable(nullableListPlatformString, annotations)
+                assertNullable(nullableListPlatformString, nullabilityFromAnnotations)
                 assertPlatform((nullableListPlatformString as ClassTypeItem).arguments.single())
             }
 
             val nonNullListNullableString =
                 fooClass.assertMethod("nonNullListNullableString", "").returnType()
-            assertNonNull(nonNullListNullableString, annotations)
+            assertNonNull(nonNullListNullableString, nullabilityFromAnnotations)
             assertNullable(
                 (nonNullListNullableString as ClassTypeItem).arguments.single(),
-                annotations
+                nullabilityFromAnnotations
             )
 
             val nullableMap = fooClass.assertMethod("nullableMap", "").returnType()
-            assertNullable(nullableMap, annotations)
+            assertNullable(nullableMap, nullabilityFromAnnotations)
             val mapTypeArguments = (nullableMap as ClassTypeItem).arguments
             // Non-null Integer
-            assertNonNull(mapTypeArguments[0], annotations)
+            assertNonNull(mapTypeArguments[0], nullabilityFromAnnotations)
             // Nullable String
-            assertNullable(mapTypeArguments[1], annotations)
+            assertNullable(mapTypeArguments[1], nullabilityFromAnnotations)
         }
     }
 
@@ -1481,14 +1498,17 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             ),
-        ) { codebase, annotations ->
+        ) {
             val innerClass = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
-            assertNullable(innerClass, annotations)
-            assertNonNull((innerClass as ClassTypeItem).arguments.single(), annotations)
+            assertNullable(innerClass, nullabilityFromAnnotations)
+            assertNonNull(
+                (innerClass as ClassTypeItem).arguments.single(),
+                nullabilityFromAnnotations
+            )
             val outerClass = innerClass.outerClassType!!
             // Outer class types can't be null and don't need to be annotated.
             assertNonNull(outerClass, expectAnnotation = false)
-            assertNullable(outerClass.arguments.single(), annotations)
+            assertNullable(outerClass.arguments.single(), nullabilityFromAnnotations)
         }
     }
 
@@ -1551,25 +1571,25 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase, annotations ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val extendsBoundFoo = fooClass.assertMethod("extendsBound", "").returnType()
-            assertNonNull(extendsBoundFoo, annotations)
+            assertNonNull(extendsBoundFoo, nullabilityFromAnnotations)
             val extendsBound = (extendsBoundFoo as ClassTypeItem).arguments.single()
             assertUndefinedNullness(extendsBound)
             val nullableString = (extendsBound as WildcardTypeItem).extendsBound
-            assertNullable(nullableString!!, annotations)
+            assertNullable(nullableString!!, nullabilityFromAnnotations)
 
             val superBoundFoo = fooClass.assertMethod("superBound", "").returnType()
-            assertNonNull(superBoundFoo, annotations)
+            assertNonNull(superBoundFoo, nullabilityFromAnnotations)
             val superBound = (superBoundFoo as ClassTypeItem).arguments.single()
             assertUndefinedNullness(superBound)
             val nonNullString = (superBound as WildcardTypeItem).superBound
-            assertNonNull(nonNullString!!, annotations)
+            assertNonNull(nonNullString!!, nullabilityFromAnnotations)
 
             val unboundedFoo = fooClass.assertMethod("unbounded", "").returnType()
-            assertNonNull(unboundedFoo, annotations)
+            assertNonNull(unboundedFoo, nullabilityFromAnnotations)
             val unbounded = (unboundedFoo as ClassTypeItem).arguments.single()
             assertUndefinedNullness(unbounded)
         }
@@ -1758,7 +1778,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             """
                     .trimIndent()
             )
-        ) { codebase, _ ->
+        ) {
             val ctorReturn =
                 codebase.assertClass("test.pkg.Foo").constructors().single().returnType()
             // Constructor returns are always non-null without needing an annotation
