@@ -17,8 +17,12 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.google.common.truth.Truth.*
 
 class NullabilityCodebaseContext(
     codebaseContext: BaseModelTest.CodebaseContext<Codebase>,
@@ -61,4 +65,44 @@ internal fun BaseModelTest.runNullabilityTest(
         val context = NullabilityCodebaseContext(this, false)
         context.test()
     }
+}
+
+/**
+ * Make sure that this [TypeItem] has [TypeNullability.NONNULL] and check to make sure that it has
+ * (or does not have depending on [expectAnnotation]) an [AnnotationItem.isNonNull] annotation.
+ *
+ * @param expectAnnotation `true` if an appropriate annotation is expected, false if it is not.
+ */
+internal fun TypeItem.assertHasNonNullNullability(expectAnnotation: Boolean) {
+    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NONNULL)
+    if (expectAnnotation) {
+        assertThat(modifiers.annotations().single().isNonNull()).isTrue()
+    } else {
+        assertThat(modifiers.annotations().isEmpty())
+    }
+}
+
+/**
+ * Make sure that this [TypeItem] has [TypeNullability.NULLABLE] and check to make sure that it has
+ * (or does not have depending on [expectAnnotation]) an [AnnotationItem.isNullable] annotation.
+ *
+ * @param expectAnnotation `true` if an appropriate annotation is expected, false if it is not.
+ */
+internal fun TypeItem.assertHasNullableNullability(expectAnnotation: Boolean) {
+    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NULLABLE)
+    if (expectAnnotation) {
+        assertThat(modifiers.annotations().single().isNullable()).isTrue()
+    } else {
+        assertThat(modifiers.annotations().isEmpty())
+    }
+}
+
+/** Make sure that this [TypeItem] has [TypeNullability.PLATFORM]. */
+internal fun TypeItem.assertHasPlatformNullability() {
+    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.PLATFORM)
+}
+
+/** Make sure that this [TypeItem] has [TypeNullability.UNDEFINED]. */
+internal fun TypeItem.assertHasUndefinedNullability() {
+    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.UNDEFINED)
 }
