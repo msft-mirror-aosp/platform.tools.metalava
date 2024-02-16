@@ -52,8 +52,12 @@ internal fun BaseModelTest.runNullabilityTest(
     runCodebaseTest(
         inputSet(
             javaSource,
+            // Access nullability annotations which are not type use.
+            KnownSourceFiles.notTypeUseNullableSource,
+            KnownSourceFiles.notTypeUseNonNullSource,
+            // Libcore nullability are type use.
             KnownSourceFiles.libcoreNullableSource,
-            KnownSourceFiles.libcoreNonNullSource
+            KnownSourceFiles.libcoreNonNullSource,
         ),
         inputSet(annotatedSignature)
     ) {
@@ -71,14 +75,15 @@ internal fun BaseModelTest.runNullabilityTest(
  * Make sure that this [TypeItem] has [TypeNullability.NONNULL] and check to make sure that it has
  * (or does not have depending on [expectAnnotation]) an [AnnotationItem.isNonNull] annotation.
  *
- * @param expectAnnotation `true` if an appropriate annotation is expected, false if it is not.
+ * @param expectAnnotation `true` if an appropriate annotation is expected, `false` if it is not,
+ *   `null` disables the annotation check.
  */
-internal fun TypeItem.assertHasNonNullNullability(expectAnnotation: Boolean) {
+internal fun TypeItem.assertHasNonNullNullability(expectAnnotation: Boolean? = null) {
     assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NONNULL)
-    if (expectAnnotation) {
-        assertThat(modifiers.annotations().single().isNonNull()).isTrue()
-    } else {
-        assertThat(modifiers.annotations().isEmpty())
+    when (expectAnnotation) {
+        true -> assertThat(modifiers.annotations().single().isNonNull()).isTrue()
+        false -> assertThat(modifiers.annotations().isEmpty())
+        else -> {}
     }
 }
 
@@ -86,14 +91,15 @@ internal fun TypeItem.assertHasNonNullNullability(expectAnnotation: Boolean) {
  * Make sure that this [TypeItem] has [TypeNullability.NULLABLE] and check to make sure that it has
  * (or does not have depending on [expectAnnotation]) an [AnnotationItem.isNullable] annotation.
  *
- * @param expectAnnotation `true` if an appropriate annotation is expected, false if it is not.
+ * @param expectAnnotation `true` if an appropriate annotation is expected, `false` if it is not,
+ *     * `null` disables the annotation check.
  */
-internal fun TypeItem.assertHasNullableNullability(expectAnnotation: Boolean) {
+internal fun TypeItem.assertHasNullableNullability(expectAnnotation: Boolean? = null) {
     assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NULLABLE)
-    if (expectAnnotation) {
-        assertThat(modifiers.annotations().single().isNullable()).isTrue()
-    } else {
-        assertThat(modifiers.annotations().isEmpty())
+    when (expectAnnotation) {
+        true -> assertThat(modifiers.annotations().single().isNullable()).isTrue()
+        false -> assertThat(modifiers.annotations().isEmpty())
+        else -> {}
     }
 }
 
