@@ -1865,7 +1865,7 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
+        if (!item.hasNullnessInfo() && item.type()?.modifiers?.nullability()?.isKnown != true) {
             val type = item.type()
             val inherited =
                 when (item) {
