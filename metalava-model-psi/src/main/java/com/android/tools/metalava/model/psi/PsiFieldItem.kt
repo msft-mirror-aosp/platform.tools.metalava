@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.intellij.psi.PsiCallExpression
+import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifierListOwner
@@ -40,7 +41,7 @@ class PsiFieldItem(
     documentation: String,
     private val fieldType: PsiTypeItem,
     private val isEnumConstant: Boolean,
-    private val initialValue: Any?
+    private val fieldValue: PsiFieldValue?,
 ) :
     PsiMemberItem(
         codebase = codebase,
@@ -59,29 +60,7 @@ class PsiFieldItem(
     override fun type(): TypeItem = fieldType
 
     override fun initialValue(requireConstant: Boolean): Any? {
-        if (initialValue != null) {
-            return initialValue
-        }
-        val constant = psiField.computeConstantValue()
-        // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
-        // Those fields hold [Class] object, but the constant value should not be of [PsiType].
-        if (
-            constant is PsiPrimitiveType &&
-                "TYPE" == name &&
-                (fieldType as? PsiClassTypeItem)?.qualifiedName == "java.lang.Class"
-        ) {
-            return null
-        }
-        if (constant != null) {
-            return constant
-        }
-
-        return if (!requireConstant) {
-            val initializer = psiField.initializer ?: return null
-            JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)
-        } else {
-            null
-        }
+        return fieldValue?.initialValue(requireConstant)
     }
 
     override fun isEnumConstant(): Boolean = isEnumConstant
@@ -143,7 +122,9 @@ class PsiFieldItem(
 
             val fieldType = enclosingClassTypeItemFactory.getType(psiField.type, psiField)
             val isEnumConstant = psiField is PsiEnumConstant
-            val initialValue = null // compute lazily
+
+            // Wrap the PsiField in a PsiFieldValue that can provide the field's initial value.
+            val fieldValue = PsiFieldValue(psiField)
 
             return PsiFieldItem(
                 codebase = codebase,
@@ -154,7 +135,7 @@ class PsiFieldItem(
                 modifiers = modifiers,
                 fieldType = fieldType,
                 isEnumConstant = isEnumConstant,
-                initialValue = initialValue
+                fieldValue = fieldValue
             )
         }
     }
@@ -206,5 +187,35 @@ class PsiFieldItem(
         super.finishInitialization()
 
         fieldType.finishInitialization(this)
+    }
+}
+
+/**
+ * Wrapper around a [PsiField] that will provide access to the initial value of the field, if
+ * available, or `null` otherwise.
+ */
+class PsiFieldValue(private val psiField: PsiField) {
+
+    fun initialValue(requireConstant: Boolean): Any? {
+        val constant = psiField.computeConstantValue()
+        // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
+        // Those fields hold [Class] object, but the constant value should not be of [PsiType].
+        if (
+            constant is PsiPrimitiveType &&
+                psiField.name == "TYPE" &&
+                (psiField.type as? PsiClassType)?.computeQualifiedName() == "java.lang.Class"
+        ) {
+            return null
+        }
+        if (constant != null) {
+            return constant
+        }
+
+        return if (!requireConstant) {
+            val initializer = psiField.initializer ?: return null
+            JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)
+        } else {
+            null
+        }
     }
 }

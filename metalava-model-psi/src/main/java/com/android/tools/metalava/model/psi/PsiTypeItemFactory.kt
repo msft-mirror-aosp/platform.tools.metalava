@@ -285,7 +285,7 @@ internal class PsiTypeItemFactory(
         kotlinType: KotlinTypeInfo?,
         typeUse: TypeUse,
     ): PsiClassTypeItem {
-        val qualifiedName = computeQualifiedName(psiType)
+        val qualifiedName = psiType.computeQualifiedName()
         return PsiClassTypeItem(
             codebase = codebase,
             psiType = psiType,
@@ -431,15 +431,6 @@ internal class PsiTypeItemFactory(
         return psiTypeFromKotlin?.parameters?.toList() ?: emptyList()
     }
 
-    /** Compute the qualified name for a [PsiClassType].. */
-    private fun computeQualifiedName(psiType: PsiClassType): String {
-        // It should be possible to do `psiType.rawType().canonicalText` instead, but this
-        // doesn't
-        // always work if psi is unable to resolve the reference.
-        // See https://youtrack.jetbrains.com/issue/KTIJ-27093 for more details.
-        return PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
-    }
-
     /** Compute the [PsiClassTypeItem.outerClassType]. */
     private fun computeOuterClass(
         psiType: PsiClassType,
@@ -524,4 +515,12 @@ internal class PsiTypeItemFactory(
             createTypeItem(bound, kotlinType) as ReferenceTypeItem
         }
     }
+}
+
+/** Compute the qualified name for a [PsiClassType].. */
+internal fun PsiClassType.computeQualifiedName(): String {
+    // It should be possible to do `psiType.rawType().canonicalText` instead, but this does not
+    // always work if psi is unable to resolve the reference.
+    // See https://youtrack.jetbrains.com/issue/KTIJ-27093 for more details.
+    return PsiNameHelper.getQualifiedClassName(canonicalText, true)
 }
