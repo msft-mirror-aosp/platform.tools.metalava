@@ -104,10 +104,6 @@ private constructor(
             return PsiAnnotationItem(codebase, psiAnnotation, qualifiedName)
         }
 
-        fun create(codebase: PsiBasedCodebase, original: PsiAnnotationItem): PsiAnnotationItem {
-            return PsiAnnotationItem(codebase, original.psiAnnotation, original.originalName)
-        }
-
         fun create(
             codebase: Codebase,
             originalName: String,

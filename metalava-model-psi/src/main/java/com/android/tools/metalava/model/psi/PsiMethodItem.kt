@@ -394,7 +394,7 @@ open class PsiMethodItem(
                     containingClass = containingClass,
                     name = original.name(),
                     documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(original.codebase, original.modifiers),
+                    modifiers = original.modifiers.duplicate(),
                     returnType = returnType,
                     parameters =
                         PsiParameterItem.create(original.parameters(), typeParameterBindings),

@@ -292,7 +292,11 @@ open class DefaultModifierList(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
-    fun duplicate(): DefaultModifierList {
+    /**
+     * Copy this, so it can be used on (and possibly modified by) another [Item] from the same
+     * codebase.
+     */
+    open fun duplicate(): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
             if (annotations == null || annotations.isEmpty()) {

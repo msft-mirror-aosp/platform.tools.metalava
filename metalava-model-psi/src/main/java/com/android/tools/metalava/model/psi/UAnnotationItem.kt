@@ -103,10 +103,6 @@ private constructor(
             return UAnnotationItem(codebase, uAnnotation, qualifiedName)
         }
 
-        fun create(codebase: PsiBasedCodebase, original: UAnnotationItem): UAnnotationItem {
-            return UAnnotationItem(codebase, original.uAnnotation, original.originalName)
-        }
-
         private fun getAttributes(
             annotation: UAnnotation,
             showDefaultAttrs: Boolean

@@ -376,7 +376,7 @@ internal constructor(
                     name = original.name,
                     parameterIndex = original.parameterIndex,
                     documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(original.codebase, original.modifiers),
+                    modifiers = original.modifiers.duplicate(),
                     type = type
                 )
             parameter.modifiers.setOwner(parameter)

@@ -513,22 +513,14 @@ internal constructor(
 
             return (flags and VISIBILITY_MASK.inv()) or visibilityFlags
         }
+    }
 
-        fun create(codebase: PsiBasedCodebase, original: PsiModifierItem): PsiModifierItem {
-            val originalAnnotations =
-                original.annotations ?: return PsiModifierItem(codebase, original.flags)
-            val copy: MutableList<AnnotationItem> = ArrayList(originalAnnotations.size)
-            originalAnnotations.mapTo(copy) { item ->
-                when (item) {
-                    is PsiAnnotationItem -> PsiAnnotationItem.create(codebase, item)
-                    is UAnnotationItem -> UAnnotationItem.create(codebase, item)
-                    else -> {
-                        throw Exception("Unexpected annotation type ${item::class.qualifiedName}")
-                    }
-                }
-            }
-            return PsiModifierItem(codebase, original.flags, copy)
-        }
+    override fun duplicate(): PsiModifierItem {
+        // Copy the annotations list (if any) as it is mutable but do not bother copying the
+        // values as they are immutable and, if they have a dependency on the [PsiBasedCodebase]
+        // then that has not changed.
+        val annotationsCopy = annotations?.toMutableList()
+        return PsiModifierItem(codebase, flags, annotationsCopy)
     }
 }
 
