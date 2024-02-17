@@ -20,6 +20,7 @@ import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -99,7 +100,7 @@ private constructor(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,
             qualifiedName: String? = psiAnnotation.qualifiedName
-        ): PsiAnnotationItem {
+        ): AnnotationItem {
             return PsiAnnotationItem(codebase, psiAnnotation, qualifiedName)
         }
 
@@ -112,7 +113,7 @@ private constructor(
             originalName: String,
             attributes: List<AnnotationAttribute> = emptyList(),
             context: Item? = null
-        ): PsiAnnotationItem {
+        ): AnnotationItem {
             if (codebase is PsiBasedCodebase) {
                 val source = formatAnnotationItem(originalName, attributes)
                 return codebase.createAnnotation(source, context)
