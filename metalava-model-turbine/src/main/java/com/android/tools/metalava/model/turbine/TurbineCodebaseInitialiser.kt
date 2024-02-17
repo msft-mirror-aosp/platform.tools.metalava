@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -398,18 +399,18 @@ internal open class TurbineCodebaseInitialiser(
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.mapNotNull { createAnnotation(it) }
+        return annotations.map { createAnnotation(it) }
     }
 
-    private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem? {
-        val annoAttrs = getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
-
+    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem {
         val simpleName = annotation.tree()?.let { extractNameFromIdent(it.name()) }
         val clsSym = annotation.sym()
         val qualifiedName =
             if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
 
-        return TurbineAnnotationItem(codebase, qualifiedName, annoAttrs)
+        return DefaultAnnotationItem(codebase, qualifiedName) {
+            getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
+        }
     }
 
     /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
