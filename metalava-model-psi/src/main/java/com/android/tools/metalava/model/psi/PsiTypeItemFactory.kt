@@ -24,11 +24,13 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.TypeItemFactory
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
@@ -154,6 +156,23 @@ internal class PsiTypeItemFactory(
 
     // PsiTypeItem factory methods
 
+    /** Creates modifiers based on the annotations of the [type]. */
+    private fun createTypeModifiers(
+        type: PsiType,
+        kotlinType: KotlinTypeInfo?,
+        typeUse: TypeUse = TypeUse.GENERAL,
+    ): TypeModifiers {
+        val annotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
+        // Some types have defined nullness, and kotlin types have nullness information.
+        val nullability =
+            when {
+                typeUse == TypeUse.SUPER_TYPE || type is PsiPrimitiveType -> TypeNullability.NONNULL
+                type is PsiWildcardType -> TypeNullability.UNDEFINED
+                else -> kotlinType?.nullability()
+            }
+        return DefaultTypeModifiers.create(annotations.toMutableList(), nullability)
+    }
+
     /** Create a [PsiTypeItem]. */
     private fun createTypeItem(
         psiType: PsiType,
@@ -222,7 +241,7 @@ internal class PsiTypeItemFactory(
         PsiPrimitiveTypeItem(
             psiType = psiType,
             kind = getKind(psiType),
-            modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType),
         )
 
     /** Get the [PrimitiveTypeItem.Primitive] enum from the [PsiPrimitiveType]. */
@@ -257,7 +276,7 @@ internal class PsiTypeItemFactory(
                     kotlinType?.forArrayComponentType(),
                 ),
             isVarargs = psiType is PsiEllipsisType,
-            modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType),
         )
 
     /** Create a [PsiClassTypeItem]. */
@@ -283,7 +302,7 @@ internal class PsiTypeItemFactory(
                 ),
             // This should be able to use `psiType.name`, but that sometimes returns null.
             className = ClassTypeItem.computeClassName(qualifiedName),
-            modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType, typeUse),
+            modifiers = createTypeModifiers(psiType, kotlinType, typeUse),
         )
     }
 
@@ -464,7 +483,7 @@ internal class PsiTypeItemFactory(
     ) =
         PsiVariableTypeItem(
             psiType = psiType,
-            modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType),
             asTypeParameter = typeParameterItem,
         )
 
@@ -485,7 +504,7 @@ internal class PsiTypeItemFactory(
                     psiType.superBound,
                     kotlinType,
                 ),
-            modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType),
         )
 
     /**
