@@ -365,19 +365,18 @@ internal constructor(
         }
 
         fun create(
-            codebase: PsiBasedCodebase,
             original: PsiParameterItem,
             typeParameterBindings: TypeParameterBindings
         ): PsiParameterItem {
             val type = original.type.convertType(typeParameterBindings) as PsiTypeItem
             val parameter =
                 PsiParameterItem(
-                    codebase = codebase,
+                    codebase = original.codebase,
                     psiParameter = original.psiParameter,
                     name = original.name,
                     parameterIndex = original.parameterIndex,
                     documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                    modifiers = PsiModifierItem.create(original.codebase, original.modifiers),
                     type = type
                 )
             parameter.modifiers.setOwner(parameter)
@@ -385,11 +384,10 @@ internal constructor(
         }
 
         fun create(
-            codebase: PsiBasedCodebase,
             original: List<ParameterItem>,
             typeParameterBindings: TypeParameterBindings
         ): List<PsiParameterItem> {
-            return original.map { create(codebase, it as PsiParameterItem, typeParameterBindings) }
+            return original.map { create(it as PsiParameterItem, typeParameterBindings) }
         }
 
         private fun createParameterModifiers(

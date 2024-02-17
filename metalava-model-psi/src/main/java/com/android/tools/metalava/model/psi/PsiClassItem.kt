@@ -248,7 +248,10 @@ internal constructor(
 
     override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
-        val newMethod = PsiMethodItem.create(codebase, this, method)
+        require(method.codebase == codebase) {
+            "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
+        }
+        val newMethod = PsiMethodItem.create(this, method)
 
         newMethod.finishInitialization()
 

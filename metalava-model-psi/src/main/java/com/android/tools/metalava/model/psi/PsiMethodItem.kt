@@ -366,11 +366,7 @@ open class PsiMethodItem(
          *
          * @see ClassItem.inheritMethodFromNonApiAncestor
          */
-        internal fun create(
-            codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
-            original: PsiMethodItem
-        ): PsiMethodItem {
+        internal fun create(containingClass: PsiClassItem, original: PsiMethodItem): PsiMethodItem {
             val typeParameterBindings = containingClass.mapTypeVariables(original.containingClass())
             val returnType = original.returnType.convertType(typeParameterBindings) as PsiTypeItem
 
@@ -393,19 +389,15 @@ open class PsiMethodItem(
             // class, not the PsiMethodItem's containing class.
             val method =
                 PsiMethodItem(
-                    codebase = codebase,
+                    codebase = original.codebase,
                     psiMethod = original.psiMethod,
                     containingClass = containingClass,
                     name = original.name(),
                     documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                    modifiers = PsiModifierItem.create(original.codebase, original.modifiers),
                     returnType = returnType,
                     parameters =
-                        PsiParameterItem.create(
-                            codebase,
-                            original.parameters(),
-                            typeParameterBindings
-                        ),
+                        PsiParameterItem.create(original.parameters(), typeParameterBindings),
                     // This is probably incorrect as the type parameter bindings probably need
                     // applying here but this is the same behavior as before.
                     // TODO: Investigate whether the above comment is correct and fix if necessary.
