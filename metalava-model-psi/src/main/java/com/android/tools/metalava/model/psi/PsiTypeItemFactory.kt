@@ -109,7 +109,7 @@ internal class PsiTypeItemFactory(
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different to what was intended
-        return PsiTypeItem.create(codebase, psiType, kotlinTypeInfo, this, typeUse)
+        return PsiTypeItem.createTypeItem(codebase, psiType, kotlinTypeInfo, this, typeUse)
     }
 
     /** Get a [PsiClassTypeItem] to represent the [PsiClassItem]. */
@@ -120,7 +120,7 @@ internal class PsiTypeItemFactory(
         // Create a PsiTypeItemFactory that will correctly resolve any references to the class's
         // type parameters.
         val classTypeItemFactory = from(psiClassItem)
-        return PsiTypeItem.create(
+        return PsiTypeItem.createTypeItem(
             codebase,
             psiTypeWithTypeParametersIfAny,
             KotlinTypeInfo.fromContext(psiClassItem.psiClass),

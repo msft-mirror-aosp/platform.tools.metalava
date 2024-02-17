@@ -64,7 +64,7 @@ sealed class PsiTypeItem(
 
     companion object {
 
-        internal fun create(
+        internal fun createTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiType,
             kotlinType: KotlinTypeInfo?,
@@ -73,13 +73,13 @@ sealed class PsiTypeItem(
         ): PsiTypeItem {
             return when (psiType) {
                 is PsiPrimitiveType ->
-                    PsiPrimitiveTypeItem.create(
+                    PsiPrimitiveTypeItem.createPrimitiveTypeItem(
                         codebase = codebase,
                         psiType = psiType,
                         kotlinType = kotlinType,
                     )
                 is PsiArrayType ->
-                    PsiArrayTypeItem.create(
+                    PsiArrayTypeItem.createArrayTypeItem(
                         codebase = codebase,
                         psiType = psiType,
                         kotlinType = kotlinType,
@@ -107,14 +107,14 @@ sealed class PsiTypeItem(
                         }
 
                     if (typeParameterItem != null) {
-                        PsiVariableTypeItem.create(
+                        PsiVariableTypeItem.createVariableTypeItem(
                             codebase = codebase,
                             psiType = psiType,
                             kotlinType = kotlinType,
                             typeParameterItem = typeParameterItem,
                         )
                     } else {
-                        PsiClassTypeItem.create(
+                        PsiClassTypeItem.createClassTypeItem(
                             codebase = codebase,
                             psiType = psiType,
                             kotlinType = kotlinType,
@@ -124,7 +124,7 @@ sealed class PsiTypeItem(
                     }
                 }
                 is PsiWildcardType ->
-                    PsiWildcardTypeItem.create(
+                    PsiWildcardTypeItem.createWildcardTypeItem(
                         codebase = codebase,
                         psiType = psiType,
                         kotlinType = kotlinType,
@@ -147,7 +147,7 @@ internal class PsiPrimitiveTypeItem(
         PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers.duplicate())
 
     companion object {
-        fun create(
+        fun createPrimitiveTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiPrimitiveType,
             kotlinType: KotlinTypeInfo?,
@@ -191,7 +191,7 @@ internal class PsiArrayTypeItem(
         )
 
     companion object {
-        fun create(
+        fun createArrayTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiArrayType,
             kotlinType: KotlinTypeInfo?,
@@ -200,7 +200,7 @@ internal class PsiArrayTypeItem(
             PsiArrayTypeItem(
                 psiType = psiType,
                 componentType =
-                    create(
+                    createTypeItem(
                         codebase,
                         psiType.componentType,
                         kotlinType?.forArrayComponentType(),
@@ -243,7 +243,7 @@ internal class PsiClassTypeItem(
         )
 
     companion object {
-        fun create(
+        fun createClassTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?,
@@ -296,7 +296,7 @@ internal class PsiClassTypeItem(
                 }
 
             return psiParameters.mapIndexed { i, param ->
-                create(codebase, param, kotlinType?.forParameter(i), typeItemFactory)
+                createTypeItem(codebase, param, kotlinType?.forParameter(i), typeItemFactory)
                     as TypeArgumentTypeItem
             }
         }
@@ -435,7 +435,7 @@ internal class PsiClassTypeItem(
                             // class declaration, so the resolved [psiType] provides context then.
                             psiType.psiContext ?: psiType.resolve()
                         )
-                    (create(
+                    (createTypeItem(
                             codebase,
                             psiOuterClassType,
                             kotlinType?.forOuterClass(),
@@ -469,7 +469,7 @@ internal class PsiVariableTypeItem(
         )
 
     companion object {
-        fun create(
+        fun createVariableTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?,
@@ -502,7 +502,7 @@ internal class PsiWildcardTypeItem(
         )
 
     companion object {
-        fun create(
+        fun createWildcardTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiWildcardType,
             kotlinType: KotlinTypeInfo?,
@@ -541,7 +541,7 @@ internal class PsiWildcardTypeItem(
                 null
             } else {
                 // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-                create(codebase, bound, kotlinType, typeItemFactory) as ReferenceTypeItem
+                createTypeItem(codebase, bound, kotlinType, typeItemFactory) as ReferenceTypeItem
             }
         }
     }
