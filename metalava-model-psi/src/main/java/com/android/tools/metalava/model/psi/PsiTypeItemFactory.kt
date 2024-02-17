@@ -28,8 +28,8 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.TypeItemFactory
 import com.intellij.psi.PsiArrayType
@@ -100,11 +100,15 @@ internal class PsiTypeItemFactory(
      * or `implements` list.
      */
     private fun getSuperType(psiType: PsiType): PsiClassTypeItem {
-        return getType(psiType, typeUse = TypeUse.SUPER_TYPE) as PsiClassTypeItem
+        return getType(psiType, contextNullability = ContextNullability.forceNonNull)
+            as PsiClassTypeItem
     }
 
-    private fun getType(psiTypeInfo: PsiTypeInfo, typeUse: TypeUse = TypeUse.GENERAL): PsiTypeItem {
-        return getType(psiTypeInfo.psiType, psiTypeInfo.context, typeUse)
+    private fun getType(
+        psiTypeInfo: PsiTypeInfo,
+        contextNullability: ContextNullability = ContextNullability.none,
+    ): PsiTypeItem {
+        return getType(psiTypeInfo.psiType, psiTypeInfo.context, contextNullability)
     }
 
     /**
@@ -114,7 +118,7 @@ internal class PsiTypeItemFactory(
     internal fun getType(
         psiType: PsiType,
         context: PsiElement? = null,
-        typeUse: TypeUse = TypeUse.GENERAL
+        contextNullability: ContextNullability = ContextNullability.none,
     ): PsiTypeItem {
         val kotlinTypeInfo =
             if (context != null && isKotlin(context)) {
@@ -128,7 +132,7 @@ internal class PsiTypeItemFactory(
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different to what was intended
-        return createTypeItem(psiType, kotlinTypeInfo, typeUse)
+        return createTypeItem(psiType, kotlinTypeInfo, contextNullability)
     }
 
     /** Get a [PsiClassTypeItem] to represent the [PsiClassItem]. */
@@ -151,7 +155,12 @@ internal class PsiTypeItemFactory(
     ): VariableTypeItem {
         val psiTypeParameter = psiTypeParameterItem.psi()
         val psiType = codebase.getClassType(psiTypeParameter)
-        return createVariableTypeItem(psiType, null, psiTypeParameterItem)
+        return createVariableTypeItem(
+            psiType,
+            null,
+            psiTypeParameterItem,
+            ContextNullability.none,
+        )
     }
 
     // PsiTypeItem factory methods
@@ -160,24 +169,20 @@ internal class PsiTypeItemFactory(
     private fun createTypeModifiers(
         type: PsiType,
         kotlinType: KotlinTypeInfo?,
-        typeUse: TypeUse = TypeUse.GENERAL,
+        contextNullability: ContextNullability,
     ): TypeModifiers {
-        val annotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
-        // Some types have defined nullness, and kotlin types have nullness information.
-        val nullability =
-            when {
-                typeUse == TypeUse.SUPER_TYPE || type is PsiPrimitiveType -> TypeNullability.NONNULL
-                type is PsiWildcardType -> TypeNullability.UNDEFINED
-                else -> kotlinType?.nullability()
-            }
-        return DefaultTypeModifiers.create(annotations.toMutableList(), nullability)
+        val typeAnnotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
+        // Compute the nullability, factoring in any context nullability, kotlin types and
+        // type annotations.
+        val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)
+        return DefaultTypeModifiers.create(typeAnnotations.toMutableList(), nullability)
     }
 
     /** Create a [PsiTypeItem]. */
     private fun createTypeItem(
         psiType: PsiType,
         kotlinType: KotlinTypeInfo?,
-        typeUse: TypeUse = TypeUse.GENERAL,
+        contextNullability: ContextNullability = ContextNullability.none,
     ): PsiTypeItem {
         return when (psiType) {
             is PsiPrimitiveType ->
@@ -189,6 +194,7 @@ internal class PsiTypeItemFactory(
                 createArrayTypeItem(
                     psiType = psiType,
                     kotlinType = kotlinType,
+                    contextNullability = contextNullability,
                 )
             is PsiClassType -> {
                 val typeParameterItem =
@@ -214,12 +220,13 @@ internal class PsiTypeItemFactory(
                         psiType = psiType,
                         kotlinType = kotlinType,
                         typeParameterItem = typeParameterItem,
+                        contextNullability = contextNullability,
                     )
                 } else {
                     createClassTypeItem(
                         psiType = psiType,
                         kotlinType = kotlinType,
-                        typeUse = typeUse,
+                        contextNullability = contextNullability,
                     )
                 }
             }
@@ -241,7 +248,7 @@ internal class PsiTypeItemFactory(
         PsiPrimitiveTypeItem(
             psiType = psiType,
             kind = getKind(psiType),
-            modifiers = createTypeModifiers(psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceNonNull),
         )
 
     /** Get the [PrimitiveTypeItem.Primitive] enum from the [PsiPrimitiveType]. */
@@ -267,6 +274,7 @@ internal class PsiTypeItemFactory(
     private fun createArrayTypeItem(
         psiType: PsiArrayType,
         kotlinType: KotlinTypeInfo?,
+        contextNullability: ContextNullability,
     ) =
         PsiArrayTypeItem(
             psiType = psiType,
@@ -276,14 +284,14 @@ internal class PsiTypeItemFactory(
                     kotlinType?.forArrayComponentType(),
                 ),
             isVarargs = psiType is PsiEllipsisType,
-            modifiers = createTypeModifiers(psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
         )
 
     /** Create a [PsiClassTypeItem]. */
     private fun createClassTypeItem(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
-        typeUse: TypeUse,
+        contextNullability: ContextNullability,
     ): PsiClassTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
         return PsiClassTypeItem(
@@ -302,7 +310,7 @@ internal class PsiTypeItemFactory(
                 ),
             // This should be able to use `psiType.name`, but that sometimes returns null.
             className = ClassTypeItem.computeClassName(qualifiedName),
-            modifiers = createTypeModifiers(psiType, kotlinType, typeUse),
+            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
         )
     }
 
@@ -471,10 +479,11 @@ internal class PsiTypeItemFactory(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
         typeParameterItem: TypeParameterItem,
+        contextNullability: ContextNullability,
     ) =
         PsiVariableTypeItem(
             psiType = psiType,
-            modifiers = createTypeModifiers(psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             asTypeParameter = typeParameterItem,
         )
 
@@ -495,7 +504,7 @@ internal class PsiTypeItemFactory(
                     psiType.superBound,
                     kotlinType,
                 ),
-            modifiers = createTypeModifiers(psiType, kotlinType),
+            modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceUndefined),
         )
 
     /**

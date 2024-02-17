@@ -16,12 +16,17 @@
 
 package com.android.tools.metalava.model.type
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.typeNullability
 
 /**
  * Factory for building [TypeItem] from the underlying model specific representation of the type.
@@ -75,4 +80,58 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
 
     /** Get a type suitable for use in an `extends` clause of a concrete class. */
     fun getSuperClassType(underlyingType: T): ClassTypeItem
+}
+
+/**
+ * Encapsulates the information necessary to compute the [TypeNullability] from a variety of
+ * different sources with differing priorities.
+ *
+ * The priorities are:
+ * 1. Forced by specification, e.g. enum constants, super class types, primitives.
+ * 2. Kotlin; ignoring [TypeNullability.PLATFORM].
+ * 3. Annotations.
+ * 4. Nullability inferred from context, e.g. constant field with non-null value.
+ * 4. [TypeNullability.PLATFORM]
+ */
+class ContextNullability(
+    /**
+     * The [TypeNullability] that a [TypeItem] MUST have by virtue of what the type is, or where it
+     * is used; e.g. [PrimitiveTypeItem]s and super class types MUST be [TypeNullability.NONNULL]
+     * while [WildcardTypeItem]s MUST be [TypeNullability.UNDEFINED].
+     *
+     * This CANNOT be overridden by a nullability annotation.
+     */
+    val forcedNullability: TypeNullability? = null,
+
+    /**
+     * A [TypeNullability] that can be inferred from the context.
+     *
+     * It is passed as a lambda as it may be expensive to compute.
+     */
+    val inferNullability: (() -> TypeNullability?)? = null,
+) {
+    /**
+     * Compute the [TypeNullability] according to the priority in the documentation for this class.
+     */
+    fun compute(
+        kotlinNullability: TypeNullability?,
+        typeAnnotations: List<AnnotationItem>
+    ): TypeNullability =
+        // If forced is set then use that as the top priority.
+        forcedNullability
+        // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
+        // as that may be overridden by annotations or the default.
+        ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
+            // If annotations provide it then use them as the developer requested.
+            ?: typeAnnotations.typeNullability
+            // If an inferred nullability is provided then use it.
+            ?: inferNullability?.invoke()
+            // Finally default to [TypeNullability.PLATFORM].
+            ?: TypeNullability.PLATFORM
+
+    companion object {
+        val none = ContextNullability()
+        val forceNonNull = ContextNullability(TypeNullability.NONNULL)
+        val forceUndefined = ContextNullability(TypeNullability.UNDEFINED)
+    }
 }
