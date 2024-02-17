@@ -17,6 +17,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -25,6 +26,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -35,8 +37,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import java.io.File
@@ -329,7 +329,7 @@ private constructor(
         var token: String = tokenizer.requireToken()
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC, null)
         modifiers.addAnnotations(annotations)
         token = tokenizer.current
@@ -380,7 +380,7 @@ private constructor(
         var superClassType: ClassTypeItem? = null
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
 
@@ -511,7 +511,6 @@ private constructor(
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
-                annotations = annotations,
                 typeParameterList = typeParameterList,
             )
 
@@ -792,7 +791,7 @@ private constructor(
         return if (startingToken.contains('@')) {
             val prefix = startingToken.substringBefore('@')
             val annotationStart = startingToken.substring(startingToken.indexOf('@'))
-            val annotation = getAnnotation(tokenizer, annotationStart)
+            val annotation = getAnnotationSource(tokenizer, annotationStart)
             "$prefix$annotation"
         } else {
             tokenizer.requireToken()
@@ -806,7 +805,7 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation.
      */
-    private fun getAnnotation(tokenizer: Tokenizer, startingToken: String): String? {
+    private fun getAnnotationSource(tokenizer: Tokenizer, startingToken: String): String? {
         var token = startingToken
         if (token.startsWith('@')) {
             // Annotation
@@ -847,13 +846,16 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
-        val annotations: MutableList<String> = mutableListOf()
+    private fun getAnnotations(
+        tokenizer: Tokenizer,
+        startingToken: String
+    ): MutableList<AnnotationItem> {
+        val annotations: MutableList<AnnotationItem> = mutableListOf()
         var token = startingToken
         while (true) {
-            val annotation = getAnnotation(tokenizer, token) ?: break
+            val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            annotations.add(annotation)
+            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
         }
         return annotations
     }
@@ -868,7 +870,7 @@ private constructor(
         val method: TextConstructorItem
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
         token = tokenizer.current
@@ -993,14 +995,15 @@ private constructor(
     }
 
     private fun mergeAnnotations(
-        annotations: MutableList<String>,
-        annotation: String
-    ): MutableList<String> {
+        annotations: MutableList<AnnotationItem>,
+        annotationQualifiedName: String
+    ) {
         // Reverse effect of TypeItem.shortenTypes(...)
-        val qualifiedName =
-            if (annotation.indexOf('.') == -1) "@androidx.annotation$annotation" else "@$annotation"
-        annotations.add(qualifiedName)
-        return annotations
+        val annotationSource =
+            if (annotationQualifiedName.indexOf('.') == -1)
+                "@androidx.annotation$annotationQualifiedName"
+            else "@$annotationQualifiedName"
+        annotations.add(codebase.createAnnotation(annotationSource))
     }
 
     private fun parseField(
@@ -1067,7 +1070,7 @@ private constructor(
     private fun parseModifiers(
         tokenizer: Tokenizer,
         startingToken: String?,
-        annotations: List<String>?
+        annotations: List<AnnotationItem>?
     ): DefaultModifierList {
         var token = startingToken
         val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
@@ -1561,7 +1564,7 @@ private constructor(
         tokenizer: Tokenizer,
         startingToken: String,
         typeItemFactory: TextTypeItemFactory,
-        annotations: MutableList<String>
+        annotations: MutableList<AnnotationItem>
     ): TypeItem {
         var prev = getAnnotationCompleteToken(tokenizer, startingToken)
         var type = prev
@@ -1596,9 +1599,9 @@ private constructor(
             // See if the type has nullability from the context item annotations.
             val nullabilityFromContext =
                 annotations
-                    .singleOrNull { isNullnessAnnotation(it) }
+                    .singleOrNull { it.isNullnessAnnotation() }
                     ?.let {
-                        if (isNullableAnnotation(it)) {
+                        if (it.isNullable()) {
                             TypeNullability.NULLABLE
                         } else {
                             TypeNullability.NONNULL
@@ -1664,14 +1667,12 @@ private constructor(
     )
 }
 
-private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) {
-    if (annotationSources.isEmpty()) {
+private fun DefaultModifierList.addAnnotations(items: List<AnnotationItem>) {
+    if (items.isEmpty()) {
         return
     }
 
-    annotationSources.forEach { source ->
-        val item = codebase.createAnnotation(source)
-
+    for (item in items) {
         // @Deprecated is also treated as a "modifier"
         if (item.qualifiedName == JAVA_LANG_DEPRECATED) {
             setDeprecated(true)

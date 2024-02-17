@@ -40,7 +40,6 @@ internal open class TextClassItem(
     val qualifiedName: String = "",
     var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val fullName: String = simpleName,
-    val annotations: List<String>? = null,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
 
