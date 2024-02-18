@@ -42,10 +42,14 @@ internal class PsiTypeParameterItem(
 
     override fun name() = name
 
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var variableTypeItem: VariableTypeItem
+
     override fun type(): VariableTypeItem {
-        val psiType = codebase.getClassType(psiClass)
-        val typeModifiers = PsiTypeModifiers.create(codebase, psiType, null)
-        return PsiVariableTypeItem(psiType, typeModifiers, this)
+        if (!::variableTypeItem.isInitialized) {
+            variableTypeItem = codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
+        }
+        return variableTypeItem
     }
 
     override fun psi() = psiClass

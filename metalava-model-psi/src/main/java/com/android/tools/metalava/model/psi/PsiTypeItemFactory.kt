@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.TypeItemFactory
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
@@ -140,6 +141,15 @@ internal class PsiTypeItemFactory(
             psiTypeWithTypeParametersIfAny,
             KotlinTypeInfo.fromContext(psiClassItem.psiClass),
         ) as PsiClassTypeItem
+    }
+
+    /** Get a [VariableTypeItem] to represent [PsiTypeParameterItem]. */
+    fun getVariableTypeForTypeParameter(
+        psiTypeParameterItem: PsiTypeParameterItem
+    ): VariableTypeItem {
+        val psiTypeParameter = psiTypeParameterItem.psi()
+        val psiType = codebase.getClassType(psiTypeParameter)
+        return createVariableTypeItem(psiType, null, psiTypeParameterItem)
     }
 
     // PsiTypeItem factory methods
