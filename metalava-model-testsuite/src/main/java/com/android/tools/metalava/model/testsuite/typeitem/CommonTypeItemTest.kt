@@ -1144,19 +1144,7 @@ class CommonTypeItemTest : BaseModelTest() {
              */
             fun ClassItem.assertMethodTakesCollectionWildcardExtendsZ(name: String) {
                 assertMethodTakesCollection(name) {
-                    assertWildcardItem { extendsBound?.assertReferencesTypeParameter(typeParam) }
-                }
-            }
-
-            /**
-             * Make sure that the [ClassItem] has a method whose single parameter is of the type
-             * `java.lang.Collection<Z>`.
-             */
-            fun ClassItem.assertMethodTakesCollectionZ(name: String) {
-                assertMethodTakesCollection(name) {
-                    // Check that the string representation is correct for now.
-                    // TODO: Check that this is a VariableTypeItem that references [typeParam].
-                    assertThat(toString()).isEqualTo(typeParam.name())
+                    assertWildcardItem { extendsBound!!.assertReferencesTypeParameter(typeParam) }
                 }
             }
 
@@ -1169,14 +1157,9 @@ class CommonTypeItemTest : BaseModelTest() {
             // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
             // `Foo<Z>`.
             //
-            // However, this does not work, for two reasons:
-            // 1. Historical behavior is `Collection<E>` and fixing that is a separate issue.
-            // 2. The `PsiType` for `Z` does not resolve to a `PsiTypeParameter`, it resolves to
-            //    `null` and so ends up being a `ClassTypeItem` instead of `VariableTypeItem`.
-            //
-            fooClass.assertMethodTakesCollectionZ("containsAll")
-            fooClass.assertMethodTakesCollectionZ("removeAll")
-            fooClass.assertMethodTakesCollectionZ("retainAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
         }
     }
 

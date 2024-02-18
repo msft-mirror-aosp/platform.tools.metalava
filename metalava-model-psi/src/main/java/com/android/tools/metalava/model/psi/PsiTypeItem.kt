@@ -37,14 +37,15 @@ import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
-import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
-import com.intellij.psi.impl.source.PsiImmediateClassType
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
+import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
+import org.jetbrains.kotlin.analysis.api.types.KtTypeMappingMode
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
@@ -109,6 +110,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
             codebase: PsiBasedCodebase,
             psiType: PsiType,
             kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
             typeUse: TypeUse = TypeUse.GENERAL,
         ): PsiTypeItem {
             return when (psiType) {
@@ -123,13 +125,35 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
                         codebase = codebase,
                         psiType = psiType,
                         kotlinType = kotlinType,
+                        typeItemFactory = typeItemFactory,
                     )
                 is PsiClassType -> {
-                    if (psiType.resolve() is PsiTypeParameter) {
+                    val psiClass = psiType.resolve()
+                    val typeParameterScope = typeItemFactory.typeParameterScope
+                    val typeParameterItem =
+                        when (psiClass) {
+                            // If the type resolves to a PsiTypeParameter then the TypeParameterItem
+                            // must exist.
+                            is PsiTypeParameter -> {
+                                val name = psiClass.qualifiedName ?: psiType.name
+                                typeParameterScope.getTypeParameter(name)
+                            }
+                            // If the type could not be resolved then the TypeParameterItem might
+                            // exist.
+                            null ->
+                                psiType.className?.let { name ->
+                                    typeParameterScope.findTypeParameter(name)
+                                }
+                            // Else it is not a TypeParameterItem.
+                            else -> null
+                        }
+
+                    if (typeParameterItem != null) {
                         PsiVariableTypeItem.create(
                             codebase = codebase,
                             psiType = psiType,
                             kotlinType = kotlinType,
+                            typeParameterItem = typeParameterItem,
                         )
                     } else {
                         PsiClassTypeItem.create(
@@ -137,6 +161,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
                             psiType = psiType,
                             kotlinType = kotlinType,
                             typeUse = typeUse,
+                            typeItemFactory = typeItemFactory,
                         )
                     }
                 }
@@ -145,6 +170,7 @@ sealed class PsiTypeItem(val psiType: PsiType) : DefaultTypeItem() {
                         codebase = codebase,
                         psiType = psiType,
                         kotlinType = kotlinType,
+                        typeItemFactory = typeItemFactory,
                     )
                 // There are other [PsiType]s, but none can appear in API surfaces.
                 else -> throw IllegalStateException("Invalid type in API surface: $psiType")
@@ -211,11 +237,17 @@ internal class PsiArrayTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiArrayType,
             kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
         ) =
             PsiArrayTypeItem(
                 psiType = psiType,
                 componentType =
-                    create(codebase, psiType.componentType, kotlinType?.forArrayComponentType()),
+                    create(
+                        codebase,
+                        psiType.componentType,
+                        kotlinType?.forArrayComponentType(),
+                        typeItemFactory,
+                    ),
                 isVarargs = psiType is PsiEllipsisType,
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
             )
@@ -258,14 +290,27 @@ internal class PsiClassTypeItem(
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?,
             typeUse: TypeUse,
+            typeItemFactory: PsiTypeItemFactory,
         ): PsiClassTypeItem {
             val qualifiedName = computeQualifiedName(psiType)
             return PsiClassTypeItem(
                 codebase = codebase,
                 psiType = psiType,
                 qualifiedName = qualifiedName,
-                arguments = computeTypeArguments(codebase, psiType, kotlinType),
-                outerClassType = computeOuterClass(psiType, codebase, kotlinType),
+                arguments =
+                    computeTypeArguments(
+                        codebase,
+                        psiType,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
+                outerClassType =
+                    computeOuterClass(
+                        psiType,
+                        codebase,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
                 // This should be able to use `psiType.name`, but that sometimes returns null.
                 className = ClassTypeItem.computeClassName(qualifiedName),
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType, typeUse),
@@ -275,24 +320,132 @@ internal class PsiClassTypeItem(
         private fun computeTypeArguments(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory
         ): List<TypeArgumentTypeItem> {
             val psiParameters =
                 psiType.parameters.toList().ifEmpty {
-                    // Sometimes an immediate class type has no parameters even though the class
-                    // does have them -- find the class parameters and convert them to types.
-                    (psiType as? PsiImmediateClassType)?.resolve()?.typeParameters?.mapNotNull {
-                        PsiSubstitutor.EMPTY.substitute(it)
+                    // Sometimes, when a PsiClassType's arguments are empty it is not because there
+                    // are no arguments but due to a bug in Psi somewhere. Check to see if the
+                    // kotlin type info has a different set of type arguments and if it has then use
+                    // that to fix the type, otherwise just assume it should be empty.
+                    kotlinType?.ktType?.let { ktType ->
+                        (ktType as? KtNonErrorClassType)?.ownTypeArguments?.ifNotEmpty {
+                            fixUpPsiTypeMissingTypeArguments(psiType, kotlinType)
+                        }
                     }
                         ?: emptyList()
                 }
 
             return psiParameters.mapIndexed { i, param ->
-                create(codebase, param, kotlinType?.forParameter(i)) as TypeArgumentTypeItem
+                create(codebase, param, kotlinType?.forParameter(i), typeItemFactory)
+                    as TypeArgumentTypeItem
             }
         }
 
-        private fun computeQualifiedName(psiType: PsiClassType): String {
+        /**
+         * Fix up a [PsiClassType] that is missing type arguments.
+         *
+         * This seems to happen in a very limited situation. The example that currently fails, but
+         * there may be more, appears to be due to an impedance mismatch between Kotlin collections
+         * and Java collections.
+         *
+         * Assume the following Kotlin and Java classes from the standard libraries:
+         * ```
+         * package kotlin.collections
+         * public interface MutableCollection<E> : Collection<E>, MutableIterable<E> {
+         *     ...
+         *     public fun addAll(elements: Collection<E>): Boolean
+         *     public fun containsAll(elements: Collection<E>): Boolean
+         *     public fun removeAll(elements: Collection<E>): Boolean
+         *     public fun retainAll(elements: Collection<E>): Boolean
+         *     ...
+         * }
+         *
+         * package java.util;
+         * public interface Collection<E> extends Iterable<E> {
+         *     boolean addAll(Collection<? extends E> c);
+         *     boolean containsAll(Collection<?> c);
+         *     boolean removeAll(Collection<?> c);
+         *     boolean retainAll(Collection<?> c);
+         * }
+         * ```
+         *
+         * The given the following class this function is called for the types of the parameters of
+         * the `removeAll`, `retainAll` and `containsAll` methods but not for the `addAll` method.
+         *
+         * ```
+         * abstract class Foo<Z> : MutableCollection<Z> {
+         *     override fun addAll(elements: Collection<Z>): Boolean = true
+         *     override fun containsAll(elements: Collection<Z>): Boolean = true
+         *     override fun removeAll(elements: Collection<Z>): Boolean = true
+         *     override fun retainAll(elements: Collection<Z>): Boolean = true
+         * }
+         * ```
+         *
+         * Metalava and/or the underlying Psi model, appears to treat the `MutableCollection` in
+         * `Foo` as if it was a `java.util.Collection`, even though it is referring to
+         * `kotlin.collections.Collection`. So, both `Foo` and `MutableCollection` are reported as
+         * extending `java.util.Collection`.
+         *
+         * So, you have the following two methods (mapped into Java classes):
+         *
+         * From `java.util.Collection` itself:
+         * ```
+         *      boolean containsAll(java.util.Collection<?> c);
+         * ```
+         *
+         * And from `kotlin.collections.MutableCollection`:
+         * ```
+         *     public fun containsAll(elements: java.util.Collection<E>): Boolean
+         * ```
+         *
+         * But, strictly speaking that is not allowed for a couple of reasons:
+         * 1. `java.util.Collection` is not covariant because it is mutable. However,
+         *    `kotlin.collections.Collection` is covariant because it immutable.
+         * 2. `Collection<Z>` is more restrictive than `Collection<?>`. Java will let you try and
+         *    remove a collection of `Number` from a collection of `String` even though it is
+         *    meaningless. Kotlin's approach is more correct but only possible because its
+         *    `Collection` is immutable.
+         *
+         * The [kotlinType] seems to have handled that issue reasonably well producing a type of
+         * `java.util.Collection<? extends Z>`. Unfortunately, when that is converted to a `PsiType`
+         * the `PsiType` for `Z` does not resolve to a `PsiTypeParameter`.
+         *
+         * The wildcard is correct.
+         */
+        private fun fixUpPsiTypeMissingTypeArguments(
+            psiType: PsiClassType,
+            kotlinType: KotlinTypeInfo
+        ): List<PsiType> {
+            if (kotlinType.analysisSession == null || kotlinType.ktType == null) return emptyList()
+
+            val ktType = kotlinType.ktType as KtNonErrorClassType
+
+            // Restrict this fix to the known issue.
+            val className = psiType.className
+            if (className != "Collection") {
+                return emptyList()
+            }
+
+            // Convert the KtType to PsiType.
+            //
+            // Convert the whole type rather than extracting the type parameters and converting them
+            // separately because the result depends on the parameterized class, i.e.
+            // `java.util.Collection` in this case. Also, type arguments can be wildcards but
+            // wildcards cannot exist on their own. It will probably be relying on undefined
+            // behavior to try and convert a wildcard on their own.
+            val psiTypeFromKotlin =
+                kotlinType.analysisSession.run {
+                    // Use the default mode so that the resulting psiType is
+                    // `java.util.Collection<? extends Z>`.
+                    val mode = KtTypeMappingMode.DEFAULT
+                    ktType.asPsiType(kotlinType.context, false, mode = mode)
+                } as? PsiClassType
+            return psiTypeFromKotlin?.parameters?.toList() ?: emptyList()
+        }
+
+        internal fun computeQualifiedName(psiType: PsiClassType): String {
             // It should be possible to do `psiType.rawType().canonicalText` instead, but this
             // doesn't
             // always work if psi is unable to resolve the reference.
@@ -303,7 +456,8 @@ internal class PsiClassTypeItem(
         private fun computeOuterClass(
             psiType: PsiClassType,
             codebase: PsiBasedCodebase,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory
         ): PsiClassTypeItem? {
             // TODO(b/300081840): this drops annotations on the outer class
             return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName
@@ -323,7 +477,12 @@ internal class PsiClassTypeItem(
                             // class declaration, so the resolved [psiType] provides context then.
                             psiType.psiContext ?: psiType.resolve()
                         )
-                    (create(codebase, psiOuterClassType, kotlinType?.forOuterClass())
+                    (create(
+                            codebase,
+                            psiOuterClassType,
+                            kotlinType?.forOuterClass(),
+                            typeItemFactory,
+                        )
                             as PsiClassTypeItem)
                         .apply {
                             // An outer class reference can't be null.
@@ -337,31 +496,31 @@ internal class PsiClassTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
 internal class PsiVariableTypeItem(
-    private val codebase: PsiBasedCodebase,
     psiType: PsiType,
-    override val name: String,
     override val modifiers: PsiTypeModifiers,
+    override val asTypeParameter: TypeParameterItem,
 ) : VariableTypeItem, PsiTypeItem(psiType) {
-    override val asTypeParameter: TypeParameterItem by lazy {
-        val cls = (psiType as PsiClassType).resolve() ?: error("Could not resolve $psiType")
-        codebase.findTypeParameter(cls as PsiTypeParameter)
-    }
+
+    override val name: String = asTypeParameter.name()
 
     override fun duplicate(): PsiVariableTypeItem =
         PsiVariableTypeItem(
-            codebase = codebase,
             psiType = psiType,
-            name = name,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers.duplicate(),
+            asTypeParameter = asTypeParameter,
         )
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, psiType: PsiClassType, kotlinType: KotlinTypeInfo?) =
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiType: PsiClassType,
+            kotlinType: KotlinTypeInfo?,
+            typeParameterItem: TypeParameterItem,
+        ) =
             PsiVariableTypeItem(
-                codebase = codebase,
                 psiType = psiType,
-                name = psiType.name,
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+                asTypeParameter = typeParameterItem,
             )
     }
 }
@@ -389,11 +548,24 @@ internal class PsiWildcardTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiWildcardType,
             kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
         ) =
             PsiWildcardTypeItem(
                 psiType = psiType,
-                extendsBound = createBound(psiType.extendsBound, codebase, kotlinType),
-                superBound = createBound(psiType.superBound, codebase, kotlinType),
+                extendsBound =
+                    createBound(
+                        psiType.extendsBound,
+                        codebase,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
+                superBound =
+                    createBound(
+                        psiType.superBound,
+                        codebase,
+                        kotlinType,
+                        typeItemFactory,
+                    ),
                 modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
             )
 
@@ -404,13 +576,14 @@ internal class PsiWildcardTypeItem(
         private fun createBound(
             bound: PsiType,
             codebase: PsiBasedCodebase,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeItemFactory: PsiTypeItemFactory,
         ): ReferenceTypeItem? {
             return if (bound == PsiTypes.nullType()) {
                 null
             } else {
                 // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-                create(codebase, bound, kotlinType) as ReferenceTypeItem
+                create(codebase, bound, kotlinType, typeItemFactory) as ReferenceTypeItem
             }
         }
     }
