@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.text
 
+import java.nio.file.Path
+
 /**
  * Extracts tokens from a sequence of characters.
  *
@@ -24,12 +26,12 @@ package com.android.tools.metalava.model.text
  * returned as a single token, if requested (e.g. by calling [requireToken] with
  * `parenIsSep=false`).
  */
-internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
+internal class Tokenizer(val path: Path, private val buffer: CharArray) {
     var position = 0
     var line = 1
 
     fun pos(): SourcePositionInfo {
-        return SourcePositionInfo(fileName, line)
+        return SourcePositionInfo(path, line)
     }
 
     private fun eatWhitespace(): Boolean {
@@ -100,7 +102,7 @@ internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
                 val k = buffer[position]
                 if (k == '\n' || k == '\r') {
                     throw ApiParseException(
-                        "Unexpected newline for \" starting at $line in $fileName",
+                        "Unexpected newline for \" starting at $line in $path",
                         this
                     )
                 }

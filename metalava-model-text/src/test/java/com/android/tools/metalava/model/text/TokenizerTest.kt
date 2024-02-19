@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import java.nio.file.Path
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -78,7 +79,7 @@ class TokenizerTest(private val params: Params) {
 
     @Test
     fun `check token`() {
-        val tokenizer = Tokenizer("api.txt", params.input.toCharArray())
+        val tokenizer = Tokenizer(Path.of("api.txt"), params.input.toCharArray())
 
         fun requireToken(): String {
             return tokenizer.requireToken(parenIsSep = params.parenIsSep)

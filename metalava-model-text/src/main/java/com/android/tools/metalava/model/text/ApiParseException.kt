@@ -20,8 +20,7 @@ import com.android.tools.metalava.model.MetalavaApi
 @MetalavaApi
 class ApiParseException(
     message: String,
-    private val file: String? = null,
-    private val line: Int = 0,
+    private val location: SourcePositionInfo? = null,
     cause: Exception? = null,
 ) : Exception(message, cause) {
 
@@ -29,27 +28,16 @@ class ApiParseException(
         message: String,
         tokenizer: Tokenizer,
         cause: Exception? = null,
-    ) : this(message, file = tokenizer.fileName, line = tokenizer.line, cause = cause)
-
-    internal constructor(
-        message: String,
-        position: SourcePositionInfo,
-        cause: Exception? = null,
-    ) : this(message, file = position.file, line = position.line, cause = cause)
+    ) : this(message, tokenizer.pos(), cause = cause)
 
     override val message: String
         get() {
-            val sb = StringBuilder()
-            if (file != null) {
-                sb.append(file).append(':')
+            return buildString {
+                location?.appendTo(this)
+                if (isNotEmpty()) {
+                    append(": ")
+                }
+                append(super.message)
             }
-            if (line > 0) {
-                sb.append(line).append(':')
-            }
-            if (sb.isNotEmpty()) {
-                sb.append(' ')
-            }
-            sb.append(super.message)
-            return sb.toString()
         }
 }

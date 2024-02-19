@@ -15,39 +15,22 @@
  */
 package com.android.tools.metalava.model.text
 
-data class SourcePositionInfo(val file: String, val line: Int) : Comparable<SourcePositionInfo> {
-    override fun toString(): String {
-        return "$file:$line"
-    }
+import java.nio.file.Path
 
-    override fun compareTo(other: SourcePositionInfo): Int {
-        val r = file.compareTo(other.file)
-        return if (r != 0) r else line - other.line
+class SourcePositionInfo(
+    /** The absolute path to the location. */
+    val path: Path,
+    /** The line number, may be non-positive indicating that it could not be found. */
+    val line: Int = 0,
+) {
+    override fun toString() = if (line < 1) path.toString() else "$path:$line"
+
+    fun appendTo(builder: StringBuilder) {
+        builder.append(path)
+        if (line > 0) builder.append(":").append(line)
     }
 
     companion object {
-        val UNKNOWN = SourcePositionInfo("(unknown)", 0)
-
-        /**
-         * Given this position and str which occurs at that position, as well as str an index into
-         * str, find the SourcePositionInfo.
-         *
-         * @throws StringIndexOutOfBoundsException if index &gt; str.length()
-         */
-        fun add(that: SourcePositionInfo?, str: String, index: Int): SourcePositionInfo? {
-            if (that == null) {
-                return null
-            }
-            var line = that.line
-            var prev = 0.toChar()
-            for (i in 0 until index) {
-                val c = str[i]
-                if (c == '\r' || c == '\n' && prev != '\r') {
-                    line++
-                }
-                prev = c
-            }
-            return SourcePositionInfo(that.file, line)
-        }
+        val UNKNOWN = SourcePositionInfo(Path.of("unknown"), 0)
     }
 }

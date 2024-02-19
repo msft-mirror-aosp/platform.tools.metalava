@@ -46,6 +46,7 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.StringReader
+import java.nio.file.Path
 import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
@@ -158,11 +159,11 @@ private constructor(
                     } catch (ex: IOException) {
                         throw ApiParseException(
                             "Error reading API file",
-                            file = file.path,
+                            location = SourcePositionInfo(file.toPath()),
                             cause = ex
                         )
                     }
-                parser.parseApiSingleFile(!first, file.path, apiText)
+                parser.parseApiSingleFile(!first, file.toPath(), apiText)
                 first = false
             }
             api.description = actualDescription
@@ -210,15 +211,16 @@ private constructor(
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
+            val path = Path.of(filename)
             val api =
                 TextCodebase(
-                    location = File(filename),
+                    location = path.toFile(),
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,
                 )
             api.description = "Codebase loaded from $filename"
             val parser = ApiFile(api, formatForLegacyFiles)
-            parser.parseApiSingleFile(false, filename, apiText)
+            parser.parseApiSingleFile(false, path, apiText)
             parser.postProcess()
             return api
         }
@@ -291,13 +293,13 @@ private constructor(
 
     private fun parseApiSingleFile(
         appending: Boolean,
-        filename: String,
+        path: Path,
         apiText: String,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
         format =
-            FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
+            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
                 ?: FileFormat.V2
 
         // Disallow a mixture of kotlinStyleNulls settings.
@@ -316,7 +318,7 @@ private constructor(
             }
         }
 
-        val tokenizer = Tokenizer(filename, apiText.toCharArray())
+        val tokenizer = Tokenizer(path, apiText.toCharArray())
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.

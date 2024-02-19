@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.MethodItem
 import java.io.LineNumberReader
 import java.io.Reader
+import java.nio.file.Path
 import java.util.Locale
 
 /**
@@ -438,14 +439,14 @@ data class FileFormat(
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
          *
-         * @param filename the name of the file from which the content is being read.
+         * @param path the [Path] of the file from which the content is being read.
          * @param reader the reader to use to read the file contents.
          * @param formatForLegacyFiles the optional format to use if the file uses a legacy, and now
          *   unsupported file format.
          * @return the [FileFormat] or null if the reader was blank.
          */
         fun parseHeader(
-            filename: String,
+            path: Path,
             reader: Reader,
             formatForLegacyFiles: FileFormat? = null
         ): FileFormat? {
@@ -460,8 +461,7 @@ data class FileFormat(
                 // original thrower does not have that context.
                 throw ApiParseException(
                     "Signature format error - ${cause.message}",
-                    filename,
-                    lineNumberReader.lineNumber,
+                    SourcePositionInfo(path, lineNumberReader.lineNumber),
                     cause,
                 )
             }
