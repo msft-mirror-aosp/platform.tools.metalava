@@ -260,9 +260,10 @@ class CommonFieldItemTest : BaseModelTest() {
                         package test.pkg;
                         import not.type.use.NonNull;
 
-                        public class Foo {
-                            @NonNull
-                            public String field;
+                        public class Foo<T> {
+                            @NonNull public String field1;
+                            @NonNull public String[] field2;
+                            @NonNull public T field3;
                         }
                     """
                 ),
@@ -272,8 +273,10 @@ class CommonFieldItemTest : BaseModelTest() {
                     """
                         // Signature format: 2.0
                         package test.pkg {
-                          public class Foo {
-                            field @NonNull public String field;
+                          public class Foo<T> {
+                            field @NonNull public String field1;
+                            field @NonNull public String[] field2;
+                            field @NonNull public T field3;
                           }
                         }
                     """
@@ -281,11 +284,11 @@ class CommonFieldItemTest : BaseModelTest() {
             ),
             // Kotlin does not care about different nullability annotations.
         ) {
-            val field = codebase.assertClass("test.pkg.Foo").assertField("field")
-
-            // Do not check the annotation as type use annotations are ambiguous in signature files
-            // that do not specify `kotlin-name-type-order=yes`
-            field.type().assertHasNonNullNullability()
+            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+                // Do not check the annotation as type use annotations are ambiguous in signature
+                // files that do not specify `kotlin-name-type-order=yes`
+                field.type().assertHasNonNullNullability(message = "field ${field.name()}")
+            }
         }
     }
 
@@ -299,9 +302,10 @@ class CommonFieldItemTest : BaseModelTest() {
                         package test.pkg;
                         import not.type.use.Nullable;
 
-                        public class Foo {
-                            @Nullable
-                            public String field;
+                        public class Foo<T> {
+                            @Nullable public String field1;
+                            @Nullable public String[] field2;
+                            @Nullable public T field3;
                         }
                     """
                 ),
@@ -311,8 +315,10 @@ class CommonFieldItemTest : BaseModelTest() {
                     """
                         // Signature format: 2.0
                         package test.pkg {
-                          public class Foo {
-                            field @Nullable public String field;
+                          public class Foo<T> {
+                            field @Nullable public String field1;
+                            field @Nullable public String[] field2;
+                            field @Nullable public T field3;
                           }
                         }
                     """
@@ -320,11 +326,11 @@ class CommonFieldItemTest : BaseModelTest() {
             ),
             // Kotlin does not care about different nullability annotations.
         ) {
-            val field = codebase.assertClass("test.pkg.Foo").assertField("field")
-
-            // Do not check the annotation as type use annotations are ambiguous in signature files
-            // that do not specify `kotlin-name-type-order=yes`
-            field.type().assertHasNullableNullability()
+            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+                // Do not check the annotation as type use annotations are ambiguous in signature
+                // files that do not specify `kotlin-name-type-order=yes`
+                field.type().assertHasNullableNullability()
+            }
         }
     }
 
