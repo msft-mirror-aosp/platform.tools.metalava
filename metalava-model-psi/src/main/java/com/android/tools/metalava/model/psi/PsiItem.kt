@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Location
-import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.intellij.psi.PsiCompiledElement
@@ -36,7 +35,7 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
-    override val modifiers: DefaultModifierList,
+    modifiers: DefaultModifierList,
     override var documentation: String,
 ) : DefaultItem(modifiers) {
 
@@ -71,9 +70,6 @@ internal constructor(
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
-
-    /** Get a mutable version of modifiers for this item */
-    override fun mutableModifiers(): MutableModifierList = modifiers
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi() is PsiCompiledElement) {

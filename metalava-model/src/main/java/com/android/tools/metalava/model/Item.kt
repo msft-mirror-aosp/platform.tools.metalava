@@ -388,7 +388,7 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
+abstract class DefaultItem(final override val modifiers: DefaultModifierList) : Item {
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -397,6 +397,8 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     final override var effectivelyDeprecated = originallyDeprecated
 
     final override var deprecated = originallyDeprecated
+
+    final override fun mutableModifiers(): MutableModifierList = modifiers
 
     override val isPublic: Boolean
         get() = modifiers.isPublic()
