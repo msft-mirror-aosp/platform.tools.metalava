@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model
 
-open class DefaultModifierList(
+class DefaultModifierList(
     override val codebase: Codebase,
-    protected var flags: Int = PACKAGE_PRIVATE,
-    protected var annotations: MutableList<AnnotationItem>? = null
+    private var flags: Int = PACKAGE_PRIVATE,
+    private var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
     private lateinit var owner: Item
 
@@ -296,7 +296,7 @@ open class DefaultModifierList(
      * Copy this, so it can be used on (and possibly modified by) another [Item] from the same
      * codebase.
      */
-    open fun duplicate(): DefaultModifierList {
+    fun duplicate(): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
             if (annotations == null || annotations.isEmpty()) {
@@ -339,7 +339,7 @@ open class DefaultModifierList(
         return false
     }
 
-    final override fun equals(other: Any?): Boolean {
+    override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
@@ -351,7 +351,7 @@ open class DefaultModifierList(
         return true
     }
 
-    final override fun hashCode(): Int {
+    override fun hashCode(): Int {
         var result = flags
         result = 31 * result + (annotations?.hashCode() ?: 0)
         return result
