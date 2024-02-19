@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
@@ -37,6 +38,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import kotlin.collections.HashMap
@@ -456,7 +458,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     }
 
     private fun modifiers(annotations: List<String>, nullability: TypeNullability?): TypeModifiers {
-        return TextTypeModifiers.create(codebase, annotations, nullability)
+        val parsedAnnotations = annotations.map { DefaultAnnotationItem.create(codebase, it) }
+        return DefaultTypeModifiers.create(
+            parsedAnnotations,
+            nullability,
+            "Type modifiers created by the text model are immutable because they are cached",
+        )
     }
 
     /**
