@@ -22,7 +22,8 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.google.turbine.model.TurbineFlag
 
-internal class TurbineModifierItem(
+internal class TurbineModifierItem
+private constructor(
     codebase: Codebase,
     flags: Int = PACKAGE_PRIVATE,
     annotations: List<AnnotationItem>?
@@ -36,14 +37,18 @@ internal class TurbineModifierItem(
             flag: Int,
             annotations: List<AnnotationItem>?,
             isDeprecatedViaDoc: Boolean,
-        ): TurbineModifierItem {
-            var modifierItem =
+        ): DefaultModifierList {
+            val modifierItem =
                 when (flag) {
                     0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                        TurbineModifierItem(codebase, annotations = annotations)
+                        DefaultModifierList(codebase, annotations = annotations?.toMutableList())
                     }
                     else -> {
-                        TurbineModifierItem(codebase, computeFlag(flag), annotations)
+                        DefaultModifierList(
+                            codebase,
+                            computeFlag(flag),
+                            annotations?.toMutableList()
+                        )
                     }
                 }
             modifierItem.setDeprecated(isDeprecated(annotations) || isDeprecatedViaDoc)

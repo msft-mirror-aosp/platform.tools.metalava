@@ -30,7 +30,7 @@ internal class TurbineConstructorItem(
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
     returnType: ClassTypeItem,
-    modifiers: TurbineModifierItem,
+    modifiers: DefaultModifierList,
     typeParameters: TypeParameterList,
     documentation: String,
     private val defaultValue: String,
@@ -64,7 +64,7 @@ internal class TurbineConstructorItem(
             symbol: MethodSymbol
         ): TurbineConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = TurbineModifierItem(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
             val typeParameterList = DefaultTypeParameterList(emptyList())
 

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -40,7 +41,7 @@ internal open class TurbineClassItem(
     private val fullName: String,
     private val qualifiedName: String,
     private val classSymbol: ClassSymbol,
-    modifiers: TurbineModifierItem,
+    modifiers: DefaultModifierList,
     override val classKind: ClassKind,
     override val typeParameterList: TypeParameterList,
     documentation: String,
