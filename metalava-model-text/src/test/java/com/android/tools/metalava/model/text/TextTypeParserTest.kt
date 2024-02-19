@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
@@ -128,11 +130,13 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
         original: String,
         expectedType: String,
         expectedAnnotations: List<String>,
-        annotationFunction: (String) -> Pair<String, List<String>>
+        annotationFunction: (String) -> Pair<String, List<AnnotationItem>>
     ) {
         val (type, annotations) = annotationFunction(original)
         assertThat(type).isEqualTo(expectedType)
-        assertThat(annotations).isEqualTo(expectedAnnotations)
+        val expectedAnnotationItems =
+            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+        assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 
     @Test
@@ -278,7 +282,9 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
         val (className, params, annotations) = typeParser.splitClassType(original)
         assertThat(className).isEqualTo(expectedClassName)
         assertThat(params).isEqualTo(expectedParams)
-        assertThat(annotations).isEqualTo(expectedAnnotations)
+        val expectedAnnotationItems =
+            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+        assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 
     @Test

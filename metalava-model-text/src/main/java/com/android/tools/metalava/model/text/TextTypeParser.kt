@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
@@ -123,7 +124,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     private fun cachedParseType(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String> = emptyList(),
+        annotations: List<AnnotationItem> = emptyList(),
         typeUse: TypeUse = TypeUse.GENERAL,
     ): TypeItem {
         requests++
@@ -153,7 +154,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     private fun parseType(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         // Forces a [ClassTypeItem] to have [TypeNullability.NONNULL]
         forceClassToBeNonNull: Boolean = false,
     ): TypeItem {
@@ -201,7 +202,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     private fun asPrimitive(
         original: String,
         type: String,
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
     ): PrimitiveTypeItem? {
         val kind =
@@ -231,7 +232,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
      */
     private fun asArray(
         type: String,
-        componentAnnotations: List<String>,
+        componentAnnotations: List<AnnotationItem>,
         nullability: TypeNullability?,
         typeParameterScope: TypeParameterScope
     ): ArrayTypeItem? {
@@ -254,7 +255,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         // (for `T[]![]?[]`, the three-dimensional array has no nullability marker, the inner
         // two-dimensional arrays have `?` as the nullability marker, and the innermost arrays have
         // `!` as a nullability marker.
-        val allAnnotations = mutableListOf<List<String>>()
+        val allAnnotations = mutableListOf<List<AnnotationItem>>()
         // The nullability marker for the outer array is already known, include it in the list.
         val allNullability = mutableListOf(nullability)
 
@@ -324,7 +325,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     private fun asWildcard(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
     ): WildcardTypeItem? {
         // See if this is a wildcard
@@ -374,7 +375,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     private fun asVariable(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
     ): VariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
@@ -392,7 +393,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     private fun asClass(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
     ): ClassTypeItem {
         return createClassType(type, null, typeParameterScope, annotations, nullability)
@@ -408,7 +409,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         type: String,
         outerClassType: ClassTypeItem?,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
     ): ClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
@@ -457,10 +458,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         return classType
     }
 
-    private fun modifiers(annotations: List<String>, nullability: TypeNullability?): TypeModifiers {
-        val parsedAnnotations = annotations.map { DefaultAnnotationItem.create(codebase, it) }
+    private fun modifiers(
+        annotations: List<AnnotationItem>,
+        nullability: TypeNullability?
+    ): TypeModifiers {
         return DefaultTypeModifiers.create(
-            parsedAnnotations,
+            annotations,
             nullability,
             "Type modifiers created by the text model are immutable because they are cached",
         )
@@ -470,12 +473,13 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
      * Removes all annotations at the beginning of the type, returning the trimmed type and list of
      * annotations.
      */
-    fun trimLeadingAnnotations(type: String): Pair<String, List<String>> {
-        val annotations = mutableListOf<String>()
+    fun trimLeadingAnnotations(type: String): Pair<String, List<AnnotationItem>> {
+        val annotations = mutableListOf<AnnotationItem>()
         var trimmed = type.trim()
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
-            annotations.add(trimmed.substring(0, end).trim())
+            val annotationSource = trimmed.substring(0, end).trim()
+            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
             trimmed = trimmed.substring(end).trim()
         }
         return Pair(trimmed, annotations)
@@ -487,7 +491,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
      * after the component type, for instance `String @A []`. The input [type] should **not**
      * include the array suffix (`[]` or `...`).
      */
-    fun trimTrailingAnnotations(type: String): Pair<String, List<String>> {
+    fun trimTrailingAnnotations(type: String): Pair<String, List<AnnotationItem>> {
         // The simple way to implement this would be to work from the end of the string, finding
         // `@` and removing annotations from the end. However, it is possible for an annotation
         // string to contain an `@`, so this is not a safe way to remove the annotations.
@@ -508,14 +512,15 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
             }
         }
 
-        val annotations = mutableListOf<String>()
+        val annotations = mutableListOf<AnnotationItem>()
         // Go through all annotations from the back, seeing if they're at the end of the string.
         for ((start, end) in allAnnotationIndices.reversed()) {
             // This annotation isn't at the end, so we've hit the last trailing annotation
             if (end < trimmed.length) {
                 break
             }
-            annotations.add(trimmed.substring(start))
+            val annotationSource = trimmed.substring(start)
+            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
             // Cut this annotation off, so now the next one can end at the last index.
             trimmed = trimmed.substring(0, start).trim()
         }
@@ -535,13 +540,13 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
      * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
      * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
      */
-    fun splitClassType(type: String): Triple<String, String?, List<String>> {
+    fun splitClassType(type: String): Triple<String, String?, List<AnnotationItem>> {
         // The constructed qualified type name
         var name = ""
         // The part of the type which still needs to be parsed
         var remaining = type.trim()
         // The annotations of the type, may be set later
-        var annotations = emptyList<String>()
+        var annotations = emptyList<AnnotationItem>()
 
         var dotIndex = remaining.indexOf('.')
         var paramIndex = remaining.indexOf('<')
