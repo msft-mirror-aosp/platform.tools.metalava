@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
@@ -48,7 +49,7 @@ open class PsiMethodItem(
     // TextClassItem.
     containingClass: ClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     private val returnType: TypeItem,
     private val parameters: List<PsiParameterItem>,

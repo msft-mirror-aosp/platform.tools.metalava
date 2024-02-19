@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
@@ -65,8 +66,8 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 
-class PsiModifierItem
-internal constructor(
+internal class PsiModifierItem
+private constructor(
     codebase: Codebase,
     flags: Int = PACKAGE_PRIVATE,
     annotations: MutableList<AnnotationItem>? = null
@@ -76,7 +77,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
             documentation: String?
-        ): PsiModifierItem {
+        ): DefaultModifierList {
             val modifiers =
                 if (element is UAnnotated) {
                     create(codebase, element, element)
@@ -97,8 +98,8 @@ internal constructor(
             return modifiers
         }
 
-        private fun hasDeprecatedAnnotation(modifiers: PsiModifierItem) =
-            modifiers.annotations?.any {
+        private fun hasDeprecatedAnnotation(modifiers: DefaultModifierList) =
+            modifiers.hasAnnotation {
                 it.qualifiedName?.let { qualifiedName ->
                     qualifiedName == "Deprecated" ||
                         qualifiedName.endsWith(".Deprecated") ||
@@ -107,7 +108,7 @@ internal constructor(
                         qualifiedName == ANDROID_DEPRECATED_FOR_SDK
                 }
                     ?: false
-            } == true
+            }
 
         private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
             if (element is UMethod) {
@@ -360,14 +361,14 @@ internal constructor(
         private fun create(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner
-        ): PsiModifierItem {
+        ): DefaultModifierList {
             var flags =
                 element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
                     ?: PACKAGE_PRIVATE
 
             val psiAnnotations = element.annotations
             return if (psiAnnotations.isEmpty()) {
-                PsiModifierItem(codebase, flags)
+                DefaultModifierList(codebase, flags)
             } else {
                 val annotations: MutableList<AnnotationItem> =
                     // psi sometimes returns duplicate annotations, using distinct() to counter
@@ -396,7 +397,7 @@ internal constructor(
                         }
                         .filter { !it.isDeprecatedForSdk() }
                         .toMutableList()
-                PsiModifierItem(codebase, flags, annotations)
+                DefaultModifierList(codebase, flags, annotations)
             }
         }
 
@@ -404,8 +405,8 @@ internal constructor(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
             annotated: UAnnotated
-        ): PsiModifierItem {
-            val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
+        ): DefaultModifierList {
+            val modifierList = element.modifierList ?: return DefaultModifierList(codebase)
             val uAnnotations = annotated.uAnnotations
             val psiAnnotations =
                 modifierList.annotations.takeIf { it.isNotEmpty() }
@@ -420,9 +421,9 @@ internal constructor(
                         psiAnnotations
                             .map { PsiAnnotationItem.create(codebase, it) }
                             .toMutableList()
-                    PsiModifierItem(codebase, flags, annotations)
+                    DefaultModifierList(codebase, flags, annotations)
                 } else {
-                    PsiModifierItem(codebase, flags)
+                    DefaultModifierList(codebase, flags)
                 }
             } else {
                 val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
@@ -470,7 +471,7 @@ internal constructor(
                     }
                 }
 
-                PsiModifierItem(codebase, flags, annotations)
+                DefaultModifierList(codebase, flags, annotations)
             }
         }
 
@@ -513,14 +514,6 @@ internal constructor(
 
             return (flags and VISIBILITY_MASK.inv()) or visibilityFlags
         }
-    }
-
-    override fun duplicate(): PsiModifierItem {
-        // Copy the annotations list (if any) as it is mutable but do not bother copying the
-        // values as they are immutable and, if they have a dependency on the [PsiBasedCodebase]
-        // then that has not changed.
-        val annotationsCopy = annotations?.toMutableList()
-        return PsiModifierItem(codebase, flags, annotationsCopy)
     }
 }
 

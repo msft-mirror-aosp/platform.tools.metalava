@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 open class DefaultModifierList(
     override val codebase: Codebase,
     protected var flags: Int = PACKAGE_PRIVATE,
-    protected open var annotations: MutableList<AnnotationItem>? = null
+    protected var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
     private lateinit var owner: Item
 
