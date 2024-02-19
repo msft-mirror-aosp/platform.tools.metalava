@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
@@ -41,7 +42,7 @@ import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: Boolean = false) {
+internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Boolean = false) {
 
     /**
      * The cache key, incorporates the information from [TypeUse] and [kotlinStyleNulls] as well as
@@ -458,6 +459,132 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         return TextTypeModifiers.create(codebase, annotations, nullability)
     }
 
+    /**
+     * Removes all annotations at the beginning of the type, returning the trimmed type and list of
+     * annotations.
+     */
+    fun trimLeadingAnnotations(type: String): Pair<String, List<String>> {
+        val annotations = mutableListOf<String>()
+        var trimmed = type.trim()
+        while (trimmed.startsWith('@')) {
+            val end = findAnnotationEnd(trimmed, 1)
+            annotations.add(trimmed.substring(0, end).trim())
+            trimmed = trimmed.substring(end).trim()
+        }
+        return Pair(trimmed, annotations)
+    }
+
+    /**
+     * Removes all annotations at the end of the [type], returning the trimmed type and list of
+     * annotations. This is for use with arrays where annotations applying to the array type go
+     * after the component type, for instance `String @A []`. The input [type] should **not**
+     * include the array suffix (`[]` or `...`).
+     */
+    fun trimTrailingAnnotations(type: String): Pair<String, List<String>> {
+        // The simple way to implement this would be to work from the end of the string, finding
+        // `@` and removing annotations from the end. However, it is possible for an annotation
+        // string to contain an `@`, so this is not a safe way to remove the annotations.
+        // Instead, this finds all annotations starting from the beginning of the string, then
+        // works backwards to find which ones are the trailing annotations.
+        val allAnnotationIndices = mutableListOf<Pair<Int, Int>>()
+        var trimmed = type.trim()
+
+        // First find all annotations, saving the first and last index.
+        var currIndex = 0
+        while (currIndex < trimmed.length) {
+            if (trimmed[currIndex] == '@') {
+                val endIndex = findAnnotationEnd(trimmed, currIndex + 1)
+                allAnnotationIndices.add(Pair(currIndex, endIndex))
+                currIndex = endIndex + 1
+            } else {
+                currIndex++
+            }
+        }
+
+        val annotations = mutableListOf<String>()
+        // Go through all annotations from the back, seeing if they're at the end of the string.
+        for ((start, end) in allAnnotationIndices.reversed()) {
+            // This annotation isn't at the end, so we've hit the last trailing annotation
+            if (end < trimmed.length) {
+                break
+            }
+            annotations.add(trimmed.substring(start))
+            // Cut this annotation off, so now the next one can end at the last index.
+            trimmed = trimmed.substring(0, start).trim()
+        }
+        return Pair(trimmed, annotations.reversed())
+    }
+
+    /**
+     * Given [type] which represents a class, splits the string into the qualified name of the
+     * class, the remainder of the type string, and a list of type-use annotations. The remainder of
+     * the type string might be the type parameter list, inner class names, or a combination
+     *
+     * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
+     * "<java.lang.@C String", listOf("@A", "@B")).
+     *
+     * For `test.pkg.Outer.Inner`, returns the triple ("test.pkg.Outer", ".Inner", emptyList()).
+     *
+     * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
+     * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
+     */
+    fun splitClassType(type: String): Triple<String, String?, List<String>> {
+        // The constructed qualified type name
+        var name = ""
+        // The part of the type which still needs to be parsed
+        var remaining = type.trim()
+        // The annotations of the type, may be set later
+        var annotations = emptyList<String>()
+
+        var dotIndex = remaining.indexOf('.')
+        var paramIndex = remaining.indexOf('<')
+        var annotationIndex = remaining.indexOf('@')
+
+        // Find which of '.', '<', or '@' comes first, if any
+        var minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
+        while (minIndex != null) {
+            when (minIndex) {
+                // '.' is first, the next part is part of the qualified class name.
+                dotIndex -> {
+                    val nextNameChunk = remaining.substring(0, dotIndex)
+                    name += nextNameChunk
+                    remaining = remaining.substring(dotIndex)
+                    // Assumes that package names are all lower case and class names will have
+                    // an upper class character (the [START_WITH_UPPER] API lint check should
+                    // make this a safe assumption). If the name is a class name, we've found
+                    // the complete class name, return.
+                    if (nextNameChunk.any { it.isUpperCase() }) {
+                        return Triple(name, remaining, annotations)
+                    }
+                }
+                // '<' is first, the end of the class name has been reached.
+                paramIndex -> {
+                    name += remaining.substring(0, paramIndex)
+                    remaining = remaining.substring(paramIndex)
+                    return Triple(name, remaining, annotations)
+                }
+                // '@' is first, trim all annotations.
+                annotationIndex -> {
+                    name += remaining.substring(0, annotationIndex)
+                    trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
+                        (first, second) ->
+                        remaining = first
+                        annotations = second
+                    }
+                }
+            }
+            // Reset indices -- the string may now start with '.' for the next chunk of the name
+            // but this should find the end of the next chunk.
+            dotIndex = remaining.indexOf('.', 1)
+            paramIndex = remaining.indexOf('<')
+            annotationIndex = remaining.indexOf('@')
+            minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
+        }
+        // End of the name reached with no leftover string.
+        name += remaining
+        return Triple(name, null, annotations)
+    }
+
     companion object {
         /**
          * Splits the Kotlin-style nullability marker off the type string, returning a pair of the
@@ -485,133 +612,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             } else {
                 Pair(type, null)
             }
-        }
-
-        /**
-         * Removes all annotations at the beginning of the type, returning the trimmed type and list
-         * of annotations.
-         */
-        fun trimLeadingAnnotations(type: String): Pair<String, List<String>> {
-            val annotations = mutableListOf<String>()
-            var trimmed = type.trim()
-            while (trimmed.startsWith('@')) {
-                val end = findAnnotationEnd(trimmed, 1)
-                annotations.add(trimmed.substring(0, end).trim())
-                trimmed = trimmed.substring(end).trim()
-            }
-            return Pair(trimmed, annotations)
-        }
-
-        /**
-         * Removes all annotations at the end of the [type], returning the trimmed type and list of
-         * annotations. This is for use with arrays where annotations applying to the array type go
-         * after the component type, for instance `String @A []`. The input [type] should **not**
-         * include the array suffix (`[]` or `...`).
-         */
-        fun trimTrailingAnnotations(type: String): Pair<String, List<String>> {
-            // The simple way to implement this would be to work from the end of the string, finding
-            // `@` and removing annotations from the end. However, it is possible for an annotation
-            // string to contain an `@`, so this is not a safe way to remove the annotations.
-            // Instead, this finds all annotations starting from the beginning of the string, then
-            // works backwards to find which ones are the trailing annotations.
-            val allAnnotationIndices = mutableListOf<Pair<Int, Int>>()
-            var trimmed = type.trim()
-
-            // First find all annotations, saving the first and last index.
-            var currIndex = 0
-            while (currIndex < trimmed.length) {
-                if (trimmed[currIndex] == '@') {
-                    val endIndex = findAnnotationEnd(trimmed, currIndex + 1)
-                    allAnnotationIndices.add(Pair(currIndex, endIndex))
-                    currIndex = endIndex + 1
-                } else {
-                    currIndex++
-                }
-            }
-
-            val annotations = mutableListOf<String>()
-            // Go through all annotations from the back, seeing if they're at the end of the string.
-            for ((start, end) in allAnnotationIndices.reversed()) {
-                // This annotation isn't at the end, so we've hit the last trailing annotation
-                if (end < trimmed.length) {
-                    break
-                }
-                annotations.add(trimmed.substring(start))
-                // Cut this annotation off, so now the next one can end at the last index.
-                trimmed = trimmed.substring(0, start).trim()
-            }
-            return Pair(trimmed, annotations.reversed())
-        }
-
-        /**
-         * Given [type] which represents a class, splits the string into the qualified name of the
-         * class, the remainder of the type string, and a list of type-use annotations. The
-         * remainder of the type string might be the type parameter list, inner class names, or a
-         * combination
-         *
-         * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
-         * "<java.lang.@C String", listOf("@A", "@B")).
-         *
-         * For `test.pkg.Outer.Inner`, returns the triple ("test.pkg.Outer", ".Inner", emptyList()).
-         *
-         * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
-         * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
-         */
-        fun splitClassType(type: String): Triple<String, String?, List<String>> {
-            // The constructed qualified type name
-            var name = ""
-            // The part of the type which still needs to be parsed
-            var remaining = type.trim()
-            // The annotations of the type, may be set later
-            var annotations = emptyList<String>()
-
-            var dotIndex = remaining.indexOf('.')
-            var paramIndex = remaining.indexOf('<')
-            var annotationIndex = remaining.indexOf('@')
-
-            // Find which of '.', '<', or '@' comes first, if any
-            var minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
-            while (minIndex != null) {
-                when (minIndex) {
-                    // '.' is first, the next part is part of the qualified class name.
-                    dotIndex -> {
-                        val nextNameChunk = remaining.substring(0, dotIndex)
-                        name += nextNameChunk
-                        remaining = remaining.substring(dotIndex)
-                        // Assumes that package names are all lower case and class names will have
-                        // an upper class character (the [START_WITH_UPPER] API lint check should
-                        // make this a safe assumption). If the name is a class name, we've found
-                        // the complete class name, return.
-                        if (nextNameChunk.any { it.isUpperCase() }) {
-                            return Triple(name, remaining, annotations)
-                        }
-                    }
-                    // '<' is first, the end of the class name has been reached.
-                    paramIndex -> {
-                        name += remaining.substring(0, paramIndex)
-                        remaining = remaining.substring(paramIndex)
-                        return Triple(name, remaining, annotations)
-                    }
-                    // '@' is first, trim all annotations.
-                    annotationIndex -> {
-                        name += remaining.substring(0, annotationIndex)
-                        trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
-                            (first, second) ->
-                            remaining = first
-                            annotations = second
-                        }
-                    }
-                }
-                // Reset indices -- the string may now start with '.' for the next chunk of the name
-                // but this should find the end of the next chunk.
-                dotIndex = remaining.indexOf('.', 1)
-                paramIndex = remaining.indexOf('<')
-                annotationIndex = remaining.indexOf('@')
-                minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
-            }
-            // End of the name reached with no leftover string.
-            name += remaining
-            return Triple(name, null, annotations)
         }
 
         /**

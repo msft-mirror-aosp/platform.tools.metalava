@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
@@ -26,7 +27,7 @@ import com.android.tools.metalava.model.type.DefaultTypeModifiers
 internal object TextTypeModifiers {
     /** Creates modifiers in the given [codebase] based on the text of the [annotations]. */
     fun create(
-        codebase: TextCodebase,
+        codebase: Codebase,
         annotations: List<String>,
         knownNullability: TypeNullability?
     ): TypeModifiers {
