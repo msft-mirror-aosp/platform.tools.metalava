@@ -24,6 +24,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[turbine,java,obj to string]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test inner parameterized types without explicit outer type[turbine,java]
   Test inner types from classpath[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
