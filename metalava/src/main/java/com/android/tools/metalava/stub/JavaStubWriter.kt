@@ -19,6 +19,7 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -79,7 +80,7 @@ internal class JavaStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
-        generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
+        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
         writer.print(" {\n")
@@ -174,7 +175,7 @@ internal class JavaStubWriter(
         writer.println()
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
-        generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
+        generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
         writer.print(constructor.containingClass().simpleName())
 
         generateParameterList(constructor)
@@ -294,7 +295,7 @@ internal class JavaStubWriter(
         appendDocumentation(method, writer, config)
 
         appendModifiers(method)
-        generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
+        generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         val returnType = method.returnType()
         writer.print(returnType.toTypeString(annotations = false, filter = filterReference))
@@ -384,11 +385,11 @@ internal class JavaStubWriter(
             }
         if (throws.any()) {
             writer.print(" throws ")
-            throws.sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     writer.print(", ")
                 }
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
             }
         }
     }
