@@ -731,15 +731,19 @@ internal open class TurbineCodebaseInitialiser(
                         if (method.defaultValue() != null)
                             extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
                         else ""
+
+                    val returnType =
+                        methodTypeItemFactory.getMethodReturnType(
+                            underlyingReturnType = method.returnType(),
+                        )
+
                     val methodItem =
                         TurbineMethodItem(
                             codebase,
                             TurbineFileLocation.forTree(classItem, decl),
                             method.sym(),
                             classItem,
-                            methodTypeItemFactory.getGeneralType(
-                                method.returnType(),
-                            ),
+                            returnType,
                             methodModifierItem,
                             typeParams,
                             getCommentedDoc(documentation),

@@ -135,6 +135,15 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
         parameterIndex: Int,
         isVarArg: Boolean,
     ): TypeItem = error("unsupported")
+
+    /**
+     * Get the return type for a method.
+     *
+     * @param underlyingReturnType the underlying model's return type.
+     */
+    fun getMethodReturnType(
+        underlyingReturnType: T,
+    ): TypeItem = error("unsupported")
 }
 
 /**
@@ -290,6 +299,13 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             contextNullability = contextNullability,
             isVarArg = isVarArg,
         )
+    }
+
+    override fun getMethodReturnType(
+        underlyingReturnType: T,
+    ): TypeItem {
+        // Get the method's return type.
+        return getType(underlyingReturnType)
     }
 
     /** Type safe access to `this`. */

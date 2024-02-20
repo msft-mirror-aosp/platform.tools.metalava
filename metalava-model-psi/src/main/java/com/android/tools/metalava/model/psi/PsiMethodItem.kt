@@ -329,8 +329,11 @@ open class PsiMethodItem(
                     psiMethod
                 )
             val parameters = parameterList(codebase, psiMethod, methodTypeItemFactory)
-            val psiReturnType = psiMethod.returnType
-            val returnType = methodTypeItemFactory.getType(psiReturnType!!, psiMethod)
+            val returnType =
+                methodTypeItemFactory.getMethodReturnType(
+                    underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
+                )
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
