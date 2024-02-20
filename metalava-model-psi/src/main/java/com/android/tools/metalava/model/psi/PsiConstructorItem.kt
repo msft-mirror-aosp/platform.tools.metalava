@@ -74,8 +74,11 @@ private constructor(
      */
     override val fileLocation: FileLocation
         get() =
-            super<PsiMethodItem>.fileLocation.takeIf { it != FileLocation.UNKNOWN }
-                ?: containingClass().fileLocation
+            // Delegate to the constructor's location first.
+            super<PsiMethodItem>.fileLocation.takeIf { it.path != null }
+            // If that is not valid (because it is a synthetic/implicit constructor that does
+            // not appear in the source) then fallback to the containing class's location.
+            ?: containingClass().fileLocation
 
     companion object {
         internal fun create(

@@ -61,8 +61,7 @@ internal constructor(
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
 
-    override val fileLocation: FileLocation
-        get() = PsiLocationProvider.elementToFileLocation(psi())
+    override val fileLocation: FileLocation = PsiFileLocation(element)
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
