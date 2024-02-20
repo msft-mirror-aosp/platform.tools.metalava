@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -36,6 +35,7 @@ import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.android.tools.metalava.model.type.TypeItemFactory
 import com.google.turbine.model.TurbineConstantTypeKind
+import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 
 /** Creates [TypeItem]s from [Type]s. */
@@ -184,35 +184,41 @@ internal class TurbineTypeItemFactory(
     private fun createWildcardBound(type: Type) = getGeneralType(type) as ReferenceTypeItem
 
     private fun createArrayType(type: Type.ArrayTy, isVarArg: Boolean): TypeItem {
-        // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse
-        // order. This method attaches annotations in the correct order by applying them in reverse
-        val modifierStack = ArrayDeque<TypeModifiers>()
+        // For Turbine's ArrayTy, due to a bug in Turbine, the annotations for multidimensional
+        // arrays are in the wrong order so this works around the issue.
+
+        // First, traverse from the outermost array to the innermost component type and add the
+        // [AnnoInfo]s to the list. Ending up with the innermost component type. Due to the bug the
+        // list contains [AnnoInfo]s from the innermost component type to the outermost types.
+        val annosList = mutableListOf<List<AnnoInfo>>()
         var curr: Type = type
         while (curr.tyKind() == Type.TyKind.ARRAY_TY) {
             curr as Type.ArrayTy
-            val annotations = initializer.createAnnotations(curr.annos())
-            modifierStack.addLast(DefaultTypeModifiers.create(annotations))
+            annosList.add(curr.annos())
             curr = curr.elementType()
         }
-        var componentType = getGeneralType(curr)
-        while (modifierStack.isNotEmpty()) {
-            val modifiers = modifierStack.removeFirst()
-            if (modifierStack.isEmpty()) {
-                // Outermost array. Should be called with correct value of isvararg
-                componentType = createSimpleArrayType(modifiers, componentType, isVarArg)
-            } else {
-                componentType = createSimpleArrayType(modifiers, componentType, false)
-            }
-        }
-        return componentType
-    }
 
-    private fun createSimpleArrayType(
-        modifiers: TypeModifiers,
-        componentType: TypeItem,
-        isVarArg: Boolean
-    ): TypeItem {
-        return DefaultArrayTypeItem(modifiers, componentType, isVarArg)
+        // Then, get the type for the innermost component, it has the correct annotations.
+        val componentType = getGeneralType(curr)
+
+        // Finally, traverse over the annotations from the innermost component type to the outermost
+        // array and construct a [DefaultArrayTypeItem] around the inner component type using its
+        // `List<AnnoInfo>`. The last `List<AnnoInfo>` is for the outermost array, and it needs to
+        // be tagged with the [isVarArg] value.
+        val lastIndex = annosList.size - 1
+        return annosList.foldIndexed(componentType) { index, typeItem, annos ->
+            val arrayVarArg =
+                if (index == lastIndex) {
+                    // Outermost array. Should be called with correct value of isVarArg.
+                    isVarArg
+                } else {
+                    false
+                }
+
+            val annotations = initializer.createAnnotations(annos)
+            val modifiers = DefaultTypeModifiers.create(annotations)
+            DefaultArrayTypeItem(modifiers, typeItem, arrayVarArg)
+        }
     }
 
     private fun createSimpleClassType(
