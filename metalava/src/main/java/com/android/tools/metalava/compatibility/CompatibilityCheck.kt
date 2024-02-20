@@ -39,9 +39,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.description
 import com.android.tools.metalava.model.psi.PsiItem
-import com.android.tools.metalava.model.throwableClass
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -363,16 +361,18 @@ class CompatibilityCheck(
         }
 
         if (old.hasTypeVariables() || new.hasTypeVariables()) {
-            val oldTypeParamsCount = old.typeParameterList().typeParameterCount()
-            val newTypeParamsCount = new.typeParameterList().typeParameterCount()
+            val oldTypeParamsCount = old.typeParameterList.size
+            val newTypeParamsCount = new.typeParameterList.size
             if (oldTypeParamsCount > 0 && oldTypeParamsCount != newTypeParamsCount) {
                 report(
                     Issues.CHANGED_TYPE,
                     new,
-                    "${describe(
-                        old,
-                        capitalize = true
-                    )} changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
+                    "${
+                        describe(
+                            old,
+                            capitalize = true
+                        )
+                    } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
                 )
             }
         }
@@ -615,7 +615,7 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.throwableClass ?: continue
+            val throwableClass = throwType.erasedClass ?: continue
             if (!new.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
@@ -632,7 +632,7 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.throwableClass ?: continue
+            val throwableClass = throwType.erasedClass ?: continue
             if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (
@@ -649,18 +649,20 @@ class CompatibilityCheck(
         }
 
         if (new.modifiers.isInline()) {
-            val oldTypes = old.typeParameterList().typeParameters()
-            val newTypes = new.typeParameterList().typeParameters()
+            val oldTypes = old.typeParameterList
+            val newTypes = new.typeParameterList
             for (i in oldTypes.indices) {
                 if (i == newTypes.size) {
                     break
                 }
                 if (newTypes[i].isReified() && !oldTypes[i].isReified()) {
                     val message =
-                        "${describe(
-                        new,
-                        capitalize = true
-                    )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
+                        "${
+                            describe(
+                                new,
+                                capitalize = true
+                            )
+                        } made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message)
                 }
             }

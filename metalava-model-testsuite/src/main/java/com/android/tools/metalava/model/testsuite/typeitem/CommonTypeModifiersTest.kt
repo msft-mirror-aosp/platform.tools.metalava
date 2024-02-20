@@ -173,9 +173,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // @test.pkg.A T
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
-            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            val typeParameter = variableMethod.typeParameterList.single()
+            variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).isEmpty()
         }
@@ -245,9 +244,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // @test.pkg.A T
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
-            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            val typeParameter = variableMethod.typeParameterList.single()
+            variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
         }
@@ -289,9 +287,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
-            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            val typeParameter = variableMethod.typeParameterList.single()
+            variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).isEmpty()
             assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
         }
@@ -476,13 +473,11 @@ class CommonTypeModifiersTest : BaseModelTest() {
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
-            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val methodTypeParam = method.typeParameterList.single()
             val arrayType = method.returnType()
             assertThat(arrayType).isInstanceOf(ArrayTypeItem::class.java)
             val componentType = (arrayType as ArrayTypeItem).componentType
-            assertThat(componentType).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((componentType as VariableTypeItem).asTypeParameter)
-                .isEqualTo(methodTypeParam)
+            componentType.assertReferencesTypeParameter(methodTypeParam)
             assertThat(componentType.annotationNames()).containsExactly("test.pkg.A")
         }
     }
@@ -611,7 +606,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
-            val methodTypeParameters = method.typeParameterList().typeParameters()
+            val methodTypeParameters = method.typeParameterList
             assertThat(methodTypeParameters).hasSize(2)
             val p1 = methodTypeParameters[0]
             val p2 = methodTypeParameters[1]
@@ -624,9 +619,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             assertThat(innerType.annotationNames()).containsExactly("test.pkg.C")
 
             val innerTypeArgument = innerType.arguments.single()
-            assertThat(innerTypeArgument).isInstanceOf(VariableTypeItem::class.java)
+            innerTypeArgument.assertReferencesTypeParameter(p2)
             assertThat((innerTypeArgument as VariableTypeItem).name).isEqualTo("P2")
-            assertThat(innerTypeArgument.asTypeParameter).isEqualTo(p2)
             assertThat(innerTypeArgument.annotationNames()).containsExactly("test.pkg.D")
 
             val outerType = innerType.outerClassType
@@ -637,9 +631,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             assertThat(outerType.annotationNames()).containsExactly("test.pkg.A")
 
             val outerClassArgument = outerType.arguments.single()
-            assertThat(outerClassArgument).isInstanceOf(VariableTypeItem::class.java)
+            outerClassArgument.assertReferencesTypeParameter(p1)
             assertThat((outerClassArgument as VariableTypeItem).name).isEqualTo("P1")
-            assertThat(outerClassArgument.asTypeParameter).isEqualTo(p1)
             assertThat(outerClassArgument.annotationNames()).containsExactly("test.pkg.B")
         }
     }
@@ -670,14 +663,14 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val bar = interfaces[0]
             assertThat(bar).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((bar as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Bar")
+            assertThat(bar.qualifiedName).isEqualTo("test.pkg.Bar")
             val annotations = bar.modifiers.annotations()
             assertThat(annotations).hasSize(1)
             assertThat(annotations.single().qualifiedName).isEqualTo("test.pkg.A")
 
             val baz = interfaces[1]
             assertThat(baz).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((baz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            assertThat(baz.qualifiedName).isEqualTo("test.pkg.Baz")
         }
     }
 
@@ -744,12 +737,12 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val bar = interfaces[0]
             assertThat(bar).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((bar as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Bar")
+            assertThat(bar.qualifiedName).isEqualTo("test.pkg.Bar")
             assertThat(bar.annotationNames()).containsExactly("test.pkg.A")
 
             val baz = interfaces[1]
             assertThat(baz).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((baz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            assertThat(baz.qualifiedName).isEqualTo("test.pkg.Baz")
             assertThat(baz.arguments).hasSize(1)
             assertThat(baz.annotationNames()).containsExactly("test.pkg.B")
 
@@ -759,7 +752,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val biz = interfaces[2]
             assertThat(biz).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((biz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
+            assertThat(biz.qualifiedName).isEqualTo("test.pkg.Biz")
             assertThat(biz.annotationNames()).isEmpty()
         }
     }
@@ -847,19 +840,19 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val interfaces = fooClass.interfaceTypes()
             val bazInterface = interfaces[0]
-            assertThat((bazInterface as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            assertThat(bazInterface.qualifiedName).isEqualTo("test.pkg.Baz")
             testModifiers(bazInterface.modifiers)
             val bizInterface = interfaces[1]
-            assertThat((bizInterface as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
+            assertThat(bizInterface.qualifiedName).isEqualTo("test.pkg.Biz")
             testModifiers(bizInterface.modifiers)
 
             val fooMethod = fooClass.methods().single()
-            val typeParam = fooMethod.typeParameterList().typeParameters().single()
+            val typeParam = fooMethod.typeParameterList.single()
 
             val typeVarArray = fooMethod.parameters().single().type()
             testModifiers(typeVarArray.modifiers)
             val typeVar = (typeVarArray as ArrayTypeItem).componentType
-            assertThat((typeVar as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
+            typeVar.assertReferencesTypeParameter(typeParam)
             testModifiers(typeVar.modifiers)
 
             val stringList = fooMethod.returnType()
@@ -2095,6 +2088,116 @@ class CommonTypeModifiersTest : BaseModelTest() {
             assertNonNull(typeArgument, expectAnnotation = false)
             val returnType = functionType.arguments[1]
             assertNullable(returnType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of super class type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Number {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo: Number {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends Number {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val superClassType = codebase.assertClass("test.pkg.Foo").superClassType()!!
+            assertNonNull(superClassType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of super interface type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.Map;
+                    public abstract class Foo implements Map.Entry<String, String> {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import java.util.Map
+                    abstract class Foo: Map.Entry<String, String> {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo implements java.util.Map.Entry<java.lang.String, java.lang.String> {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val superInterfaceType = codebase.assertClass("test.pkg.Foo").interfaceTypes().single()
+
+            // The outer class type must be non-null.
+            val outerClassType = superInterfaceType.outerClassType!!
+            assertNonNull(outerClassType, expectAnnotation = false)
+
+            // As must the nested class.
+            assertNonNull(superInterfaceType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of generic super class and interface type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.List;
+                    public abstract class Foo<E> extends Number implements List<E> {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import java.util.List
+                    abstract class Foo<E>: List<E> {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo<E> extends Number implements java.util.List<E> {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // The super class type must be non-null.
+            val superClassType = codebase.assertClass("test.pkg.Foo").superClassType()!!
+            assertNonNull(superClassType, expectAnnotation = false)
+
+            // The super interface types must be non-null.
+            val superInterfaceType = fooClass.interfaceTypes().single()
+            assertNonNull(superInterfaceType, expectAnnotation = false)
         }
     }
 }

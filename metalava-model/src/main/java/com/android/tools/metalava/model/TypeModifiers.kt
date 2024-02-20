@@ -39,6 +39,9 @@ interface TypeModifiers {
      * [removeAnnotation], if needed.
      */
     fun setNullability(newNullability: TypeNullability)
+
+    /** Create a copy of this to which modifications can be made. */
+    fun duplicate(withNullability: TypeNullability? = null): TypeModifiers
 }
 
 /** An enum representing the possible nullness values of a type. */
