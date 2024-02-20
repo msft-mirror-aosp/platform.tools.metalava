@@ -4,7 +4,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine,java]
-  Test nullability of non-null field annotated with @Nullable or kotlin equivalent[turbine,java]
 
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]

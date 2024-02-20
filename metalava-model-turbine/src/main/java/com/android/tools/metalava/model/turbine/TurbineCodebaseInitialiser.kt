@@ -632,7 +632,19 @@ internal open class TurbineCodebaseInitialiser(
                     )
                 val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
                 val fieldValue = createInitialValue(field)
-                val type = typeItemFactory.getGeneralType(field.type())
+                val type =
+                    typeItemFactory.getFieldType(
+                        underlyingType = field.type(),
+                        itemAnnotations = annotations,
+                        isEnumConstant = isEnumConstant,
+                        isFinal = fieldModifierItem.isFinal(),
+                        isInitialValueNonNull = {
+                            // The initial value is non-null if the value is a literal which is not
+                            // null.
+                            fieldValue.initialValue(false) != null
+                        }
+                    )
+
                 val documentation = field.decl()?.javadoc() ?: ""
                 val fieldItem =
                     TurbineFieldItem(

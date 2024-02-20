@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -35,6 +36,7 @@ import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.android.tools.metalava.model.type.TypeItemFactory
+import com.android.tools.metalava.model.typeNullability
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -67,6 +69,34 @@ internal class TurbineTypeItemFactory(
     override fun getInterfaceType(underlyingType: Type) = createSuperType(underlyingType)
 
     override fun getSuperClassType(underlyingType: Type) = createSuperType(underlyingType)
+
+    override fun getFieldType(
+        underlyingType: Type,
+        itemAnnotations: List<AnnotationItem>,
+        isEnumConstant: Boolean,
+        isFinal: Boolean,
+        isInitialValueNonNull: () -> Boolean
+    ): TypeItem {
+        // Get the context nullability. Enum constants are always non-null, item annotations and
+        // whether a field is final and has a non-null value are used only if no other source of
+        // information about nullability is available.
+        val contextNullability =
+            if (isEnumConstant) ContextNullability.forceNonNull
+            else {
+                ContextNullability(
+                    inferNullability = {
+                        // Check annotations from the item first, and then whether the field is
+                        // final and has a non-null value.
+                        itemAnnotations.typeNullability
+                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
+                            else null
+                    }
+                )
+            }
+
+        // Get the field's type, passing in the context nullability.
+        return createType(underlyingType, contextNullability = contextNullability, isVarArg = false)
+    }
 
     /**
      * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
