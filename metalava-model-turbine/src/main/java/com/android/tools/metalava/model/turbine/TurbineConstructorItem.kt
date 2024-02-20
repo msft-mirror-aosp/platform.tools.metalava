@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
@@ -31,6 +32,7 @@ internal class TurbineConstructorItem(
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
     documentation: String,
+    private val defaultValue: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -39,7 +41,8 @@ internal class TurbineConstructorItem(
         returnType,
         modifiers,
         typeParameters,
-        documentation
+        documentation,
+        defaultValue,
     ),
     ConstructorItem {
 
@@ -62,8 +65,7 @@ internal class TurbineConstructorItem(
             val name = containingClass.simpleName()
             val modifiers = TurbineModifierItem(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
-            val parameters = TurbineTypeParameterList(codebase)
-            parameters.typeParameters = emptyList()
+            val typeParameterList = DefaultTypeParameterList(emptyList())
 
             val ctorItem =
                 TurbineConstructorItem(
@@ -73,7 +75,8 @@ internal class TurbineConstructorItem(
                     containingClass,
                     containingClass.type(),
                     modifiers,
-                    parameters,
+                    typeParameterList,
+                    "",
                     "",
                 )
             modifiers.setOwner(ctorItem)
