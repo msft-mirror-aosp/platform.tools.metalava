@@ -95,7 +95,7 @@ internal object PsiModifierItem {
     fun create(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
-        documentation: String?
+        documentation: String? = null,
     ): DefaultModifierList {
         val modifiers =
             if (element is UAnnotated) {

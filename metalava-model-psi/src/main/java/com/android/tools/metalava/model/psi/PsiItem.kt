@@ -44,7 +44,7 @@ internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
     override val modifiers: DefaultModifierList,
-    override var documentation: String
+    override var documentation: String,
 ) : DefaultItem(modifiers) {
 
     @Suppress(
@@ -318,7 +318,7 @@ internal constructor(
         internal fun modifiers(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            documentation: String
+            documentation: String? = null,
         ): DefaultModifierList {
             return PsiModifierItem.create(codebase, element, documentation)
         }

@@ -53,14 +53,13 @@ internal constructor(
     private val name: String,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
-    documentation: String,
-    private val type: PsiTypeItem
+    private val type: PsiTypeItem,
 ) :
     PsiItem(
         codebase = codebase,
+        element = psiParameter,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiParameter
+        documentation = "",
     ),
     ParameterItem {
     lateinit var containingMethod: PsiMethodItem
@@ -321,8 +320,7 @@ internal constructor(
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
             val name = psiParameter.name
-            val commentText = "" // no javadocs on individual parameters
-            val modifiers = createParameterModifiers(codebase, psiParameter, commentText)
+            val modifiers = createParameterModifiers(codebase, psiParameter)
             val psiType = psiParameter.type
             // UAST workaround: nullity of element type in last `vararg` parameter's array type
             val workaroundPsiType =
@@ -357,7 +355,6 @@ internal constructor(
                     psiParameter = psiParameter,
                     name = name,
                     parameterIndex = parameterIndex,
-                    documentation = commentText,
                     modifiers = modifiers,
                     type = type
                 )
@@ -376,7 +373,6 @@ internal constructor(
                     psiParameter = original.psiParameter,
                     name = original.name,
                     parameterIndex = original.parameterIndex,
-                    documentation = original.documentation,
                     modifiers = original.modifiers.duplicate(),
                     type = type
                 )
@@ -393,10 +389,9 @@ internal constructor(
 
         private fun createParameterModifiers(
             codebase: PsiBasedCodebase,
-            psiParameter: PsiParameter,
-            commentText: String
+            psiParameter: PsiParameter
         ): DefaultModifierList {
-            val modifiers = PsiModifierItem.create(codebase, psiParameter, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiParameter)
             // Method parameters don't have a visibility level; they are visible to anyone that can
             // call their method. However, Kotlin constructors sometimes appear to specify the
             // visibility of a constructor parameter by putting visibility inside the constructor

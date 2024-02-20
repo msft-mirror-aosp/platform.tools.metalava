@@ -80,7 +80,7 @@ internal class PsiTypeParameterItem(
     companion object {
         fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
             val simpleName = psiClass.name!!
-            val modifiers = modifiers(codebase, psiClass, "")
+            val modifiers = modifiers(codebase, psiClass)
 
             val item =
                 PsiTypeParameterItem(
