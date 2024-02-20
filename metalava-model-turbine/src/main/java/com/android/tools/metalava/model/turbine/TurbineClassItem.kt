@@ -18,14 +18,19 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
 
@@ -36,8 +41,8 @@ internal open class TurbineClassItem(
     private val qualifiedName: String,
     private val classSymbol: ClassSymbol,
     modifiers: TurbineModifierItem,
-    private val classType: TurbineClassType,
-    private val typeParameters: TypeParameterList,
+    override val classKind: ClassKind,
+    override val typeParameterList: TypeParameterList,
     documentation: String,
     private val source: SourceFile?
 ) : TurbineItem(codebase, modifiers, documentation), ClassItem {
@@ -50,35 +55,31 @@ internal open class TurbineClassItem(
 
     internal lateinit var innerClasses: List<TurbineClassItem>
 
-    private var superClass: TurbineClassItem? = null
+    private var superClassType: ClassTypeItem? = null
 
-    private var superClassType: TypeItem? = null
-
-    internal lateinit var directInterfaces: List<TurbineClassItem>
-
-    private var allInterfaces: List<TurbineClassItem>? = null
+    private var allInterfaces: List<ClassItem>? = null
 
     internal lateinit var containingPackage: TurbinePackageItem
 
     internal lateinit var fields: List<TurbineFieldItem>
 
-    internal lateinit var methods: List<TurbineMethodItem>
+    internal lateinit var methods: MutableList<TurbineMethodItem>
 
     internal lateinit var constructors: List<TurbineConstructorItem>
 
     internal var containingClass: TurbineClassItem? = null
 
-    private lateinit var interfaceTypesList: List<TypeItem>
+    private lateinit var interfaceTypesList: List<ClassTypeItem>
 
-    private var asType: TurbineTypeItem? = null
+    private var asType: ClassTypeItem? = null
 
     internal var hasImplicitDefaultConstructor = false
 
     private var retention: AnnotationRetention? = null
 
-    override fun allInterfaces(): Sequence<TurbineClassItem> {
+    override fun allInterfaces(): Sequence<ClassItem> {
         if (allInterfaces == null) {
-            val interfaces = mutableSetOf<TurbineClassItem>()
+            val interfaces = mutableSetOf<ClassItem>()
 
             // Add self as interface if applicable
             if (isInterface()) {
@@ -91,15 +92,16 @@ internal open class TurbineClassItem(
             }
 
             // Add all the interfaces of direct interfaces
-            directInterfaces.map { itf -> itf.allInterfaces().forEach { interfaces.add(it) } }
+            interfaceTypesList.forEach { interfaceType ->
+                val itf = interfaceType.asClass()
+                itf?.allInterfaces()?.forEach { interfaces.add(it) }
+            }
 
             allInterfaces = interfaces.toList()
         }
 
         return allInterfaces!!.asSequence()
     }
-
-    internal fun directInterfaces(): List<TurbineClassItem> = directInterfaces
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -130,21 +132,15 @@ internal open class TurbineClassItem(
         return TurbineConstructorItem.createDefaultConstructor(codebase, this, sym)
     }
 
-    override fun hasTypeVariables(): Boolean = typeParameters.typeParameterCount() > 0
+    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypesList
-
-    override fun isAnnotationType(): Boolean = classType == TurbineClassType.ANNOTATION
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
     override fun isDefined(): Boolean {
         TODO("b/295800205")
     }
-
-    override fun isEnum(): Boolean = classType == TurbineClassType.ENUM
-
-    override fun isInterface(): Boolean = classType == TurbineClassType.INTERFACE
 
     override fun methods(): List<MethodItem> = methods
 
@@ -160,38 +156,33 @@ internal open class TurbineClassItem(
 
     override fun fullName(): String = fullName
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         interfaceTypesList = interfaceTypes
     }
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
-        this.superClass = superClass as? TurbineClassItem
+    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
     }
 
-    override fun superClass(): TurbineClassItem? = superClass
+    override fun superClass(): ClassItem? = superClassType?.asClass()
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
-    override fun toType(): TurbineTypeItem {
+    override fun type(): ClassTypeItem {
         if (asType == null) {
             val parameters =
-                typeParameterList().typeParameters().map {
-                    createVariableType(it as TurbineTypeParameterItem)
-                }
-            val mods = TurbineTypeModifiers(modifiers.annotations())
-            val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
-            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
+                typeParameterList.map { createVariableType(it as TurbineTypeParameterItem) }
+            val mods = DefaultTypeModifiers.create(modifiers.annotations())
+            val outerClassType = containingClass?.type()
+            asType = DefaultClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
         }
         return asType!!
     }
 
-    private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
-        val mods = TurbineTypeModifiers(typeParam.modifiers.annotations())
-        return TurbineVariableTypeItem(codebase, mods, typeParam.symbol)
+    private fun createVariableType(typeParam: TurbineTypeParameterItem): VariableTypeItem {
+        val mods = DefaultTypeModifiers.create(typeParam.modifiers.annotations())
+        return DefaultVariableTypeItem(mods, typeParam)
     }
-
-    override fun typeParameterList(): TypeParameterList = typeParameters
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
@@ -217,16 +208,21 @@ internal open class TurbineClassItem(
                 codebase,
                 method.getSymbol(),
                 this,
-                retType as TurbineTypeItem,
+                retType,
                 mods,
-                method.typeParameterList(),
-                method.documentation
+                method.typeParameterList,
+                method.documentation,
+                method.defaultValue(),
             )
         mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = method.containingClass()
-        duplicateMethod.setThrowsTypes(method.throwsTypes())
+        duplicateMethod.throwableTypes = method.throwableTypes
 
         return duplicateMethod
+    }
+
+    override fun addMethod(method: MethodItem) {
+        methods.add(method as TurbineMethodItem)
     }
 }

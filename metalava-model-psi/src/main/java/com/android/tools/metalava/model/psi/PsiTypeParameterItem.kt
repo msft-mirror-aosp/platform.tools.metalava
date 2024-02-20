@@ -16,8 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.psi.ClassType.TYPE_PARAMETER
+import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
@@ -26,41 +27,49 @@ import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
-    psiClass: PsiTypeParameter,
-    name: String,
+    private val psiClass: PsiTypeParameter,
+    private val name: String,
     modifiers: PsiModifierItem
 ) :
-    PsiClassItem(
+    PsiItem(
         codebase = codebase,
-        psiClass = psiClass,
-        name = name,
-        fullName = name,
-        qualifiedName = name,
-        hasImplicitDefaultConstructor = false,
-        classType = TYPE_PARAMETER,
+        element = psiClass,
         modifiers = modifiers,
         documentation = "",
-        fromClassPath = false
     ),
     TypeParameterItem {
-    override fun typeBounds(): List<PsiTypeItem> = bounds
+
+    override fun name() = name
+
+    override fun type(): VariableTypeItem {
+        val psiType = codebase.getClassType(psiClass)
+        val typeModifiers = PsiTypeModifiers.create(codebase, psiType, null)
+        return PsiVariableTypeItem(psiType, typeModifiers, this)
+    }
+
+    override fun psi() = psiClass
+
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun isReified(): Boolean {
         return isReified(psiClass as? PsiTypeParameter)
     }
 
-    private lateinit var bounds: List<PsiTypeItem>
+    internal lateinit var bounds: List<BoundsTypeItem>
 
-    override fun finishInitialization() {
-        super.finishInitialization()
+    override fun toString(): String {
+        return String.format("%s [0x%x]", name, System.identityHashCode(this))
+    }
 
-        val refs = psiClass.extendsList?.referencedTypes
-        bounds =
-            if (refs.isNullOrEmpty()) {
-                emptyList()
-            } else {
-                refs.mapNotNull { codebase.getType(it) }
-            }
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
     }
 
     companion object {
@@ -76,7 +85,6 @@ internal class PsiTypeParameterItem(
                     modifiers = modifiers
                 )
             item.modifiers.setOwner(item)
-            item.initialize(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
             item.finishInitialization()
             return item
         }

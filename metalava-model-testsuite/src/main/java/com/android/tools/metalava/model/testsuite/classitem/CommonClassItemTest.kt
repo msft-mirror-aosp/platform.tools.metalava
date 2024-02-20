@@ -18,13 +18,13 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -107,6 +107,184 @@ class CommonClassItemTest : BaseModelTest() {
 
             // This should find the method.
             assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+        }
+    }
+
+    @Test
+    fun `Test access type parameter of outer class in type parameters`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public class Outer.Middle.Inner<T extends O> {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+                        public class Middle {
+                            private Middle() {}
+                            public class Inner<T extends O> {
+                                private Inner() {}
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        inner class Middle private constructor() {
+                            inner class Inner<T: O> private constructor()
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
+            val extendsType =
+                codebase
+                    .assertClass("test.pkg.Outer.Middle.Inner")
+                    .typeParameterList
+                    .first()
+                    .typeBounds()
+                    .first()
+
+            extendsType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
+    fun `Test access type parameter of outer class in extends type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner extends test.pkg.Outer.GenericClass<O> {
+                      }
+                      public abstract static class Outer.GenericClass<T> {
+                        method public abstract T method();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+                        public static abstract class GenericClass<T> {
+                            private GenericClass() {}
+                            public abstract T method();
+                        }
+                        public class Middle {
+                            private Middle() {}
+                            public abstract class Inner extends GenericClass<O> {
+                                private Inner() {}
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        abstract class GenericClass<T> private constructor() {
+                            abstract fun method(): T
+                        }
+                        inner class Middle private constructor() {
+                            abstract inner class Inner(o: O): GenericClass<O>()
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
+            val extendsType = codebase.assertClass("test.pkg.Outer.Middle.Inner").superClassType()!!
+            val typeArgument = extendsType.arguments.single()
+
+            typeArgument.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
+    fun `Test access type parameter of outer class in interface type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner implements test.pkg.Outer.GenericInterface<O> {
+                      }
+                      public interface Outer.GenericInterface<T> {
+                        method public abstract T method();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+                        public interface GenericInterface<T> {
+                            T method();
+                        }
+                        public class Middle {
+                            private Middle() {}
+                            public abstract class Inner implements GenericInterface<O> {
+                                private Inner() {}
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        interface GenericInterface<T> {
+                            fun method(): T
+                        }
+                        inner class Middle private constructor() {
+                            abstract inner class Inner(o: O): GenericInterface<O>
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
+            val implementsType =
+                codebase.assertClass("test.pkg.Outer.Middle.Inner").interfaceTypes().single()
+            val typeArgument = implementsType.arguments.single()
+
+            typeArgument.assertReferencesTypeParameter(oTypeParameter)
         }
     }
 
@@ -208,11 +386,15 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val objectClass = codebase.assertClass("java.lang.Object")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(objectClass, fooClass.superClassType()?.asClass())
-            assertSame(objectClass, fooClass.superClass())
+            // Get the super class to force it to be loaded.
+            val fooSuperClass = fooClass.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, fooSuperClass)
 
             val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
             assertEquals(emptyList(), interfaceList)
@@ -291,11 +473,15 @@ class CommonClassItemTest : BaseModelTest() {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
             val interfaceC = codebase.assertClass("test.pkg.C")
-            val objectClass = codebase.assertClass("java.lang.Object")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(objectClass, fooClass.superClassType()?.asClass())
-            assertSame(objectClass, fooClass.superClass())
+            // Get the super class to force it to be loaded.
+            val fooSuperClass = fooClass.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, fooSuperClass)
 
             val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
@@ -351,6 +537,34 @@ class CommonClassItemTest : BaseModelTest() {
 
             val allInterfaces = fooClass.allInterfaces().toList()
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test class Object has no super class type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package java.lang {
+                      public class Object {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package java.lang;
+
+                    public class Object {}
+                """
+            ),
+        ) {
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            // Must have no super class type, otherwise it could lead to stack overflows when
+            // recursing up the hierarchy.
+            assertNull(objectClass.superClassType())
         }
     }
 
@@ -487,14 +701,14 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val parent = codebase.assertClass("test.pkg.Parent")
-            val parentTypeParams = parent.typeParameterList().typeParameters()
+            val parentTypeParams = parent.typeParameterList
             val m = parentTypeParams[0]
             val n = parentTypeParams[1]
 
             val child = codebase.assertClass("test.pkg.Child")
-            val childTypeParams = child.typeParameterList().typeParameters()
-            val x = childTypeParams[0].toType()
-            val y = childTypeParams[1].toType()
+            val childTypeParams = child.typeParameterList
+            val x = childTypeParams[0].type()
+            val y = childTypeParams[1].type()
 
             assertEquals(mapOf(m to x, n to y), child.mapTypeVariables(parent))
 
@@ -569,27 +783,27 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val c4 = codebase.assertClass("test.pkg.Class4")
-            val i = c4.typeParameterList().typeParameters()[0]
+            val i = c4.typeParameterList[0]
 
             val c3 = codebase.assertClass("test.pkg.Class3")
-            val c3TypeParams = c3.typeParameterList().typeParameters()
+            val c3TypeParams = c3.typeParameterList
             val g = c3TypeParams[0]
-            val gType = g.toType()
+            val gType = g.type()
             val h = c3TypeParams[1]
 
             val c2 = codebase.assertClass("test.pkg.Class2")
-            val c2TypeParams = c2.typeParameterList().typeParameters()
+            val c2TypeParams = c2.typeParameterList
             val d = c2TypeParams[0]
-            val dType = d.toType()
+            val dType = d.type()
             val e = c2TypeParams[1]
             val f = c2TypeParams[2]
-            val fType = f.toType()
+            val fType = f.type()
 
             val c1 = codebase.assertClass("test.pkg.Class1")
-            val c1TypeParams = c1.typeParameterList().typeParameters()
-            val aType = c1TypeParams[0].toType()
-            val bType = c1TypeParams[1].toType()
-            val cType = c1TypeParams[2].toType()
+            val c1TypeParams = c1.typeParameterList
+            val aType = c1TypeParams[0].type()
+            val bType = c1TypeParams[1].type()
+            val cType = c1TypeParams[2].type()
 
             assertEquals(mapOf(i to gType), c3.mapTypeVariables(c4))
 
@@ -657,24 +871,24 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val grandparent = codebase.assertClass("test.pkg.Grandparent")
-            val grandparentTypeParams = grandparent.typeParameterList().typeParameters()
+            val grandparentTypeParams = grandparent.typeParameterList
             val a = grandparentTypeParams[0]
             val b = grandparentTypeParams[1]
 
             val parent = codebase.assertClass("test.pkg.Parent")
-            val t = parent.typeParameterList().typeParameters()[0]
-            val tType = t.toType()
+            val t = parent.typeParameterList[0]
+            val tType = t.type()
 
             val child = codebase.assertClass("test.pkg.Child")
 
-            val erasedParentType = (parent.toType() as ClassTypeItem).duplicate(null, emptyList())
+            val erasedParentType = parent.type().duplicate(null, emptyList())
             assertEquals(
                 mapOf(a to tType, b to erasedParentType),
                 parent.mapTypeVariables(grandparent)
             )
-            assertEquals(mapOf(t to child.toType()), child.mapTypeVariables(parent))
+            assertEquals(mapOf(t to child.type()), child.mapTypeVariables(parent))
             assertEquals(
-                mapOf(a to child.toType(), b to erasedParentType),
+                mapOf(a to child.type(), b to erasedParentType),
                 child.mapTypeVariables(grandparent)
             )
         }
@@ -745,26 +959,26 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val i3 = codebase.assertClass("test.pkg.Interface3")
-            val i3TypeParams = i3.typeParameterList().typeParameters()
+            val i3TypeParams = i3.typeParameterList
             val g = i3TypeParams[0]
             val h = i3TypeParams[1]
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
-            val i2TypeParams = i2.typeParameterList().typeParameters()
+            val i2TypeParams = i2.typeParameterList
             val e = i2TypeParams[0]
-            val eType = e.toType()
+            val eType = e.type()
             val f = i2TypeParams[1]
-            val fType = f.toType()
+            val fType = f.type()
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
-            val i1TypeParams = i1.typeParameterList().typeParameters()
+            val i1TypeParams = i1.typeParameterList
             val c = i1TypeParams[0]
             val d = i1TypeParams[1]
 
             val cls = codebase.assertClass("test.pkg.Class")
-            val clsTypeParams = cls.typeParameterList().typeParameters()
-            val aType = clsTypeParams[0].toType()
-            val bType = clsTypeParams[1].toType()
+            val clsTypeParams = cls.typeParameterList
+            val aType = clsTypeParams[0].type()
+            val bType = clsTypeParams[1].type()
 
             assertEquals(mapOf(c to aType, d to bType), cls.mapTypeVariables(i1))
 
@@ -839,20 +1053,20 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val root = codebase.assertClass("test.pkg.Root")
-            val t = root.typeParameterList().typeParameters()[0]
+            val t = root.typeParameterList[0]
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
-            val t1 = i1.typeParameterList().typeParameters()[0]
-            val t1Type = t1.toType()
+            val t1 = i1.typeParameterList[0]
+            val t1Type = t1.type()
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
-            val t2 = i2.typeParameterList().typeParameters()[0]
-            val t2Type = t2.toType()
+            val t2 = i2.typeParameterList[0]
+            val t2Type = t2.type()
 
             val child = codebase.assertClass("test.pkg.Child")
-            val childParameterList = child.typeParameterList().typeParameters()
-            val xType = childParameterList[0].toType()
-            val yType = childParameterList[1].toType()
+            val childParameterList = child.typeParameterList
+            val xType = childParameterList[0].type()
+            val yType = childParameterList[1].type()
 
             assertEquals(mapOf(t to t1Type), i1.mapTypeVariables(root))
             assertEquals(mapOf(t to t2Type), i2.mapTypeVariables(root))
@@ -926,25 +1140,24 @@ class CommonClassItemTest : BaseModelTest() {
         ) {
             val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
             val outerClass = codebase.assertClass("test.pkg.Outer")
-            val outerClassParameter = outerClass.typeParameterList().typeParameters().single()
+            val outerClassParameter = outerClass.typeParameterList.single()
 
-            val innerType = innerClass.toType()
+            val innerType = innerClass.type()
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Outer.Inner")
+            assertThat(innerType.qualifiedName).isEqualTo("test.pkg.Outer.Inner")
 
             val outerType = innerType.outerClassType
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
 
             val outerClassVariable = outerType.arguments.single()
-            assertThat(outerClassVariable).isInstanceOf(VariableTypeItem::class.java)
+            outerClassVariable.assertReferencesTypeParameter(outerClassParameter)
             assertThat((outerClassVariable as VariableTypeItem).name).isEqualTo("T")
-            assertThat(outerClassVariable.asTypeParameter).isEqualTo(outerClassParameter)
         }
     }
 
     @Test
-    fun `Check isTypeParameter`() {
+    fun `Check TypeParameterItem is not a ClassItem`() {
         runCodebaseTest(
             signature(
                 """
@@ -970,10 +1183,44 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val genericClass = codebase.assertClass("test.pkg.Generic")
-            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+            val typeParameter = genericClass.typeParameterList.single()
 
-            assertFalse(genericClass.isTypeParameter, message = "generic class")
-            assertTrue(typeParameter.isTypeParameter, message = "type parameter")
+            assertThat(genericClass).isInstanceOf(ClassItem::class.java)
+            assertThat(genericClass).isNotInstanceOf(TypeParameterItem::class.java)
+
+            assertThat(typeParameter).isInstanceOf(TypeParameterItem::class.java)
+            assertThat(typeParameter).isNotInstanceOf(ClassItem::class.java)
+        }
+    }
+
+    @Test
+    fun `Check pathological type parameter conflicting with primitive type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public abstract class Generic<int> {
+                        method public abstract int method();
+                      }
+                    }
+                """
+            ),
+            // Java does not support using a primitive type name as a type parameter name.
+            kotlin(
+                """
+                    package test.pkg
+                    abstract class Generic<Int> {
+                        abstract fun method(): Int
+                    }
+                """
+            )
+        ) {
+            val genericClass = codebase.assertClass("test.pkg.Generic")
+            val typeParameter = genericClass.typeParameterList.single()
+
+            val methodReturnType = genericClass.methods().single().returnType()
+            methodReturnType.assertReferencesTypeParameter(typeParameter)
         }
     }
 }
