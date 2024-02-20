@@ -1083,14 +1083,6 @@ fun bestGuessAtFullName(qualifiedName: String): String {
 }
 
 /**
- * Determine if this item implies that its associated type is a non-null array with non-null
- * components.
- */
-private fun Item.impliesNonNullArrayComponents(): Boolean {
-    return (this is MemberItem) && containingClass().isAnnotationType() && !modifiers.isStatic()
-}
-
-/**
  * Finishes initialization of a type by correcting its nullability based on the owning item, which
  * was not constructed yet when the type was created.
  */
@@ -1100,10 +1092,5 @@ fun TypeItem.fixUpTypeNullability(owner: Item) {
         modifiers.setNullability(TypeNullability.NULLABLE)
     } else if (implicitNullness == TypeNullability.NONNULL || owner.modifiers.isNonNull()) {
         modifiers.setNullability(TypeNullability.NONNULL)
-    }
-
-    // Also set component array types that should be non-null.
-    if (this is ArrayTypeItem && owner.impliesNonNullArrayComponents()) {
-        componentType.modifiers.setNullability(TypeNullability.NONNULL)
     }
 }

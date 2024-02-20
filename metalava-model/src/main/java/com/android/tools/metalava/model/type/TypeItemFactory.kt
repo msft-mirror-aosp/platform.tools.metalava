@@ -141,15 +141,18 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
      *
      * This considers a number of factors, in addition to the declared type, to determine the
      * appropriate [TypeNullability] for the field type, i.e.:
+     * * If it [isAnnotationElement], they must be [TypeNullability.NONNULL].
      * * Method [fingerprint], which may match a known method whose return type has a known
      *   [TypeNullability].
      *
      * @param underlyingReturnType the underlying model's return type.
      * @param fingerprint method fingerprint
+     * @param isAnnotationElement true for a non-static method of an annotation class.
      */
     fun getMethodReturnType(
         underlyingReturnType: T,
         fingerprint: MethodFingerprint,
+        isAnnotationElement: Boolean,
     ): TypeItem = error("unsupported")
 }
 
@@ -186,6 +189,16 @@ class ContextNullability(
     val forcedNullability: TypeNullability? = null,
 
     /**
+     * The [TypeNullability] that a [TypeItem] that is a component of an array MUST have.
+     *
+     * This is used to ensure that annotation attributes, i.e. methods on an annotation class, that
+     * return arrays cannot return arrays of a nullable component type.
+     *
+     * This CANNOT be overridden by a nullability annotation.
+     */
+    val forcedComponentNullability: TypeNullability? = null,
+
+    /**
      * The annotations from the [Item] whose type this is.
      *
      * If supplied then this may be used by [compute] to determine the [TypeNullability] of the
@@ -220,6 +233,16 @@ class ContextNullability(
             ?: inferNullability?.invoke()
             // Finally default to [TypeNullability.PLATFORM].
             ?: TypeNullability.PLATFORM
+
+    /**
+     * Get a [ContextNullability] instance for components of arrays.
+     *
+     * If [forcedComponentNullability] is null then this returns [ContextNullability.none],
+     * otherwise it returns a [ContextNullability] whose [forcedNullability] is set to
+     * [forcedComponentNullability].
+     */
+    fun forComponentType() =
+        forcedComponentNullability?.let { ContextNullability(forcedNullability = it) } ?: none
 
     companion object {
         val none = ContextNullability()
@@ -311,9 +334,15 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
     override fun getMethodReturnType(
         underlyingReturnType: T,
         fingerprint: MethodFingerprint,
+        isAnnotationElement: Boolean,
     ): TypeItem {
+        // Annotation elements, aka attributes, or methods on an annotation class cannot have a null
+        // value.
+        val annotationElementNullability = TypeNullability.NONNULL.takeIf { isAnnotationElement }
         val contextNullability =
             ContextNullability(
+                forcedNullability = annotationElementNullability,
+                forcedComponentNullability = annotationElementNullability,
                 inferNullability = {
                     // Check for a known method's nullability.
                     getMethodReturnTypeNullability(fingerprint)

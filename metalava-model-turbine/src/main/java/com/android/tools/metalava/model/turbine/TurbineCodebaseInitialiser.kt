@@ -734,10 +734,13 @@ internal open class TurbineCodebaseInitialiser(
 
                     val parameters = method.parameters()
                     val fingerprint = MethodFingerprint(method.name(), parameters.size)
+                    val isAnnotationElement =
+                        classItem.isAnnotationType() && !methodModifierItem.isStatic()
                     val returnType =
                         methodTypeItemFactory.getMethodReturnType(
                             underlyingReturnType = method.returnType(),
                             fingerprint = fingerprint,
+                            isAnnotationElement = isAnnotationElement,
                         )
 
                     val methodItem =

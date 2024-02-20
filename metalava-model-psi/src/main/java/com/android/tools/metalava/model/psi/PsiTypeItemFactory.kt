@@ -269,6 +269,10 @@ internal class PsiTypeItemFactory(
                 createTypeItem(
                     psiType.componentType,
                     kotlinType?.forArrayComponentType(),
+                    //  Pass in the [ContextNullability.forComponentType] just in case this is the
+                    // return type of an annotation method, or in other words the type of an
+                    // annotation attribute.
+                    contextNullability.forComponentType(),
                 ),
             isVarargs = psiType is PsiEllipsisType,
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),

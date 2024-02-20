@@ -194,8 +194,10 @@ internal class TurbineTypeItemFactory(
             curr = curr.elementType()
         }
 
-        // Then, get the type for the innermost component, it has the correct annotations.
-        val componentType = getGeneralType(curr)
+        // Then, get the type for the innermost component, it has the correct annotations. Pass
+        // in the [ContextNullability.forComponentType] just in case this is the return type of an
+        // annotation method, or in other words the type of an annotation attribute.
+        val componentType = getType(curr, contextNullability.forComponentType())
 
         // Finally, traverse over the annotations from the innermost component type to the outermost
         // array and construct a [DefaultArrayTypeItem] around the inner component type using its

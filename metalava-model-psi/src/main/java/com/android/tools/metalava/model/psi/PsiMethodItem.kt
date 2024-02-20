@@ -330,10 +330,12 @@ open class PsiMethodItem(
                 )
             val parameters = parameterList(codebase, psiMethod, methodTypeItemFactory)
             val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
+            val isAnnotationElement = containingClass.isAnnotationType() && !modifiers.isStatic()
             val returnType =
                 methodTypeItemFactory.getMethodReturnType(
                     underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
                     fingerprint = fingerprint,
+                    isAnnotationElement = isAnnotationElement,
                 )
 
             val method =
