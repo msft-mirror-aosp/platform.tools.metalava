@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -414,17 +415,10 @@ open class PsiMethodItem(
             codebase: PsiBasedCodebase,
             psiMethod: PsiMethod,
             enclosingTypeItemFactory: PsiTypeItemFactory,
-        ): List<PsiParameterItem> {
-            return if (psiMethod is UMethod) {
-                psiMethod.uastParameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
-                }
-            } else {
-                psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
-                }
+        ) =
+            psiMethod.psiParameters.mapIndexed { index, parameter ->
+                PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
             }
-        }
 
         internal fun throwsTypes(
             psiMethod: PsiMethod,
@@ -450,3 +444,7 @@ open class PsiMethodItem(
         "${if (isConstructor()) "constructor" else "method"} ${
     containingClass.qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 }
+
+/** Get the [PsiParameter]s for a [PsiMethod]. */
+val PsiMethod.psiParameters: List<PsiParameter>
+    get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()
