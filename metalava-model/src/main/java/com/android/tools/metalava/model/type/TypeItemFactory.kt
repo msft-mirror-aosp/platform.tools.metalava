@@ -162,3 +162,77 @@ class ContextNullability(
         val forceUndefined = ContextNullability(TypeNullability.UNDEFINED)
     }
 }
+
+abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
+    final override val typeParameterScope: TypeParameterScope
+) : TypeItemFactory<T, F> {
+
+    final override fun nestedFactory(
+        scopeDescription: String,
+        typeParameters: List<TypeParameterItem>
+    ): F {
+        val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
+        return if (scope === typeParameterScope) self() else createNestedFactory(scope)
+    }
+
+    override fun getBoundsType(underlyingType: T) = getType(underlyingType) as BoundsTypeItem
+
+    override fun getExceptionType(underlyingType: T) = getType(underlyingType) as ExceptionTypeItem
+
+    override fun getGeneralType(underlyingType: T) = getType(underlyingType)
+
+    override fun getInterfaceType(underlyingType: T) = getSuperType(underlyingType)
+
+    override fun getSuperClassType(underlyingType: T) = getSuperType(underlyingType)
+
+    /**
+     * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
+     * `implements` list.
+     */
+    private fun getSuperType(underlyingType: T): ClassTypeItem {
+        return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
+            as ClassTypeItem
+    }
+
+    override fun getFieldType(
+        underlyingType: T,
+        itemAnnotations: List<AnnotationItem>,
+        isEnumConstant: Boolean,
+        isFinal: Boolean,
+        isInitialValueNonNull: () -> Boolean
+    ): TypeItem {
+        // Get the context nullability. Enum constants are always non-null, item annotations and
+        // whether a field is final and has a non-null value are used only if no other source of
+        // information about nullability is available.
+        val contextNullability =
+            if (isEnumConstant) ContextNullability.forceNonNull
+            else {
+                ContextNullability(
+                    inferNullability = {
+                        // Check annotations from the item first, and then whether the field is
+                        // final and has a non-null value.
+                        itemAnnotations.typeNullability
+                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
+                            else null
+                    }
+                )
+            }
+
+        // Get the field's type, passing in the context nullability.
+        return getType(underlyingType, contextNullability = contextNullability)
+    }
+
+    /** Type safe access to `this`. */
+    protected abstract fun self(): F
+
+    /** Create a nested factory that is a copy of this one, except using [scope]. */
+    protected abstract fun createNestedFactory(scope: TypeParameterScope): F
+
+    /**
+     * Get the [TypeItem] corresponding to the [underlyingType] and within the [contextNullability].
+     */
+    protected abstract fun getType(
+        underlyingType: T,
+        contextNullability: ContextNullability = ContextNullability.none,
+    ): TypeItem
+}

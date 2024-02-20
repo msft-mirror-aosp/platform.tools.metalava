@@ -16,27 +16,22 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
-import com.android.tools.metalava.model.type.TypeItemFactory
-import com.android.tools.metalava.model.typeNullability
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -45,65 +40,16 @@ import com.google.turbine.type.Type
 internal class TurbineTypeItemFactory(
     private val codebase: TurbineBasedCodebase,
     private val initializer: TurbineCodebaseInitialiser,
-    override val typeParameterScope: TypeParameterScope,
-) : TypeItemFactory<Type, TurbineTypeItemFactory> {
+    typeParameterScope: TypeParameterScope,
+) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
 
-    override fun nestedFactory(
-        scopeDescription: String,
-        typeParameters: List<TypeParameterItem>
-    ): TurbineTypeItemFactory {
-        val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
-        return if (scope === typeParameterScope) this
-        else TurbineTypeItemFactory(codebase, initializer, scope)
-    }
+    override fun self() = this
 
-    /** Create a [BoundsTypeItem]. */
-    override fun getBoundsType(underlyingType: Type) =
-        getGeneralType(underlyingType) as BoundsTypeItem
+    override fun createNestedFactory(scope: TypeParameterScope) =
+        TurbineTypeItemFactory(codebase, initializer, scope)
 
-    override fun getExceptionType(underlyingType: Type) =
-        getGeneralType(underlyingType) as ExceptionTypeItem
-
-    override fun getGeneralType(underlyingType: Type) = createType(underlyingType, false)
-
-    override fun getInterfaceType(underlyingType: Type) = createSuperType(underlyingType)
-
-    override fun getSuperClassType(underlyingType: Type) = createSuperType(underlyingType)
-
-    override fun getFieldType(
-        underlyingType: Type,
-        itemAnnotations: List<AnnotationItem>,
-        isEnumConstant: Boolean,
-        isFinal: Boolean,
-        isInitialValueNonNull: () -> Boolean
-    ): TypeItem {
-        // Get the context nullability. Enum constants are always non-null, item annotations and
-        // whether a field is final and has a non-null value are used only if no other source of
-        // information about nullability is available.
-        val contextNullability =
-            if (isEnumConstant) ContextNullability.forceNonNull
-            else {
-                ContextNullability(
-                    inferNullability = {
-                        // Check annotations from the item first, and then whether the field is
-                        // final and has a non-null value.
-                        itemAnnotations.typeNullability
-                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
-                            else null
-                    }
-                )
-            }
-
-        // Get the field's type, passing in the context nullability.
-        return createType(underlyingType, contextNullability = contextNullability, isVarArg = false)
-    }
-
-    /**
-     * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
-     * `implements` list.
-     */
-    private fun createSuperType(type: Type): ClassTypeItem =
-        createType(type, false, ContextNullability.forceNonNull) as ClassTypeItem
+    override fun getType(underlyingType: Type, contextNullability: ContextNullability) =
+        createType(underlyingType, false, contextNullability)
 
     private fun createModifiers(
         annos: List<AnnoInfo>,

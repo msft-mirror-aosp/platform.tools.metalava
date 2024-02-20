@@ -16,11 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -33,9 +30,8 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.TypeItemFactory
-import com.android.tools.metalava.model.typeNullability
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
@@ -63,8 +59,8 @@ data class PsiTypeInfo(val psiType: PsiType, val context: PsiElement? = null)
  */
 internal class PsiTypeItemFactory(
     val codebase: PsiBasedCodebase,
-    override val typeParameterScope: TypeParameterScope
-) : TypeItemFactory<PsiTypeInfo, PsiTypeItemFactory> {
+    typeParameterScope: TypeParameterScope
+) : DefaultTypeItemFactory<PsiTypeInfo, PsiTypeItemFactory>(typeParameterScope) {
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [classItem]. */
     fun from(classItem: ClassItem): PsiTypeItemFactory {
@@ -78,70 +74,16 @@ internal class PsiTypeItemFactory(
         return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
     }
 
-    override fun nestedFactory(
-        scopeDescription: String,
-        typeParameters: List<TypeParameterItem>
-    ): PsiTypeItemFactory {
-        val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
-        return if (scope === typeParameterScope) this else PsiTypeItemFactory(codebase, scope)
-    }
+    override fun self() = this
 
-    override fun getBoundsType(underlyingType: PsiTypeInfo) =
-        getType(underlyingType) as BoundsTypeItem
+    override fun createNestedFactory(scope: TypeParameterScope) =
+        PsiTypeItemFactory(codebase, scope)
 
-    override fun getExceptionType(underlyingType: PsiTypeInfo) =
-        getType(underlyingType) as ExceptionTypeItem
-
-    override fun getGeneralType(underlyingType: PsiTypeInfo) = getType(underlyingType)
-
-    override fun getInterfaceType(underlyingType: PsiTypeInfo) =
-        getSuperType(underlyingType.psiType)
-
-    override fun getSuperClassType(underlyingType: PsiTypeInfo) =
-        getSuperType(underlyingType.psiType)
-
-    override fun getFieldType(
+    override fun getType(
         underlyingType: PsiTypeInfo,
-        itemAnnotations: List<AnnotationItem>,
-        isEnumConstant: Boolean,
-        isFinal: Boolean,
-        isInitialValueNonNull: () -> Boolean,
-    ): TypeItem {
-        // Get the context nullability. Enum constants are always non-null, item annotations and
-        // whether a field is final and has a non-null value are used only if no other source of
-        // information about nullability is available.
-        val contextNullability =
-            if (isEnumConstant) ContextNullability.forceNonNull
-            else {
-                ContextNullability(
-                    inferNullability = {
-                        // Check annotations from the item first, and then whether the field is
-                        // final and has a non-null value.
-                        itemAnnotations.typeNullability
-                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
-                            else null
-                    }
-                )
-            }
-
-        // Get the field's type, passing in the context nullability.
-        return getType(underlyingType, contextNullability = contextNullability)
-    }
-
-    /**
-     * Creates a [PsiClassTypeItem] that is suitable for use as a super type, e.g. in an `extends`
-     * or `implements` list.
-     */
-    private fun getSuperType(psiType: PsiType): PsiClassTypeItem {
-        return getType(psiType, contextNullability = ContextNullability.forceNonNull)
-            as PsiClassTypeItem
-    }
-
-    private fun getType(
-        psiTypeInfo: PsiTypeInfo,
-        contextNullability: ContextNullability = ContextNullability.none,
+        contextNullability: ContextNullability,
     ): PsiTypeItem {
-        return getType(psiTypeInfo.psiType, psiTypeInfo.context, contextNullability)
+        return getType(underlyingType.psiType, underlyingType.context, contextNullability)
     }
 
     /**
