@@ -622,13 +622,15 @@ internal open class TurbineCodebaseInitialiser(
         classItem.fields =
             fields.map { field ->
                 val annotations = createAnnotations(field.annotations())
+                val flags = field.access()
                 val fieldModifierItem =
                     TurbineModifierItem.create(
                         codebase,
-                        field.access(),
+                        flags,
                         annotations,
                         isDeprecated(field.decl()?.javadoc())
                     )
+                val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
                 val type = typeItemFactory.getGeneralType(field.type())
                 val documentation = field.decl()?.javadoc() ?: ""
                 val fieldItem =
@@ -639,6 +641,7 @@ internal open class TurbineCodebaseInitialiser(
                         type,
                         fieldModifierItem,
                         getCommentedDoc(documentation),
+                        isEnumConstant,
                     )
                 fieldModifierItem.setOwner(fieldItem)
                 val optExpr = field.decl()?.init()
