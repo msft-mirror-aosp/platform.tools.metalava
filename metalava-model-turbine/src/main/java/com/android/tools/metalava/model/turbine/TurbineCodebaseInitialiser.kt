@@ -631,6 +631,7 @@ internal open class TurbineCodebaseInitialiser(
                         isDeprecated(field.decl()?.javadoc())
                     )
                 val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
+                val fieldValue = createInitialValue(field)
                 val type = typeItemFactory.getGeneralType(field.type())
                 val documentation = field.decl()?.javadoc() ?: ""
                 val fieldItem =
@@ -642,11 +643,9 @@ internal open class TurbineCodebaseInitialiser(
                         fieldModifierItem,
                         getCommentedDoc(documentation),
                         isEnumConstant,
+                        fieldValue,
                     )
                 fieldModifierItem.setOwner(fieldItem)
-                val optExpr = field.decl()?.init()
-                val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
-                setInitialValue(fieldItem, field.value()?.getValue(), expr)
                 fieldItem
             }
     }
@@ -831,30 +830,31 @@ internal open class TurbineCodebaseInitialiser(
             .toString()
     }
 
-    private fun setInitialValue(fieldItem: TurbineFieldItem, value: Any?, expr: Expression?) {
-        if (value != null) {
-            fieldItem.initialValueWithRequiredConstant = value
-            fieldItem.initialValueWithoutRequiredConstant = value
-            return
-        }
-        if (expr != null) {
-            return when (expr.kind()) {
-                Tree.Kind.LITERAL -> {
-                    fieldItem.initialValueWithRequiredConstant = null
-                    fieldItem.initialValueWithoutRequiredConstant =
-                        getValue((expr as Literal).value())
-                }
-                // Class Type
-                Tree.Kind.CLASS_LITERAL -> {
-                    fieldItem.initialValueWithRequiredConstant = null
-                    fieldItem.initialValueWithoutRequiredConstant = expr
-                }
-                else -> {
-                    fieldItem.initialValueWithRequiredConstant = null
-                    fieldItem.initialValueWithoutRequiredConstant = null
-                }
+    private fun createInitialValue(field: FieldInfo): TurbineFieldValue {
+        val optExpr = field.decl()?.init()
+        val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
+        val constantValue = field.value()?.getValue()
+
+        val initialValueWithoutRequiredConstant =
+            when {
+                constantValue != null -> constantValue
+                expr == null -> null
+                else ->
+                    when (expr.kind()) {
+                        Tree.Kind.LITERAL -> {
+                            getValue((expr as Literal).value())
+                        }
+                        // Class Type
+                        Tree.Kind.CLASS_LITERAL -> {
+                            expr
+                        }
+                        else -> {
+                            null
+                        }
+                    }
             }
-        }
+
+        return TurbineFieldValue(constantValue, initialValueWithoutRequiredConstant)
     }
 
     /** Determines whether the given method is a default enum method ("values" or "valueOf"). */

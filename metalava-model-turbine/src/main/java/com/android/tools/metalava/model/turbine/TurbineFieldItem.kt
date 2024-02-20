@@ -29,11 +29,8 @@ internal class TurbineFieldItem(
     modifiers: DefaultModifierList,
     documentation: String,
     private val isEnumConstant: Boolean,
+    private val fieldValue: TurbineFieldValue?,
 ) : TurbineItem(codebase, modifiers, documentation), FieldItem {
-
-    internal var initialValueWithRequiredConstant: Any? = null
-
-    internal var initialValueWithoutRequiredConstant: Any? = null
 
     override var inheritedFrom: ClassItem? = null
 
@@ -64,9 +61,8 @@ internal class TurbineFieldItem(
                 modifiers.duplicate(),
                 documentation,
                 isEnumConstant,
+                fieldValue,
             )
-        duplicateField.initialValueWithRequiredConstant = initialValueWithRequiredConstant
-        duplicateField.initialValueWithoutRequiredConstant = initialValueWithoutRequiredConstant
         duplicateField.modifiers.setOwner(duplicateField)
         duplicateField.inheritedFrom = containingClass
 
@@ -84,10 +80,18 @@ internal class TurbineFieldItem(
         return duplicateField
     }
 
-    override fun initialValue(requireConstant: Boolean): Any? {
-        return if (requireConstant) initialValueWithRequiredConstant
-        else initialValueWithoutRequiredConstant
-    }
+    override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
 
     override fun isEnumConstant(): Boolean = isEnumConstant
+}
+
+/** Provides access to the initial values of a field. */
+class TurbineFieldValue(
+    private var initialValueWithRequiredConstant: Any?,
+    private var initialValueWithoutRequiredConstant: Any?,
+) {
+
+    fun initialValue(requireConstant: Boolean) =
+        if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
 }
