@@ -16,16 +16,16 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class PsiTypeItemAssignabilityTest : BasePsiTest() {
-    @get:Rule val tmpFolder = TemporaryFolder()
+@RunWith(Parameterized::class)
+class PsiTypeItemAssignabilityTest : BaseModelTest() {
 
     @Test
     fun `Assignability in PSI`() {
@@ -36,7 +36,7 @@ class PsiTypeItemAssignabilityTest : BasePsiTest() {
                     """
                 package test.foo;
                 import java.util.*;
-                public class JavaSubject {
+                public class Subject {
                     public Object obj;
                     public String string;
                     public int primitiveInt;
@@ -51,8 +51,8 @@ class PsiTypeItemAssignabilityTest : BasePsiTest() {
                 ),
                 kotlin(
                     """
-                package test.foo;
-                class KotlinSubject {
+                package test.foo
+                class Subject {
                     @JvmField
                     var obj: Any? = null
                     @JvmField
@@ -76,29 +76,14 @@ class PsiTypeItemAssignabilityTest : BasePsiTest() {
                 )
             )
 
-        testCodebase(sources = sourceFiles, classPath = listOf(getAndroidJar())) { codebase ->
-            val javaSubject = codebase.assertClass("test.foo.JavaSubject")
-            val kotlinSubject = codebase.assertClass("test.foo.KotlinSubject")
-            val testSubjects = listOf(javaSubject, kotlinSubject)
+        runCodebaseTest(*sourceFiles) {
+            val subject = codebase.assertClass("test.foo.Subject")
+
             // helper method to check assignability between fields
             fun String.isAssignableFromWithoutUnboxing(otherField: String): Boolean {
-                val results =
-                    testSubjects.map { subject ->
-                        val field1Type =
-                            checkNotNull(subject.findField(this)?.type() as? PsiTypeItem) {
-                                "cannot find $this in $subject"
-                            }
-                        val field2Type =
-                            checkNotNull(subject.findField(otherField)?.type() as? PsiTypeItem) {
-                                "cannot find $otherField in $subject"
-                            }
-                        field1Type.isAssignableFromWithoutUnboxing(field2Type)
-                    }
-                check(results.toSet().size == 1) {
-                    "isAssignable check for $this to $otherField returned inconsistent results " +
-                        "between kotlin and java: $results"
-                }
-                return results.first()
+                val field1Type = subject.assertField(this).type()
+                val field2Type = subject.assertField(otherField).type()
+                return field1Type.isAssignableFromWithoutUnboxing(field2Type)
             }
 
             assertThat("string".isAssignableFromWithoutUnboxing("string")).isTrue()
