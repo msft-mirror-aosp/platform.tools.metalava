@@ -76,11 +76,10 @@ class CommonIsAssignableFromTest : BaseModelTest() {
 
     @Test
     fun `Test assignability without unboxing`() {
-        val sourceFiles =
-            arrayOf(
-                // pass in the same class structure in kotlin and java.
-                java(
-                    """
+
+        runCodebaseTest(
+            java(
+                """
                 package test.foo;
                 import java.util.*;
                 public class Subject {
@@ -95,9 +94,9 @@ class CommonIsAssignableFromTest : BaseModelTest() {
                     public Map<Number, String> mapOfNumberToString;
                 }
                 """
-                ),
-                kotlin(
-                    """
+            ),
+            kotlin(
+                """
                 package test.foo
                 class Subject {
                     @JvmField
@@ -120,10 +119,26 @@ class CommonIsAssignableFromTest : BaseModelTest() {
                     var mapOfNumberToString: MutableMap<Number, String>? = null
                 }
                 """
-                )
-            )
-
-        runCodebaseTest(*sourceFiles) {
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.foo {
+                      public class Subject {
+                        field public Object obj;
+                        field public String string;
+                        field public int primitiveInt;
+                        field public Number number;
+                        field public Integer boxedInt;
+                        field public java.util.List<Integer> listOfInt;
+                        field public java.util.List<Number> listOfNumber;
+                        field public java.util.Map<Integer, String> mapOfIntToString;
+                        field public java.util.Map<Number, String> mapOfNumberToString;
+                      }
+                    }
+                """
+            ),
+        ) {
             val subject = codebase.assertClass("test.foo.Subject")
 
             val field1Type = subject.assertField(comparison.field1).type()
