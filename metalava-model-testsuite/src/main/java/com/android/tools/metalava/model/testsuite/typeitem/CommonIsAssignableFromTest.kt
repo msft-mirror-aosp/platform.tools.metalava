@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
@@ -25,7 +25,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class PsiTypeItemAssignabilityTest : BaseModelTest() {
+class CommonIsAssignableFromTest : BaseModelTest() {
 
     data class Comparison(
         val field1: String,
@@ -75,7 +75,7 @@ class PsiTypeItemAssignabilityTest : BaseModelTest() {
     @Parameterized.Parameter(1) lateinit var comparison: Comparison
 
     @Test
-    fun `Assignability in PSI`() {
+    fun `Test assignability without unboxing`() {
         val sourceFiles =
             arrayOf(
                 // pass in the same class structure in kotlin and java.
