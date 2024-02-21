@@ -179,12 +179,6 @@ interface Item {
     fun implicitNullness(): Boolean? = null
 
     /**
-     * Returns true if this item has generic type whose nullability is determined at subclass
-     * declaration site.
-     */
-    fun hasInheritedGenericType(): Boolean = false
-
-    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
      * declared as source
      */

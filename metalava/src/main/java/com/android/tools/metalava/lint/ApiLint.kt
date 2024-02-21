@@ -1877,7 +1877,7 @@ private constructor(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type is VariableTypeItem || item.hasInheritedGenericType()) {
+            if (type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.
