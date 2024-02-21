@@ -75,7 +75,6 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
-import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
@@ -1205,19 +1204,9 @@ private constructor(
                 name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")
             ) {
                 val returnType = method.returnType()
-                val returnsClassType =
-                    if (returnType is PsiTypeItem && clsType is PsiTypeItem) {
-                        clsType.isAssignableFromWithoutUnboxing(returnType)
-                    } else {
-                        // fallback to a limited text based check
-                        val returnTypeBounds =
-                            (returnType as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map {
-                                it.toTypeString()
-                            }
-                                ?: emptyList()
-                        returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
-                    }
-                if (!returnsClassType) {
+                val methodReturnsBuilderClassType =
+                    clsType.isAssignableFromWithoutUnboxing(returnType)
+                if (!methodReturnsBuilderClassType) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,

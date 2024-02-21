@@ -41,13 +41,14 @@ import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.util.TypeConversionUtil
 
 /** Represents a type backed by PSI */
-sealed class PsiTypeItem(
+internal sealed class PsiTypeItem(
     val psiType: PsiType,
     modifiers: TypeModifiers,
 ) : DefaultTypeItem(modifiers) {
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
-    fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
+    override fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
+        if (other !is PsiTypeItem) return super.isAssignableFromWithoutUnboxing(other)
         if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {
             return false
         }
