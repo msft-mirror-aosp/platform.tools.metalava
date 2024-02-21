@@ -27,6 +27,53 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 class PsiTypeItemAssignabilityTest : BaseModelTest() {
 
+    data class Comparison(
+        val field1: String,
+        val field2: String,
+        val expectedResult: Boolean,
+    ) {
+        override fun toString(): String {
+            return "$field1 to $field2"
+        }
+    }
+
+    companion object {
+        private val comparisons =
+            listOf(
+                Comparison("string", "string", true),
+                Comparison("obj", "string", true),
+                Comparison("string", "obj", false),
+                Comparison("primitiveInt", "number", false),
+                Comparison("number", "primitiveInt", true),
+                Comparison("boxedInt", "primitiveInt", true),
+                Comparison("primitiveInt", "boxedInt", false),
+                Comparison("number", "boxedInt", true),
+                Comparison("boxedInt", "number", false),
+                Comparison("listOfInt", "listOfInt", true),
+                Comparison("listOfInt", "listOfNumber", false),
+                Comparison("listOfNumber", "listOfInt", false),
+                Comparison("mapOfNumberToString", "mapOfNumberToString", true),
+                Comparison("mapOfNumberToString", "mapOfIntToString", false),
+                Comparison("mapOfIntToString", "mapOfNumberToString", false),
+            )
+
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0},{1}")
+        fun combinedTestParameters(): Iterable<Array<Any>> {
+            return crossProduct(comparisons)
+        }
+    }
+
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * See [baseParameters] for more info.
+     */
+    @Parameterized.Parameter(1) lateinit var comparison: Comparison
+
     @Test
     fun `Assignability in PSI`() {
         val sourceFiles =
@@ -79,31 +126,11 @@ class PsiTypeItemAssignabilityTest : BaseModelTest() {
         runCodebaseTest(*sourceFiles) {
             val subject = codebase.assertClass("test.foo.Subject")
 
-            // helper method to check assignability between fields
-            fun String.isAssignableFromWithoutUnboxing(otherField: String): Boolean {
-                val field1Type = subject.assertField(this).type()
-                val field2Type = subject.assertField(otherField).type()
-                return field1Type.isAssignableFromWithoutUnboxing(field2Type)
-            }
+            val field1Type = subject.assertField(comparison.field1).type()
+            val field2Type = subject.assertField(comparison.field2).type()
 
-            assertThat("string".isAssignableFromWithoutUnboxing("string")).isTrue()
-            assertThat("obj".isAssignableFromWithoutUnboxing("string")).isTrue()
-            assertThat("string".isAssignableFromWithoutUnboxing("obj")).isFalse()
-            assertThat("primitiveInt".isAssignableFromWithoutUnboxing("number")).isFalse()
-            assertThat("number".isAssignableFromWithoutUnboxing("primitiveInt")).isTrue()
-            assertThat("boxedInt".isAssignableFromWithoutUnboxing("primitiveInt")).isTrue()
-            assertThat("primitiveInt".isAssignableFromWithoutUnboxing("boxedInt")).isFalse()
-            assertThat("number".isAssignableFromWithoutUnboxing("boxedInt")).isTrue()
-            assertThat("boxedInt".isAssignableFromWithoutUnboxing("number")).isFalse()
-            assertThat("listOfInt".isAssignableFromWithoutUnboxing("listOfInt")).isTrue()
-            assertThat("listOfInt".isAssignableFromWithoutUnboxing("listOfNumber")).isFalse()
-            assertThat("listOfNumber".isAssignableFromWithoutUnboxing("listOfInt")).isFalse()
-            assertThat("mapOfNumberToString".isAssignableFromWithoutUnboxing("mapOfNumberToString"))
-                .isTrue()
-            assertThat("mapOfNumberToString".isAssignableFromWithoutUnboxing("mapOfIntToString"))
-                .isFalse()
-            assertThat("mapOfIntToString".isAssignableFromWithoutUnboxing("mapOfNumberToString"))
-                .isFalse()
+            assertThat(field1Type.isAssignableFromWithoutUnboxing(field2Type))
+                .isEqualTo(comparison.expectedResult)
         }
     }
 }
