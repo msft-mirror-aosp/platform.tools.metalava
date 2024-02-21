@@ -390,6 +390,11 @@ interface Item {
 
 abstract class DefaultItem(final override val modifiers: DefaultModifierList) : Item {
 
+    init {
+        @Suppress("LeakingThis")
+        modifiers.owner = this
+    }
+
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
     final override var originallyDeprecated = modifiers.isDeprecated()

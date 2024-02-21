@@ -358,7 +358,6 @@ internal constructor(
                     modifiers = modifiers,
                     type = type
                 )
-            parameter.modifiers.setOwner(parameter)
             return parameter
         }
 
@@ -376,7 +375,6 @@ internal constructor(
                     modifiers = original.modifiers.duplicate(),
                     type = type
                 )
-            parameter.modifiers.setOwner(parameter)
             return parameter
         }
 

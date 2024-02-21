@@ -89,7 +89,6 @@ internal class PsiTypeParameterItem(
                     name = simpleName,
                     modifiers = modifiers
                 )
-            item.modifiers.setOwner(item)
             item.finishInitialization()
             return item
         }

@@ -206,7 +206,6 @@ internal open class TurbineCodebaseInitialiser(
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers, document)
-            modifiers.setOwner(turbinePkgItem)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -339,7 +338,6 @@ internal open class TurbineCodebaseInitialiser(
                 getCommentedDoc(documentation),
                 sourceFile,
             )
-        modifierItem.setOwner(classItem)
         classItem.containingClass = containingClassItem
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
@@ -585,7 +583,6 @@ internal open class TurbineCodebaseInitialiser(
         val modifiers =
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, name = sym.name())
-        modifiers.setOwner(typeParamItem)
         return typeParamItem
     }
 
@@ -657,7 +654,6 @@ internal open class TurbineCodebaseInitialiser(
                         isEnumConstant,
                         fieldValue,
                     )
-                fieldModifierItem.setOwner(fieldItem)
                 fieldItem
             }
     }
@@ -704,7 +700,6 @@ internal open class TurbineCodebaseInitialiser(
                             getCommentedDoc(documentation),
                             defaultValue,
                         )
-                    methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters(), methodTypeItemFactory)
                     methodItem.throwableTypes =
                         getThrowsList(method.exceptions(), methodTypeItemFactory)
@@ -739,7 +734,6 @@ internal open class TurbineCodebaseInitialiser(
                         type,
                         parameterModifierItem,
                     )
-                parameterModifierItem.setOwner(parameterItem)
                 parameterItem
             }
     }
@@ -787,7 +781,6 @@ internal open class TurbineCodebaseInitialiser(
                             getCommentedDoc(documentation),
                             "",
                         )
-                    constructorModifierItem.setOwner(constructorItem)
                     createParameters(
                         constructorItem,
                         constructor.parameters(),

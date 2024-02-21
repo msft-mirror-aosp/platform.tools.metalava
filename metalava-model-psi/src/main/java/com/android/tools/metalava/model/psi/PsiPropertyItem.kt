@@ -153,7 +153,6 @@ private constructor(
             setter?.property = property
             constructorParameter?.property = property
             backingField?.property = property
-            property.modifiers.setOwner(property)
             return property
         }
     }

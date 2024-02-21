@@ -63,7 +63,6 @@ internal class TurbineFieldItem(
                 isEnumConstant,
                 fieldValue,
             )
-        duplicateField.modifiers.setOwner(duplicateField)
         duplicateField.inheritedFrom = containingClass
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages

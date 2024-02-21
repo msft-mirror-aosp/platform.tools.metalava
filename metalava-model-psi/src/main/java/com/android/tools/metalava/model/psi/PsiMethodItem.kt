@@ -346,7 +346,6 @@ open class PsiMethodItem(
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                 )
-            method.modifiers.setOwner(method)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
                 // The containing class is final, so it is implied that every method is final as
                 // well.
@@ -406,7 +405,6 @@ open class PsiMethodItem(
                     typeParameterList = original.typeParameterList,
                     throwsTypes = original.throwsTypes,
                 )
-            method.modifiers.setOwner(method)
 
             return method
         }

@@ -227,9 +227,7 @@ internal constructor(
     }
 
     /** Finish initialization of the item */
-    open fun finishInitialization() {
-        modifiers.setOwner(this)
-    }
+    open fun finishInitialization() {}
 
     override fun isJava(): Boolean {
         return !isKotlin()

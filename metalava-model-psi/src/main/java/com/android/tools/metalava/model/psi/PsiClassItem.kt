@@ -380,7 +380,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )
-            item.modifiers.setOwner(item)
             item.containingClass = containingClassItem
 
             // Register this class now.
