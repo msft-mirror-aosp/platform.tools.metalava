@@ -276,7 +276,19 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
         parameterIndex: Int,
         isVarArg: Boolean
     ): TypeItem {
-        return getType(underlyingParameterType, isVarArg = isVarArg)
+        val contextNullability =
+            ContextNullability(
+                inferNullability = {
+                    // Check for a known method's nullability.
+                    getMethodParameterNullability(fingerprint, parameterIndex)
+                }
+            )
+
+        return getType(
+            underlyingParameterType,
+            contextNullability = contextNullability,
+            isVarArg = isVarArg,
+        )
     }
 
     /** Type safe access to `this`. */
@@ -296,4 +308,22 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
         contextNullability: ContextNullability = ContextNullability.none,
         isVarArg: Boolean = false,
     ): TypeItem
+
+    companion object {
+        /**
+         * Get known [TypeNullability] for parameter [parameterIndex] of method with [fingerprint]
+         * if available, or `null`.
+         */
+        private fun getMethodParameterNullability(
+            fingerprint: MethodFingerprint,
+            parameterIndex: Int
+        ): TypeNullability? {
+            val (name, parameterCount) = fingerprint
+            return when {
+                name == "equals" && parameterCount == 1 ->
+                    TypeNullability.NULLABLE.takeIf { parameterIndex == 0 }
+                else -> null
+            }
+        }
+    }
 }
