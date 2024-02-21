@@ -389,7 +389,7 @@ internal constructor(
             // Construct the children
             val psiMethods = psiClass.methods
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
-            val isKotlin = isKotlin(psiClass)
+            val isKotlin = psiClass.isKotlin()
 
             if (
                 classKind == ClassKind.ANNOTATION_TYPE &&

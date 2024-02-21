@@ -71,7 +71,7 @@ internal constructor(
     override fun psi() = psiParameter
 
     override fun publicName(): String? {
-        if (isKotlin(psiParameter)) {
+        if (psiParameter.isKotlin()) {
             // Omit names of some special parameters in Kotlin. None of these parameters may be
             // set through Kotlin keyword arguments, so there's no need to track their names for
             // compatibility. This also helps avoid signature file churn if PSI or the compiler
@@ -117,7 +117,7 @@ internal constructor(
     override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
 
     override fun isDefaultValueKnown(): Boolean {
-        return if (isKotlin(psiParameter)) {
+        return if (psiParameter.isKotlin()) {
             defaultValue() != INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
@@ -186,7 +186,7 @@ internal constructor(
     }
 
     private fun computeDefaultValue(): String? {
-        if (isKotlin(psiParameter)) {
+        if (psiParameter.isKotlin()) {
             val ktFunction =
                 ((containingMethod.psiMethod as? UMethod)?.sourcePsi as? KtFunction)
                     ?: return INVALID_VALUE

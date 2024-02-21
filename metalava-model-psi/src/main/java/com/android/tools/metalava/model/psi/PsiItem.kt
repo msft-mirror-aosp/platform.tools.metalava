@@ -279,7 +279,7 @@ internal constructor(
     }
 
     override fun isKotlin(): Boolean {
-        return isKotlin(psi())
+        return psi().isKotlin()
     }
 
     companion object {
@@ -322,9 +322,10 @@ internal constructor(
         ): DefaultModifierList {
             return PsiModifierItem.create(codebase, element, documentation)
         }
-
-        fun isKotlin(element: PsiElement): Boolean {
-            return element.language === KotlinLanguage.INSTANCE
-        }
     }
+}
+
+/** Check whether a [PsiElement] is Kotlin or not. */
+fun PsiElement.isKotlin(): Boolean {
+    return language === KotlinLanguage.INSTANCE
 }
