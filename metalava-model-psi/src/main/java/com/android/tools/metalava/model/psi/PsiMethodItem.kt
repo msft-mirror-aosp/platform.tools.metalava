@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.android.tools.metalava.model.fixUpTypeNullability
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
@@ -407,10 +408,19 @@ open class PsiMethodItem(
             codebase: PsiBasedCodebase,
             psiMethod: PsiMethod,
             enclosingTypeItemFactory: PsiTypeItemFactory,
-        ) =
-            psiMethod.psiParameters.mapIndexed { index, parameter ->
-                PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
+        ): List<PsiParameterItem> {
+            val psiParameters = psiMethod.psiParameters
+            val fingerprint = MethodFingerprint(psiMethod.name, psiParameters.size)
+            return psiParameters.mapIndexed { index, parameter ->
+                PsiParameterItem.create(
+                    codebase,
+                    fingerprint,
+                    parameter,
+                    index,
+                    enclosingTypeItemFactory
+                )
             }
+        }
 
         internal fun throwsTypes(
             psiMethod: PsiMethod,

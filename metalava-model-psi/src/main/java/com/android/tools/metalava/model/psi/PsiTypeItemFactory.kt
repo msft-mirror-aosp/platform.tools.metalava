@@ -82,6 +82,9 @@ internal class PsiTypeItemFactory(
     override fun getType(
         underlyingType: PsiTypeInfo,
         contextNullability: ContextNullability,
+        // The isVarArg is unused here as that information is encoded in the [PsiType] using the
+        // [PsiEllipsisType] extension of [PsiArrayType].
+        isVarArg: Boolean,
     ): PsiTypeItem {
         return getType(underlyingType.psiType, underlyingType.context, contextNullability)
     }

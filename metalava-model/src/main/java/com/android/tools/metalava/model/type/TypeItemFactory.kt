@@ -110,7 +110,43 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
         isFinal: Boolean,
         isInitialValueNonNull: () -> Boolean,
     ): TypeItem = error("unsupported")
+
+    /**
+     * Get the parameter type for a method (or constructor).
+     *
+     * This considers a number of factors, in addition to the declared type, to determine the
+     * appropriate [TypeNullability] for the method parameter type, i.e.:
+     * * Any [AnnotationItem.typeNullability] annotations in [itemAnnotations].
+     * * Method [fingerprint], which may match a known method whose return type has a known
+     *   [TypeNullability].
+     *
+     * @param underlyingParameterType the underlying model's type.
+     * @param itemAnnotations the annotations on the method parameter (not the type).
+     * @param fingerprint method fingerprint
+     * @param parameterIndex the index of the parameter in the method's list of parameters.
+     * @param isVarArg whether this parameter is a vararg parameter. This is provided separately to
+     *   the [underlyingParameterType] because while some models encapsulate that information within
+     *   the type not all do.
+     */
+    fun getMethodParameterType(
+        underlyingParameterType: T,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        parameterIndex: Int,
+        isVarArg: Boolean,
+    ): TypeItem = error("unsupported")
 }
+
+/**
+ * A fingerprint of a method that is used to determined if it is a known method with known
+ * nullability.
+ */
+data class MethodFingerprint(
+    /** The name of the method. */
+    val name: String,
+    /** The number of parameters. */
+    val parameterCount: Int,
+)
 
 /**
  * Encapsulates the information necessary to compute the [TypeNullability] from a variety of
@@ -233,6 +269,16 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
         return getType(underlyingType, contextNullability = contextNullability)
     }
 
+    override fun getMethodParameterType(
+        underlyingParameterType: T,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        parameterIndex: Int,
+        isVarArg: Boolean
+    ): TypeItem {
+        return getType(underlyingParameterType, isVarArg = isVarArg)
+    }
+
     /** Type safe access to `this`. */
     protected abstract fun self(): F
 
@@ -241,9 +287,13 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
 
     /**
      * Get the [TypeItem] corresponding to the [underlyingType] and within the [contextNullability].
+     *
+     * The [isVarArg] is provided separately to the [underlyingType] because not all models
+     * encapsulate that information within the type.
      */
     protected abstract fun getType(
         underlyingType: T,
         contextNullability: ContextNullability = ContextNullability.none,
+        isVarArg: Boolean = false,
     ): TypeItem
 }

@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.fixUpTypeNullability
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -745,7 +746,7 @@ internal open class TurbineCodebaseInitialiser(
                         methodItem,
                         decl?.params(),
                         method.parameters(),
-                        methodTypeItemFactory
+                        methodTypeItemFactory,
                     )
                     methodItem.throwableTypes =
                         getThrowsList(method.exceptions(), methodTypeItemFactory)
@@ -762,6 +763,7 @@ internal open class TurbineCodebaseInitialiser(
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
+        val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total
         // number of [parameters] minus the number of declared parameters [parameterDecls]. The
@@ -775,9 +777,12 @@ internal open class TurbineCodebaseInitialiser(
                 val parameterModifierItem =
                     TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type =
-                    typeItemFactory.createType(
-                        parameter.type(),
-                        parameterModifierItem.isVarArg(),
+                    typeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameter.type(),
+                        itemAnnotations = annotations,
+                        fingerprint = fingerprint,
+                        parameterIndex = idx,
+                        isVarArg = parameterModifierItem.isVarArg(),
                     )
                 // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
                 val decl =
@@ -848,7 +853,7 @@ internal open class TurbineCodebaseInitialiser(
                         constructorItem,
                         decl?.params(),
                         constructor.parameters(),
-                        constructorTypeItemFactory
+                        constructorTypeItemFactory,
                     )
                     constructorItem.throwableTypes =
                         getThrowsList(constructor.exceptions(), constructorTypeItemFactory)

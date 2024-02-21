@@ -51,8 +51,11 @@ internal class TurbineTypeItemFactory(
     override fun createNestedFactory(scope: TypeParameterScope) =
         TurbineTypeItemFactory(codebase, initializer, scope)
 
-    override fun getType(underlyingType: Type, contextNullability: ContextNullability) =
-        createType(underlyingType, false, contextNullability)
+    override fun getType(
+        underlyingType: Type,
+        contextNullability: ContextNullability,
+        isVarArg: Boolean,
+    ) = createType(underlyingType, isVarArg, contextNullability)
 
     private fun createModifiers(
         annos: List<AnnoInfo>,
