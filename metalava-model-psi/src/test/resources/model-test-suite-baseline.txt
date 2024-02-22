@@ -6,6 +6,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+  Test nullability of Kotlin varargs not-last[kotlin,k1]
+  Test nullability of Kotlin varargs not-last[kotlin,k2]
+
 com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
   Test property delegate to Kotlin object[kotlin,k2]
 
