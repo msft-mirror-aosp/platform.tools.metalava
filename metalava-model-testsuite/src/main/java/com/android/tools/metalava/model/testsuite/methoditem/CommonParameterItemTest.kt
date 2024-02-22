@@ -373,4 +373,103 @@ class CommonParameterItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test nullability of non-Kotlin varargs`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.notTypeUseNonNullSource,
+                KnownSourceFiles.notTypeUseNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import not.type.use.NonNull;
+                        import not.type.use.Nullable;
+
+                        public class Foo {
+                            public void nullable(@Nullable String... p);
+                            public void nonNull(@NonNull String... p);
+                            public void platform(String... p);
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public void nullable(@Nullable String... p);
+                            method public void nonNull(@NonNull String... p);
+                            method public void platform(String... p);
+                          }
+                        }
+                    """
+                ),
+            ),
+            // Kotlin does not care about different nullability annotations.
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "java.lang.String!...?",
+                    "nonNull" to "java.lang.String!...",
+                    "platform" to "java.lang.String!...!",
+                )
+            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+                val name = method.name()
+                val expectedType = expectedTypes[name]!!
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = method.parameters().single().type()
+                assertWithMessage(name)
+                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin varargs`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun nullable(vararg p: String?)
+                        fun nonNull(vararg p: String)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void nullable(String?... p);
+                        method public void nonNull(String... p);
+                      }
+                    }
+                """
+            ),
+            // Kotlin does not care about different nullability annotations.
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "java.lang.String?...",
+                    "nonNull" to "java.lang.String...",
+                )
+            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+                val name = method.name()
+                val expectedType = expectedTypes[name]!!
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = method.parameters().single().type()
+                assertWithMessage(name)
+                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
 }
