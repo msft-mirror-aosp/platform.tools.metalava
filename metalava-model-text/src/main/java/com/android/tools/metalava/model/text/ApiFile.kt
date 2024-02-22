@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -921,6 +922,23 @@ private constructor(
         }
     }
 
+    /**
+     * Check whether the method is a synthetic enum method.
+     *
+     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
+     * Kotlin.
+     */
+    private fun isEnumSyntheticMethod(
+        containingClass: ClassItem,
+        name: String,
+        parameters: List<ParameterItem>
+    ): Boolean {
+        if (!containingClass.isEnum()) return false
+        val parameterCount = parameters.size
+        return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
+            (parameterCount == 1 && name == "valueOf" && parameters[0].type().isString())
+    }
+
     private fun parseMethod(
         tokenizer: Tokenizer,
         cl: TextClassItem,
@@ -999,6 +1017,9 @@ private constructor(
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
+
+        // Ignore enum synthetic methods.
+        if (isEnumSyntheticMethod(cl, name, parameters)) return
 
         method =
             TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())

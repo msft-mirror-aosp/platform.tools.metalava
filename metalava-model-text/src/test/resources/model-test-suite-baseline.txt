@@ -11,9 +11,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values[text,signature]
   annotation with type cast values[text,signature]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
-  Test enum synthetic methods are not included in the enum class[text,signature]
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of enum constant[text,signature]
   Test nullability of non-null field annotated with @Nullable or kotlin equivalent[text,signature]
