@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -193,26 +192,10 @@ internal class PsiWildcardTypeItem(
 
 /**
  * Determine if this item implies that its associated type is a non-null array with non-null
- * components. This is true for the synthetic `Enum.values()` method and any annotation properties
- * or accessors.
+ * components.
  */
 private fun Item.impliesNonNullArrayComponents(): Boolean {
-    fun MemberItem.isAnnotationPropertiesOrAccessors(): Boolean =
-        containingClass().isAnnotationType() && !modifiers.isStatic()
-
-    // TODO: K2 UAST regression, KTIJ-24754
-    fun MethodItem.isEnumValues(): Boolean =
-        containingClass().isEnum() &&
-            modifiers.isStatic() &&
-            name() == "values" &&
-            parameters().isEmpty()
-
-    return when (this) {
-        is MemberItem -> {
-            isAnnotationPropertiesOrAccessors() || (this is MethodItem && isEnumValues())
-        }
-        else -> false
-    }
+    return (this is MemberItem) && containingClass().isAnnotationType() && !modifiers.isStatic()
 }
 
 /**
