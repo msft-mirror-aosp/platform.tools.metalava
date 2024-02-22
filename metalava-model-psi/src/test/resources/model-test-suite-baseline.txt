@@ -4,9 +4,6 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[psi,java]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
-  Test enum synthetic methods are not included in the enum class[psi,kotlin]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
   Test nullability of outer classes[psi,java]
