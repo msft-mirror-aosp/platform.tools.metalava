@@ -1204,6 +1204,10 @@ class ApiAnalyzer(
         if (containingClass != null) {
             cantStripThis(containingClass, filter, notStrippable, cl, "as containing class")
         }
+        // all visible inner classes will be included in stubs
+        cl.innerClasses()
+            .filter { it.isApiCandidate() }
+            .forEach { cantStripThis(it, filter, notStrippable, cl, "as inner class") }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
         val superItems = cl.allInterfaces().toMutableSet()
