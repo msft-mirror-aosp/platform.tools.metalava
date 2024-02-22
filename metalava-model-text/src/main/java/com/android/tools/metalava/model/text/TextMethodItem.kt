@@ -136,9 +136,6 @@ internal open class TextMethodItem(
         return duplicated
     }
 
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
-
     private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 
     override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
