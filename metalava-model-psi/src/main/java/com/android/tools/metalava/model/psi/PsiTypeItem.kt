@@ -221,12 +221,7 @@ private fun Item.impliesNonNullArrayComponents(): Boolean {
  */
 internal fun TypeItem.finishInitialization(owner: PsiItem) {
     val implicitNullness = owner.implicitNullness()
-    // Kotlin varargs can't be null, but the annotation for the component type ends up on the
-    // context item, so avoid setting Kotlin varargs to nullable.
-    if (
-        (implicitNullness == true || owner.modifiers.isNullable()) &&
-            !(owner.isKotlin() && this is ArrayTypeItem && isVarargs)
-    ) {
+    if (implicitNullness == true || owner.modifiers.isNullable()) {
         modifiers.setNullability(TypeNullability.NULLABLE)
     } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
         modifiers.setNullability(TypeNullability.NONNULL)

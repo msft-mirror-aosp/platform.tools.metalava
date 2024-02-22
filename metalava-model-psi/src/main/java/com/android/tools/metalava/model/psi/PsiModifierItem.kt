@@ -130,6 +130,12 @@ internal object PsiModifierItem {
         element: PsiModifierListOwner,
         modifiers: DefaultModifierList,
     ): Boolean {
+        // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
+        // added to the [PsiParameter] so remove it from the modifiers.
+        if (element is PsiParameter && element.isVarArgs && element.isKotlin()) {
+            return true
+        }
+
         // Although https://youtrack.jetbrains.com/issue/KTIJ-19087 has been fixed there still
         // seems to be an issue with reified type parameters causing nullability annotations
         // being added to the parameter even when the use site does not require
