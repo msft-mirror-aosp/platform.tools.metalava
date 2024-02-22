@@ -150,6 +150,12 @@ interface Item {
 
     override fun hashCode(): Int
 
+    /** Calls [toStringForItem]. */
+    override fun toString(): String
+
+    /** Provides a string representation of the item, suitable for use while debugging. */
+    fun toStringForItem(): String
+
     /**
      * Returns true if this item requires nullness information (e.g. for a method where either the
      * return value or any of the parameters are non-primitives. Note that it doesn't consider
@@ -423,4 +429,6 @@ abstract class DefaultItem(final override val modifiers: DefaultModifierList) : 
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
+
+    final override fun toString() = toStringForItem()
 }

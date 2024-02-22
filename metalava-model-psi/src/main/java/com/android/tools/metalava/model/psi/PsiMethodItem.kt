@@ -430,10 +430,6 @@ open class PsiMethodItem(
                 .sortedWith(ExceptionTypeItem.fullNameComparator)
         }
     }
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${
-    containingClass.qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 }
 
 /** Get the [PsiParameter]s for a [PsiMethod]. */

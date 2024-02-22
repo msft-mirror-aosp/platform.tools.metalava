@@ -248,8 +248,6 @@ internal constructor(
         return parameterIndex
     }
 
-    override fun toString(): String = "parameter ${name()}"
-
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }

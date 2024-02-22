@@ -142,6 +142,11 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         visitor.visit(this)
     }
 
+    override fun toStringForItem(): String {
+        return "${if (isConstructor()) "constructor" else "method"} ${
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+    }
+
     companion object {
         private fun compareMethods(
             o1: MethodItem,

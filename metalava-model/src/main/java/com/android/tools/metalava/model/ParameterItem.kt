@@ -88,6 +88,8 @@ interface ParameterItem : Item {
         visitor.visit(this)
     }
 
+    override fun toStringForItem() = "parameter ${name()}"
+
     override fun requiresNullnessInfo(): Boolean {
         return type() !is PrimitiveTypeItem
     }

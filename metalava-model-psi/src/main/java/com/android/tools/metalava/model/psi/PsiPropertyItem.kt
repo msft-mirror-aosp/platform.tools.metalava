@@ -69,8 +69,6 @@ private constructor(
         return name.hashCode()
     }
 
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
-
     override fun finishInitialization() {
         super.finishInitialization()
         fieldType.finishInitialization(this)
