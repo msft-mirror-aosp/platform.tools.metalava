@@ -1190,20 +1190,6 @@ class ApiAnalyzer(
                             }
                         }
                     }
-
-                    val t = m.returnType()
-                    if (
-                        t !is PrimitiveTypeItem &&
-                            !m.deprecated &&
-                            !cl.deprecated &&
-                            t.asClass()?.deprecated == true
-                    ) {
-                        reporter.report(
-                            Issues.REFERENCES_DEPRECATED,
-                            m,
-                            "Returning deprecated type $t from ${cl.qualifiedName()}.${m.name()}(): this method should also be deprecated"
-                        )
-                    }
                 }
 
                 if (!cl.deprecated) {
