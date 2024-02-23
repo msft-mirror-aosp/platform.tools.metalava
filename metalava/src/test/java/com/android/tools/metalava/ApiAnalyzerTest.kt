@@ -625,4 +625,54 @@ class ApiAnalyzerTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test that usage of effectively deprecated class is flagged`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated */
+                        @Deprecated
+                        public class DeprecatedOuterClass {
+                            public class EffectivelyDeprecatedInnerClass {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class NotDeprecatedClass extends DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                            public void usesEffectivelyDeprecatedInnerClass(DeprecatedOuterClass.EffectivelyDeprecatedInnerClass edic) {}
+                        }
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  @Deprecated public class DeprecatedOuterClass {
+                    ctor @Deprecated public DeprecatedOuterClass();
+                  }
+                  @Deprecated public class DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                    ctor @Deprecated public DeprecatedOuterClass.EffectivelyDeprecatedInnerClass();
+                  }
+                  public class NotDeprecatedClass extends test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                    ctor public NotDeprecatedClass();
+                    method public void usesEffectivelyDeprecatedInnerClass(test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass!);
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
+                src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
+            """,
+        )
+    }
 }

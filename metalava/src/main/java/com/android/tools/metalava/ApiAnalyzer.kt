@@ -1128,7 +1128,7 @@ class ApiAnalyzer(
 
                 if (!cl.effectivelyDeprecated) {
                     val s = cl.superClass()
-                    if (s?.deprecated == true) {
+                    if (s?.effectivelyDeprecated == true) {
                         reporter.report(
                             Issues.EXTENDS_DEPRECATED,
                             cl,
@@ -1137,7 +1137,7 @@ class ApiAnalyzer(
                     }
 
                     for (t in cl.interfaceTypes()) {
-                        if (t.asClass()?.deprecated == true) {
+                        if (t.asClass()?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.EXTENDS_DEPRECATED,
                                 cl,
@@ -1320,7 +1320,9 @@ class ApiAnalyzer(
         containingClass: ClassItem,
         usage: String
     ) {
-        if (!containingMethod.effectivelyDeprecated && type.asClass()?.deprecated == true) {
+        if (
+            !containingMethod.effectivelyDeprecated && type.asClass()?.effectivelyDeprecated == true
+        ) {
             reporter.report(
                 Issues.REFERENCES_DEPRECATED,
                 containingMethod,
