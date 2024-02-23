@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ModelOptions
 import java.io.File
 
 /**
@@ -43,6 +44,9 @@ interface ModelSuiteRunner {
 
     /** Inputs for the test. */
     data class TestInputs(
+        /** Model options to pass down to the model runner. */
+        val modelOptions: ModelOptions,
+
         /** The main sources that will be loaded into the [Codebase] to be tested. */
         val mainSourceDir: SourceDir,
     )

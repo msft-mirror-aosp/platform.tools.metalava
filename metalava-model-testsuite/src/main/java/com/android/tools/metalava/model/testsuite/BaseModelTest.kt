@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.SourceCodebase
 import java.util.ServiceLoader
 import kotlin.test.fail
@@ -105,7 +106,13 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
             val list =
                 runners.flatMap { runner ->
                     runner.supportedInputFormats
-                        .map { inputFormat -> TestParameters(runner, inputFormat) }
+                        .map { inputFormat ->
+                            TestParameters(
+                                runner,
+                                inputFormat,
+                                ModelOptions.empty,
+                            )
+                        }
                         .toList()
                 }
             return list
@@ -203,6 +210,7 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
                     ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
                 val inputs =
                     ModelSuiteRunner.TestInputs(
+                        modelOptions = baseParameters.modelOptions,
                         mainSourceDir = mainSourceDir,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }

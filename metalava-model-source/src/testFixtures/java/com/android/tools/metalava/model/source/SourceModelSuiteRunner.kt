@@ -63,14 +63,18 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
         classPath: List<File>,
     ): Codebase {
         val reporter = BasicReporter(PrintWriter(System.err))
-        return environmentManager
-            .createSourceParser(reporter, noOpAnnotationManager)
-            .parseSources(
-                SourceSet(inputs.mainSourceDir.createFiles(), listOf(inputs.mainSourceDir.dir)),
-                SourceSet.empty(),
-                description = "Test Codebase",
-                classPath = classPath,
+        val sourceParser =
+            environmentManager.createSourceParser(
+                reporter = reporter,
+                annotationManager = noOpAnnotationManager,
+                modelOptions = inputs.modelOptions,
             )
+        return sourceParser.parseSources(
+            SourceSet(inputs.mainSourceDir.createFiles(), listOf(inputs.mainSourceDir.dir)),
+            SourceSet.empty(),
+            description = "Test Codebase",
+            classPath = classPath,
+        )
     }
 
     override fun toString(): String = sourceModelProvider.providerName
