@@ -31,6 +31,21 @@ interface ModelSuiteRunner {
     /** The set of supported [InputFormat]s that this runner can handle. */
     val supportedInputFormats: Set<InputFormat>
 
+    /** Defines a specific test configuration for which the model tests should be run. */
+    data class TestConfiguration(
+        val inputFormat: InputFormat,
+        val modelOptions: ModelOptions = ModelOptions.empty,
+    )
+
+    /**
+     * The [TestConfiguration]s of this [ModelSuiteRunner] for which the model suite tests must be
+     * run.
+     *
+     * Defaults to just one per [supportedInputFormats].
+     */
+    val testConfigurations
+        get() = supportedInputFormats.map { TestConfiguration(it) }.toList()
+
     /** A source directory and its contents. */
     data class SourceDir(
         /** The directory in which [contents] will be created. */

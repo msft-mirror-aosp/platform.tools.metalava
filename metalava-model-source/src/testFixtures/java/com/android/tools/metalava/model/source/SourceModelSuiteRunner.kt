@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
@@ -41,6 +42,13 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
         InputFormat.values()
             .filter { it.sourceLanguage in sourceModelProvider.supportedLanguages }
             .toSet()
+
+    override val testConfigurations: List<TestConfiguration> =
+        supportedInputFormats.flatMap { inputFormat ->
+            sourceModelProvider.modelOptionsList.map { modelOptions ->
+                TestConfiguration(inputFormat, modelOptions)
+            }
+        }
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,
