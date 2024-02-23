@@ -1073,13 +1073,8 @@ class ApiAnalyzer(
         )
     }
 
+    // TODO: Switch to visitor iteration
     fun handleStripping() {
-        // TODO: Switch to visitor iteration
-        val stubImportPackages = config.stubImportPackages
-        handleStripping(stubImportPackages)
-    }
-
-    private fun handleStripping(stubImportPackages: Set<String>) {
         val notStrippable = HashSet<ClassItem>(5000)
 
         val filter = ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
@@ -1089,7 +1084,7 @@ class ApiAnalyzer(
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
             .filter { it.isApiCandidate() && it.emit && !it.hidden() }
-            .forEach { cantStripThis(it, filter, notStrippable, stubImportPackages, it, "self") }
+            .forEach { cantStripThis(it, filter, notStrippable, it, "self") }
 
         // complain about anything that looks includeable but is not supposed to
         // be written, e.g. hidden things
@@ -1137,7 +1132,7 @@ class ApiAnalyzer(
                         )
                     }
 
-                    val returnHiddenClasses = findHiddenClasses(returnType, stubImportPackages)
+                    val returnHiddenClasses = findHiddenClasses(returnType)
                     val returnClassName = (returnType as? ClassTypeItem)?.qualifiedName
                     for (hiddenClass in returnHiddenClasses) {
                         if (hiddenClass.isFromClassPath()) continue
@@ -1173,7 +1168,7 @@ class ApiAnalyzer(
                                 )
                             }
 
-                            val parameterHiddenClasses = findHiddenClasses(t, stubImportPackages)
+                            val parameterHiddenClasses = findHiddenClasses(t)
                             val parameterClassName = (t as? ClassTypeItem)?.qualifiedName
                             for (hiddenClass in parameterHiddenClasses) {
                                 if (hiddenClass.isFromClassPath()) continue
@@ -1242,14 +1237,10 @@ class ApiAnalyzer(
         cl: ClassItem,
         filter: Predicate<Item>,
         notStrippable: MutableSet<ClassItem>,
-        stubImportPackages: Set<String>?,
         from: Item,
         usage: String
     ) {
-        if (
-            stubImportPackages != null &&
-                stubImportPackages.contains(cl.containingPackage().qualifiedName())
-        ) {
+        if (config.stubImportPackages.contains(cl.containingPackage().qualifiedName())) {
             // if the package is imported then it does not need stubbing.
             return
         }
@@ -1279,33 +1270,19 @@ class ApiAnalyzer(
             if (!filter.test(field)) {
                 continue
             }
-            cantStripThis(
-                field.type(),
-                field,
-                filter,
-                notStrippable,
-                stubImportPackages,
-                "in field type"
-            )
+            cantStripThis(field.type(), field, filter, notStrippable, "in field type")
         }
         // cant strip any of the type's generics
-        cantStripThis(cl.typeParameterList, filter, notStrippable, stubImportPackages, cl)
+        cantStripThis(cl.typeParameterList, filter, notStrippable, cl)
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
-        cantStripThis(cl.methods(), filter, notStrippable, stubImportPackages)
-        cantStripThis(cl.constructors(), filter, notStrippable, stubImportPackages)
+        cantStripThis(cl.methods(), filter, notStrippable)
+        cantStripThis(cl.constructors(), filter, notStrippable)
         // blow the outer class open if this is an inner class
         val containingClass = cl.containingClass()
         if (containingClass != null) {
-            cantStripThis(
-                containingClass,
-                filter,
-                notStrippable,
-                stubImportPackages,
-                cl,
-                "as containing class"
-            )
+            cantStripThis(containingClass, filter, notStrippable, cl, "as containing class")
         }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
@@ -1354,7 +1331,6 @@ class ApiAnalyzer(
         methods: List<MethodItem>,
         filter: Predicate<Item>,
         notStrippable: MutableSet<ClassItem>,
-        stubImportPackages: Set<String>?
     ) {
         // for each method, blow open the parameters, throws and return types. also blow open their
         // generics
@@ -1362,43 +1338,22 @@ class ApiAnalyzer(
             if (!filter.test(method)) {
                 continue
             }
-            cantStripThis(
-                method.typeParameterList,
-                filter,
-                notStrippable,
-                stubImportPackages,
-                method
-            )
+            cantStripThis(method.typeParameterList, filter, notStrippable, method)
             for (parameter in method.parameters()) {
                 cantStripThis(
                     parameter.type(),
                     parameter,
                     filter,
                     notStrippable,
-                    stubImportPackages,
                     "in parameter type"
                 )
             }
             for (thrown in method.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
                 val classItem = thrown.erasedClass ?: continue
-                cantStripThis(
-                    classItem,
-                    filter,
-                    notStrippable,
-                    stubImportPackages,
-                    method,
-                    "as exception"
-                )
+                cantStripThis(classItem, filter, notStrippable, method, "as exception")
             }
-            cantStripThis(
-                method.returnType(),
-                method,
-                filter,
-                notStrippable,
-                stubImportPackages,
-                "in return type"
-            )
+            cantStripThis(method.returnType(), method, filter, notStrippable, "in return type")
         }
     }
 
@@ -1406,19 +1361,11 @@ class ApiAnalyzer(
         typeParameterList: TypeParameterList,
         filter: Predicate<Item>,
         notStrippable: MutableSet<ClassItem>,
-        stubImportPackages: Set<String>?,
         context: Item
     ) {
         for (typeParameter in typeParameterList) {
             for (bound in typeParameter.typeBounds()) {
-                cantStripThis(
-                    bound,
-                    context,
-                    filter,
-                    notStrippable,
-                    stubImportPackages,
-                    "as type parameter"
-                )
+                cantStripThis(bound, context, filter, notStrippable, "as type parameter")
             }
         }
     }
@@ -1428,21 +1375,13 @@ class ApiAnalyzer(
         context: Item,
         filter: Predicate<Item>,
         notStrippable: MutableSet<ClassItem>,
-        stubImportPackages: Set<String>?,
         usage: String,
     ) {
         type.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.asClass() ?: return
-                    cantStripThis(
-                        asClass,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        context,
-                        usage
-                    )
+                    cantStripThis(asClass, filter, notStrippable, context, usage)
                 }
             }
         )
@@ -1460,18 +1399,18 @@ class ApiAnalyzer(
      * excluded from the set of classes for which stubs are required.
      *
      * @param ti the type information to examine for references to hidden classes.
-     * @param stubImportPackages the possibly null set of imported package names.
      * @return all references to hidden classes referenced by the type
      */
-    private fun findHiddenClasses(ti: TypeItem, stubImportPackages: Set<String>?): Set<ClassItem> {
+    private fun findHiddenClasses(ti: TypeItem): Set<ClassItem> {
         val hiddenClasses = mutableSetOf<ClassItem>()
         ti.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.asClass() ?: return
                     if (
-                        stubImportPackages != null &&
-                            stubImportPackages.contains(asClass.containingPackage().qualifiedName())
+                        config.stubImportPackages.contains(
+                            asClass.containingPackage().qualifiedName()
+                        )
                     ) {
                         return
                     }
