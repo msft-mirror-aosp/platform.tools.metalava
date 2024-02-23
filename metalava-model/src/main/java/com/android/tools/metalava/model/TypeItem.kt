@@ -1076,9 +1076,9 @@ private fun Item.impliesNonNullArrayComponents(): Boolean {
  */
 fun TypeItem.fixUpTypeNullability(owner: Item) {
     val implicitNullness = owner.implicitNullness()
-    if (implicitNullness == true || owner.modifiers.isNullable()) {
+    if (implicitNullness == TypeNullability.NULLABLE || owner.modifiers.isNullable()) {
         modifiers.setNullability(TypeNullability.NULLABLE)
-    } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
+    } else if (implicitNullness == TypeNullability.NONNULL || owner.modifiers.isNonNull()) {
         modifiers.setNullability(TypeNullability.NONNULL)
     }
 

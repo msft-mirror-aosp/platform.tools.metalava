@@ -102,7 +102,7 @@ interface ParameterItem : Item {
         return modifiers.hasNullnessInfo()
     }
 
-    override fun implicitNullness(): Boolean? {
+    override fun implicitNullness(): TypeNullability? {
         // Delegate to the super class, only dropping through if it did not determine an implicit
         // nullness.
         super.implicitNullness()?.let { nullable ->
@@ -112,7 +112,7 @@ interface ParameterItem : Item {
         // Equals has known nullness
         val method = containingMethod()
         if (method.name() == "equals" && method.parameters().size == 1) {
-            return true
+            return TypeNullability.NULLABLE
         }
 
         return null
