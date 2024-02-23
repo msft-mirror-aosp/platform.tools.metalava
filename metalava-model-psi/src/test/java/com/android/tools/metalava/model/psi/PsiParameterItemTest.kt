@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
 class PsiParameterItemTest : BasePsiTest() {
     @Test
     fun `primary constructor parameters have properties`() {
-        testCodebase(kotlin("class Foo(val property: Int, parameter: Int)")) { codebase ->
+        runCodebaseTest(kotlin("class Foo(val property: Int, parameter: Int)")) {
             val constructorItem = codebase.assertClass("Foo").constructors().single()
             val propertyParameter = constructorItem.parameters().single { it.name() == "property" }
             val regularParameter = constructorItem.parameters().single { it.name() == "parameter" }
