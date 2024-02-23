@@ -36,7 +36,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -1121,74 +1120,9 @@ class ApiAnalyzer(
                         )
                     }
 
-                    val returnType = m.returnType()
-                    if (
-                        !m.deprecated && !cl.deprecated && returnType.asClass()?.deprecated == true
-                    ) {
-                        reporter.report(
-                            Issues.REFERENCES_DEPRECATED,
-                            m,
-                            "Return type of deprecated type $returnType in ${cl.qualifiedName()}.${m.name()}(): this method should also be deprecated"
-                        )
-                    }
-
-                    val returnHiddenClasses = findHiddenClasses(returnType)
-                    val returnClassName = (returnType as? ClassTypeItem)?.qualifiedName
-                    for (hiddenClass in returnHiddenClasses) {
-                        if (hiddenClass.isFromClassPath()) continue
-                        if (hiddenClass.qualifiedName() == returnClassName) {
-                            // Return type is hidden
-                            reporter.report(
-                                Issues.UNAVAILABLE_SYMBOL,
-                                m,
-                                "Method ${cl.qualifiedName()}.${m.name()} returns unavailable " +
-                                    "type ${hiddenClass.simpleName()}"
-                            )
-                        } else {
-                            // Return type contains a generic parameter
-                            reporter.report(
-                                Issues.HIDDEN_TYPE_PARAMETER,
-                                m,
-                                "Method ${cl.qualifiedName()}.${m.name()} returns unavailable " +
-                                    "type ${hiddenClass.simpleName()} as a type parameter"
-                            )
-                        }
-                    }
-
+                    checkTypeReferencesHiddenOrDeprecated(m.returnType(), m, cl, "Return type")
                     for (p in m.parameters()) {
-                        val t = p.type()
-                        if (t !is PrimitiveTypeItem) {
-                            if (
-                                !m.deprecated && !cl.deprecated && t.asClass()?.deprecated == true
-                            ) {
-                                reporter.report(
-                                    Issues.REFERENCES_DEPRECATED,
-                                    m,
-                                    "Parameter of deprecated type $t in ${cl.qualifiedName()}.${m.name()}(): this method should also be deprecated"
-                                )
-                            }
-
-                            val parameterHiddenClasses = findHiddenClasses(t)
-                            val parameterClassName = (t as? ClassTypeItem)?.qualifiedName
-                            for (hiddenClass in parameterHiddenClasses) {
-                                if (hiddenClass.isFromClassPath()) continue
-                                if (hiddenClass.qualifiedName() == parameterClassName) {
-                                    // Parameter type is hidden
-                                    reporter.report(
-                                        Issues.UNAVAILABLE_SYMBOL,
-                                        m,
-                                        "Parameter of unavailable type $t in ${cl.qualifiedName()}.${m.name()}()"
-                                    )
-                                } else {
-                                    // Parameter type contains a generic parameter
-                                    reporter.report(
-                                        Issues.HIDDEN_TYPE_PARAMETER,
-                                        m,
-                                        "Parameter uses type parameter of unavailable type $t in ${cl.qualifiedName()}.${m.name()}()"
-                                    )
-                                }
-                            }
-                        }
+                        checkTypeReferencesHiddenOrDeprecated(p.type(), m, cl, "Parameter")
                     }
                 }
 
@@ -1371,6 +1305,49 @@ class ApiAnalyzer(
                 }
             }
         )
+    }
+
+    /**
+     * Checks if the type (method parameter or return type) references a hidden or deprecated class.
+     */
+    private fun checkTypeReferencesHiddenOrDeprecated(
+        type: TypeItem,
+        containingMethod: MethodItem,
+        containingClass: ClassItem,
+        usage: String
+    ) {
+        if (
+            !containingMethod.deprecated &&
+                !containingClass.deprecated &&
+                type.asClass()?.deprecated == true
+        ) {
+            reporter.report(
+                Issues.REFERENCES_DEPRECATED,
+                containingMethod,
+                "$usage of deprecated type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}(): this method should also be deprecated"
+            )
+        }
+
+        val hiddenClasses = findHiddenClasses(type)
+        val typeClassName = (type as? ClassTypeItem)?.qualifiedName
+        for (hiddenClass in hiddenClasses) {
+            if (hiddenClass.isFromClassPath()) continue
+            if (hiddenClass.qualifiedName() == typeClassName) {
+                // The type itself is hidden
+                reporter.report(
+                    Issues.UNAVAILABLE_SYMBOL,
+                    containingMethod,
+                    "$usage of unavailable type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}()"
+                )
+            } else {
+                // The type contains a hidden type
+                reporter.report(
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                    containingMethod,
+                    "$usage uses type parameter of unavailable type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}()"
+                )
+            }
+        }
     }
 
     /**
