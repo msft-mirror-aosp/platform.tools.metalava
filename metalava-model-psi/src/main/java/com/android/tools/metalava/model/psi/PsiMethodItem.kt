@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.fixUpTypeNullability
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
@@ -274,7 +275,7 @@ open class PsiMethodItem(
     override fun finishInitialization() {
         super.finishInitialization()
 
-        returnType.finishInitialization(this)
+        returnType.fixUpTypeNullability(this)
         parameters.forEach { it.finishInitialization() }
     }
 

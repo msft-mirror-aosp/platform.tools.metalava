@@ -36,9 +36,9 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.fixUpTypeNullability
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -189,20 +189,10 @@ internal open class TurbineCodebaseInitialiser(
                     if (item is ClassItem) return
                     // Fields are handle by [TurbineTypeItemFactory.getFieldType].
                     if (item is FieldItem) return
-
+                    // Ignore any items that do not have types.
                     val type = item.type() ?: return
-                    val implicitNullness = item.implicitNullness()
-                    if (implicitNullness == true || item.modifiers.isNullable()) {
-                        type.modifiers.setNullability(TypeNullability.NULLABLE)
-                    } else if (implicitNullness == false || item.modifiers.isNonNull()) {
-                        type.modifiers.setNullability(TypeNullability.NONNULL)
-                    }
-                    // Also make array components for annotation types non-null
-                    if (
-                        type is ArrayTypeItem && item.containingClass()?.isAnnotationType() == true
-                    ) {
-                        type.componentType.modifiers.setNullability(TypeNullability.NONNULL)
-                    }
+
+                    type.fixUpTypeNullability(item)
                 }
             }
         )

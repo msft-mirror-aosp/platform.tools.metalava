@@ -20,15 +20,12 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.LambdaTypeItem
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -188,30 +185,4 @@ internal class PsiWildcardTypeItem(
             superBound = superBound,
             modifiers = modifiers.duplicate()
         )
-}
-
-/**
- * Determine if this item implies that its associated type is a non-null array with non-null
- * components.
- */
-private fun Item.impliesNonNullArrayComponents(): Boolean {
-    return (this is MemberItem) && containingClass().isAnnotationType() && !modifiers.isStatic()
-}
-
-/**
- * Finishes initialization of a type by correcting its nullability based on the owning item, which
- * was not constructed yet when the type was created.
- */
-internal fun TypeItem.finishInitialization(owner: PsiItem) {
-    val implicitNullness = owner.implicitNullness()
-    if (implicitNullness == true || owner.modifiers.isNullable()) {
-        modifiers.setNullability(TypeNullability.NULLABLE)
-    } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
-        modifiers.setNullability(TypeNullability.NONNULL)
-    }
-
-    // Also set component array types that should be non-null.
-    if (this is PsiArrayTypeItem && owner.impliesNonNullArrayComponents()) {
-        componentType.modifiers.setNullability(TypeNullability.NONNULL)
-    }
 }
