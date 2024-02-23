@@ -17,24 +17,26 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceModelSuiteRunner
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 
-open class BasePsiTest : TemporaryFolderOwner, Assertions {
-
-    @get:Rule override val temporaryFolder = TemporaryFolder()
+open class BasePsiTest :
+    BaseModelTest(
+        fixedModelProviderTestInfo =
+            ModelProviderTestInfo(SourceModelSuiteRunner(), InputFormat.KOTLIN)
+    ) {
 
     /** Project directory; initialized by [testCodebase] */
     protected lateinit var projectDir: File

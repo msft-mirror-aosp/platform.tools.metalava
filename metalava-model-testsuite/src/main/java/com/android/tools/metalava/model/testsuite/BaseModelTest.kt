@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.runners.Parameterized
@@ -44,7 +45,7 @@ import org.junit.runners.Parameterized.Parameter
  *   model specific tests that want to take advantage of the infrastructure for running suite tests.
  */
 abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? = null) :
-    ModelProviderAwareTest, Assertions {
+    ModelProviderAwareTest, TemporaryFolderOwner, Assertions {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -75,7 +76,7 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
         }
     }
 
-    @get:Rule val temporaryFolder = TemporaryFolder()
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * Set of inputs for a test.
