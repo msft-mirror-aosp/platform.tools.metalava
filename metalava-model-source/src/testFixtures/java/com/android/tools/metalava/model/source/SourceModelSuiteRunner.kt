@@ -78,12 +78,16 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(
-            SourceSet(inputs.mainSourceDir.createFiles(), listOf(inputs.mainSourceDir.dir)),
-            SourceSet.empty(),
+            sourceSet(inputs.mainSourceDir),
+            sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
         )
     }
+
+    private fun sourceSet(sourceDir: ModelSuiteRunner.SourceDir?) =
+        if (sourceDir == null) SourceSet.empty()
+        else SourceSet(sourceDir.createFiles(), listOf(sourceDir.dir))
 
     override fun toString(): String = sourceModelProvider.providerName
 }

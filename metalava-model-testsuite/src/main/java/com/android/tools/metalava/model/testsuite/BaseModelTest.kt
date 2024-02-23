@@ -141,23 +141,35 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
      * current [inputFormat]. There can be at most one of those.
      */
     private fun createCodebaseFromInputSetAndRun(
-        vararg inputSets: InputSet,
+        inputSets: Array<out InputSet>,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
         test: (Codebase) -> Unit,
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
             .singleOrNull { it.inputFormat == inputFormat }
             ?.let { inputSet ->
-                val tempDir = temporaryFolder.newFolder()
-                val mainSourceDir =
-                    ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
+                val mainSourceDir = sourceDir(inputSet)
+
+                val commonSourceDir =
+                    commonSourcesByInputFormat[inputFormat]?.let { commonInputSet ->
+                        sourceDir(commonInputSet)
+                    }
+
                 val inputs =
                     ModelSuiteRunner.TestInputs(
                         modelOptions = modelProviderTestInfo.modelOptions,
                         mainSourceDir = mainSourceDir,
+                        commonSourceDir = commonSourceDir,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
             }
+    }
+
+    private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
+        val tempDir = temporaryFolder.newFolder()
+        val mainSourceDir = ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
+        return mainSourceDir
     }
 
     private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
@@ -173,10 +185,12 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
      */
     fun runCodebaseTest(
         vararg sources: TestFile,
+        commonSources: Array<TestFile> = emptyArray(),
         test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
+            commonSources = testFilesToInputSets(commonSources),
             test = test,
         )
     }
@@ -189,10 +203,30 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
      */
     fun runCodebaseTest(
         vararg sources: InputSet,
+        commonSources: Array<InputSet> = emptyArray(),
+        test: CodebaseContext<Codebase>.() -> Unit,
+    ) {
+        runCodebaseTest(
+            sources = sources,
+            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
+     * that [Codebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    private fun runCodebaseTest(
+        vararg sources: InputSet,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
         test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            *sources,
+            sources,
+            commonSourcesByInputFormat = commonSourcesByInputFormat,
         ) { codebase ->
             val context = DefaultCodebaseContext(codebase)
             context.test()
@@ -208,10 +242,13 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
      */
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
+        commonSources: Array<TestFile> = emptyArray(),
         test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
+            commonSourcesByInputFormat =
+                testFilesToInputSets(commonSources).associateBy { it.inputFormat },
             test = test,
         )
     }
@@ -224,10 +261,30 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
+        commonSources: Array<InputSet> = emptyArray(),
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
+    ) {
+        runSourceCodebaseTest(
+            sources = sources,
+            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
+     * [test] on that [SourceCodebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    private fun runSourceCodebaseTest(
+        vararg sources: InputSet,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet>,
         test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            *sources,
+            inputSets = sources,
+            commonSourcesByInputFormat = commonSourcesByInputFormat,
         ) { codebase ->
             codebase as SourceCodebase
             val context = DefaultCodebaseContext(codebase)

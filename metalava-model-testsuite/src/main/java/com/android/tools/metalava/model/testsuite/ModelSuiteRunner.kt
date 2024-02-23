@@ -64,6 +64,9 @@ interface ModelSuiteRunner {
 
         /** The main sources that will be loaded into the [Codebase] to be tested. */
         val mainSourceDir: SourceDir,
+
+        /** The optional common sources. */
+        val commonSourceDir: SourceDir?,
     )
 
     /**
