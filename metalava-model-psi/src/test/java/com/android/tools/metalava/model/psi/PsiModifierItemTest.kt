@@ -305,6 +305,7 @@ class PsiModifierItemTest : BasePsiTest() {
         }
     }
 
+    @Test
     fun `Kotlin vararg parameters`() {
         testCodebase(
             kotlin(

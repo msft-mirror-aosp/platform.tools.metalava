@@ -75,7 +75,8 @@ class PsiParameterItemTest : BasePsiTest() {
                 ),
             isK2 = isK2
         ) { codebase ->
-            // Expect classes are ignored by UAST/Kotlin light classes, verify we test actuals
+            // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
+            // classes.
             val actualFile = codebase.assertClass("ActualKt").getSourceFile()
 
             val functionItem = codebase.assertClass("ActualKt").methods().single()

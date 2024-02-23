@@ -90,6 +90,7 @@ class PsiPropertyItemTest : BasePsiTest() {
 
                         var privateCustomSet: Int = 0
                             private set(value) { field = value + 1 }
+                    }
                 """
             )
         ) { codebase ->

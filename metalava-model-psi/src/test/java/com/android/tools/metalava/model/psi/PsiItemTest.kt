@@ -49,7 +49,7 @@ class PsiItemTest : BasePsiTest() {
             )
         ) { codebase ->
             val testClass = codebase.assertClass("test.pkg.Test")
-            val method = testClass.methods().first { it.name().equals("foo") }
+            val method = testClass.methods().first { it.name() == "foo" }
             val barJavadoc = "@param bar The bar to foo with\n     *     the thing."
             val bazJavadoc = "@param baz The baz to foo\n     *     I think."
 
