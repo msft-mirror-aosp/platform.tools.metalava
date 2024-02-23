@@ -38,17 +38,20 @@ interface Codebase {
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
 
-    /**
-     * The package documentation, if any - this returns overview.html files for each package that
-     * provided one. Not all codebases provide this.
-     */
-    fun getPackageDocs(): PackageDocs?
-
     /** The rough size of the codebase (package count) */
     fun size(): Int
 
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
+
+    /**
+     * Resolve a class identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable class, e.g. searching classpath (if
+     * available). That may include fabricating the [ClassItem] from nothing in the case of models
+     * that work with a partial set of classes (like text model).
+     */
+    fun resolveClass(className: String): ClassItem?
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
@@ -67,22 +70,11 @@ interface Codebase {
         getPackages().accept(visitor)
     }
 
-    fun acceptTypes(visitor: TypeVisitor) {
-        getPackages().acceptTypes(visitor)
-    }
-
     /** Creates an annotation item for the given (fully qualified) Java source */
     fun createAnnotation(
         source: String,
         context: Item? = null,
     ): AnnotationItem
-
-    /** Clear the [Item.tag] fields (prior to iteration like DFS) */
-    fun clearTags() {
-        getPackages().packages.forEach { pkg ->
-            pkg.allClasses().forEach { cls -> cls.tag = false }
-        }
-    }
 
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing
@@ -114,8 +106,6 @@ abstract class DefaultCodebase(
     final override val annotationManager: AnnotationManager,
 ) : Codebase {
     final override var original: Codebase? = null
-
-    override fun getPackageDocs(): PackageDocs? = null
 
     override fun unsupported(desc: String?): Nothing {
         error(

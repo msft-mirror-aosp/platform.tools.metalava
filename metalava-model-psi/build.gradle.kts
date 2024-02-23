@@ -26,6 +26,7 @@ plugins {
 
 dependencies {
     implementation(project(":metalava-model"))
+    implementation(project(":metalava-model-source"))
     implementation(project(":metalava-reporter"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
@@ -36,6 +37,9 @@ dependencies {
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
 
+    testImplementation(testFixtures(project(":metalava-model")))
+    // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite`.
+    testImplementation(testFixtures(project(":metalava-model-source")))
     testImplementation(project(":metalava-model-testsuite"))
     testImplementation(project(":metalava-testing"))
     testImplementation(libs.androidLintTests)

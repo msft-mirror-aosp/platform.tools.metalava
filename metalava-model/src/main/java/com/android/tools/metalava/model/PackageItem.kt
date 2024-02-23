@@ -17,6 +17,13 @@
 package com.android.tools.metalava.model
 
 interface PackageItem : Item {
+    /**
+     * The overview documentation associated with the package; retrieved from an `overview.html`
+     * file.
+     */
+    val overviewDocumentation: String?
+        get() = null
+
     /** The qualified name of this package */
     fun qualifiedName(): String
 
@@ -30,16 +37,15 @@ interface PackageItem : Item {
 
     override fun type(): TypeItem? = null
 
+    override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findPackage(qualifiedName())
+
     val isDefault
         get() = qualifiedName().isEmpty()
 
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()
 
-    override fun containingPackage(strict: Boolean): PackageItem? {
-        if (!strict) {
-            return this
-        }
+    override fun containingPackage(): PackageItem? {
         val name = qualifiedName()
         val lastDot = name.lastIndexOf('.')
         return if (lastDot != -1) {
@@ -56,15 +62,7 @@ interface PackageItem : Item {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        for (unit in topLevelClasses()) {
-            unit.acceptTypes(visitor)
-        }
-    }
+    override fun toStringForItem() = "package ${qualifiedName()}"
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->

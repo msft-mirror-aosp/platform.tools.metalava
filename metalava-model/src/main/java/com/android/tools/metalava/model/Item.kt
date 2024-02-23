@@ -33,7 +33,7 @@ interface Item {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
-    val modifiers: ModifierList
+    @MetalavaApi val modifiers: ModifierList
 
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
@@ -75,26 +75,33 @@ interface Item {
      */
     var removed: Boolean
 
-    /** True if this element has been marked deprecated */
+    /** True if this item has been marked deprecated. */
+    val originallyDeprecated: Boolean
+
+    /**
+     * True if this item has been marked as deprecated or is a descendant of a non-package item that
+     * has been marked as deprecated.
+     */
+    var effectivelyDeprecated: Boolean
+
+    /**
+     * True if this item has been marked deprecated.
+     *
+     * The meaning of this property changes over time. Initially, when reading sources it indicates
+     * whether the item has been marked as deprecated (either using `@deprecated` javadoc tag or
+     * `@Deprecated` annotation). However, during processing it is updated to `true` if any of its
+     * non-package ancestors have set this to `true`.
+     */
     var deprecated: Boolean
 
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
-
-    /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
-     * enums
-     */
-    val synthetic: Boolean
 
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
 
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
-
-    /** Visits all types in this item hierarchy */
-    fun acceptTypes(visitor: TypeVisitor)
 
     /** Get a mutable version of modifiers for this item */
     fun mutableModifiers(): MutableModifierList
@@ -143,8 +150,11 @@ interface Item {
 
     override fun hashCode(): Int
 
-    /** Whether this member was cloned in from a super class or interface */
-    fun isCloned(): Boolean
+    /** Calls [toStringForItem]. */
+    override fun toString(): String
+
+    /** Provides a string representation of the item, suitable for use while debugging. */
+    fun toStringForItem(): String
 
     /**
      * Returns true if this item requires nullness information (e.g. for a method where either the
@@ -169,12 +179,6 @@ interface Item {
     fun implicitNullness(): Boolean? = null
 
     /**
-     * Returns true if this item has generic type whose nullability is determined at subclass
-     * declaration site.
-     */
-    fun hasInheritedGenericType(): Boolean = false
-
-    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
      * declared as source
      */
@@ -194,22 +198,14 @@ interface Item {
      *
      * See [Showability.show]
      */
-    fun hasShowAnnotation(): Boolean = showability.show
+    fun hasShowAnnotation(): Boolean = showability.show()
 
     /**
      * Returns true if this has any show single annotations.
      *
      * See [Showability.recursive]
      */
-    fun hasShowSingleAnnotation(): Boolean = showability.let { it.show && !it.recursive }
-
-    /**
-     * Returns true if this item has any show for stub purposes annotations and that is the only
-     * show annotation.
-     *
-     * See [Showability.forStubsOnly]
-     */
-    fun onlyShowForStubPurposes(): Boolean = showability.forStubsOnly
+    fun hasShowSingleAnnotation(): Boolean = showability.showNonRecursive()
 
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean =
@@ -218,27 +214,7 @@ interface Item {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
 
-    /**
-     * Same as [hasShowAnnotation], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun hasShowAnnotationInherited(): Boolean = hasShowAnnotation()
-
-    /**
-     * Same as [onlyShowForStubPurposes], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun onlyShowForStubPurposesInherited(): Boolean = onlyShowForStubPurposes()
-
-    fun sourceFile(): SourceFileItem? {
+    fun sourceFile(): SourceFile? {
         var curr: Item? = this
         while (curr != null) {
             if (curr is ClassItem && curr.isTopLevelClass()) {
@@ -252,9 +228,6 @@ interface Item {
 
     /** Returns the [Location] for this item, if any. */
     fun location(): Location = Location.unknownLocationAndBaselineKey
-
-    /** Tag field used for DFS etc */
-    var tag: Boolean
 
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
@@ -273,26 +246,30 @@ interface Item {
      */
     fun describe(capitalize: Boolean = false) = describe(this, capitalize)
 
-    /**
-     * Returns the package that contains this item. If [strict] is false, this will return self if
-     * called on a package, otherwise it will return the containing package (e.g. "foo" for
-     * "foo.bar"). The parameter is ignored on other item types.
-     */
-    fun containingPackage(strict: Boolean = true): PackageItem?
+    /** Returns the package that contains this item. */
+    fun containingPackage(): PackageItem?
+
+    /** Returns the class that contains this item. */
+    fun containingClass(): ClassItem?
 
     /**
-     * Returns the class that contains this item. If [strict] is false, this will return self if
-     * called on a class, otherwise it will return the outer class, if any. The parameter is ignored
-     * on other item types.
-     */
-    fun containingClass(strict: Boolean = true): ClassItem?
-
-    /**
-     * Returns the associated type if any. For example, for a field, property or parameter, this is
-     * the type of the variable; for a method, it's the return type. For packages, classes and
-     * files, it's null.
+     * Returns the associated type, if any.
+     *
+     * i.e.
+     * * For a field, property or parameter, this is the type of the variable.
+     * * For a method, it's the return type.
+     * * For classes it's the declared class type, i.e. a class type using the type parameter types
+     *   as the type arguments.
+     * * For type parameters it's a [VariableTypeItem] reference the type parameter.
+     * * For packages and files, it's null.
      */
     fun type(): TypeItem?
+
+    /**
+     * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
+     * item.
+     */
+    fun findCorrespondingItemIn(codebase: Codebase): Item?
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -411,7 +388,23 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
+abstract class DefaultItem(final override val modifiers: DefaultModifierList) : Item {
+
+    init {
+        @Suppress("LeakingThis")
+        modifiers.owner = this
+    }
+
+    final override val sortingRank: Int = nextRank.getAndIncrement()
+
+    final override var originallyDeprecated = modifiers.isDeprecated()
+
+    final override var effectivelyDeprecated = originallyDeprecated
+
+    final override var deprecated = originallyDeprecated
+
+    final override fun mutableModifiers(): MutableModifierList = modifiers
+
     override val isPublic: Boolean
         get() = modifiers.isPublic()
 
@@ -428,7 +421,6 @@ abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrem
         get() = modifiers.isPrivate()
 
     override var emit = true
-    override var tag: Boolean = false
 
     companion object {
         private var nextRank = AtomicInteger()
@@ -437,4 +429,6 @@ abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrem
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
+
+    final override fun toString() = toStringForItem()
 }

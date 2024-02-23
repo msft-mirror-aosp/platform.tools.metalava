@@ -27,6 +27,8 @@ import java.util.Properties
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
@@ -46,13 +48,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
-        if (project.rootProject == project) {
-            project.tasks.register(
-                CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
-                CreateAggregateLibraryBuildInfoFileTask::class.java
-            )
-        }
-
         project.plugins.all { plugin ->
             when (plugin) {
                 is JavaPlugin -> {
@@ -87,7 +82,8 @@ class MetalavaBuildPlugin : Plugin<Project> {
     fun configureLint(project: Project) {
         project.apply(mapOf("plugin" to "com.android.lint"))
         project.extensions.getByType<Lint>().apply {
-            fatal.add("UastImplementation")
+            fatal.add("UastImplementation") // go/hide-uast-impl
+            fatal.add("KotlincFE10") // b/239982263
             disable.add("UseTomlInstead") // not useful for this project
             disable.add("GradleDependency") // not useful for this project
             abortOnError = true
@@ -126,19 +122,31 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 
     fun configurePublishing(project: Project) {
+        val projectRepo = project.layout.buildDirectory.dir("repo")
         val archiveTaskProvider =
             configurePublishingArchive(
                 project,
                 publicationName,
                 repositoryName,
                 getBuildId(),
-                getDistributionDirectory(project)
+                getDistributionDirectory(project),
+                projectRepo,
             )
 
         project.extensions.getByType<PublishingExtension>().apply {
-            publications {
-                it.create<MavenPublication>(publicationName) {
-                    from(project.components["java"])
+            publications { publicationContainer ->
+                publicationContainer.create<MavenPublication>(publicationName) {
+                    val javaComponent = project.components["java"] as AdhocComponentWithVariants
+                    // Disable publishing of test fixtures as we consider them internal
+                    project.configurations.findByName("testFixturesApiElements")?.let {
+                        javaComponent.withVariantsFromConfiguration(it) { it.skip() }
+                    }
+                    project.configurations.findByName("testFixturesRuntimeElements")?.let {
+                        javaComponent.withVariantsFromConfiguration(it) { it.skip() }
+                    }
+                    from(javaComponent)
+                    suppressPomMetadataWarningsFor("testFixturesApiElements")
+                    suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
                     pom { pom ->
                         pom.licenses { spec ->
                             spec.license { license ->
@@ -172,13 +180,16 @@ class MetalavaBuildPlugin : Plugin<Project> {
             }
             repositories { handler ->
                 handler.maven { repository ->
-                    repository.name = repositoryName
                     repository.url =
                         project.uri(
                             "file://${
                                 getDistributionDirectory(project).canonicalPath
                             }/repo/m2repository"
                         )
+                }
+                handler.maven { repository ->
+                    repository.name = repositoryName
+                    repository.url = project.uri(projectRepo)
                 }
             }
         }
@@ -220,7 +231,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("src/main/resources/version.properties")
+            rootProject.layout.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {

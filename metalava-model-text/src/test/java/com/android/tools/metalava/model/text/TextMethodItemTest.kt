@@ -20,39 +20,39 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
 
-class TextMethodItemTest {
+class TextMethodItemTest : BaseTextCodebaseTest() {
 
     @Test
     fun `text method item return type is non-null`() {
-        val codebase =
-            ApiFile.parseApi(
-                "test",
+        runSignatureTest(
+            signature(
                 """
-            package test.pkg {
-              public class Foo {
-                ctor public Foo();
-                method public void bar();
-              }
-            }
-            """
-                    .trimIndent(),
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                      }
+                    }
+                """
             )
+        ) {
+            val cls = codebase.assertClass("test.pkg.Foo")
+            val ctorItem = cls.assertMethod("Foo", "")
+            val methodItem = cls.assertMethod("bar", "")
 
-        val cls = codebase.findClass("test.pkg.Foo")!!
-        val ctorItem = cls.findMethod("Foo", "")!!
-        val methodItem = cls.findMethod("bar", "")!!
-
-        assertNotNull(ctorItem.returnType())
-        assertEquals(
-            "test.pkg.Foo",
-            ctorItem.returnType().toString(),
-            "Return type of the constructor item must be the containing class."
-        )
-        assertNotNull(methodItem.returnType())
-        assertEquals(
-            "void",
-            methodItem.returnType().toString(),
-            "Return type of an method item should match the expected value."
-        )
+            assertNotNull(ctorItem.returnType())
+            assertEquals(
+                "test.pkg.Foo",
+                ctorItem.returnType().toString(),
+                "Return type of the constructor item must be the containing class."
+            )
+            assertNotNull(methodItem.returnType())
+            assertEquals(
+                "void",
+                methodItem.returnType().toString(),
+                "Return type of an method item should match the expected value."
+            )
+        }
     }
 }

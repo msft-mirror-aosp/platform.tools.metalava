@@ -20,34 +20,31 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.TypeParameterList
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
-import kotlin.math.min
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
 // data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
-class TextCodebase(
+internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
+    private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
     internal val mPackages = HashMap<String, TextPackageItem>(300)
     internal val mAllClasses = HashMap<String, TextClassItem>(30000)
 
-    val externalClasses = HashMap<String, ClassItem>()
+    private val externalClasses = HashMap<String, ClassItem>()
 
     override fun trustedApi(): Boolean = true
-
-    /** Signature file format version, if found. */
-    lateinit var format: FileFormat
 
     override fun getPackages(): PackageList {
         val list = ArrayList<PackageItem>(mPackages.values)
@@ -59,9 +56,12 @@ class TextCodebase(
         return mPackages.size
     }
 
-    override fun findClass(className: String): TextClassItem? {
-        return mAllClasses[className]
-    }
+    /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
+    fun findClassInCodebase(className: String) = mAllClasses[className]
+
+    override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
+
+    override fun resolveClass(className: String) = getOrCreateClass(className)
 
     override fun supportsDocumentation(): Boolean = false
 
@@ -76,48 +76,112 @@ class TextCodebase(
     }
 
     fun registerClass(cls: TextClassItem) {
-        mAllClasses[cls.qualifiedName] = cls
+        val qualifiedName = cls.qualifiedName
+        mAllClasses[qualifiedName] = cls
+
+        // A real class exists so a stub will not be created.
+        requiredStubKindForClass.remove(qualifiedName)
     }
 
     /**
+     * The [StubKind] required for each class which could not be found, defaults to [StubKind.CLASS]
+     * if not specified.
+     *
+     * Specific types, require a specific type of class, e.g. a type used in an `extends` clause of
+     * a concrete class requires a concrete class, whereas a type used in an `implements` clause of
+     * a concrete class, or an `extends` list of an interface requires an interface.
+     *
+     * Similarly, an annotation must be an annotation type and extends
+     * `java.lang.annotation.Annotation` and a `throws` type that is not a type parameter must be a
+     * concrete class that extends `java.lang.Throwable.`
+     *
+     * This contains information about the type use so that if a stub class is needed a class of the
+     * appropriate structure can be fabricated to avoid spurious issues being reported.
+     */
+    private val requiredStubKindForClass = mutableMapOf<String, StubKind>()
+
+    /**
+     * Register that the class type requires a specific stub kind.
+     *
+     * If a concrete class already exists then this does nothing. Otherwise, this registers the
+     * [StubKind] for the [ClassTypeItem.qualifiedName], making sure that it does not conflict with
+     * any previous requirements.
+     */
+    fun requireStubKindFor(classTypeItem: ClassTypeItem, stubKind: StubKind) {
+        val qualifiedName = classTypeItem.qualifiedName
+
+        // If a real class already exists then a stub will not need to be created.
+        if (mAllClasses[qualifiedName] != null) return
+
+        val existing = requiredStubKindForClass.put(qualifiedName, stubKind)
+        if (existing != null && existing != stubKind) {
+            error(
+                "Mismatching required stub kinds for $qualifiedName, found $existing and $stubKind"
+            )
+        }
+    }
+
+    /**
+     * Gets an existing, or creates a new [ClassItem].
+     *
      * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
      * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
-     * empty stub class (or interface, if [isInterface] is true).
+     * empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
+     * [StubKind.CLASS] if no specific [StubKind] was required.
      *
      * Initializes outer classes and packages for the created class as needed.
+     *
+     * @param name the name of the class.
+     * @param isOuterClass if `true` then this is searching for an outer class of a class in this
+     *   codebase, in which case this must only search classes in this codebase, otherwise it can
+     *   search for external classes too.
      */
     fun getOrCreateClass(
         name: String,
-        isInterface: Boolean = false,
-        classResolver: ClassResolver? = null,
+        isOuterClass: Boolean = false,
     ): ClassItem {
-        val erased = TextTypeItem.eraseTypeArguments(name)
-        val cls = mAllClasses[erased] ?: externalClasses[erased]
-        if (cls != null) {
-            return cls
+        // Check this codebase first, if found then return it.
+        mAllClasses[name]?.let { found ->
+            return found
         }
 
-        if (classResolver != null) {
-            val classItem = classResolver.resolveClass(erased)
+        // Only check for external classes if this is not searching for an outer class and there is
+        // a class resolver that will populate the external classes.
+        if (!isOuterClass && classResolver != null) {
+            // Check to see whether the class has already been retrieved from the resolver. If it
+            // has then return it.
+            externalClasses[name]?.let { found ->
+                return found
+            }
+
+            // Else try and resolve the class.
+            val classItem = classResolver.resolveClass(name)
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
                 // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClasses[erased] = classItem
+                externalClasses[name] = classItem
                 return classItem
             }
         }
 
-        val stubClass = TextClassItem.createStubClass(this, name, isInterface)
-        mAllClasses[erased] = stubClass
+        // Build a stub class of the required kind.
+        val requiredStubKind = requiredStubKindForClass.remove(name) ?: StubKind.CLASS
+        val stubClass =
+            StubClassBuilder.build(this, name) {
+                // Apply stub kind specific mutations to the stub class being built.
+                requiredStubKind.mutator(this)
+            }
+
+        registerClass(stubClass)
         stubClass.emit = false
 
         val fullName = stubClass.fullName()
         if (fullName.contains('.')) {
             // We created a new inner class stub. We need to fully initialize it with outer classes,
             // themselves possibly stubs
-            val outerName = erased.substring(0, erased.lastIndexOf('.'))
+            val outerName = name.substring(0, name.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
-            val outerClass = getOrCreateClass(outerName, isInterface = false, classResolver = null)
+            val outerClass = getOrCreateClass(outerName, isOuterClass = true)
 
             // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
             // another.
@@ -132,8 +196,8 @@ class TextCodebase(
             outerClass.addInnerClass(stubClass)
         } else {
             // Add to package
-            val endIndex = erased.lastIndexOf('.')
-            val pkgPath = if (endIndex != -1) erased.substring(0, endIndex) else ""
+            val endIndex = name.lastIndexOf('.')
+            val pkgPath = if (endIndex != -1) name.substring(0, endIndex) else ""
             val pkg =
                 findPackage(pkgPath)
                     ?: run {
@@ -171,112 +235,5 @@ class TextCodebase(
 
     override fun unsupported(desc: String?): Nothing {
         error(desc ?: "Not supported for a signature-file based codebase")
-    }
-
-    fun obtainTypeFromString(
-        type: String,
-        cl: TextClassItem,
-        methodTypeParameterList: TypeParameterList
-    ): TextTypeItem {
-        if (TextTypeItem.isLikelyTypeParameter(type)) {
-            val length = type.length
-            var nameEnd = length
-            for (i in 0 until length) {
-                val c = type[i]
-                if (c == '<' || c == '[' || c == '!' || c == '?') {
-                    nameEnd = i
-                    break
-                }
-            }
-            val name =
-                if (nameEnd == length) {
-                    type
-                } else {
-                    type.substring(0, nameEnd)
-                }
-
-            val isMethodTypeVar = methodTypeParameterList.typeParameterNames().contains(name)
-            val isClassTypeVar = cl.typeParameterList().typeParameterNames().contains(name)
-
-            if (isMethodTypeVar || isClassTypeVar) {
-                // Confirm that it's a type variable
-                // If so, create type variable WITHOUT placing it into the
-                // cache, since we can't cache these; they can have different
-                // inherited bounds etc
-                return TextTypeItem(this, type)
-            }
-        }
-
-        return obtainTypeFromString(type)
-    }
-
-    // Copied from Converter:
-
-    fun obtainTypeFromString(type: String): TextTypeItem {
-        return mTypesFromString.obtain(type) as TextTypeItem
-    }
-
-    private val mTypesFromString =
-        object : Cache(this) {
-            override fun make(o: Any): Any {
-                val name = o as String
-
-                // Reverse effect of TypeItem.shortenTypes(...)
-                if (implicitJavaLangType(name)) {
-                    return TextTypeItem(codebase, "java.lang.$name")
-                }
-
-                return TextTypeItem(codebase, name)
-            }
-
-            private fun implicitJavaLangType(s: String): Boolean {
-                if (s.length <= 1) {
-                    return false // Usually a type variable
-                }
-                if (s[1] == '[') {
-                    return false // Type variable plus array
-                }
-
-                val dotIndex = s.indexOf('.')
-                val array = s.indexOf('[')
-                val generics = s.indexOf('<')
-                if (array == -1 && generics == -1) {
-                    return dotIndex == -1 && !TextTypeItem.isPrimitive(s)
-                }
-                val typeEnd =
-                    if (array != -1) {
-                        if (generics != -1) {
-                            min(array, generics)
-                        } else {
-                            array
-                        }
-                    } else {
-                        generics
-                    }
-
-                // Allow dotted type in generic parameter, e.g. "Iterable<java.io.File>" -> return
-                // true
-                return (dotIndex == -1 || dotIndex > typeEnd) &&
-                    !TextTypeItem.isPrimitive(s.substring(0, typeEnd).trim())
-            }
-        }
-
-    private abstract class Cache(val codebase: TextCodebase) {
-
-        protected var mCache = HashMap<Any, Any>()
-
-        internal fun obtain(o: Any?): Any? {
-            if (o == null) {
-                return null
-            }
-            var r: Any? = mCache[o]
-            if (r == null) {
-                r = make(o)
-                mCache[o] = r
-            }
-            return r
-        }
-
-        protected abstract fun make(o: Any): Any
     }
 }

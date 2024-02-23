@@ -18,11 +18,14 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
-class PsiParameterItemTest {
+class PsiParameterItemTest : BasePsiTest() {
     @Test
     fun `primary constructor parameters have properties`() {
         testCodebase(kotlin("class Foo(val property: Int, parameter: Int)")) { codebase ->
@@ -34,5 +37,96 @@ class PsiParameterItemTest {
             assertNotNull(propertyParameter.property)
             assertSame(propertyParameter, propertyParameter.property?.constructorParameter)
         }
+    }
+
+    private fun `actuals get params from expects`(isK2: Boolean) {
+        val commonSource =
+            kotlin(
+                "commonMain/src/Expect.kt",
+                """
+                    expect suspend fun String.testFun(param: String = "")
+                    expect class Test(param: String = "") {
+                        fun something(
+                            param: String = "",
+                            otherParam: String = param + "",
+                            required: Int
+                        )
+                    }
+                """
+            )
+        testCodebase(
+            commonSources = listOf(commonSource),
+            sources =
+                listOf(
+                    kotlin(
+                        "jvmMain/src/Actual.kt",
+                        """
+                    actual suspend fun String.testFun(param: String) {}
+                    actual class Test actual constructor(param: String) {
+                        actual fun something(
+                            param: String = "ignored",
+                            otherParam: String,
+                            required: Int
+                        ) {}
+                    }
+                """
+                    ),
+                    commonSource,
+                ),
+            isK2 = isK2
+        ) { codebase ->
+            // Expect classes are ignored by UAST/Kotlin light classes, verify we test actuals
+            val actualFile = codebase.assertClass("ActualKt").getSourceFile()
+
+            val functionItem = codebase.assertClass("ActualKt").methods().single()
+            with(functionItem) {
+                val parameters = parameters()
+                assertEquals(3, parameters.size)
+
+                // receiver
+                assertFalse(parameters[0].hasDefaultValue())
+
+                val parameter = parameters[1]
+                assertTrue(parameter.hasDefaultValue())
+                assertEquals("\"\"", parameter.defaultValue())
+
+                // continuation
+                assertFalse(parameters[2].hasDefaultValue())
+            }
+
+            val classItem = codebase.assertClass("Test")
+            assertEquals(actualFile, classItem.getSourceFile())
+
+            val constructorItem = classItem.constructors().single()
+            with(constructorItem) {
+                val parameter = parameters().single()
+                assertTrue(parameter.hasDefaultValue())
+                assertEquals("\"\"", parameter.defaultValue())
+            }
+
+            val methodItem = classItem.methods().single()
+            with(methodItem) {
+                val parameters = parameters()
+                assertEquals(3, parameters.size)
+
+                assertTrue(parameters[0].hasDefaultValue())
+                assertEquals("\"\"", parameters[0].defaultValue())
+
+                assertTrue(parameters[1].hasDefaultValue())
+                assertEquals("param + \"\"", parameters[1].defaultValue())
+
+                assertFalse(parameters[2].hasDefaultValue())
+            }
+        }
+    }
+
+    @Test
+    fun `actuals get params from expects -- K1`() {
+        `actuals get params from expects`(isK2 = false)
+    }
+
+    @Test
+    fun `actuals get params from expects -- K2`() {
+        `actuals get params from expects`(isK2 = true)
     }
 }
