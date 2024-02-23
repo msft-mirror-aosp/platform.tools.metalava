@@ -1320,13 +1320,19 @@ class ApiAnalyzer(
         containingClass: ClassItem,
         usage: String
     ) {
-        if (
-            !containingMethod.effectivelyDeprecated && type.asClass()?.effectivelyDeprecated == true
-        ) {
-            reporter.report(
-                Issues.REFERENCES_DEPRECATED,
-                containingMethod,
-                "$usage of deprecated type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}(): this method should also be deprecated"
+        if (!containingMethod.effectivelyDeprecated) {
+            type.accept(
+                object : BaseTypeVisitor() {
+                    override fun visitClassType(classType: ClassTypeItem) {
+                        if (classType.asClass()?.effectivelyDeprecated == true) {
+                            reporter.report(
+                                Issues.REFERENCES_DEPRECATED,
+                                containingMethod,
+                                "$usage references deprecated type $classType in ${containingClass.qualifiedName()}.${containingMethod.name()}(): this method should also be deprecated"
+                            )
+                        }
+                    }
+                }
             )
         }
 

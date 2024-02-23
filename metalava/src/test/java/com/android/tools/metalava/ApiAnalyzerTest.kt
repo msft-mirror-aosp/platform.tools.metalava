@@ -620,7 +620,7 @@ class ApiAnalyzerTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/NotDeprecatedClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesDeprecatedOuterClass(): this method should also be deprecated [ReferencesDeprecated]
+                    src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesDeprecatedOuterClass(): this method should also be deprecated [ReferencesDeprecated]
                     src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
                 """,
         )
@@ -670,9 +670,59 @@ class ApiAnalyzerTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
+                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
+                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
                 src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
             """,
+        )
+    }
+
+    @Test
+    fun `Test usage of deprecated type `() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated */
+                            @Deprecated
+                            public class DeprecatedClass {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class NotDeprecatedClass {
+                                public List<DeprecatedClass> usesDeprecated(List<DeprecatedClass> list) {
+                                    return list;
+                                }
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  @Deprecated public class DeprecatedClass {
+                    ctor @Deprecated public DeprecatedClass();
+                  }
+                  public class NotDeprecatedClass {
+                    ctor public NotDeprecatedClass();
+                    method public java.util.List<test.pkg.DeprecatedClass!>! usesDeprecated(java.util.List<test.pkg.DeprecatedClass!>!);
+                  }
+                }
+            """
+                    .trimIndent(),
+            extraArguments = arrayOf(ARG_ERROR, "ReferencesDeprecated"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/NotDeprecatedClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+                src/test/pkg/NotDeprecatedClass.java:4: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+            """
+                    .trimIndent()
         )
     }
 }
