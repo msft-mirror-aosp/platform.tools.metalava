@@ -17,8 +17,6 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
@@ -39,14 +37,6 @@ import org.junit.runner.RunWith
 
 @RunWith(ModelTestSuiteRunner::class)
 class CommonTypeModifiersTest : BaseModelTest() {
-
-    private fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
-
-    private fun Item.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
 
     @Test
     fun `Test annotation on basic types`() {

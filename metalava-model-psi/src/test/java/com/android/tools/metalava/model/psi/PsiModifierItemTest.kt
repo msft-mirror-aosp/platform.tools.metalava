@@ -18,9 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.testing.KnownSourceFiles.jetbrainsNullableTypeUseSource
 import com.android.tools.metalava.testing.java
@@ -32,14 +30,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PsiModifierItemTest : BasePsiTest() {
-    private fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
-
-    private fun Item.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
-
     @Test
     fun `Test type-use annotations from Java and Kotlin source, used by Java and Kotlin source`() {
         val javaUsageSource =
