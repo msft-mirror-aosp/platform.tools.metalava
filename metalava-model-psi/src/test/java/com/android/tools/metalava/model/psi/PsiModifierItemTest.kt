@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.KnownSourceFiles.jetbrainsNullableTypeUseSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -28,93 +27,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.runner.RunWith
 
-class PsiModifierItemTest : BasePsiTest() {
-    @Test
-    fun `Test type-use annotations from Java and Kotlin source, used by Java and Kotlin source`() {
-        val javaUsageSource =
-            java(
-                """
-                package test.pkg;
-                public class Foo {
-                    public @A int foo1() {}
-                    public @A String foo2() {}
-                    public @A <T> T foo3() {}
-                }
-            """
-                    .trimIndent()
-            )
-        val kotlinUsageSource =
-            kotlin(
-                """
-                package test.pkg
-                class Foo {
-                    fun foo1(): @A Int {}
-                    fun foo2(): @A String {}
-                    fun <T> foo3(): @A T {}
-                }
-            """
-                    .trimIndent()
-            )
-        val javaAnnotationSource =
-            java(
-                """
-                package test.pkg;
-                @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
-                public @interface A {}
-            """
-                    .trimIndent()
-            )
-        val kotlinAnnotationSource =
-            kotlin(
-                """
-                package test.pkg
-                @Target(AnnotationTarget.TYPE)
-                annotation class A
-            """
-                    .trimIndent()
-            )
-
-        val codebaseTest = { codebase: Codebase ->
-            val methods = codebase.assertClass("test.pkg.Foo").methods()
-            assertThat(methods).hasSize(3)
-
-            // @test.pkg.A int
-            val primitiveMethod = methods[0]
-            val primitive = primitiveMethod.returnType()
-            assertThat(primitive).isInstanceOf(PrimitiveTypeItem::class.java)
-            assertThat(primitive.annotationNames()).containsExactly("test.pkg.A")
-            assertThat(primitiveMethod.annotationNames()).isEmpty()
-
-            // @test.pkg.A String
-            val stringMethod = methods[1]
-            val string = stringMethod.returnType()
-            assertThat(string).isInstanceOf(ClassTypeItem::class.java)
-            assertThat(string.annotationNames()).containsExactly("test.pkg.A")
-            val stringMethodAnnotations = stringMethod.annotationNames()
-            if ((stringMethod as PsiMethodItem).psiMethod.isKotlin()) {
-                // The Kotlin version puts a nullability annotation on the method
-                assertThat(stringMethodAnnotations)
-                    .containsExactly("org.jetbrains.annotations.NotNull")
-            } else {
-                assertThat(stringMethodAnnotations).isEmpty()
-            }
-
-            // @test.pkg.A T
-            val variableMethod = methods[2]
-            val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList.single()
-            variable.assertReferencesTypeParameter(typeParameter)
-            assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
-            assertThat(variableMethod.annotationNames()).isEmpty()
-        }
-
-        testCodebase(javaUsageSource, javaAnnotationSource, action = codebaseTest)
-        testCodebase(javaUsageSource, kotlinAnnotationSource, action = codebaseTest)
-        testCodebase(kotlinUsageSource, javaAnnotationSource, action = codebaseTest)
-        testCodebase(kotlinUsageSource, kotlinAnnotationSource, action = codebaseTest)
-    }
-
+@RunWith(ModelTestSuiteRunner::class)
+class PsiModifierItemTest : BaseModelTest() {
     @Test
     fun `Test type-use nullability annotation used from Java and Kotlin source`() {
         val javaSource =
@@ -137,16 +53,16 @@ class PsiModifierItemTest : BasePsiTest() {
             """
                     .trimIndent()
             )
-        val codebaseTest = { codebase: Codebase ->
+
+        runCodebaseTest(
+            inputSet(javaSource, jetbrainsNullableTypeUseSource),
+            inputSet(kotlinSource, jetbrainsNullableTypeUseSource),
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             // For now, the nullability annotation needs to be attached to the method.
             assertThat(method.annotationNames())
                 .containsExactly("org.jetbrains.annotations.Nullable")
-            // Explicit Unit return is required by compiler
-            Unit
         }
-        testCodebase(javaSource, jetbrainsNullableTypeUseSource, action = codebaseTest)
-        testCodebase(kotlinSource, jetbrainsNullableTypeUseSource, action = codebaseTest)
     }
 
     @Test
