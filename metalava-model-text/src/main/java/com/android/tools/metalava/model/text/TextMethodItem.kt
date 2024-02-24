@@ -34,10 +34,9 @@ internal open class TextMethodItem(
     modifiers: DefaultModifierList,
     private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
-    position: SourcePositionInfo
+    position: SourcePositionInfo,
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers), MethodItem {
     init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
         parameters.forEach { it.containingMethod = this }
     }
 
@@ -68,8 +67,8 @@ internal open class TextMethodItem(
             }
         }
 
-        val typeParameters1 = typeParameterList().typeParameters()
-        val typeParameters2 = other.typeParameterList().typeParameters()
+        val typeParameters1 = typeParameterList
+        val typeParameters2 = other.typeParameterList
 
         if (typeParameters1.size != typeParameters2.size) {
             return false
@@ -101,13 +100,8 @@ internal open class TextMethodItem(
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    private var typeParameterList: TypeParameterList = TypeParameterList.NONE
-
-    fun setTypeParameterList(typeParameterList: TypeParameterList) {
-        this.typeParameterList = typeParameterList
-    }
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
+    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
+        internal set
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
@@ -142,9 +136,6 @@ internal open class TextMethodItem(
         return duplicated
     }
 
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
-
     private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 
     override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
@@ -161,12 +152,6 @@ internal open class TextMethodItem(
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
-
-    fun toSignatureString(): String =
-        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 
     private var annotationDefault = ""
 
