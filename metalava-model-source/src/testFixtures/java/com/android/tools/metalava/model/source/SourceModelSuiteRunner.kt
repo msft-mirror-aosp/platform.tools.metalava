@@ -35,12 +35,20 @@ import java.io.PrintWriter
 // @AutoService(ModelSuiteRunner.class)
 class SourceModelSuiteRunner : ModelSuiteRunner {
 
+    companion object {
+        val sourceLanguageToInputFormat =
+            mapOf(
+                SourceLanguage.JAVA to InputFormat.JAVA,
+                SourceLanguage.KOTLIN to InputFormat.KOTLIN,
+            )
+    }
+
     /** Get the [SourceModelProvider] implementation that is available. */
     private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
 
     override val supportedInputFormats =
-        InputFormat.values()
-            .filter { it.sourceLanguage in sourceModelProvider.supportedLanguages }
+        sourceModelProvider.supportedLanguages
+            .mapNotNull { sourceLanguageToInputFormat[it] }
             .toSet()
 
     override val testConfigurations: List<TestConfiguration> =

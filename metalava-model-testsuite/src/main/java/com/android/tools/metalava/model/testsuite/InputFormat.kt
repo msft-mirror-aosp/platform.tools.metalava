@@ -16,13 +16,11 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.source.SourceLanguage
 import java.io.File
 
 /** Possible input formats that will be passed to the [ModelSuiteRunner]. */
 enum class InputFormat(
     val extension: String,
-    val sourceLanguage: SourceLanguage? = null,
 ) {
     /**
      * Signature text files.
@@ -40,7 +38,6 @@ enum class InputFormat(
      */
     JAVA(
         extension = "java",
-        SourceLanguage.JAVA,
     ),
 
     /**
@@ -50,7 +47,6 @@ enum class InputFormat(
      */
     KOTLIN(
         extension = "kt",
-        SourceLanguage.KOTLIN,
     );
 
     fun combineWith(other: InputFormat): InputFormat {

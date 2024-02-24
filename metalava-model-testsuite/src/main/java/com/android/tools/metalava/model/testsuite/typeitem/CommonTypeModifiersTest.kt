@@ -21,8 +21,8 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
-import com.android.tools.metalava.model.source.SourceLanguage
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability
@@ -967,7 +967,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformString = fooClass.assertMethod("platformString", "").returnType()
                 assertThat(platformString.modifiers.nullability()).isEqualTo(PLATFORM)
             }
@@ -1047,7 +1047,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformArray =
                     fooClass.assertMethod("platformStringPlatformArray", "").returnType()
                 platformStringPlatformArray.assertArrayTypeItem {
@@ -1057,7 +1057,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableArray =
                     fooClass.assertMethod("platformStringNullableArray", "").returnType()
                 platformStringNullableArray.assertArrayTypeItem {
@@ -1067,7 +1067,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nonNullStringPlatformArray =
                     fooClass.assertMethod("nonNullStringPlatformArray", "").returnType()
                 nonNullStringPlatformArray.assertArrayTypeItem {
@@ -1230,7 +1230,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformVararg =
                     fooClass
                         .assertMethod("platformStringPlatformVararg", "java.lang.String[]")
@@ -1243,7 +1243,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringPlatformVararg =
                     fooClass
                         .assertMethod("nullableStringPlatformVararg", "java.lang.String[]")
@@ -1256,7 +1256,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableVararg =
                     fooClass
                         .assertMethod("platformStringNullableVararg", "java.lang.String[]")
@@ -1269,7 +1269,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringNullableVararg =
                     fooClass
                         .assertMethod("nullableStringNullableVararg", "java.lang.String[]")
@@ -1359,7 +1359,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform type doesn't exist in Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableListPlatformString =
                     fooClass.assertMethod("nullableListPlatformString", "").returnType()
                 nullableListPlatformString.assertClassTypeItem {
