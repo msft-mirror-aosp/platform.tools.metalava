@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultTypeParameterList
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.ModelOptions
 
-internal class TurbineTypeParameterList(
-    val codebase: Codebase,
-) : DefaultTypeParameterList() {
-
-    internal lateinit var typeParameters: List<TypeParameterItem>
-
-    override fun typeParameters(): List<TypeParameterItem> = typeParameters
+/**
+ * The model options provided by this model.
+ *
+ * Accessible outside this model to allow callers to specify it.
+ */
+object PsiModelOptions {
+    val useK2Uast = ModelOptions.Key.of("psi.useK2Uast", true)
 }

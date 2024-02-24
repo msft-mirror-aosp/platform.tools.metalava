@@ -16,14 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeUse
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiPrimitiveType
-import com.intellij.psi.PsiType
-import com.intellij.psi.PsiWildcardType
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
@@ -39,56 +33,6 @@ import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
-
-/** Modifiers for a [PsiTypeItem]. */
-internal class PsiTypeModifiers(
-    private val annotations: MutableList<AnnotationItem>,
-    private var nullability: TypeNullability
-) : TypeModifiers {
-    override fun annotations(): List<AnnotationItem> = annotations
-
-    override fun addAnnotation(annotation: AnnotationItem) {
-        annotations.add(annotation as PsiAnnotationItem)
-    }
-
-    override fun removeAnnotation(annotation: AnnotationItem) {
-        annotations.remove(annotation)
-    }
-
-    override fun nullability(): TypeNullability = nullability
-
-    override fun setNullability(newNullability: TypeNullability) {
-        nullability = newNullability
-    }
-
-    override fun duplicate() = PsiTypeModifiers(annotations.toMutableList(), nullability)
-
-    companion object {
-        /** Creates modifiers in the given [codebase] based on the annotations of the [type]. */
-        fun create(
-            codebase: PsiBasedCodebase,
-            type: PsiType,
-            kotlinType: KotlinTypeInfo?,
-            typeUse: TypeUse = TypeUse.GENERAL,
-        ): PsiTypeModifiers {
-            val annotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
-            // Some types have defined nullness, and kotlin types have nullness information.
-            // Otherwise, look at the annotations and default to platform nullness.
-            val nullability =
-                when {
-                    typeUse == TypeUse.SUPER_TYPE || type is PsiPrimitiveType ->
-                        TypeNullability.NONNULL
-                    type is PsiWildcardType -> TypeNullability.UNDEFINED
-                    else -> kotlinType?.nullability()
-                            ?: annotations
-                                .firstOrNull { it.isNullnessAnnotation() }
-                                ?.let { TypeNullability.ofAnnotation(it) }
-                                ?: TypeNullability.PLATFORM
-                }
-            return PsiTypeModifiers(annotations.toMutableList(), nullability)
-        }
-    }
-}
 
 /**
  * A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it and the [PsiElement]

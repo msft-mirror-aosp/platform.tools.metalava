@@ -20,6 +20,7 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -137,7 +138,7 @@ open class PsiBasedCodebase(
     /**
      * Map from package name to list of classes in that package. Initialized in [initializeFromJar]
      * and [initializeFromSources], updated by [registerPackageClass], and used and cleared in
-     * [finishInitialization].
+     * [fixUpTypeNullability].
      */
     private var packageClasses: MutableMap<String, MutableList<PsiClassItem>>? = null
 
@@ -901,7 +902,7 @@ open class PsiBasedCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): PsiAnnotationItem {
+    ): AnnotationItem {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }

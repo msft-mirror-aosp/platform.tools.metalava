@@ -17,6 +17,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -25,20 +26,22 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.typeNullability
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -329,7 +332,7 @@ private constructor(
         var token: String = tokenizer.requireToken()
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC, null)
         modifiers.addAnnotations(annotations)
         token = tokenizer.current
@@ -380,7 +383,7 @@ private constructor(
         var superClassType: ClassTypeItem? = null
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
 
@@ -511,7 +514,6 @@ private constructor(
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
-                annotations = annotations,
                 typeParameterList = typeParameterList,
             )
 
@@ -792,7 +794,7 @@ private constructor(
         return if (startingToken.contains('@')) {
             val prefix = startingToken.substringBefore('@')
             val annotationStart = startingToken.substring(startingToken.indexOf('@'))
-            val annotation = getAnnotation(tokenizer, annotationStart)
+            val annotation = getAnnotationSource(tokenizer, annotationStart)
             "$prefix$annotation"
         } else {
             tokenizer.requireToken()
@@ -806,7 +808,7 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation.
      */
-    private fun getAnnotation(tokenizer: Tokenizer, startingToken: String): String? {
+    private fun getAnnotationSource(tokenizer: Tokenizer, startingToken: String): String? {
         var token = startingToken
         if (token.startsWith('@')) {
             // Annotation
@@ -847,20 +849,23 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
-        val annotations: MutableList<String> = mutableListOf()
+    private fun getAnnotations(
+        tokenizer: Tokenizer,
+        startingToken: String
+    ): MutableList<AnnotationItem> {
+        val annotations: MutableList<AnnotationItem> = mutableListOf()
         var token = startingToken
         while (true) {
-            val annotation = getAnnotation(tokenizer, token) ?: break
+            val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            annotations.add(annotation)
+            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
         }
         return annotations
     }
 
     private fun parseConstructor(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        containingClass: TextClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -868,7 +873,7 @@ private constructor(
         val method: TextConstructorItem
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
         token = tokenizer.current
@@ -889,29 +894,49 @@ private constructor(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
         val parameters = parseParameterList(tokenizer, typeItemFactory)
-        // Constructors cannot return null.
-        val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
-        method =
-            TextConstructorItem(
-                codebase,
-                name,
-                cl,
-                modifiers,
-                ctorReturn,
-                parameters,
-                tokenizer.pos()
-            )
-        method.setTypeParameterList(typeParameterList)
         token = tokenizer.requireToken()
+        var throwsList = emptyList<ExceptionTypeItem>()
         if ("throws" == token) {
-            token = parseThrows(tokenizer, method, typeItemFactory)
+            throwsList = parseThrows(tokenizer, typeItemFactory)
+            token = tokenizer.current
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        if (!cl.constructors().contains(method)) {
-            cl.addConstructor(method)
+
+        method =
+            TextConstructorItem(
+                codebase,
+                name,
+                containingClass,
+                modifiers,
+                containingClass.type(),
+                parameters,
+                tokenizer.pos()
+            )
+        method.typeParameterList = typeParameterList
+        method.setThrowsTypes(throwsList)
+
+        if (!containingClass.constructors().contains(method)) {
+            containingClass.addConstructor(method)
         }
+    }
+
+    /**
+     * Check whether the method is a synthetic enum method.
+     *
+     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
+     * Kotlin.
+     */
+    private fun isEnumSyntheticMethod(
+        containingClass: ClassItem,
+        name: String,
+        parameters: List<ParameterItem>
+    ): Boolean {
+        if (!containingClass.isEnum()) return false
+        val parameterCount = parameters.size
+        return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
+            (parameterCount == 1 && name == "valueOf" && parameters[0].type().isString())
     }
 
     private fun parseMethod(
@@ -975,34 +1000,48 @@ private constructor(
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
         }
-        method =
-            TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
-        method.setTypeParameterList(typeParameterList)
+
+        var throwsList = emptyList<ExceptionTypeItem>()
+        var defaultAnnotationMethodValue = ""
+
         when (token) {
             "throws" -> {
-                token = parseThrows(tokenizer, method, typeItemFactory)
+                throwsList = parseThrows(tokenizer, typeItemFactory)
+                token = tokenizer.current
             }
             "default" -> {
-                token = parseDefault(tokenizer, method)
+                defaultAnnotationMethodValue = parseDefault(tokenizer)
+                token = tokenizer.current
             }
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
+
+        // Ignore enum synthetic methods.
+        if (isEnumSyntheticMethod(cl, name, parameters)) return
+
+        method =
+            TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
+        method.typeParameterList = typeParameterList
+        method.setThrowsTypes(throwsList)
+        method.setAnnotationDefault(defaultAnnotationMethodValue)
+
         if (!cl.methods().contains(method)) {
             cl.addMethod(method)
         }
     }
 
     private fun mergeAnnotations(
-        annotations: MutableList<String>,
-        annotation: String
-    ): MutableList<String> {
+        annotations: MutableList<AnnotationItem>,
+        annotationQualifiedName: String
+    ) {
         // Reverse effect of TypeItem.shortenTypes(...)
-        val qualifiedName =
-            if (annotation.indexOf('.') == -1) "@androidx.annotation$annotation" else "@$annotation"
-        annotations.add(qualifiedName)
-        return annotations
+        val annotationSource =
+            if (annotationQualifiedName.indexOf('.') == -1)
+                "@androidx.annotation$annotationQualifiedName"
+            else "@$annotationQualifiedName"
+        annotations.add(codebase.createAnnotation(annotationSource))
     }
 
     private fun parseField(
@@ -1069,7 +1108,7 @@ private constructor(
     private fun parseModifiers(
         tokenizer: Tokenizer,
         startingToken: String?,
-        annotations: List<String>?
+        annotations: List<AnnotationItem>?
     ): DefaultModifierList {
         var token = startingToken
         val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
@@ -1305,7 +1344,7 @@ private constructor(
     }
 
     /**
-     * Creates a [TextTypeParameterList].
+     * Creates a [TypeParameterList] and accompanying [TypeParameterScope].
      *
      * The [typeParameterListString] should be the string representation of a list of type
      * parameters, like "<A>" or "<A, B extends java.lang.String, C>".
@@ -1341,7 +1380,7 @@ private constructor(
                 },
             )
 
-        return Pair(TextTypeParameterList.create(codebase, typeParameters), typeItemFactory)
+        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
     }
 
     /**
@@ -1492,24 +1531,23 @@ private constructor(
         }
     }
 
-    private fun parseDefault(tokenizer: Tokenizer, method: TextMethodItem): String {
-        val sb = StringBuilder()
-        while (true) {
-            val token = tokenizer.requireToken()
-            if (";" == token) {
-                method.setAnnotationDefault(sb.toString())
-                return token
-            } else {
-                sb.append(token)
+    private fun parseDefault(tokenizer: Tokenizer): String {
+        return buildString {
+            while (true) {
+                val token = tokenizer.requireToken()
+                if (";" == token) {
+                    break
+                } else {
+                    append(token)
+                }
             }
         }
     }
 
     private fun parseThrows(
         tokenizer: Tokenizer,
-        method: TextMethodItem,
         typeItemFactory: TextTypeItemFactory,
-    ): String {
+    ): List<ExceptionTypeItem> {
         var token = tokenizer.requireToken()
         val throwsList = buildList {
             var comma = true
@@ -1537,15 +1575,13 @@ private constructor(
             }
         }
 
-        method.setThrowsTypes(throwsList)
-
-        return token
+        return throwsList
     }
 
     /**
-     * Parses a [TextTypeItem] from the [tokenizer], starting with the [startingToken] and ensuring
-     * that the full type string is gathered, even when there are type-use annotations. Once the
-     * full type string is found, this parses the type in the context of the [typeItemFactory].
+     * Parses a [TypeItem] from the [tokenizer], starting with the [startingToken] and ensuring that
+     * the full type string is gathered, even when there are type-use annotations. Once the full
+     * type string is found, this parses the type in the context of the [typeItemFactory].
      *
      * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
      * that nullability to [annotations].
@@ -1563,8 +1599,8 @@ private constructor(
         tokenizer: Tokenizer,
         startingToken: String,
         typeItemFactory: TextTypeItemFactory,
-        annotations: MutableList<String>
-    ): TextTypeItem {
+        annotations: MutableList<AnnotationItem>
+    ): TypeItem {
         var prev = getAnnotationCompleteToken(tokenizer, startingToken)
         var type = prev
         var token = tokenizer.current
@@ -1596,16 +1632,7 @@ private constructor(
             }
         } else if (parsedType.modifiers.nullability() == TypeNullability.PLATFORM) {
             // See if the type has nullability from the context item annotations.
-            val nullabilityFromContext =
-                annotations
-                    .singleOrNull { isNullnessAnnotation(it) }
-                    ?.let {
-                        if (isNullableAnnotation(it)) {
-                            TypeNullability.NULLABLE
-                        } else {
-                            TypeNullability.NONNULL
-                        }
-                    }
+            val nullabilityFromContext = annotations.typeNullability
             if (nullabilityFromContext != null) {
                 return parsedType.duplicate(nullabilityFromContext)
             }
@@ -1666,14 +1693,12 @@ private constructor(
     )
 }
 
-private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) {
-    if (annotationSources.isEmpty()) {
+private fun DefaultModifierList.addAnnotations(items: List<AnnotationItem>) {
+    if (items.isEmpty()) {
         return
     }
 
-    annotationSources.forEach { source ->
-        val item = codebase.createAnnotation(source)
-
+    for (item in items) {
         // @Deprecated is also treated as a "modifier"
         if (item.qualifiedName == JAVA_LANG_DEPRECATED) {
             setDeprecated(true)

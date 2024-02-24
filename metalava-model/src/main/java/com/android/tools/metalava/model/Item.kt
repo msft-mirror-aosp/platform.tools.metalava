@@ -97,12 +97,6 @@ interface Item {
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
 
-    /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
-     * enums
-     */
-    val synthetic: Boolean
-
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
 
@@ -156,6 +150,12 @@ interface Item {
 
     override fun hashCode(): Int
 
+    /** Calls [toStringForItem]. */
+    override fun toString(): String
+
+    /** Provides a string representation of the item, suitable for use while debugging. */
+    fun toStringForItem(): String
+
     /**
      * Returns true if this item requires nullness information (e.g. for a method where either the
      * return value or any of the parameters are non-primitives. Note that it doesn't consider
@@ -172,17 +172,11 @@ interface Item {
     /**
      * Get this element's *implicit* nullness, if any.
      *
-     * This returns true for implicitly nullable elements, such as the parameter to the
-     * [Object.equals] method, false for implicitly non-null elements (such as annotation type
-     * members), and null if there is no implicit nullness.
+     * This returns [TypeNullability.NULLABLE] for implicitly nullable elements, such as the
+     * parameter to the [Object.equals] method, [TypeNullability.NONNULL] for implicitly non-null
+     * elements (such as annotation type members), and `null` if there is no implicit nullness.
      */
-    fun implicitNullness(): Boolean? = null
-
-    /**
-     * Returns true if this item has generic type whose nullability is determined at subclass
-     * declaration site.
-     */
-    fun hasInheritedGenericType(): Boolean = false
+    fun implicitNullness(): TypeNullability? = null
 
     /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
@@ -394,7 +388,12 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
+abstract class DefaultItem(final override val modifiers: DefaultModifierList) : Item {
+
+    init {
+        @Suppress("LeakingThis")
+        modifiers.owner = this
+    }
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -403,6 +402,8 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     final override var effectivelyDeprecated = originallyDeprecated
 
     final override var deprecated = originallyDeprecated
+
+    final override fun mutableModifiers(): MutableModifierList = modifiers
 
     override val isPublic: Boolean
         get() = modifiers.isPublic()
@@ -428,4 +429,6 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
+
+    final override fun toString() = toStringForItem()
 }
