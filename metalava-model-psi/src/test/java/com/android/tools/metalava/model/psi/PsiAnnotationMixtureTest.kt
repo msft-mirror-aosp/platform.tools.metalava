@@ -16,17 +16,20 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
+import org.junit.runner.RunWith
 
-class PsiAnnotationMixtureTest : BasePsiTest() {
-    @Test
-    fun `Test type-use annotations from Java and Kotlin source, used by Java and Kotlin source`() {
+@RunWith(ModelTestSuiteRunner::class)
+class PsiAnnotationMixtureTest : BaseModelTest() {
+    companion object {
         val javaUsageSource =
             java(
                 """
@@ -69,8 +72,13 @@ class PsiAnnotationMixtureTest : BasePsiTest() {
             """
                     .trimIndent()
             )
+    }
 
-        val codebaseTest = { codebase: Codebase ->
+    private fun runMixtureAnnotationTest(
+        annotationUsageSource: TestFile,
+        annotationDefinitionSource: TestFile,
+    ) {
+        runCodebaseTest(inputSet(annotationDefinitionSource, annotationUsageSource)) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertThat(methods).hasSize(3)
 
@@ -103,10 +111,25 @@ class PsiAnnotationMixtureTest : BasePsiTest() {
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).isEmpty()
         }
+    }
 
-        testCodebase(javaUsageSource, javaAnnotationSource, action = codebaseTest)
-        testCodebase(javaUsageSource, kotlinAnnotationSource, action = codebaseTest)
-        testCodebase(kotlinUsageSource, javaAnnotationSource, action = codebaseTest)
-        testCodebase(kotlinUsageSource, kotlinAnnotationSource, action = codebaseTest)
+    @Test
+    fun `Test java usage, java definition`() {
+        runMixtureAnnotationTest(javaUsageSource, javaAnnotationSource)
+    }
+
+    @Test
+    fun `Test java usage, kotlin definition`() {
+        runMixtureAnnotationTest(javaUsageSource, kotlinAnnotationSource)
+    }
+
+    @Test
+    fun `Test kotlin usage, java definition`() {
+        runMixtureAnnotationTest(kotlinUsageSource, javaAnnotationSource)
+    }
+
+    @Test
+    fun `Test kotlin usage, kotlin definition`() {
+        runMixtureAnnotationTest(kotlinUsageSource, kotlinAnnotationSource)
     }
 }
