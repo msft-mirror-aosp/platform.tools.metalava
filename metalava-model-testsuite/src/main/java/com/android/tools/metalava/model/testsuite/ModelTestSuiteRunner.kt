@@ -22,6 +22,8 @@ import java.util.ServiceLoader
 import kotlin.test.fail
 import org.junit.runner.Runner
 import org.junit.runners.Parameterized
+import org.junit.runners.model.FrameworkMethod
+import org.junit.runners.model.Statement
 import org.junit.runners.model.TestClass
 import org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters
 import org.junit.runners.parameterized.ParametersRunnerFactory
@@ -86,6 +88,16 @@ class ModelTestSuiteRunner(clazz: Class<*>) :
             val testInstance = super.createTest() as ModelProviderAwareTest
             testInstance.modelProviderTestInfo = modelProviderTestInfo
             return testInstance
+        }
+
+        /**
+         * Override [methodInvoker] to allow the [Statement] it returns to be wrapped by a
+         * [BaselineTestRule] to take into account known issues listed in a baseline file.
+         */
+        override fun methodInvoker(method: FrameworkMethod, test: Any): Statement {
+            val statement = super.methodInvoker(method, test)
+            val baselineTestRule = BaselineTestRule(modelProviderTestInfo.runner)
+            return baselineTestRule.apply(statement, describeChild(method))
         }
     }
 

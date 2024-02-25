@@ -22,14 +22,10 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
-import org.junit.AssumptionViolatedException
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import org.junit.rules.TestRule
-import org.junit.runner.Description
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
-import org.junit.runners.model.Statement
 
 /**
  * Base class for tests that verify the behavior of model implementations.
@@ -80,8 +76,6 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
     }
 
     @get:Rule val temporaryFolder = TemporaryFolder()
-
-    @get:Rule val baselineTestRule: TestRule by lazy { BaselineTestRule(runner) }
 
     /**
      * Set of inputs for a test.
@@ -249,67 +243,4 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
     /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
     fun signature(to: String, contents: String): TestFile =
         TestFiles.source(to, contents.trimIndent())
-}
-
-private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
-    "`scripts/refresh-testsuite-baselines.sh` to update the baseline"
-
-/** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
-private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
-
-    /**
-     * The [ModelTestSuiteBaseline] that indicates whether the tests are expected to fail or not.
-     */
-    private val baseline = ModelTestSuiteBaseline.fromResource
-
-    override fun apply(base: Statement, description: Description): Statement {
-        return object : Statement() {
-            override fun evaluate() {
-                val expectedFailure =
-                    baseline.isExpectedFailure(description.className, description.methodName)
-                try {
-                    // Run the test even if it is expected to fail as a change that fixes one test
-                    // may fix more. Instead, this will just discard any failure.
-                    base.evaluate()
-                } catch (e: Throwable) {
-                    if (expectedFailure) {
-                        // If this was expected to fail then throw an AssumptionViolatedException
-                        // that way it is not treated as either a pass or fail. Indent the exception
-                        // output and include it in the message instead of chaining the exception as
-                        // that reads better than the default formatting of chained exceptions.
-                        val actualErrorStackTrace = e.stackTraceToString().prependIndent("    ")
-                        throw AssumptionViolatedException(
-                            "Test skipped since it is listed in the baseline file for $runner.\n$actualErrorStackTrace"
-                        )
-                    } else {
-                        // Inform the developer on how to ignore this failing test.
-                        System.err.println(
-                            "Failing tests can be ignored by running $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
-                        )
-
-                        // Rethrow the error
-                        throw e
-                    }
-                }
-
-                // Perform this check outside the try...catch block otherwise the exception gets
-                // caught, making it look like an actual failing test.
-                if (expectedFailure) {
-                    // If a test that was expected to fail passes then updating the baseline
-                    // will remove that test from the expected test failures. Fail the test so
-                    // that the developer will be forced to clean it up.
-                    throw IllegalStateException(
-                        """
-                            **************************************************************************************************
-                                Test was listed in the baseline file as it was expected to fail but it passed, please run:
-                                    $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE
-                            **************************************************************************************************
-
-                        """
-                            .trimIndent()
-                    )
-                }
-            }
-        }
-    }
 }
