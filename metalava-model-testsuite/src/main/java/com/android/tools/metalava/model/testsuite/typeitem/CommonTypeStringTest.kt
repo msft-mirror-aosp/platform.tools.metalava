@@ -124,9 +124,9 @@ class CommonTypeStringTest : BaseModelTest() {
      * Anything that accesses this, either directly or indirectly must do it after initialization,
      * e.g. from lazy fields or in methods called from test methods.
      *
-     * See [baseParameters] for more info.
+     * See [modelProviderTestInfo] for more info.
      */
-    @Parameter(1) lateinit var parameters: TypeStringParameters
+    @Parameter(0) lateinit var parameters: TypeStringParameters
 
     private fun javaTestFiles() =
         inputSet(

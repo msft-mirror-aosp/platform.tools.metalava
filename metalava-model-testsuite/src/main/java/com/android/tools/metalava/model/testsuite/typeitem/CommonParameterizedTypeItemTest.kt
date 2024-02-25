@@ -30,7 +30,7 @@ import org.junit.runners.Parameterized
 @RunWith(ModelTestSuiteRunner::class)
 class CommonParameterizedTypeItemTest : BaseModelTest() {
 
-    @Parameterized.Parameter(1) lateinit var params: TestParams
+    @Parameterized.Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
         val javaTypeParameter: String? = null,

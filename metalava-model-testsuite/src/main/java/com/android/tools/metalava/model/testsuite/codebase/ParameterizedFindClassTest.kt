@@ -31,7 +31,7 @@ import org.junit.runners.Parameterized
 @RunWith(ModelTestSuiteRunner::class)
 class ParameterizedFindClassTest : BaseModelTest() {
 
-    @Parameterized.Parameter(1) lateinit var params: TestParams
+    @Parameterized.Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
         val className: String,

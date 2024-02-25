@@ -67,9 +67,9 @@ class CommonIsAssignableFromTest : BaseModelTest() {
      * Anything that accesses this, either directly or indirectly must do it after initialization,
      * e.g. from lazy fields or in methods called from test methods.
      *
-     * See [baseParameters] for more info.
+     * See [modelProviderTestInfo] for more info.
      */
-    @Parameterized.Parameter(1) lateinit var comparison: Comparison
+    @Parameterized.Parameter(0) lateinit var comparison: Comparison
 
     @Test
     fun `Test assignability without unboxing`() {

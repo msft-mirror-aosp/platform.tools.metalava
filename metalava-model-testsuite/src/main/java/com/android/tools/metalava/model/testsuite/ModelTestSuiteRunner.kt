@@ -20,8 +20,12 @@ import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
 import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
 import java.util.ServiceLoader
 import kotlin.test.fail
+import org.junit.runner.Runner
 import org.junit.runners.Parameterized
 import org.junit.runners.model.TestClass
+import org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters
+import org.junit.runners.parameterized.ParametersRunnerFactory
+import org.junit.runners.parameterized.TestWithParameters
 
 /**
  * A special [CustomizableParameterizedRunner] for use with the model test suite tests.
@@ -31,12 +35,59 @@ import org.junit.runners.model.TestClass
  * [Parameterized.Parameters] then this will compute the cross produce of those arguments with the
  * [ModelProviderTestInfo]. That will ensure that every set of arguments provided by the test clas s
  * will be run with every [ModelSuiteRunner] available.
+ *
+ * The [ModelProviderTestInfo] is injected into the test through
+ * [ModelProviderAwareTest.modelProviderTestInfo] and not through a field annotated with
+ * [Parameterized.Parameter]. That means that switching a class that is already [Parameterized] to
+ * use this instead does not affect any existing [Parameterized.Parameter] fields.
  */
 class ModelTestSuiteRunner(clazz: Class<*>) :
     CustomizableParameterizedRunner(
         clazz,
         ::getModelSuiteRunners,
+        InstanceRunnerFactory::class,
     ) {
+
+    init {
+        val awareTestClass = ModelProviderAwareTest::class.java
+        if (!awareTestClass.isAssignableFrom(clazz)) {
+            error("Class ${clazz.name} does not implement ${awareTestClass.name}")
+        }
+    }
+
+    /** [ParametersRunnerFactory] for creating [Runner]s for a set of arguments. */
+    class InstanceRunnerFactory : ParametersRunnerFactory {
+        /**
+         * Create a runner for the [TestWithParameters].
+         *
+         * The [TestWithParameters.parameters] contains at least one argument and the first argument
+         * will be the [ModelProviderTestInfo] provided by [ModelTestSuiteRunner]. This extracts
+         * that from the list and injects it into the test object (which must implement
+         * [ModelProviderAwareTest]).
+         */
+        override fun createRunnerForTestWithParameters(test: TestWithParameters): Runner {
+            val arguments = test.parameters
+            val modelProviderTestInfo = arguments[0] as ModelProviderTestInfo
+
+            val newTest = TestWithParameters(test.name, test.testClass, arguments.drop(1))
+            return InstanceRunner(modelProviderTestInfo, newTest)
+        }
+    }
+
+    /**
+     * Run a test that must implement [ModelProviderAwareTest] after setting its
+     * [ModelProviderAwareTest.modelProviderTestInfo] property.
+     */
+    private class InstanceRunner(
+        private val modelProviderTestInfo: ModelProviderTestInfo,
+        test: TestWithParameters
+    ) : BlockJUnit4ClassRunnerWithParameters(test) {
+        override fun createTest(): Any {
+            val testInstance = super.createTest() as ModelProviderAwareTest
+            testInstance.modelProviderTestInfo = modelProviderTestInfo
+            return testInstance
+        }
+    }
 
     companion object {
         private fun getModelSuiteRunners(

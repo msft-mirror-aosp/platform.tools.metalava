@@ -33,7 +33,7 @@ import org.junit.runners.Parameterized.Parameter
 @RunWith(ModelTestSuiteRunner::class)
 class CommonInternalNameTest : BaseModelTest() {
 
-    @Parameter(1) lateinit var params: TestParams
+    @Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
         val javaType: String,

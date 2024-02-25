@@ -71,7 +71,7 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
      * 2. The parameters are injected into the [Parameter] annotated fields.
      * 3. Follows the normal test class life-cycle.
      */
-    @Parameter(0) final override lateinit var modelProviderTestInfo: ModelProviderTestInfo
+    final override lateinit var modelProviderTestInfo: ModelProviderTestInfo
 
     init {
         if (fixedModelProviderTestInfo != null) {

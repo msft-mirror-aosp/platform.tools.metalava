@@ -20,6 +20,7 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 import org.junit.AssumptionViolatedException
 import org.junit.runner.Description
@@ -67,6 +68,7 @@ import org.junit.runners.parameterized.ParametersRunnerFactory
 abstract class CustomizableParameterizedRunner(
     clazz: Class<*>,
     argumentsProvider: (TestClass, List<Array<Any>>?) -> TestArguments,
+    parametersRunnerFactoryClass: KClass<out ParametersRunnerFactory>? = null,
 ) : ParentRunner<Runner>(clazz) {
 
     /** The set of test arguments to use. */
@@ -93,7 +95,7 @@ abstract class CustomizableParameterizedRunner(
 
             // Create a [TestClass] for the real test class and inject it.
             val testClass =
-                TestClass(clazz).also {
+                InjectedTestClass(clazz, parametersRunnerFactoryClass).also {
                     // Inject it into [runnersFactory]
                     testClass = it
                 }
@@ -163,6 +165,31 @@ abstract class CustomizableParameterizedRunner(
                         arrayOf(it)
                     }
                 }
+        }
+    }
+
+    /**
+     * A [TestClass] subclass that is injected into the [Parameterized.RunnersFactory] in order to
+     * intercept requests for information about the test class being run and supply information
+     * provide by this.
+     */
+    private class InjectedTestClass(
+        clazz: Class<*>,
+        /**
+         * The [ParametersRunnerFactory] class to use for creating runners for a specific set of
+         * test parameters.
+         */
+        private val runnerFactoryClass: KClass<out ParametersRunnerFactory>?,
+    ) : TestClass(clazz) {
+        override fun <T : Annotation> getAnnotation(annotationType: Class<T>): T? {
+            if (
+                runnerFactoryClass != null &&
+                    annotationType == UseParametersRunnerFactory::class.java
+            ) {
+                @Suppress("UNCHECKED_CAST")
+                return UseParametersRunnerFactory(runnerFactoryClass) as T
+            }
+            return super.getAnnotation(annotationType)
         }
     }
 
