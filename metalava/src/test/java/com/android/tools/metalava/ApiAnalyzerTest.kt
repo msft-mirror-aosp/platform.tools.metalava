@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
@@ -499,6 +500,95 @@ class ApiAnalyzerTest : DriverTest() {
                         method public void bar();
                       }
                     }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test warnings for usage of hidden interface type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            /** @suppress */
+                            interface HiddenInterface
+                            class PublicClass {
+                                fun returnsHiddenInterface(): HiddenInterface = TODO()
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class PublicClass {
+                        ctor public PublicClass();
+                        method public test.pkg.HiddenInterface returnsHiddenInterface();
+                      }
+                    }
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/HiddenInterface.kt:5: error: Class test.pkg.HiddenInterface is hidden but was referenced (in return type) from public method test.pkg.PublicClass.returnsHiddenInterface() [ReferencesHidden]
+                    src/test/pkg/HiddenInterface.kt:5: warning: Return type of unavailable type test.pkg.HiddenInterface in test.pkg.PublicClass.returnsHiddenInterface() [UnavailableSymbol]
+                    src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface() references hidden type test.pkg.HiddenInterface. [HiddenTypeParameter]
+                """
+        )
+    }
+
+    @Test
+    fun `Test references deprecated errors do not apply to inner class of deprecated class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated */
+                        @Deprecated
+                        public class DeprecatedOuterClass {
+                            public class EffectivelyDeprecatedInnerClass extends DeprecatedOuterClass {
+                                public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
+                            }
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class NotDeprecatedClass extends DeprecatedOuterClass {
+                            public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
+                        }
+                    """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      @Deprecated public class DeprecatedOuterClass {
+                        ctor @Deprecated public DeprecatedOuterClass();
+                      }
+                      @Deprecated public class DeprecatedOuterClass.EffectivelyDeprecatedInnerClass extends test.pkg.DeprecatedOuterClass {
+                        ctor @Deprecated public DeprecatedOuterClass.EffectivelyDeprecatedInnerClass();
+                        method @Deprecated public void usesDeprecatedOuterClass(test.pkg.DeprecatedOuterClass!);
+                      }
+                      public class NotDeprecatedClass extends test.pkg.DeprecatedOuterClass {
+                        ctor public NotDeprecatedClass();
+                        method public void usesDeprecatedOuterClass(test.pkg.DeprecatedOuterClass!);
+                      }
+                    }
+                """,
+            extraArguments =
+                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/NotDeprecatedClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesDeprecatedOuterClass(): this method should also be deprecated [ReferencesDeprecated]
+                    src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
                 """,
         )
     }
