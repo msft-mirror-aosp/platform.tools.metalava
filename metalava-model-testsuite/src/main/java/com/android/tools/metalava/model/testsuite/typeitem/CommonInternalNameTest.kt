@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Assert.assertEquals
@@ -29,7 +30,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
-@RunWith(Parameterized::class)
+@RunWith(ModelTestSuiteRunner::class)
 class CommonInternalNameTest : BaseModelTest() {
 
     @Parameter(1) lateinit var params: TestParams

@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -31,10 +32,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
-@RunWith(Parameterized::class)
+@RunWith(ModelTestSuiteRunner::class)
 class CommonClassItemTest : BaseModelTest() {
 
     @Test

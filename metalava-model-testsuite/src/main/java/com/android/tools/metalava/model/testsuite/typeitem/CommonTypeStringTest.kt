@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
@@ -33,7 +34,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
-@RunWith(Parameterized::class)
+@RunWith(ModelTestSuiteRunner::class)
 class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(

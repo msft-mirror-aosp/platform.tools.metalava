@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.source.SourceLanguage
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability
@@ -35,9 +36,8 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
+@RunWith(ModelTestSuiteRunner::class)
 class CommonTypeModifiersTest : BaseModelTest() {
 
     private fun TypeItem.annotationNames(): List<String?> {

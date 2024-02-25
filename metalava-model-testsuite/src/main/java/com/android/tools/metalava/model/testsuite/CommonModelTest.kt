@@ -25,9 +25,8 @@ import kotlin.test.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
+@RunWith(ModelTestSuiteRunner::class)
 class CommonModelTest : BaseModelTest() {
     @Test
     fun `empty file`() {
