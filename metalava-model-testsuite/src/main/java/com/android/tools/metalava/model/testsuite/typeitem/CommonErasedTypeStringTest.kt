@@ -152,11 +152,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
                     ),
                 )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun combinedTestParameters(): Iterable<Array<Any>> {
-            return crossProduct(typeStringParameters)
-        }
+        @JvmStatic @Parameterized.Parameters fun typeStringParameters() = typeStringParameters
     }
 
     /**

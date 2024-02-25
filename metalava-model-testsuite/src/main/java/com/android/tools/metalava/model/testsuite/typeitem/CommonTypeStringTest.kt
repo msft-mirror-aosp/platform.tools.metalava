@@ -210,11 +210,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 }
             """
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun combinedTestParameters(): Iterable<Array<Any>> {
-            return crossProduct(testCases)
-        }
+        @JvmStatic @Parameterized.Parameters fun testCases() = testCases
 
         private val testCases =
             // Test primitives besides void (the test setup puts the type in parameter position, and

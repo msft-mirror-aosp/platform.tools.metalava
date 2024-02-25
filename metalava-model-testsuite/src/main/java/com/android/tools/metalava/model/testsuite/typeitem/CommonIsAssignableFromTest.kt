@@ -58,11 +58,7 @@ class CommonIsAssignableFromTest : BaseModelTest() {
                 Comparison("mapOfIntToString", "mapOfNumberToString", false),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun combinedTestParameters(): Iterable<Array<Any>> {
-            return crossProduct(comparisons)
-        }
+        @JvmStatic @Parameterized.Parameters fun comparisons() = comparisons
     }
 
     /**

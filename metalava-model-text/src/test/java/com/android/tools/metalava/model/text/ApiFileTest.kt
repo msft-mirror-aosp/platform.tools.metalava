@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -29,9 +30,8 @@ import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
+@RunWith(ModelTestSuiteRunner::class)
 class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test

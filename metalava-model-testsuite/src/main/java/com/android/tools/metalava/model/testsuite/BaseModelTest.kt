@@ -22,8 +22,6 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
-import java.util.ServiceLoader
-import kotlin.test.fail
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
@@ -84,46 +82,6 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
     @get:Rule val baselineTestRule: TestRule by lazy { BaselineTestRule(runner) }
-
-    companion object {
-        /** Compute the list of [ModelProviderTestInfo] based on the available runners. */
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun testParameters(): Iterable<ModelProviderTestInfo> {
-            val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
-            val runners = loader.toList()
-            if (runners.isEmpty()) {
-                fail("No runners found")
-            }
-            val list =
-                runners.flatMap { runner ->
-                    runner.testConfigurations.map {
-                        ModelProviderTestInfo(
-                            runner,
-                            it.inputFormat,
-                            it.modelOptions,
-                        )
-                    }
-                }
-            return list
-        }
-
-        /**
-         * Compute the cross product of the supplied [data] and the [testParameters].
-         *
-         * This must be called from the parameters method of a parameterized test class that is
-         * parameterized in two dimensions, i.e. the available runners as returned by
-         * [testParameters] and its own custom dimension.
-         *
-         *         @JvmStatic
-         *         @Parameterized.Parameters(name = "{0},{1}")
-         *         fun combinedTestParameters(): Iterable<Array<Any>> {
-         *             return crossProduct(myData)
-         *         }
-         */
-        fun crossProduct(data: Iterable<Any>): List<Array<Any>> =
-            testParameters().flatMap { baseParameters -> data.map { arrayOf(baseParameters, it) } }
-    }
 
     /**
      * Set of inputs for a test.

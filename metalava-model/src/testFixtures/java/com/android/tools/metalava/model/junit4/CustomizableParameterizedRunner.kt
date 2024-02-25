@@ -59,11 +59,14 @@ import org.junit.runners.parameterized.ParametersRunnerFactory
  * On top of that wrapper it will provide support for doing some (or all) of the above as needed.
  *
  * @param clazz the test class to run.
- * @param argumentsProvider provider of [TestArguments] used by this runner.
+ * @param argumentsProvider provider of [TestArguments] used by this runner. Is also passed any
+ *   additional parameters (provided by the test class using the standard [Parameterized]
+ *   mechanism), if any. They can be filtered and/or combined in some way with parameters provides
+ *   by this.
  */
 abstract class CustomizableParameterizedRunner(
     clazz: Class<*>,
-    argumentsProvider: (TestClass) -> TestArguments,
+    argumentsProvider: (TestClass, List<Array<Any>>?) -> TestArguments,
 ) : ParentRunner<Runner>(clazz) {
 
     /** The set of test arguments to use. */
@@ -95,9 +98,12 @@ abstract class CustomizableParameterizedRunner(
                     testClass = it
                 }
 
+            // Get additional arguments (if any) from the actual test class.
+            val additionalArguments = getAdditionalArguments(testClass)
+
             // Obtain [TestArguments] from the provider and store the list of argument sets in the
             // [RunnersFactory.allParametersField].
-            val testArguments = argumentsProvider(testClass)
+            val testArguments = argumentsProvider(testClass, additionalArguments)
             allParameters = testArguments.argumentSets
 
             // Get the [FrameworkMethod] for the [FakeTestClass.fakeParameters] method, extract its
@@ -121,6 +127,44 @@ abstract class CustomizableParameterizedRunner(
 
     /** List containing [parameterized]. */
     private val children: List<Runner> = mutableListOf(parameterized)
+
+    companion object {
+        /**
+         * Get additional arguments, if any, provided by the [testClass] through use of a
+         * [Parameters] function.
+         *
+         * The returned values have been normalized so each entry is an `Array<Any>`.
+         */
+        private fun getAdditionalArguments(testClass: TestClass): List<Array<Any>>? {
+            val parametersMethod =
+                testClass.getAnnotatedMethods(Parameters::class.java).firstOrNull {
+                    it.isPublic && it.isStatic
+                }
+                    ?: return null
+            return when (val parameters = parametersMethod.invokeExplosively(null)) {
+                    is List<*> -> parameters
+                    is Iterable<*> -> parameters.toList()
+                    is Array<*> -> parameters.toList()
+                    else ->
+                        error(
+                            "${testClass.name}.{${parametersMethod.name}() must return an Iterable of arrays."
+                        )
+                }
+                .filterNotNull()
+                .map {
+                    if (
+                        it is Array<*> &&
+                            it.javaClass.isArray &&
+                            it.javaClass.componentType == Object::class.java
+                    ) {
+                        @Suppress("UNCHECKED_CAST")
+                        it as Array<Any>
+                    } else {
+                        arrayOf(it)
+                    }
+                }
+        }
+    }
 
     /**
      * An extension of [FrameworkMethod] that exists to provide the custom [TestArguments.pattern]

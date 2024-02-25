@@ -102,11 +102,7 @@ class ParameterizedFindClassTest : BaseModelTest() {
                 ),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun data(): Collection<Array<Any>> {
-            return crossProduct(params)
-        }
+        @JvmStatic @Parameterized.Parameters fun params() = params
     }
 
     private fun assertFound(className: String, expectedFound: Boolean, foundClass: ClassItem?) {

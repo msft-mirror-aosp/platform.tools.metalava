@@ -49,8 +49,11 @@ class CustomizableParameterizedParametersProviderTest {
         companion object {
             private fun mergeParameters(
                 testClass: TestClass,
+                additionalParameters: List<Array<Any>>?,
             ): TestArguments {
                 val customParameters = testClass.getAnnotation(CustomParameters::class.java)
+                if (additionalParameters != null)
+                    error("did not expect ${additionalParameters.size} additional parameters")
                 return TestArguments(
                     pattern = customParameters.pattern,
                     argumentSets = customParameters.values.toList(),
