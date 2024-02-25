@@ -19,15 +19,12 @@ package com.android.tools.metalava.model.testsuite.sourcefile
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import java.util.function.Predicate
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for implementations of [SourceFile]. */
-@RunWith(ModelTestSuiteRunner::class)
 class CommonSourceFileTest : BaseModelTest() {
     internal class AlwaysTrue : Predicate<Item> {
         override fun test(item: Item): Boolean = true

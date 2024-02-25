@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.testsuite.methoditem
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -27,10 +26,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for implementations of [MethodItem]. */
-@RunWith(ModelTestSuiteRunner::class)
 class CommonMethodItemTest : BaseModelTest() {
 
     @Test

@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.runNullabilityTest
@@ -30,10 +29,8 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for implementations of [FieldItem]. */
-@RunWith(ModelTestSuiteRunner::class)
 class CommonFieldItemTest : BaseModelTest() {
 
     @Test

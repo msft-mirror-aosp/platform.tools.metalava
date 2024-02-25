@@ -17,17 +17,14 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import org.junit.Assert
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
-@RunWith(ModelTestSuiteRunner::class)
 class CommonErasedTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(

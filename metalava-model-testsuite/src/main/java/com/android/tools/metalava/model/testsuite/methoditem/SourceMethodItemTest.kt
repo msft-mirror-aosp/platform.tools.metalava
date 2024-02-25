@@ -17,14 +17,11 @@
 package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for implementations of [MethodItem] for source based models. */
-@RunWith(ModelTestSuiteRunner::class)
 class SourceMethodItemTest : BaseModelTest() {
     @Test
     fun `test duplicate() for methoditem`() {

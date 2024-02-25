@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -28,9 +27,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import org.junit.runner.RunWith
 
-@RunWith(ModelTestSuiteRunner::class)
 class PsiPropertyItemTest : BaseModelTest() {
     @Test
     fun `primary constructor properties have constructor parameters`() {

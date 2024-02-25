@@ -18,14 +18,11 @@ package com.android.tools.metalava.model.testsuite.constructoritem
 
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for implementations of [MethodItem]. */
-@RunWith(ModelTestSuiteRunner::class)
 class CommonConstructorItemTest : BaseModelTest() {
 
     @Test

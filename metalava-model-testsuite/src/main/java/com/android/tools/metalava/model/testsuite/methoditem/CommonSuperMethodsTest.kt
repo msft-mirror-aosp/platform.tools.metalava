@@ -18,15 +18,12 @@ package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for the [MethodItem.superMethods] method. */
-@RunWith(ModelTestSuiteRunner::class)
 class CommonSuperMethodsTest : BaseModelTest() {
 
     @Test

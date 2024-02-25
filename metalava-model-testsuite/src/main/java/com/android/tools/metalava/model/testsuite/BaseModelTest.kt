@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelPr
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
@@ -44,6 +45,7 @@ import org.junit.runners.Parameterized.Parameter
  *   that run for a fixed set of [ModelSuiteRunner] and [InputFormat]. This is useful when writing
  *   model specific tests that want to take advantage of the infrastructure for running suite tests.
  */
+@RunWith(ModelTestSuiteRunner::class)
 abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? = null) :
     ModelProviderAwareTest, TemporaryFolderOwner, Assertions {
 

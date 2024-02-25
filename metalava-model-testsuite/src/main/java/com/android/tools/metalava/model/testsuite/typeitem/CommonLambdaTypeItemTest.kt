@@ -17,13 +17,10 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import org.junit.runner.RunWith
 
-@RunWith(ModelTestSuiteRunner::class)
 class CommonLambdaTypeItemTest : BaseModelTest() {
 
     @Test

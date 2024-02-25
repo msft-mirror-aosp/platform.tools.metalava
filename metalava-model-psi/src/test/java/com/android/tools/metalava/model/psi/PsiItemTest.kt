@@ -17,13 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import org.junit.runner.RunWith
 
-@RunWith(ModelTestSuiteRunner::class)
 class PsiItemTest : BaseModelTest() {
     @Test
     fun `Documentation tags extraction`() {

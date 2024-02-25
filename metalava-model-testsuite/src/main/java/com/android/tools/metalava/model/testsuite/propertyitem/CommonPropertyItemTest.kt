@@ -18,15 +18,12 @@ package com.android.tools.metalava.model.testsuite.propertyitem
 
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for implementations of [PropertyItem]. */
-@RunWith(ModelTestSuiteRunner::class)
 class CommonPropertyItemTest : BaseModelTest() {
 
     @Test

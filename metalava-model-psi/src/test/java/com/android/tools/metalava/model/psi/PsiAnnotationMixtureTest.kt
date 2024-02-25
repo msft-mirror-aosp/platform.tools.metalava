@@ -20,14 +20,11 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
-import org.junit.runner.RunWith
 
-@RunWith(ModelTestSuiteRunner::class)
 class PsiAnnotationMixtureTest : BaseModelTest() {
     companion object {
         val javaUsageSource =

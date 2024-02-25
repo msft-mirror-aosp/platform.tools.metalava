@@ -17,15 +17,12 @@
 package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteRunner
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /** Common tests for [FieldItem.InitialValue]. */
-@RunWith(ModelTestSuiteRunner::class)
 class SourceFieldItemTest : BaseModelTest() {
 
     @Test
