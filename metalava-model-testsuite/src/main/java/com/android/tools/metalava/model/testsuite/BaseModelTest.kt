@@ -21,6 +21,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
 import java.util.ServiceLoader
 import kotlin.test.fail
 import org.junit.AssumptionViolatedException
@@ -35,20 +36,21 @@ import org.junit.runners.model.Statement
 /**
  * Base class for tests that verify the behavior of model implementations.
  *
- * This is parameterized by [TestParameters] as even though the tests are run in different projects
- * the test results are collated and reported together. Having the parameters in the test name makes
- * it easier to differentiate them.
+ * This is parameterized by [ModelProviderTestInfo] as even though the tests are run in different
+ * projects the test results are collated and reported together. Having the parameters in the test
+ * name makes it easier to differentiate them.
  *
  * Note: In the top-level test report produced by Gradle it appears to just display whichever test
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
  *
- * @param fixedParameters A set of fixed [TestParameters], used for creating tests that run for a
- *   fixed set of [ModelSuiteRunner] and [InputFormat]. This is useful when writing model specific
- *   tests that want to take advantage of the infrastructure for running suite tests.
+ * @param fixedModelProviderTestInfo A set of fixed [ModelProviderTestInfo], used for creating tests
+ *   that run for a fixed set of [ModelSuiteRunner] and [InputFormat]. This is useful when writing
+ *   model specific tests that want to take advantage of the infrastructure for running suite tests.
  */
-abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertions {
+abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? = null) :
+    ModelProviderAwareTest, Assertions {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -71,32 +73,23 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
      * 2. The parameters are injected into the [Parameter] annotated fields.
      * 3. Follows the normal test class life-cycle.
      */
-    @Parameter(0) lateinit var baseParameters: TestParameters
+    @Parameter(0) final override lateinit var modelProviderTestInfo: ModelProviderTestInfo
 
     init {
-        if (fixedParameters != null) {
-            this.baseParameters = fixedParameters
+        if (fixedModelProviderTestInfo != null) {
+            this.modelProviderTestInfo = fixedModelProviderTestInfo
         }
     }
-
-    /** The [ModelSuiteRunner] that this test must use. */
-    private val runner by lazy { baseParameters.runner }
-
-    /**
-     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
-     * other [InputFormat]s.
-     */
-    protected val inputFormat by lazy { baseParameters.inputFormat }
 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
     @get:Rule val baselineTestRule: TestRule by lazy { BaselineTestRule(runner) }
 
     companion object {
-        /** Compute the list of [TestParameters] based on the available runners. */
+        /** Compute the list of [ModelProviderTestInfo] based on the available runners. */
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun testParameters(): Iterable<TestParameters> {
+        fun testParameters(): Iterable<ModelProviderTestInfo> {
             val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
             val runners = loader.toList()
             if (runners.isEmpty()) {
@@ -105,7 +98,7 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
             val list =
                 runners.flatMap { runner ->
                     runner.testConfigurations.map {
-                        TestParameters(
+                        ModelProviderTestInfo(
                             runner,
                             it.inputFormat,
                             it.modelOptions,
@@ -207,7 +200,7 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
                     ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
                 val inputs =
                     ModelSuiteRunner.TestInputs(
-                        modelOptions = baseParameters.modelOptions,
+                        modelOptions = modelProviderTestInfo.modelOptions,
                         mainSourceDir = mainSourceDir,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
