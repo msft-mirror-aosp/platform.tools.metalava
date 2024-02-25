@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.intellij.psi.PsiPackage
@@ -26,7 +27,7 @@ internal constructor(
     codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
@@ -116,8 +117,6 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "package $qualifiedName"
-
     override fun finishInitialization() {
         super.finishInitialization()
 
@@ -158,7 +157,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath
                 )
-            pkg.modifiers.setOwner(pkg)
             return pkg
         }
     }

@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -32,11 +33,12 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.SyntheticElement
 import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -55,10 +57,10 @@ internal constructor(
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
     override val classKind: ClassKind,
-    private val typeParameterList: TypeParameterList,
+    override val typeParameterList: TypeParameterList,
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -187,8 +189,6 @@ internal constructor(
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
-    override fun typeParameterList() = typeParameterList
-
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
@@ -250,7 +250,10 @@ internal constructor(
 
     override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
-        val newMethod = PsiMethodItem.create(codebase, this, method)
+        require(method.codebase == codebase) {
+            "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
+        }
+        val newMethod = PsiMethodItem.create(this, method)
 
         newMethod.finishInitialization()
 
@@ -281,11 +284,9 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "class ${qualifiedName()}"
-
     companion object {
         private fun hasExplicitRetention(
-            modifiers: PsiModifierItem,
+            modifiers: DefaultModifierList,
             psiClass: PsiClass,
             isKotlin: Boolean
         ): Boolean {
@@ -378,7 +379,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )
-            item.modifiers.setOwner(item)
             item.containingClass = containingClassItem
 
             // Register this class now.
@@ -387,7 +387,7 @@ internal constructor(
             // Construct the children
             val psiMethods = psiClass.methods
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
-            val isKotlin = isKotlin(psiClass)
+            val isKotlin = psiClass.isKotlin()
 
             if (
                 classKind == ClassKind.ANNOTATION_TYPE &&
@@ -449,7 +449,7 @@ internal constructor(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classKind == ClassKind.ENUM && psiMethod is SyntheticElement) {
+                } else if (classKind == ClassKind.ENUM && psiMethod.isSyntheticEnumMethod()) {
                     // skip
                 } else {
                     val method =
@@ -663,4 +663,19 @@ internal constructor(
             return false
         }
     }
+}
+
+/**
+ * Check whether the method is a synthetic enum method.
+ *
+ * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and Kotlin.
+ */
+private fun PsiMethod.isSyntheticEnumMethod(): Boolean {
+    if (containingClass?.isEnum != true) return false
+    val parameterCount = parameterList.parametersCount
+    return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
+        (parameterCount == 1 &&
+            name == "valueOf" &&
+            (parameterList.parameters[0].type as? PsiClassType)?.computeQualifiedName() ==
+                "java.lang.String")
 }

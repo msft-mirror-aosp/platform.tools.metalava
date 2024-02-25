@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.testing.KnownSourceFiles.jetbrainsNullableTypeUseSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -103,7 +102,7 @@ class PsiModifierItemTest : BasePsiTest() {
             assertThat(string).isInstanceOf(ClassTypeItem::class.java)
             assertThat(string.annotationNames()).containsExactly("test.pkg.A")
             val stringMethodAnnotations = stringMethod.annotationNames()
-            if (isKotlin((stringMethod as PsiMethodItem).psiMethod)) {
+            if ((stringMethod as PsiMethodItem).psiMethod.isKotlin()) {
                 // The Kotlin version puts a nullability annotation on the method
                 assertThat(stringMethodAnnotations)
                     .containsExactly("org.jetbrains.annotations.NotNull")
@@ -114,7 +113,7 @@ class PsiModifierItemTest : BasePsiTest() {
             // @test.pkg.A T
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
+            val typeParameter = variableMethod.typeParameterList.single()
             variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).isEmpty()

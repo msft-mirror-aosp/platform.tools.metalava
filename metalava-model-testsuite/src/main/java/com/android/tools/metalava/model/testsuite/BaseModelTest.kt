@@ -104,9 +104,13 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
             }
             val list =
                 runners.flatMap { runner ->
-                    runner.supportedInputFormats
-                        .map { inputFormat -> TestParameters(runner, inputFormat) }
-                        .toList()
+                    runner.testConfigurations.map {
+                        TestParameters(
+                            runner,
+                            it.inputFormat,
+                            it.modelOptions,
+                        )
+                    }
                 }
             return list
         }
@@ -175,10 +179,13 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
     /**
      * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
-    class CodebaseContext<C : Codebase>(
+    interface CodebaseContext<C : Codebase> {
         /** The newly created [Codebase]. */
-        val codebase: C,
-    )
+        val codebase: C
+    }
+
+    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) :
+        CodebaseContext<C>
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -194,9 +201,16 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
             .singleOrNull { it.inputFormat == inputFormat }
-            ?.let {
+            ?.let { inputSet ->
                 val tempDir = temporaryFolder.newFolder()
-                runner.createCodebaseAndRun(tempDir, it.testFiles) { codebase -> test(codebase) }
+                val mainSourceDir =
+                    ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
+                val inputs =
+                    ModelSuiteRunner.TestInputs(
+                        modelOptions = baseParameters.modelOptions,
+                        mainSourceDir = mainSourceDir,
+                    )
+                runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
             }
     }
 
@@ -234,7 +248,7 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
         createCodebaseFromInputSetAndRun(
             *sources,
         ) { codebase ->
-            val context = CodebaseContext(codebase)
+            val context = DefaultCodebaseContext(codebase)
             context.test()
         }
     }
@@ -270,7 +284,7 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
             *sources,
         ) { codebase ->
             codebase as SourceCodebase
-            val context = CodebaseContext(codebase)
+            val context = DefaultCodebaseContext(codebase)
             context.test()
         }
     }

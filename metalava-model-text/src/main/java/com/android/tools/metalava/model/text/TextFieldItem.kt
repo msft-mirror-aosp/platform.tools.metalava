@@ -31,10 +31,6 @@ internal class TextFieldItem(
     position: SourcePositionInfo
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers), FieldItem {
 
-    init {
-        modifiers.setOwner(this)
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is FieldItem) return false
@@ -51,8 +47,6 @@ internal class TextFieldItem(
     override fun type(): TypeItem = type
 
     override fun initialValue(requireConstant: Boolean): Any? = constantValue
-
-    override fun toString(): String = "field ${containingClass().fullName()}.${name()}"
 
     override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
         val duplicated =

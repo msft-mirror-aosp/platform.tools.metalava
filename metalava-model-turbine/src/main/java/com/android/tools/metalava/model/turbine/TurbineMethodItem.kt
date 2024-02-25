@@ -32,7 +32,7 @@ internal open class TurbineMethodItem(
     private val containingClass: ClassItem,
     protected var returnType: TypeItem,
     modifiers: DefaultModifierList,
-    private val typeParameters: TypeParameterList,
+    override val typeParameterList: TypeParameterList,
     documentation: String,
     private val defaultValue: String,
 ) : TurbineItem(codebase, modifiers, documentation), MethodItem {
@@ -106,11 +106,10 @@ internal open class TurbineMethodItem(
                 targetContainingClass,
                 retType,
                 mods,
-                typeParameters,
+                typeParameterList,
                 documentation,
                 defaultValue,
             )
-        mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = containingClass
         duplicateMethod.throwableTypes = throwableTypes
@@ -133,8 +132,6 @@ internal open class TurbineMethodItem(
     }
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
-
-    override fun typeParameterList(): TypeParameterList = typeParameters
 
     internal fun setThrowsTypes(throwsList: List<ExceptionTypeItem>) {
         throwableTypes = throwsList
