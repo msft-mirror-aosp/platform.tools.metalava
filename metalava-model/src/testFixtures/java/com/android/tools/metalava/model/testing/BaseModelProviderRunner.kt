@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite
+package com.android.tools.metalava.model.testing
 
 import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
-import com.android.tools.metalava.model.testsuite.BaseModelProviderRunner.InstanceRunner
-import com.android.tools.metalava.model.testsuite.BaseModelProviderRunner.InstanceRunnerFactory
-import com.android.tools.metalava.model.testsuite.BaseModelProviderRunner.ModelProviderWrapper
+import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunner
+import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunnerFactory
+import com.android.tools.metalava.model.testing.BaseModelProviderRunner.ModelProviderWrapper
 import com.android.tools.metalava.testing.BaselineTestRule
 import org.junit.runner.Runner
 import org.junit.runners.Parameterized
