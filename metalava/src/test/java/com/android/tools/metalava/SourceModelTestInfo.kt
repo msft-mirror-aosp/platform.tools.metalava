@@ -20,20 +20,27 @@ import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 
 /**
- * Contains information provided by the tests.
- *
- * This is used to avoid having to add command line options that are only intended for use by the
- * tests but which could be supplied on an actual command line.
+ * Encapsulates information about the [SourceModelProvider] that is to be used for running a test.
  */
-class TestEnvironment(
+class SourceModelTestInfo(
     /**
-     * Packages to skip emitting signatures/stubs for even if public. Typically used for unit tests
-     * referencing to classpath classes that aren't part of the definitions and shouldn't be part of
-     * the test output; e.g. a test may reference java.lang.Enum but we don't want to start
-     * reporting all the public APIs in the java.lang package just because it's indirectly
-     * referenced via the "enum" superclass
+     * The [SourceModelProvider] that will be used to generate a [Codebase] from source files, if
+     * needed.
      */
-    val skipEmitPackages: List<String>,
     val sourceModelProvider: SourceModelProvider,
-    val modelOptions: ModelOptions,
-)
+
+    /**
+     * The [ModelOptions] that will be passed to the [sourceModelProvider] when creating a new
+     * source parser.
+     */
+    val modelOptions: ModelOptions = ModelOptions.empty
+) {
+    /** Override this to return the string that will be used in the test name. */
+    override fun toString(): String = buildString {
+        append(sourceModelProvider.providerName)
+        if (modelOptions != ModelOptions.empty) {
+            append(",")
+            append(modelOptions)
+        }
+    }
+}

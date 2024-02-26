@@ -763,7 +763,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    var useK2Uast = false
+    var useK2Uast: Boolean? = null
 
     val sourceModelProvider by
         option(
