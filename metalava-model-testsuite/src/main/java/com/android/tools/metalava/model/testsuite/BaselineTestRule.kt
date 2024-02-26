@@ -24,13 +24,20 @@ import org.junit.runners.model.Statement
 private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
     "`scripts/refresh-testsuite-baselines.sh` to update the baseline"
 
-/** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
-class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
+/**
+ * A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests.
+ *
+ * @param baselineOwner the name of the owner of the baseline, used for error reporting.
+ */
+class BaselineTestRule(
+    private val baselineOwner: String,
+    resourcePath: String,
+) : TestRule {
 
     /**
      * The [ModelTestSuiteBaseline] that indicates whether the tests are expected to fail or not.
      */
-    private val baseline = ModelTestSuiteBaseline.fromResource
+    private val baseline = BaselineFile.fromResource(resourcePath)
 
     override fun apply(base: Statement, description: Description): Statement {
         return object : Statement() {
@@ -49,7 +56,7 @@ class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
                         // that reads better than the default formatting of chained exceptions.
                         val actualErrorStackTrace = e.stackTraceToString().prependIndent("    ")
                         throw AssumptionViolatedException(
-                            "Test skipped since it is listed in the baseline file for $runner.\n$actualErrorStackTrace"
+                            "Test skipped since it is listed in the baseline file for $baselineOwner.\n$actualErrorStackTrace"
                         )
                     } else {
                         // Inform the developer on how to ignore this failing test.

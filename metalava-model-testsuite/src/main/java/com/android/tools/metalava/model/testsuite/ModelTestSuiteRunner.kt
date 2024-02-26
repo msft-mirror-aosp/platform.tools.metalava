@@ -96,7 +96,11 @@ class ModelTestSuiteRunner(clazz: Class<*>) :
          */
         override fun methodInvoker(method: FrameworkMethod, test: Any): Statement {
             val statement = super.methodInvoker(method, test)
-            val baselineTestRule = BaselineTestRule(modelProviderTestInfo.runner)
+            val baselineTestRule =
+                BaselineTestRule(
+                    modelProviderTestInfo.runner.toString(),
+                    ModelTestSuiteBaseline.RESOURCE_PATH
+                )
             return baselineTestRule.apply(statement, describeChild(method))
         }
     }

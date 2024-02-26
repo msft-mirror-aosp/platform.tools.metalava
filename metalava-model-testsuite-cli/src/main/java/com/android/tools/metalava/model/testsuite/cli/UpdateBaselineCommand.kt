@@ -19,7 +19,7 @@
 package com.android.tools.metalava.model.testsuite.cli
 
 import com.android.tools.metalava.model.testsuite.ModelTestSuiteBaseline
-import com.android.tools.metalava.model.testsuite.MutableModelTestSuiteBaseline
+import com.android.tools.metalava.model.testsuite.MutableBaselineFile
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -95,8 +95,7 @@ class UpdateBaselineCommand :
         baseline.write()
     }
 
-    private class FailureCollector(private val baseline: MutableModelTestSuiteBaseline) :
-        DefaultHandler() {
+    private class FailureCollector(private val baseline: MutableBaselineFile) : DefaultHandler() {
 
         private lateinit var locator: Locator
 
