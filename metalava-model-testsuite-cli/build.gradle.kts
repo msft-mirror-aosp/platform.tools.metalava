@@ -22,6 +22,7 @@ plugins {
 
 dependencies {
     implementation(project(":metalava-model-testsuite"))
+    implementation(project(":metalava-testing"))
 
     // Needed for the update baseline command.
     implementation(libs.clikt)

@@ -19,7 +19,7 @@
 package com.android.tools.metalava.model.testsuite.cli
 
 import com.android.tools.metalava.model.testsuite.ModelTestSuiteBaseline
-import com.android.tools.metalava.model.testsuite.MutableBaselineFile
+import com.android.tools.metalava.testing.MutableBaselineFile
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple

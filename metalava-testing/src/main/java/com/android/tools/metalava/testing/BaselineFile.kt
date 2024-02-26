@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite
+package com.android.tools.metalava.testing
 
 import java.io.File
 import java.io.InputStreamReader

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.testing.BaselineFile
 import java.io.File
 
 /** Provide access to a model test suite's baseline file. */

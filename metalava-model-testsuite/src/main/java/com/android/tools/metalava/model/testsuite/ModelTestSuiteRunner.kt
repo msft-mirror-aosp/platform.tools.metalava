@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
 import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
+import com.android.tools.metalava.testing.BaselineTestRule
 import java.util.ServiceLoader
 import kotlin.test.fail
 import org.junit.runner.Runner
