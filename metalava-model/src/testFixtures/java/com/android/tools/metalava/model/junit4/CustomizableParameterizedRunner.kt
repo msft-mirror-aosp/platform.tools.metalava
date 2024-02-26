@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.junit4
 
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
+import java.lang.reflect.InaccessibleObjectException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import kotlin.reflect.KClass
@@ -292,7 +293,19 @@ abstract class CustomizableParameterizedRunner(
                 }
 
             /** [Field.modifiers] field. */
-            private val modifiersField = getModifiersField()
+            private val modifiersField =
+                getModifiersField().apply {
+                    try {
+                        // Modify the `modifiers` field for the field to remove `final`.
+                        // This requires "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED".
+                        isAccessible = true
+                    } catch (e: InaccessibleObjectException) {
+                        throw IllegalStateException(
+                            "Add --add-opens=java.base/java.lang.reflect=ALL-UNNAMED to jvm options",
+                            e
+                        )
+                    }
+                }
 
             // Get various [Parameterized.RunnersFactory] fields and make them accessible and
             // settable.
@@ -309,10 +322,6 @@ abstract class CustomizableParameterizedRunner(
             private fun getSettableField(name: String): Field {
                 val field = runnersFactoryClass.getDeclaredField(name)
                 field.isAccessible = true
-
-                // Modify the `modifiers` field for the field to remove `final`.
-                // This requires "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED".
-                modifiersField.isAccessible = true
                 modifiersField.setInt(field, field.modifiers and Modifier.FINAL.inv())
                 return field
             }
