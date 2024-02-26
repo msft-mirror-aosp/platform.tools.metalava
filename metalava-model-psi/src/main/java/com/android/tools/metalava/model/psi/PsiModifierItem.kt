@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -95,7 +96,7 @@ internal object PsiModifierItem {
     fun create(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
-        documentation: String?
+        documentation: String? = null,
     ): DefaultModifierList {
         val modifiers =
             if (element is UAnnotated) {
@@ -103,6 +104,13 @@ internal object PsiModifierItem {
             } else {
                 create(codebase, element)
             }
+
+        // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
+        // that it should not, so this removes them.
+        if (shouldRemoveNullnessAnnotations(element, modifiers)) {
+            modifiers.removeAnnotations { it.isNullnessAnnotation() }
+        }
+
         if (
             documentation?.contains("@deprecated") == true ||
                 // Check for @Deprecated annotation
@@ -115,6 +123,38 @@ internal object PsiModifierItem {
         }
 
         return modifiers
+    }
+
+    /** Determine whether nullness annotations need removing from [modifiers]. */
+    private fun shouldRemoveNullnessAnnotations(
+        element: PsiModifierListOwner,
+        modifiers: DefaultModifierList,
+    ): Boolean {
+        // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
+        // added to the [PsiParameter] so remove it from the modifiers.
+        if (element is PsiParameter && element.isVarArgs && element.isKotlin()) {
+            return true
+        }
+
+        // Although https://youtrack.jetbrains.com/issue/KTIJ-19087 has been fixed there still
+        // seems to be an issue with reified type parameters causing nullability annotations
+        // being added to the parameter even when the use site does not require
+        // them. So, this removes them, except from a `suspend` function.
+        //
+        // A `suspend` function's return type is always Any?, i.e., nullable, so keep the nullable
+        // annotation for that.
+        if (!(element is PsiMethod && modifiers.isSuspend())) {
+            val kotlinTypeInfo = KotlinTypeInfo.fromContext(element)
+            if (
+                kotlinTypeInfo.analysisSession != null &&
+                    kotlinTypeInfo.ktType != null &&
+                    kotlinTypeInfo.analysisSession.isInheritedGenericType(kotlinTypeInfo.ktType)
+            ) {
+                return true
+            }
+        }
+
+        return false
     }
 
     private fun hasDeprecatedAnnotation(modifiers: DefaultModifierList) =

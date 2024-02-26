@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.fixUpTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.LambdaUtil
@@ -53,14 +54,13 @@ internal constructor(
     private val name: String,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
-    documentation: String,
-    private val type: PsiTypeItem
+    private val type: PsiTypeItem,
 ) :
     PsiItem(
         codebase = codebase,
+        element = psiParameter,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiParameter
+        documentation = "",
     ),
     ParameterItem {
     lateinit var containingMethod: PsiMethodItem
@@ -72,7 +72,7 @@ internal constructor(
     override fun psi() = psiParameter
 
     override fun publicName(): String? {
-        if (isKotlin(psiParameter)) {
+        if (psiParameter.isKotlin()) {
             // Omit names of some special parameters in Kotlin. None of these parameters may be
             // set through Kotlin keyword arguments, so there's no need to track their names for
             // compatibility. This also helps avoid signature file churn if PSI or the compiler
@@ -118,7 +118,7 @@ internal constructor(
     override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
 
     override fun isDefaultValueKnown(): Boolean {
-        return if (isKotlin(psiParameter)) {
+        return if (psiParameter.isKotlin()) {
             defaultValue() != INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
@@ -174,9 +174,6 @@ internal constructor(
         return null
     }
 
-    override val synthetic: Boolean
-        get() = containingMethod.isEnumSyntheticMethod()
-
     private var defaultValue: String? = null
 
     override fun defaultValue(): String? {
@@ -187,7 +184,7 @@ internal constructor(
     }
 
     private fun computeDefaultValue(): String? {
-        if (isKotlin(psiParameter)) {
+        if (psiParameter.isKotlin()) {
             val ktFunction =
                 ((containingMethod.psiMethod as? UMethod)?.sourcePsi as? KtFunction)
                     ?: return INVALID_VALUE
@@ -252,8 +249,6 @@ internal constructor(
         return parameterIndex
     }
 
-    override fun toString(): String = "parameter ${name()}"
-
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }
@@ -310,7 +305,7 @@ internal constructor(
 
     override fun finishInitialization() {
         super.finishInitialization()
-        type.finishInitialization(this)
+        type.fixUpTypeNullability(this)
     }
 
     companion object {
@@ -321,8 +316,7 @@ internal constructor(
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
             val name = psiParameter.name
-            val commentText = "" // no javadocs on individual parameters
-            val modifiers = createParameterModifiers(codebase, psiParameter, commentText)
+            val modifiers = createParameterModifiers(codebase, psiParameter)
             val psiType = psiParameter.type
             // UAST workaround: nullity of element type in last `vararg` parameter's array type
             val workaroundPsiType =
@@ -357,11 +351,9 @@ internal constructor(
                     psiParameter = psiParameter,
                     name = name,
                     parameterIndex = parameterIndex,
-                    documentation = commentText,
                     modifiers = modifiers,
                     type = type
                 )
-            parameter.modifiers.setOwner(parameter)
             return parameter
         }
 
@@ -376,11 +368,9 @@ internal constructor(
                     psiParameter = original.psiParameter,
                     name = original.name,
                     parameterIndex = original.parameterIndex,
-                    documentation = original.documentation,
                     modifiers = original.modifiers.duplicate(),
                     type = type
                 )
-            parameter.modifiers.setOwner(parameter)
             return parameter
         }
 
@@ -393,10 +383,9 @@ internal constructor(
 
         private fun createParameterModifiers(
             codebase: PsiBasedCodebase,
-            psiParameter: PsiParameter,
-            commentText: String
+            psiParameter: PsiParameter
         ): DefaultModifierList {
-            val modifiers = PsiModifierItem.create(codebase, psiParameter, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiParameter)
             // Method parameters don't have a visibility level; they are visible to anyone that can
             // call their method. However, Kotlin constructors sometimes appear to specify the
             // visibility of a constructor parameter by putting visibility inside the constructor

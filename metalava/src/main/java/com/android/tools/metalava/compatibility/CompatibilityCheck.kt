@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
@@ -99,11 +100,11 @@ class CompatibilityCheck(
         if (oldNullnessAnnotation != null) {
             val newNullnessAnnotation = findNullnessAnnotation(new)
             if (newNullnessAnnotation == null) {
-                val implicitNullness = new.implicitNullness()
-                if (implicitNullness == true && isNullable(old)) {
+                val typeNullability = new.type()?.modifiers?.nullability()
+                if (typeNullability == TypeNullability.NULLABLE && isNullable(old)) {
                     return
                 }
-                if (implicitNullness == false && !isNullable(old)) {
+                if (typeNullability == TypeNullability.NONNULL && !isNullable(old)) {
                     return
                 }
                 val name = AnnotationItem.simpleName(oldNullnessAnnotation)
@@ -635,12 +636,7 @@ class CompatibilityCheck(
             val throwableClass = throwType.erasedClass ?: continue
             if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
-                if (
-                    !(old.name() == "finalize" && old.parameters().isEmpty()) &&
-                        // exclude cases where throws clause was missing in signatures from
-                        // old enum methods
-                        !old.isEnumSyntheticMethod()
-                ) {
+                if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
                     val message =
                         "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
                     report(Issues.CHANGED_THROWS, new, message)
@@ -873,11 +869,6 @@ class CompatibilityCheck(
                 new.containingClass()
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
             }
-
-        // Builtin annotation methods: just a difference in signature file
-        if (new.isEnumSyntheticMethod()) {
-            return
-        }
 
         // In most cases it is not permitted to add a new method to an interface, even with a
         // default implementation because it could could create ambiguity if client code implements

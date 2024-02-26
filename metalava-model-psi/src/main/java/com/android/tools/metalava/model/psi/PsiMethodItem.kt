@@ -23,8 +23,10 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.fixUpTypeNullability
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -112,9 +114,6 @@ open class PsiMethodItem(
     override fun returnType(): TypeItem = returnType
 
     override fun parameters(): List<PsiParameterItem> = parameters
-
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
 
     override fun psi() = psiMethod
 
@@ -276,7 +275,7 @@ open class PsiMethodItem(
     override fun finishInitialization() {
         super.finishInitialization()
 
-        returnType.finishInitialization(this)
+        returnType.fixUpTypeNullability(this)
         parameters.forEach { it.finishInitialization() }
     }
 
@@ -345,18 +344,13 @@ open class PsiMethodItem(
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                 )
-            method.modifiers.setOwner(method)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
                 // The containing class is final, so it is implied that every method is final as
                 // well.
                 // No need to apply 'final' to each method. (We do it here rather than just in the
                 // signature emit code since we want to make sure that the signature comparison
                 // methods with super methods also consider this method non-final.)
-                if (!containingClass.isEnum() && !method.isEnumSyntheticMethod()) {
-                    // Unless this is a non-synthetic enum member
-                    // See: https://youtrack.jetbrains.com/issue/KT-57567
-                    modifiers.setFinal(false)
-                }
+                modifiers.setFinal(false)
             }
 
             return method
@@ -405,7 +399,6 @@ open class PsiMethodItem(
                     typeParameterList = original.typeParameterList,
                     throwsTypes = original.throwsTypes,
                 )
-            method.modifiers.setOwner(method)
 
             return method
         }
@@ -414,17 +407,10 @@ open class PsiMethodItem(
             codebase: PsiBasedCodebase,
             psiMethod: PsiMethod,
             enclosingTypeItemFactory: PsiTypeItemFactory,
-        ): List<PsiParameterItem> {
-            return if (psiMethod is UMethod) {
-                psiMethod.uastParameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
-                }
-            } else {
-                psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
-                }
+        ) =
+            psiMethod.psiParameters.mapIndexed { index, parameter ->
+                PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
             }
-        }
 
         internal fun throwsTypes(
             psiMethod: PsiMethod,
@@ -445,8 +431,8 @@ open class PsiMethodItem(
                 .sortedWith(ExceptionTypeItem.fullNameComparator)
         }
     }
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${
-    containingClass.qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 }
+
+/** Get the [PsiParameter]s for a [PsiMethod]. */
+val PsiMethod.psiParameters: List<PsiParameter>
+    get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()

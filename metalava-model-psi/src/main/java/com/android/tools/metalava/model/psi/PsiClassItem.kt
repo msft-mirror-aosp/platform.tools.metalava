@@ -33,11 +33,12 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.SyntheticElement
 import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -283,8 +284,6 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "class ${qualifiedName()}"
-
     companion object {
         private fun hasExplicitRetention(
             modifiers: DefaultModifierList,
@@ -380,7 +379,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )
-            item.modifiers.setOwner(item)
             item.containingClass = containingClassItem
 
             // Register this class now.
@@ -389,7 +387,7 @@ internal constructor(
             // Construct the children
             val psiMethods = psiClass.methods
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
-            val isKotlin = isKotlin(psiClass)
+            val isKotlin = psiClass.isKotlin()
 
             if (
                 classKind == ClassKind.ANNOTATION_TYPE &&
@@ -451,7 +449,7 @@ internal constructor(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classKind == ClassKind.ENUM && psiMethod is SyntheticElement) {
+                } else if (classKind == ClassKind.ENUM && psiMethod.isSyntheticEnumMethod()) {
                     // skip
                 } else {
                     val method =
@@ -665,4 +663,19 @@ internal constructor(
             return false
         }
     }
+}
+
+/**
+ * Check whether the method is a synthetic enum method.
+ *
+ * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and Kotlin.
+ */
+private fun PsiMethod.isSyntheticEnumMethod(): Boolean {
+    if (containingClass?.isEnum != true) return false
+    val parameterCount = parameterList.parametersCount
+    return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
+        (parameterCount == 1 &&
+            name == "valueOf" &&
+            (parameterList.parameters[0].type as? PsiClassType)?.computeQualifiedName() ==
+                "java.lang.String")
 }

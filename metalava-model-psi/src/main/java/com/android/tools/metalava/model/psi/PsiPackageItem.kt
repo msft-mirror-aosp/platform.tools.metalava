@@ -117,8 +117,6 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "package $qualifiedName"
-
     override fun finishInitialization() {
         super.finishInitialization()
 
@@ -159,7 +157,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath
                 )
-            pkg.modifiers.setOwner(pkg)
             return pkg
         }
     }
