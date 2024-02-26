@@ -44,7 +44,10 @@ def find_baseline_projects(metalava_dir):
                     baseline_file=resource_path(project_dir, "model-test-suite-baseline.txt"),
                 )
                 projects.append(baseline)
-
+    projects.append(BaselineProject(
+        name="metalava",
+        baseline_file=resource_path(metalava_dir / "metalava", "source-model-provider-baseline.txt")
+    ))
     return projects
 
 

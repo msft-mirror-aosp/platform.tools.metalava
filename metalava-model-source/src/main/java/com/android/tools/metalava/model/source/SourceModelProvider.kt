@@ -52,6 +52,12 @@ interface SourceModelProvider {
 
     companion object {
         /**
+         * Implementations of this interface that were found by the [ServiceLoader] in the
+         * [ClassLoader] from which this class was loaded.
+         */
+        val implementations by lazy { ServiceLoader.load(SourceModelProvider::class.java).toList() }
+
+        /**
          * Get an implementation of this interface that matches the [filter].
          *
          * @param filter the filter that selects the required provider.
@@ -61,11 +67,10 @@ interface SourceModelProvider {
             filter: (SourceModelProvider) -> Boolean,
             filterDescription: String
         ): SourceModelProvider {
-            val unfiltered = ServiceLoader.load(SourceModelProvider::class.java).toList()
-            val sourceModelProviders = unfiltered.filter(filter).toList()
+            val sourceModelProviders = implementations.filter(filter).toList()
             return sourceModelProviders.singleOrNull()
                 ?: throw IllegalStateException(
-                    "Expected exactly one SourceModelProvider $filterDescription but found $unfiltered of which $sourceModelProviders matched"
+                    "Expected exactly one SourceModelProvider $filterDescription but found $implementations of which $sourceModelProviders matched"
                 )
         }
 

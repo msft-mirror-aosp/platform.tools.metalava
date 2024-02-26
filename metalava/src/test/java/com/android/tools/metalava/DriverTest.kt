@@ -76,14 +76,16 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
 
+@RunWith(DriverTestRunner::class)
 abstract class DriverTest : TemporaryFolderOwner {
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
     @get:Rule val errorCollector = ErrorCollector()
 
     /** The [SourceModelTestInfo] under which this test will be run. */
-    private val sourceModelTestInfo: SourceModelTestInfo =
+    internal var sourceModelTestInfo: SourceModelTestInfo =
         SourceModelTestInfo(
             SourceModelProvider.getImplementation({ it.providerName == "psi" }, "psi")
         )
