@@ -68,6 +68,17 @@ abstract class BaseModelTest() : ModelProviderAwareTest, TemporaryFolderOwner, A
      */
     final override lateinit var modelProviderTestInfo: ModelProviderTestInfo
 
+    /** The [ModelSuiteRunner] that this test must use. */
+    private val runner
+        get() = modelProviderTestInfo.runner
+
+    /**
+     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
+     * other [InputFormat]s.
+     */
+    protected val inputFormat
+        get() = modelProviderTestInfo.inputFormat
+
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**

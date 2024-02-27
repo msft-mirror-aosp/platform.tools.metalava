@@ -25,17 +25,6 @@ interface ModelProviderAwareTest {
 
     var modelProviderTestInfo: ModelProviderTestInfo
 
-    /** The [ModelSuiteRunner] that this test must use. */
-    val runner
-        get() = modelProviderTestInfo.runner
-
-    /**
-     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
-     * other [InputFormat]s.
-     */
-    val inputFormat
-        get() = modelProviderTestInfo.inputFormat
-
     /** Encapsulates all the configuration for the [BaseModelTest] */
     data class ModelProviderTestInfo(
         /** The [ModelSuiteRunner] to use. */
