@@ -42,7 +42,6 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
-import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
@@ -85,10 +84,7 @@ abstract class DriverTest : TemporaryFolderOwner {
     @get:Rule val errorCollector = ErrorCollector()
 
     /** The [SourceModelTestInfo] under which this test will be run. */
-    internal var sourceModelTestInfo: SourceModelTestInfo =
-        SourceModelTestInfo(
-            SourceModelProvider.getImplementation({ it.providerName == "psi" }, "psi")
-        )
+    internal lateinit var sourceModelTestInfo: SourceModelTestInfo
 
     @Before
     fun setup() {
