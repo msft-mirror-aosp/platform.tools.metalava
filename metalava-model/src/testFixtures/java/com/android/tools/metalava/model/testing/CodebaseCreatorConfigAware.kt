@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite
-
-import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+package com.android.tools.metalava.model.testing
 
 /**
  * Interface that needs to be implemented by tests that need access to [CodebaseCreatorConfig]
- * containing a [ModelSuiteRunner].
+ * containing a creator of type [C].
  */
-interface ModelProviderAwareTest {
-
-    var codebaseCreatorConfig: CodebaseCreatorConfig<ModelSuiteRunner>
+interface CodebaseCreatorConfigAware<C : Any> {
+    var codebaseCreatorConfig: CodebaseCreatorConfig<C>
 }

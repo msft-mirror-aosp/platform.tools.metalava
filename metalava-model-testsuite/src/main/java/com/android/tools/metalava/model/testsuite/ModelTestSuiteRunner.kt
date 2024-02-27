@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import java.util.ServiceLoader
 import kotlin.test.fail
 import org.junit.runners.Parameterized
@@ -33,15 +34,13 @@ import org.junit.runners.Parameterized
  * will be run with every [ModelSuiteRunner] available.
  *
  * The [CodebaseCreatorConfig] is injected into the test through
- * [ModelProviderAwareTest.codebaseCreatorConfig] and not through a field annotated with
+ * [CodebaseCreatorConfigAware.codebaseCreatorConfig] and not through a field annotated with
  * [Parameterized.Parameter]. That means that switching a class that is already [Parameterized] to
  * use this instead does not affect any existing [Parameterized.Parameter] fields.
  */
 class ModelTestSuiteRunner(clazz: Class<*>) :
-    BaseModelProviderRunner<ModelSuiteRunner, ModelProviderAwareTest>(
+    BaseModelProviderRunner<ModelSuiteRunner, CodebaseCreatorConfigAware<ModelSuiteRunner>>(
         clazz,
-        ModelProviderAwareTest::class.java,
-        { m -> codebaseCreatorConfig = m },
         { getModelSuiteRunners() },
         ModelTestSuiteBaseline.RESOURCE_PATH,
     ) {

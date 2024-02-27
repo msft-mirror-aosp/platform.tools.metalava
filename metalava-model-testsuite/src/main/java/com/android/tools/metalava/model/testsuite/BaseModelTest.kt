@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
@@ -43,7 +44,8 @@ import org.junit.runners.Parameterized.Parameter
  * into the same project and run tests against them all at the same time.
  */
 @RunWith(ModelTestSuiteRunner::class)
-abstract class BaseModelTest() : ModelProviderAwareTest, TemporaryFolderOwner, Assertions {
+abstract class BaseModelTest() :
+    CodebaseCreatorConfigAware<ModelSuiteRunner>, TemporaryFolderOwner, Assertions {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.

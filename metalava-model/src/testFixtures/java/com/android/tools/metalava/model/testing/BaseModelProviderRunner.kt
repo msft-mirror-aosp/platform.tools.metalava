@@ -64,18 +64,12 @@ import org.junit.runners.parameterized.TestWithParameters
  * @param I the type of the injectable class through which the codebase creator will be injected
  *   into the test class.
  * @param clazz the test class to be run, must be assignable to `injectableClass`.
- * @param injectableClass the class through which the codebase creator object will be injected into
- *   the test class.
- * @param modelProviderInjector the lambda that given an instance of `injectableClass` will inject
- *   the supplied codebase creator object.
  * @param codebaseCreatorConfigsGetter a lambda for getting the [CodebaseCreatorConfig]s.
  * @param baselineResourcePath the resource path to the baseline file that should be consulted for
  *   known errors to ignore / check.
  */
 open class BaseModelProviderRunner<C : Any, I : Any>(
     clazz: Class<*>,
-    injectableClass: Class<out I>,
-    modelProviderInjector: I.(CodebaseCreatorConfig<C>) -> Unit,
     codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
     baselineResourcePath: String,
 ) :
@@ -84,8 +78,6 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
         { testClass, additionalArguments ->
             createTestArguments(
                 testClass,
-                injectableClass,
-                modelProviderInjector,
                 codebaseCreatorConfigsGetter,
                 baselineResourcePath,
                 additionalArguments,
@@ -95,6 +87,7 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
     ) {
 
     init {
+        val injectableClass = CodebaseCreatorConfigAware::class.java
         if (!injectableClass.isAssignableFrom(clazz)) {
             error("Class ${clazz.name} does not implement ${injectableClass.name}")
         }
@@ -104,15 +97,14 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
      * A wrapper around a [CodebaseCreatorConfig] that tunnels information needed by
      * [InstanceRunnerFactory] through [TestWithParameters].
      */
-    private class ModelProviderWrapper<C : Any, T : Any>(
-        private val injectionClass: Class<out T>,
-        private val modelProviderInjector: T.(CodebaseCreatorConfig<C>) -> Unit,
+    private class ModelProviderWrapper<C : Any>(
         val codebaseCreatorConfig: CodebaseCreatorConfig<C>,
         val baselineResourcePath: String,
     ) {
         fun injectModelProviderInto(testInstance: Any) {
-            val injectableTestInstance = injectionClass.cast(testInstance)
-            injectableTestInstance.modelProviderInjector(codebaseCreatorConfig)
+            @Suppress("UNCHECKED_CAST")
+            val injectableTestInstance = testInstance as CodebaseCreatorConfigAware<C>
+            injectableTestInstance.codebaseCreatorConfig = codebaseCreatorConfig
         }
 
         /**
@@ -135,7 +127,7 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
             val arguments = test.parameters
 
             // Extract the [ModelProviderWrapper] from the arguments.
-            val modelProviderWrapper = arguments[0] as ModelProviderWrapper<*, *>
+            val modelProviderWrapper = arguments[0] as ModelProviderWrapper<*>
 
             // Create a new set of [TestWithParameters] containing just the remaining arguments.
             // Keep the name as is as that will describe the codebase creator as well as the other
@@ -163,7 +155,7 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
      * class after creation.
      */
     private class InstanceRunner(
-        private val modelProviderWrapper: ModelProviderWrapper<*, *>,
+        private val modelProviderWrapper: ModelProviderWrapper<*>,
         test: TestWithParameters
     ) : BlockJUnit4ClassRunnerWithParameters(test) {
 
@@ -218,10 +210,8 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
         /** The suffix added to the test method name for the [DEFAULT_PROVIDER]. */
         const val DEFAULT_SUFFIX = "[$DEFAULT_PROVIDER]"
 
-        private fun <C : Any, T : Any> createTestArguments(
+        private fun <C : Any> createTestArguments(
             testClass: TestClass,
-            injectionClass: Class<out T>,
-            modelProviderInjector: T.(CodebaseCreatorConfig<C>) -> Unit,
             codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
             baselineResourcePath: String,
             additionalArguments: List<Array<Any>>?,
@@ -232,12 +222,7 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
             // Wrap each codebase creator object with information needed by [InstanceRunnerFactory].
             val wrappers =
                 creatorConfigs.map { creatorConfig ->
-                    ModelProviderWrapper(
-                        injectionClass,
-                        modelProviderInjector,
-                        creatorConfig,
-                        baselineResourcePath
-                    )
+                    ModelProviderWrapper(creatorConfig, baselineResourcePath)
                 }
 
             return if (additionalArguments == null) {

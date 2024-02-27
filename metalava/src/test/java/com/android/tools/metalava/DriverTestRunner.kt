@@ -27,8 +27,6 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 class DriverTestRunner(clazz: Class<*>) :
     BaseModelProviderRunner<SourceModelProvider, DriverTest>(
         clazz,
-        DriverTest::class.java,
-        { m -> codebaseCreatorConfig = m },
         { getSourceModelProviders() },
         "source-model-provider-baseline.txt",
     ) {
