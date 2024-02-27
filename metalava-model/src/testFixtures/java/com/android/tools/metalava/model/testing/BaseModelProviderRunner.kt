@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testing
 
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
+import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunner
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunnerFactory
@@ -68,7 +69,7 @@ import org.junit.runners.parameterized.TestWithParameters
  * @param baselineResourcePath the resource path to the baseline file that should be consulted for
  *   known errors to ignore / check.
  */
-open class BaseModelProviderRunner<C : Any, I : Any>(
+open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     clazz: Class<*>,
     codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
     baselineResourcePath: String,
@@ -97,7 +98,7 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
      * A wrapper around a [CodebaseCreatorConfig] that tunnels information needed by
      * [InstanceRunnerFactory] through [TestWithParameters].
      */
-    private class ModelProviderWrapper<C : Any>(
+    private class ModelProviderWrapper<C : FilterableCodebaseCreator>(
         val codebaseCreatorConfig: CodebaseCreatorConfig<C>,
         val baselineResourcePath: String,
     ) {
@@ -210,7 +211,7 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
         /** The suffix added to the test method name for the [DEFAULT_PROVIDER]. */
         const val DEFAULT_SUFFIX = "[$DEFAULT_PROVIDER]"
 
-        private fun <C : Any> createTestArguments(
+        private fun <C : FilterableCodebaseCreator> createTestArguments(
             testClass: TestClass,
             codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
             baselineResourcePath: String,
@@ -252,7 +253,7 @@ open class BaseModelProviderRunner<C : Any, I : Any>(
 }
 
 /** Encapsulates the configuration information needed by a codebase creator */
-class CodebaseCreatorConfig<C : Any>(
+class CodebaseCreatorConfig<C : FilterableCodebaseCreator>(
     /** The creator that will create the codebase. */
     val creator: C,
     /**
@@ -266,7 +267,7 @@ class CodebaseCreatorConfig<C : Any>(
 ) {
     /** Override this to return the string that will be used in the test name. */
     override fun toString(): String = buildString {
-        append(creator.toString())
+        append(creator.providerName)
 
         // If the [inputFormat] is specified then include it in the test name, otherwise ignore it.
         if (inputFormat != null) {

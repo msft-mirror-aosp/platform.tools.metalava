@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testing
-
-import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
+package com.android.tools.metalava.model.provider
 
 /**
- * Interface that needs to be implemented by tests that need access to [CodebaseCreatorConfig]
- * containing a creator of type [C].
+ * Provides access to codebase creator specific information needed to support filtering tests based
+ * on the creator's capabilities and requirements.
  */
-interface CodebaseCreatorConfigAware<C : FilterableCodebaseCreator> {
-    var codebaseCreatorConfig: CodebaseCreatorConfig<C>
+interface FilterableCodebaseCreator {
+    /** The name of the provider. */
+    val providerName: String
+
+    /** The set of supported input formats. */
+    val supportedInputFormats: Set<InputFormat>
 }
