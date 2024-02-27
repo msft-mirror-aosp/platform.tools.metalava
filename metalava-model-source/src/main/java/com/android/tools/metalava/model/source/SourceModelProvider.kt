@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.provider.InputFormat
 import java.util.ServiceLoader
 
 /** Service provider interface for a model implementation that consumes source code. */
@@ -25,8 +26,8 @@ interface SourceModelProvider {
     /** The name of the provider. */
     val providerName: String
 
-    /** The set of supported languages. */
-    val supportedLanguages: Set<SourceLanguage>
+    /** The set of supported input formats. */
+    val supportedInputFormats: Set<InputFormat>
 
     /**
      * Create an [EnvironmentManager] that will manage any resources needed while creating

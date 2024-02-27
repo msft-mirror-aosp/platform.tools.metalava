@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.reporter.BasicReporter
@@ -35,21 +34,10 @@ import java.io.PrintWriter
 // @AutoService(ModelSuiteRunner.class)
 class SourceModelSuiteRunner : ModelSuiteRunner {
 
-    companion object {
-        val sourceLanguageToInputFormat =
-            mapOf(
-                SourceLanguage.JAVA to InputFormat.JAVA,
-                SourceLanguage.KOTLIN to InputFormat.KOTLIN,
-            )
-    }
-
     /** Get the [SourceModelProvider] implementation that is available. */
     private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
 
-    override val supportedInputFormats =
-        sourceModelProvider.supportedLanguages
-            .mapNotNull { sourceLanguageToInputFormat[it] }
-            .toSet()
+    override val supportedInputFormats = sourceModelProvider.supportedInputFormats
 
     override val testConfigurations: List<TestConfiguration> =
         supportedInputFormats.flatMap { inputFormat ->
