@@ -1,3 +1,6 @@
+com.android.tools.metalava.ApiFileTest
+  Kotlin expect-actual with JvmOverloads[k2]
+
 com.android.tools.metalava.stub.StubsAnnotationTest
   Annotation default values[turbine]
   Annotation nested rewriting[turbine]

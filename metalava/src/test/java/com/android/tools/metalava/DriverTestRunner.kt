@@ -38,13 +38,16 @@ class DriverTestRunner(clazz: Class<*>) :
         private const val DEFAULT_PROVIDER = "psi"
 
         fun getSourceModelProviders(): List<CodebaseCreatorConfig<SourceModelProvider>> {
-            return SourceModelProvider.implementations.map { provider ->
+            return SourceModelProvider.implementations.flatMap { provider ->
                 // Only include the provider name in the test name if it is not the default one.
                 val includeProviderNameInTestName = provider.providerName != DEFAULT_PROVIDER
-                CodebaseCreatorConfig(
-                    creator = provider,
-                    includeProviderNameInTestName = includeProviderNameInTestName,
-                )
+                provider.modelOptionsList.map { modelOptions ->
+                    CodebaseCreatorConfig(
+                        creator = provider,
+                        modelOptions = modelOptions,
+                        includeProviderNameInTestName = includeProviderNameInTestName,
+                    )
+                }
             }
         }
     }
