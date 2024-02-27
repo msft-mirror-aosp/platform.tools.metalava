@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.testing.BaselineFile
-import java.io.File
-
 /** Provide access to a model test suite's baseline file. */
 object ModelTestSuiteBaseline {
     /**
@@ -26,11 +23,4 @@ object ModelTestSuiteBaseline {
      * loading as a resource at runtime.
      */
     const val RESOURCE_PATH = "model-test-suite-baseline.txt"
-
-    /**
-     * Read the source baseline file from the containing project's directory.
-     *
-     * @param projectDir the project directory from which this baseline will be loaded.
-     */
-    fun forProject(projectDir: File) = BaselineFile.forProject(projectDir, RESOURCE_PATH)
 }

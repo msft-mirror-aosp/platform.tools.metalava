@@ -37,6 +37,15 @@ interface BaselineFile {
         fun forProject(projectDir: File, resourcePath: String): MutableBaselineFile {
             // Load it from the project's test resources directory.
             val baselineFile = projectDir.resolve("src/test/resources").resolve(resourcePath)
+            return forFile(baselineFile)
+        }
+
+        /**
+         * Read the source baseline file from the file.
+         *
+         * @param baselineFile the baseline [File] from which this baseline will be loaded.
+         */
+        fun forFile(baselineFile: File): MutableBaselineFile {
             val baseline = MutableBaselineFile(baselineFile = baselineFile)
             if (baselineFile.exists()) {
                 baselineFile.reader().use { baseline.read(it, baselineFile.path) }
