@@ -217,8 +217,15 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             baselineResourcePath: String,
             additionalArguments: List<Array<Any>>?,
         ): TestArguments {
+            // Create a filter for [CodebaseCreatorConfig]s based off the annotations on the test
+            // class and its ancestors.
+            val filter = createCodebaseCreatorFilter(testClass)
+
             // Get the list of [CodebaseCreatorConfig]s over which this must run the tests.
-            val creatorConfigs = codebaseCreatorConfigsGetter(testClass)
+            val creatorConfigs =
+                codebaseCreatorConfigsGetter(testClass)
+                    // Filter out any [CodebaseCreatorConfig]s as requested.
+                    .filter(filter)
 
             // Wrap each codebase creator object with information needed by [InstanceRunnerFactory].
             val wrappers =
@@ -249,6 +256,27 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                     arrayOf(p1, *p2)
                 }
             }
+
+        private val defaultFilter: (CodebaseCreatorConfig<*>) -> Boolean = { true }
+
+        private fun createCodebaseCreatorFilter(
+            testClass: TestClass
+        ): (CodebaseCreatorConfig<*>) -> Boolean {
+            val hierarchy = generateSequence(testClass.javaClass) { it.superclass }
+            val keyToAction = mutableMapOf<String, FilterByProvider.FilterAction>()
+            for (javaClass in hierarchy) {
+                val annotations = javaClass.getAnnotationsByType(FilterByProvider::class.java)
+                for (annotation in annotations) {
+                    keyToAction.putIfAbsent(annotation.provider, annotation.action)
+                }
+            }
+
+            return if (keyToAction.isEmpty()) defaultFilter
+            else
+                { config ->
+                    keyToAction[config.providerName] != FilterByProvider.FilterAction.EXCLUDE
+                }
+        }
     }
 }
 
@@ -265,6 +293,8 @@ class CodebaseCreatorConfig<C : FilterableCodebaseCreator>(
     /** Any additional options passed to the codebase creator. */
     val modelOptions: ModelOptions = ModelOptions.empty,
 ) {
+    val providerName = creator.providerName
+
     /** Override this to return the string that will be used in the test name. */
     override fun toString(): String = buildString {
         append(creator.providerName)
