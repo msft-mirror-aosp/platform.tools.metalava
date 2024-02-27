@@ -41,14 +41,9 @@ import org.junit.runners.Parameterized.Parameter
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
- *
- * @param fixedModelProviderTestInfo A set of fixed [ModelProviderTestInfo], used for creating tests
- *   that run for a fixed set of [ModelSuiteRunner] and [InputFormat]. This is useful when writing
- *   model specific tests that want to take advantage of the infrastructure for running suite tests.
  */
 @RunWith(ModelTestSuiteRunner::class)
-abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? = null) :
-    ModelProviderAwareTest, TemporaryFolderOwner, Assertions {
+abstract class BaseModelTest() : ModelProviderAwareTest, TemporaryFolderOwner, Assertions {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -72,12 +67,6 @@ abstract class BaseModelTest(fixedModelProviderTestInfo: ModelProviderTestInfo? 
      * 3. Follows the normal test class life-cycle.
      */
     final override lateinit var modelProviderTestInfo: ModelProviderTestInfo
-
-    init {
-        if (fixedModelProviderTestInfo != null) {
-            this.modelProviderTestInfo = fixedModelProviderTestInfo
-        }
-    }
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
