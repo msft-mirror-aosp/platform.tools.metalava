@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner
-import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import java.util.ServiceLoader
 import kotlin.test.fail
 import org.junit.runners.Parameterized
@@ -26,44 +26,42 @@ import org.junit.runners.Parameterized
 /**
  * A special [CustomizableParameterizedRunner] for use with the model test suite tests.
  *
- * This provides the list of [ModelProviderTestInfo] constructed from the [ModelSuiteRunner]
+ * This provides the list of [CodebaseCreatorConfig] constructed from the [ModelSuiteRunner]
  * accessible through the [ServiceLoader]. If the test provides its own arguments using
  * [Parameterized.Parameters] then this will compute the cross produce of those arguments with the
- * [ModelProviderTestInfo]. That will ensure that every set of arguments provided by the test clas s
+ * [CodebaseCreatorConfig]. That will ensure that every set of arguments provided by the test clas s
  * will be run with every [ModelSuiteRunner] available.
  *
- * The [ModelProviderTestInfo] is injected into the test through
- * [ModelProviderAwareTest.modelProviderTestInfo] and not through a field annotated with
+ * The [CodebaseCreatorConfig] is injected into the test through
+ * [ModelProviderAwareTest.codebaseCreatorConfig] and not through a field annotated with
  * [Parameterized.Parameter]. That means that switching a class that is already [Parameterized] to
  * use this instead does not affect any existing [Parameterized.Parameter] fields.
  */
 class ModelTestSuiteRunner(clazz: Class<*>) :
-    BaseModelProviderRunner<ModelProviderTestInfo, ModelProviderAwareTest>(
+    BaseModelProviderRunner<ModelSuiteRunner, ModelProviderAwareTest>(
         clazz,
         ModelProviderAwareTest::class.java,
-        { m -> modelProviderTestInfo = m },
+        { m -> codebaseCreatorConfig = m },
         { getModelSuiteRunners() },
         ModelTestSuiteBaseline.RESOURCE_PATH,
     ) {
 
     companion object {
-        private fun getModelSuiteRunners(): List<ModelProviderTestInfo> {
+        private fun getModelSuiteRunners(): List<CodebaseCreatorConfig<ModelSuiteRunner>> {
             val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
             val modelSuiteRunners = loader.toList()
             if (modelSuiteRunners.isEmpty()) {
                 fail("No runners found")
             }
-            val modelProviderTestInfoList =
-                modelSuiteRunners.flatMap { runner ->
-                    runner.testConfigurations.map {
-                        ModelProviderTestInfo(
-                            runner,
-                            it.inputFormat,
-                            it.modelOptions,
-                        )
-                    }
+            return modelSuiteRunners.flatMap { runner ->
+                runner.testConfigurations.map {
+                    CodebaseCreatorConfig(
+                        creator = runner,
+                        inputFormat = it.inputFormat,
+                        modelOptions = it.modelOptions,
+                    )
                 }
-            return modelProviderTestInfoList
+            }
         }
     }
 }

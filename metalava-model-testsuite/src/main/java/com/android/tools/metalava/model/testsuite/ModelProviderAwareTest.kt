@@ -16,31 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.ModelOptions
-import com.android.tools.metalava.model.provider.InputFormat
-import java.util.Locale
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 
-/** Interface that needs to be implemented by tests that need access to [ModelProviderTestInfo]. */
+/**
+ * Interface that needs to be implemented by tests that need access to [CodebaseCreatorConfig]
+ * containing a [ModelSuiteRunner].
+ */
 interface ModelProviderAwareTest {
 
-    var modelProviderTestInfo: ModelProviderTestInfo
-
-    /** Encapsulates all the configuration for the [BaseModelTest] */
-    data class ModelProviderTestInfo(
-        /** The [ModelSuiteRunner] to use. */
-        val runner: ModelSuiteRunner,
-        val inputFormat: InputFormat,
-        val modelOptions: ModelOptions = ModelOptions.empty,
-    ) {
-        /** Override this to return the string that will be used in the test name. */
-        override fun toString(): String = buildString {
-            append(runner)
-            append(",")
-            append(inputFormat.name.lowercase(Locale.US))
-            if (modelOptions != ModelOptions.empty) {
-                append(",")
-                append(modelOptions)
-            }
-        }
-    }
+    var codebaseCreatorConfig: CodebaseCreatorConfig<ModelSuiteRunner>
 }

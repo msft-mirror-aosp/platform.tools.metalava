@@ -42,7 +42,9 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
@@ -83,8 +85,8 @@ abstract class DriverTest : TemporaryFolderOwner {
 
     @get:Rule val errorCollector = ErrorCollector()
 
-    /** The [SourceModelTestInfo] under which this test will be run. */
-    internal lateinit var sourceModelTestInfo: SourceModelTestInfo
+    /** The [CodebaseCreatorConfig] under which this test will be run. */
+    internal lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
 
     @Before
     fun setup() {
@@ -1067,8 +1069,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         val testEnvironment =
             TestEnvironment(
                 skipEmitPackages = skipEmitPackages,
-                sourceModelProvider = sourceModelTestInfo.sourceModelProvider,
-                modelOptions = sourceModelTestInfo.modelOptions,
+                sourceModelProvider = codebaseCreatorConfig.creator,
+                modelOptions = codebaseCreatorConfig.modelOptions,
             )
 
         val actualOutput =

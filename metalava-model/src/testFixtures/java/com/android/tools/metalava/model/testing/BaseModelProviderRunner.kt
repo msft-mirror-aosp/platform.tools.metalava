@@ -16,11 +16,14 @@
 
 package com.android.tools.metalava.model.testing
 
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunner
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunnerFactory
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.ModelProviderWrapper
 import com.android.tools.metalava.testing.BaselineTestRule
+import java.util.Locale
 import org.junit.runner.Runner
 import org.junit.runners.Parameterized
 import org.junit.runners.model.FrameworkMethod
@@ -31,19 +34,19 @@ import org.junit.runners.parameterized.ParametersRunnerFactory
 import org.junit.runners.parameterized.TestWithParameters
 
 /**
- * Base class for JUnit [Runner]s that need to run tests across a number of different model
- * providers.
+ * Base class for JUnit [Runner]s that need to run tests across a number of different codebase
+ * creators.
  *
  * The basic approach is:
- * 1. Invoke the `modelProvidersGetter` lambda to get a list of model provider objects of type [M].
- *    The type of model provider objects can vary across different runners, hence why it is
- *    specified as a type parameters.
- * 2. Wrap the model provider objects in a [ModelProviderWrapper] to tunnel information needed
- *    through to [InstanceRunner].
- * 3. Generate the cross product of the model provider objects with any additional test arguments
- *    provided by the test class. If no test arguments are provided then just return the model
- *    provider objects list directly. Either way the returned [TestArguments] object will contain an
- *    appropriate pattern.
+ * 1. Invoke the `codebaseCreatorConfigsGetter` lambda to get a list of [CodebaseCreatorConfig]s of
+ *    type [C]. The type of the codebase creator objects can vary across different runners, hence
+ *    why it is specified as a type parameter.
+ * 2. Wrap [CodebaseCreatorConfig] in a [ModelProviderWrapper] to tunnel information needed through
+ *    to [InstanceRunner].
+ * 3. Generate the cross product of the [ModelProviderWrapper]s with any additional test arguments
+ *    provided by the test class. If no test arguments are provided then just return the
+ *    [ModelProviderWrapper]s directly. Either way the returned [TestArguments] object will contain
+ *    an appropriate pattern for the number of arguments in each argument set.
  * 4. The [Parameterized.RunnersFactory] will take the list of test arguments returned and then use
  *    them to construct a set of [TestWithParameters] objects, each of which is passed to a
  *    [ParametersRunnerFactory] to create the [Runner] for the test.
@@ -54,26 +57,26 @@ import org.junit.runners.parameterized.TestWithParameters
  *    [ParametersRunnerFactory.createRunnerForTestWithParameters].
  * 6. The [InstanceRunnerFactory] extracts the [ModelProviderWrapper] from the [TestWithParameters]
  *    it is given and passes it in alongside the remaining arguments to [InstanceRunner].
- * 7. The [InstanceRunner] injects the model provider object into the test class along with any
- *    additional parameters and then runs the test as normal.
+ * 7. The [InstanceRunner] injects the [ModelProviderWrapper.codebaseCreatorConfig] into the test
+ *    class along with any additional parameters and then runs the test as normal.
  *
- * @param M the type of the model provider object.
- * @param I the type of the injectable class through which the model provider will be injected into
- *   the test class.
+ * @param C the type of the codebase creator object.
+ * @param I the type of the injectable class through which the codebase creator will be injected
+ *   into the test class.
  * @param clazz the test class to be run, must be assignable to `injectableClass`.
- * @param injectableClass the class through which the model provider object will be injected into
+ * @param injectableClass the class through which the codebase creator object will be injected into
  *   the test class.
  * @param modelProviderInjector the lambda that given an instance of `injectableClass` will inject
- *   the supplied model provider object.
- * @param modelProvidersGetter a lambda for getting the model provider objects.
+ *   the supplied codebase creator object.
+ * @param codebaseCreatorConfigsGetter a lambda for getting the [CodebaseCreatorConfig]s.
  * @param baselineResourcePath the resource path to the baseline file that should be consulted for
  *   known errors to ignore / check.
  */
-open class BaseModelProviderRunner<M : Any, I : Any>(
+open class BaseModelProviderRunner<C : Any, I : Any>(
     clazz: Class<*>,
     injectableClass: Class<out I>,
-    modelProviderInjector: I.(M) -> Unit,
-    modelProvidersGetter: (TestClass) -> List<M>,
+    modelProviderInjector: I.(CodebaseCreatorConfig<C>) -> Unit,
+    codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
     baselineResourcePath: String,
 ) :
     CustomizableParameterizedRunner(
@@ -83,7 +86,7 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
                 testClass,
                 injectableClass,
                 modelProviderInjector,
-                modelProvidersGetter,
+                codebaseCreatorConfigsGetter,
                 baselineResourcePath,
                 additionalArguments,
             )
@@ -98,25 +101,25 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
     }
 
     /**
-     * A wrapper around a model provider object that tunnels information needed by
+     * A wrapper around a [CodebaseCreatorConfig] that tunnels information needed by
      * [InstanceRunnerFactory] through [TestWithParameters].
      */
-    private class ModelProviderWrapper<M : Any, T : Any>(
+    private class ModelProviderWrapper<C : Any, T : Any>(
         private val injectionClass: Class<out T>,
-        private val modelProviderInjector: T.(M) -> Unit,
-        val modelProvider: M,
+        private val modelProviderInjector: T.(CodebaseCreatorConfig<C>) -> Unit,
+        val codebaseCreatorConfig: CodebaseCreatorConfig<C>,
         val baselineResourcePath: String,
     ) {
         fun injectModelProviderInto(testInstance: Any) {
             val injectableTestInstance = injectionClass.cast(testInstance)
-            injectableTestInstance.modelProviderInjector(modelProvider)
+            injectableTestInstance.modelProviderInjector(codebaseCreatorConfig)
         }
 
         /**
-         * Delegate this to [modelProvider] as this string representation ends up in the
+         * Delegate this to [codebaseCreatorConfig] as this string representation ends up in the
          * [TestWithParameters.name].
          */
-        override fun toString() = modelProvider.toString()
+        override fun toString() = codebaseCreatorConfig.toString()
     }
 
     /** [ParametersRunnerFactory] for creating [Runner]s for a set of arguments. */
@@ -135,7 +138,7 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
             val modelProviderWrapper = arguments[0] as ModelProviderWrapper<*, *>
 
             // Create a new set of [TestWithParameters] containing just the remaining arguments.
-            // Keep the name as is as that will describe the model provider as well as the other
+            // Keep the name as is as that will describe the codebase creator as well as the other
             // arguments.
             val remainingArguments = arguments.drop(1)
 
@@ -146,7 +149,8 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
 
             val newTest = TestWithParameters(suffix, test.testClass, remainingArguments)
 
-            // Create a new [InstanceRunner] that will inject the model provider into the test class
+            // Create a new [InstanceRunner] that will inject the codebase creator into the test
+            // class
             // when created.
             return InstanceRunner(modelProviderWrapper, newTest)
         }
@@ -155,7 +159,7 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
     /**
      * Runner for a test that must implement [I].
      *
-     * This will use the [modelProviderWrapper] to inject the model provider object into the test
+     * This will use the [modelProviderWrapper] to inject the codebase creator object into the test
      * class after creation.
      */
     private class InstanceRunner(
@@ -197,7 +201,7 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
             val statement = super.methodInvoker(method, test)
             val baselineTestRule =
                 BaselineTestRule(
-                    modelProviderWrapper.modelProvider.toString(),
+                    modelProviderWrapper.codebaseCreatorConfig.toString(),
                     modelProviderWrapper.baselineResourcePath,
                 )
             return baselineTestRule.apply(statement, describeChild(method))
@@ -214,24 +218,24 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
         /** The suffix added to the test method name for the [DEFAULT_PROVIDER]. */
         const val DEFAULT_SUFFIX = "[$DEFAULT_PROVIDER]"
 
-        private fun <M : Any, T : Any> createTestArguments(
+        private fun <C : Any, T : Any> createTestArguments(
             testClass: TestClass,
             injectionClass: Class<out T>,
-            modelProviderInjector: T.(M) -> Unit,
-            modelProvidersGetter: (TestClass) -> List<M>,
+            modelProviderInjector: T.(CodebaseCreatorConfig<C>) -> Unit,
+            codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
             baselineResourcePath: String,
             additionalArguments: List<Array<Any>>?,
         ): TestArguments {
-            // Get the list of model providers over which this must run the tests.
-            val modelProviders = modelProvidersGetter(testClass)
+            // Get the list of [CodebaseCreatorConfig]s over which this must run the tests.
+            val creatorConfigs = codebaseCreatorConfigsGetter(testClass)
 
-            // Wrap each model provider object with information needed by [InstanceRunnerFactory].
+            // Wrap each codebase creator object with information needed by [InstanceRunnerFactory].
             val wrappers =
-                modelProviders.map {
+                creatorConfigs.map { creatorConfig ->
                     ModelProviderWrapper(
                         injectionClass,
                         modelProviderInjector,
-                        it,
+                        creatorConfig,
                         baselineResourcePath
                     )
                 }
@@ -259,5 +263,36 @@ open class BaseModelProviderRunner<M : Any, I : Any>(
                     arrayOf(p1, *p2)
                 }
             }
+    }
+}
+
+/** Encapsulates the configuration information needed by a codebase creator */
+class CodebaseCreatorConfig<C : Any>(
+    /** The creator that will create the codebase. */
+    val creator: C,
+    /**
+     * The optional [InputFormat] of the files from which the codebase will be created. If this is
+     * not specified then files of any [InputFormat] supported by the [creator] can be used.
+     */
+    val inputFormat: InputFormat? = null,
+
+    /** Any additional options passed to the codebase creator. */
+    val modelOptions: ModelOptions = ModelOptions.empty,
+) {
+    /** Override this to return the string that will be used in the test name. */
+    override fun toString(): String = buildString {
+        append(creator.toString())
+
+        // If the [inputFormat] is specified then include it in the test name, otherwise ignore it.
+        if (inputFormat != null) {
+            append(",")
+            append(inputFormat.name.lowercase(Locale.US))
+        }
+
+        // If the [ModelOptions] is not empty then include it in the test name, otherwise ignore it.
+        if (modelOptions != ModelOptions.empty) {
+            append(",")
+            append(modelOptions)
+        }
     }
 }
