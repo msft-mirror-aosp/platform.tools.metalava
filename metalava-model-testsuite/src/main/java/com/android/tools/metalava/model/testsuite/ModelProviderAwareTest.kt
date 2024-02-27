@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.provider.InputFormat
 import java.util.Locale
 
 /** Interface that needs to be implemented by tests that need access to [ModelProviderTestInfo]. */

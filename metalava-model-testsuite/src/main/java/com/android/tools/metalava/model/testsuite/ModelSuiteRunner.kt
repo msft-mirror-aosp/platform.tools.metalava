@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.provider.InputFormat
 import java.io.File
 
 /**

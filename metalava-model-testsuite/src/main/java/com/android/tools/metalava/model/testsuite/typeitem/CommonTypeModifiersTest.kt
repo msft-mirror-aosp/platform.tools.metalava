@@ -21,8 +21,8 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability

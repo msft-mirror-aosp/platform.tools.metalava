@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite
+package com.android.tools.metalava.model.provider
 
 import java.io.File
 
-/** Possible input formats that will be passed to the [ModelSuiteRunner]. */
+/** Possible input formats supported by the different model providers. */
 enum class InputFormat(
     val extension: String,
 ) {

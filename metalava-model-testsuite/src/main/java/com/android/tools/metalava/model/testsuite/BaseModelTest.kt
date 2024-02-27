@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
 import com.android.tools.metalava.testing.TemporaryFolderOwner

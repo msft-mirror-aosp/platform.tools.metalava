@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin

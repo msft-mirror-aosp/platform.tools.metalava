@@ -18,8 +18,8 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Assert.assertEquals
