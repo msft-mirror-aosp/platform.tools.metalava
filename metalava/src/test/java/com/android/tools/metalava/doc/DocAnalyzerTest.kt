@@ -149,9 +149,9 @@ class DocAnalyzerTest : DriverTest() {
                             /** @apiSince 17 */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
-                            /** @apiSince 17 */
+                            /** @apiSince 18 */
                             public Foo() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 17 */
+                            /** @apiSince 19 */
                             public Foo(int i) { throw new RuntimeException("Stub!"); }
                             }
                         """
