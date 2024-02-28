@@ -56,6 +56,7 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -74,7 +75,6 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
-import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
@@ -102,6 +102,7 @@ import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
+import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
 import com.android.tools.metalava.reporter.Issues.GENERIC_CALLBACKS
@@ -178,6 +179,7 @@ import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
 import java.util.Locale
 import java.util.function.Predicate
+import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UMethod
@@ -206,7 +208,6 @@ private constructor(
         config = config,
         // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
-        fieldComparator = FieldItem.comparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -249,7 +250,9 @@ private constructor(
     private fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
-            CodebaseComparator()
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
                 .compare(
                     object : ComparisonVisitor() {
                         override fun added(new: Item) {
@@ -277,13 +280,6 @@ private constructor(
             // No previous codebase to compare with: visit the whole thing
             codebase.accept(this)
         }
-    }
-
-    override fun skip(item: Item): Boolean {
-        return super.skip(item) ||
-            item is ClassItem && !isInteresting(item) ||
-            item is MethodItem && !isInteresting(item.containingClass()) ||
-            item is FieldItem && !isInteresting(item.containingClass())
     }
 
     private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
@@ -372,6 +368,7 @@ private constructor(
         checkExtends(cls)
         checkTypedef(cls)
         checkHasFlaggedApi(cls)
+        checkFlaggedApiLiteral(cls)
     }
 
     private fun checkField(field: FieldItem) {
@@ -387,6 +384,7 @@ private constructor(
         checkSettingKeys(field)
         checkNullableCollections(field.type(), field)
         checkHasFlaggedApi(field)
+        checkFlaggedApiLiteral(field)
     }
 
     private fun checkMethod(method: MethodItem, filterReference: Predicate<Item>) {
@@ -404,6 +402,48 @@ private constructor(
         checkContextFirst(method)
         checkListenerLast(method)
         checkHasFlaggedApi(method)
+        checkFlaggedApiLiteral(method)
+    }
+
+    private fun checkFlaggedApiLiteral(item: Item) {
+        if (item.codebase.preFiltered) {
+            // Flag constants aren't ever API, so prefiltered codebases would always only contain
+            // literals.
+            return
+        }
+
+        val annotation =
+            item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
+        val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
+
+        if (attr.value.resolve() == null) {
+            val value = attr.value.value() as? String
+            if (value == attr.value.toSource()) {
+                // For a string literal, source and value are never the same, so this happens only
+                // when a reference isn't resolvable.
+                return
+            }
+
+            val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
+
+            val replacement =
+                if (field != null) {
+                    val (fieldSource, fieldItem) = field
+                    if (fieldItem != null) {
+                        fieldSource
+                    } else {
+                        "$fieldSource, however this flag doesn't seem to exist"
+                    }
+                } else {
+                    "furthermore, the current flag literal seems to be malformed"
+                }
+
+            report(
+                FLAGGED_API_LITERAL,
+                item,
+                "@FlaggedApi contains a string literal, but should reference the field generated by aconfig ($replacement).",
+            )
+        }
     }
 
     private fun checkEnums(cls: ClassItem) {
@@ -1147,7 +1187,7 @@ private constructor(
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.toType()
+        val clsType = cls.type()
 
         for (method in methods) {
             val name = method.name()
@@ -1164,19 +1204,9 @@ private constructor(
                 name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")
             ) {
                 val returnType = method.returnType()
-                val returnsClassType =
-                    if (returnType is PsiTypeItem && clsType is PsiTypeItem) {
-                        clsType.isAssignableFromWithoutUnboxing(returnType)
-                    } else {
-                        // fallback to a limited text based check
-                        val returnTypeBounds =
-                            (returnType as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map {
-                                it.toTypeString()
-                            }
-                                ?: emptyList()
-                        returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
-                    }
-                if (!returnsClassType) {
+                val methodReturnsBuilderClassType =
+                    clsType.isAssignableFromWithoutUnboxing(returnType)
+                if (!methodReturnsBuilderClassType) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1475,7 +1505,7 @@ private constructor(
 
             // TODO(b/278505954): remove the flag once fully switched to K2 UAST
             val skipConstructorParameter =
-                @Suppress("DEPRECATION") !options.useK2Uast &&
+                @Suppress("DEPRECATION") options.useK2Uast != true &&
                     propertyItem.constructorParameter != null
             if (getter.name() != propertyItem.name() && !skipConstructorParameter) {
                 // Only properties beginning with "is" have the correct autogenerated getter name.
@@ -1664,12 +1694,19 @@ private constructor(
     }
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
-        for (exception in method.filteredThrowsTypes(filterReference)) {
-            if (method.isEnumSyntheticMethod()) continue
-            if (isUncheckedException(exception)) {
+        for (throwableType in method.filteredThrowsTypes(filterReference)) {
+            // Get the throwable class, which for a type parameter will be the lower bound. A
+            // method that throws a type parameter is treated as if it throws its lower bound, so
+            // it makes sense for this check to treat it as if it was replaced with its lower bound.
+            val throwableClass = throwableType.erasedClass ?: continue
+            if (isUncheckedException(throwableClass)) {
                 report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
+            } else if (throwableType is VariableTypeItem) {
+                // Preserve legacy behavior where the following check did nothing for type
+                // parameters as a type parameters qualifiedName(), which is just its name without
+                // any package or containing class could never match a qualified exception name.
             } else {
-                when (val qualifiedName = exception.qualifiedName()) {
+                when (val qualifiedName = throwableClass.qualifiedName()) {
                     "java.lang.Exception",
                     "java.lang.Throwable",
                     "java.lang.Error" -> {
@@ -1816,19 +1853,19 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
+        if (!item.hasNullnessInfo() && item.type()?.modifiers?.nullability()?.isKnown != true) {
             val type = item.type()
             val inherited =
                 when (item) {
-                    is ParameterItem -> item.containingMethod().inheritedMethod
-                    is FieldItem -> item.inheritedField
-                    is MethodItem -> item.inheritedMethod
+                    is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                    is FieldItem -> item.inheritedFromAncestor
+                    is MethodItem -> item.inheritedFromAncestor
                     else -> false
                 }
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type is VariableTypeItem || item.hasInheritedGenericType()) {
+            if (type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.
@@ -1973,7 +2010,9 @@ private constructor(
             }
         }
 
-        val qualifiedName = type.asClass()?.qualifiedName() ?: return
+        // Only report issues with an actual type and not a generic type that extends Number as
+        // there is nothing that can be done to avoid auto-boxing when using generic types.
+        val qualifiedName = (type as? ClassTypeItem)?.asClass()?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }
@@ -3047,17 +3086,6 @@ private constructor(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun isInteresting(cls: ClassItem): Boolean {
-        val name = cls.qualifiedName()
-        for (prefix in options.checkApiIgnorePrefix) {
-            if (name.startsWith(prefix)) {
-                return false
-            }
-        }
-        return true
-    }
-
     companion object {
 
         /**
@@ -3274,6 +3302,38 @@ private constructor(
                         s.replace(acronym, replacement)
                     }
             }
+        }
+
+        /**
+         * Heuristically converts the given string [literal] into a reference to the equivalent
+         * `aconfig`-generated `Flags.java` field.
+         *
+         * @return a pair of the field reference as Java / Kotlin source, and the referenced field
+         *   item (if found in [codebase]); or `null` if the literal cannot be converted.
+         */
+        private fun aconfigFlagLiteralToFieldOrNull(
+            codebase: Codebase,
+            literal: String
+        ): Pair<String, FieldItem?>? {
+            if (literal.contains('/')) {
+                return null
+            }
+            val parts = literal.split('.')
+
+            val flag = parts.lastOrNull() ?: return null
+            val flagField = "FLAG_" + flag.toUpperCaseAsciiOnly()
+            val pkg = parts.dropLast(1).joinToString(separator = ".")
+            val className = "$pkg.Flags"
+            val fieldSource = "$className.$flagField"
+
+            val clazzOrNull = codebase.findClass(className)
+            val fieldOrNull =
+                clazzOrNull?.findField(
+                    flagField,
+                    includeSuperClasses = true,
+                    includeInterfaces = true
+                )
+            return fieldSource to fieldOrNull
         }
     }
 }

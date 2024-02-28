@@ -28,6 +28,8 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
@@ -35,19 +37,18 @@ import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
-import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.lint.ApiLint
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.model.MergedCodebase
+import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -60,7 +61,6 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
-import java.util.function.Predicate
 import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
@@ -119,6 +119,7 @@ fun run(
 
 @Suppress("DEPRECATION")
 internal fun processFlags(
+    executionEnvironment: ExecutionEnvironment,
     environmentManager: EnvironmentManager,
     progressTracker: ProgressTracker
 ) {
@@ -127,13 +128,23 @@ internal fun processFlags(
     val reporter = options.reporter
     val reporterApiLint = options.reporterApiLint
     val annotationManager = options.annotationManager
+    val modelOptions =
+        // If the option was specified on the command line then use [ModelOptions] created from
+        // that.
+        options.useK2Uast?.let { useK2Uast ->
+            ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
+        }
+        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+        ?: executionEnvironment.testEnvironment?.modelOptions
+            // Otherwise, use the default
+            ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
             annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
-            useK2Uast = options.useK2Uast,
+            modelOptions = modelOptions,
             jdkHome = options.jdkHome,
         )
 
@@ -292,7 +303,7 @@ internal fun processFlags(
                 codebase.preFiltered,
                 fileFormat = options.signatureFileFormat,
                 showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig,
+                apiVisitorConfig = options.apiVisitorConfig
             )
         }
     }
@@ -345,11 +356,9 @@ internal fun processFlags(
     val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
     options.dexApiFile?.let { apiFile ->
         val apiFilter = FilterPredicate(ApiPredicate())
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val dexApiEmit = memberIsNotCloned.and(apiFilter)
 
         createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, dexApiEmit, apiReferenceIgnoreShown, options.apiVisitorConfig)
+            DexApiWriter(printWriter, apiFilter, apiReferenceIgnoreShown, options.apiVisitorConfig)
         }
     }
 
@@ -422,14 +431,13 @@ internal fun processFlags(
 @Suppress("DEPRECATION")
 private fun addMissingItemsRequiredForGeneratingStubs(
     sourceParser: SourceParser,
-    textCodebase: TextCodebase,
+    codebase: Codebase,
     reporterApiLint: Reporter,
 ) {
     // Reuse the existing ApiAnalyzer support for adding constructors that is used in
     // [loadFromSources], to make sure that the constructors are correct when generating stubs
     // from source files.
-    val analyzer =
-        ApiAnalyzer(sourceParser, textCodebase, reporterApiLint, options.apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
     analyzer.addConstructors { _ -> true }
 }
 
@@ -450,7 +458,9 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator()
+    CodebaseComparator(
+            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        )
         .compare(
             object : ComparisonVisitor() {
                 override fun compare(old: ClassItem, new: ClassItem) {
@@ -472,35 +482,45 @@ private fun ActionContext.checkCompatibility(
     check: CheckRequest,
 ) {
     progressTracker.progress("Checking API compatibility ($check): ")
-    val signatureFile = check.file
 
-    val oldCodebase =
-        if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(signatureFile)
-        } else {
-            signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+    val apiType = check.apiType
+    val generatedApiFile =
+        when (apiType) {
+            ApiType.PUBLIC_API -> options.apiFile
+            ApiType.REMOVED -> options.removedApiFile
+            else -> error("unsupported $apiType")
+        }
+
+    // Fast path: if we've already generated a signature file, and it's identical to the previously
+    // released API then we're good.
+    //
+    // Some things to watch out for:
+    // * There is no guarantee that the signature file is actually a txt file, it could also be
+    //   a `jar` file, so double check that first.
+    // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
+    //   check the lengths first and then compare contents byte for byte so that it exits
+    //   quickly if they're different and does not do all the UTF-8 conversions.
+    generatedApiFile?.let { apiFile ->
+        val signatureFile = check.files.last()
+        val compatibilityCheckCanBeSkipped =
+            signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
+        // TODO(b/301282006): Remove global variable use when this can be tested properly
+        fastPathCheckResult = compatibilityCheckCanBeSkipped
+        if (compatibilityCheckCanBeSkipped) return
+    }
+
+    val oldCodebases =
+        check.files.map { signatureFile ->
+            if (signatureFile.path.endsWith(DOT_JAR)) {
+                loadFromJarFile(signatureFile)
+            } else {
+                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+            }
         }
 
     var baseApi: Codebase? = null
 
-    val apiType = check.apiType
-
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-        // Fast path: if we've already generated a signature file, and it's identical, we're good!
-        // Some things to watch out for:
-        // * There is no guarantee that the signature file is actually a txt file, it could also be
-        //   a `jar` file, so double check that first.
-        // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
-        //   check the lengths first and then compare contents byte for byte so that it exits
-        //   quickly if they're different and does not do all the UTF-8 conversions.
-        options.apiFile?.let { apiFile ->
-            val compatibilityCheckCanBeSkipped =
-                signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
-            // TODO(b/301282006): Remove global variable use when this can be tested properly
-            fastPathCheckResult = compatibilityCheckCanBeSkipped
-            if (compatibilityCheckCanBeSkipped) return
-        }
-
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
             baseApi = signatureFileCache.load(file = baseApiFile)
@@ -513,11 +533,15 @@ private fun ActionContext.checkCompatibility(
         )
     }
 
+    // The MergedCodebase assume that the codebases are in order from widest to narrowest which is
+    // the opposite of how they are supplied so this reverses them.
+    val mergedOldCodebases = MergedCodebase(oldCodebases.reversed())
+
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
-        oldCodebase,
+        mergedOldCodebases,
         apiType,
         baseApi,
         options.reporterCompatibilityReleased,
@@ -590,22 +614,29 @@ private fun ActionContext.loadFromSources(
 ): Codebase {
     progressTracker.progress("Processing sources: ")
 
-    val sources =
-        options.sources.ifEmpty {
+    val sourceSet =
+        if (options.sources.isEmpty()) {
             if (options.verbose) {
                 options.stdout.println(
                     "No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})"
                 )
             }
-            gatherSources(options.reporter, options.sourcePath)
+            SourceSet.createFromSourcePath(options.reporter, options.sourcePath)
+        } else {
+            SourceSet(options.sources, options.sourcePath)
         }
+
+    val commonSourceSet =
+        if (options.commonSourcePath.isNotEmpty())
+            SourceSet.createFromSourcePath(options.reporter, options.commonSourcePath)
+        else SourceSet.empty()
 
     progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
-            sources,
+            sourceSet,
+            commonSourceSet,
             "Codebase loaded from source folders",
-            sourcePath = options.sourcePath,
             classPath = options.classpath,
         )
 
@@ -751,16 +782,6 @@ private fun createStubFiles(
     codebase: Codebase,
     docStubs: Boolean,
 ) {
-    if (codebase is TextCodebase) {
-        if (options.verbose) {
-            options.stdout.println(
-                "Generating stubs from text based codebase is an experimental feature. " +
-                    "It is not guaranteed that stubs generated from text based codebase are " +
-                    "class level equivalent to the stubs generated from source files. "
-            )
-        }
-    }
-
     if (docStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {
@@ -781,13 +802,10 @@ private fun createStubFiles(
 
     val stubWriter =
         StubWriter(
-            codebase = codebase,
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
             preFiltered = codebase.preFiltered,
             docStubs = docStubs,
-            annotationTarget =
-                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE,
             reporter = options.reporter,
             config = stubWriterConfig,
         )

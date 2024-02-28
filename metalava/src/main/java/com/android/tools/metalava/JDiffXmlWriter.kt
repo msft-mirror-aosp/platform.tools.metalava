@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
@@ -55,8 +56,6 @@ class JDiffXmlWriter(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
         inlineInheritedFields = true,
-        methodComparator = MethodItem.comparator,
-        fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
@@ -251,9 +250,7 @@ class JDiffXmlWriter(
                     if (!cls.isClass() && superClass.isJavaLangObject()) {
                         return
                     }
-                    XmlUtils.toXmlAttributeValue(
-                        formatType(superClass.toTypeString(context = superClass.asClass()))
-                    )
+                    XmlUtils.toXmlAttributeValue(formatType(superClass.toTypeString()))
                 }
                 cls.isEnum() -> JAVA_LANG_ENUM
                 else -> return
@@ -271,7 +268,7 @@ class JDiffXmlWriter(
         if (interfaces.any()) {
             interfaces.sortedWith(TypeItem.totalComparator).forEach { item ->
                 writer.print("<implements name=\"")
-                val type = item.toTypeString(context = cls)
+                val type = item.toTypeString()
                 writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
                 writer.println("\">\n</implements>")
             }
@@ -304,11 +301,11 @@ class JDiffXmlWriter(
                 else -> method.filteredThrowsTypes(filterReference).asSequence()
             }
         if (throws.any()) {
-            throws.sortedWith(ClassItem.fullNameComparator).forEach { type ->
+            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
-                writer.print(type.fullName())
+                @Suppress("DEPRECATION") writer.print(type.fullName())
                 writer.print("\" type=\"")
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
                 writer.println("\">")
                 writer.println("</exception>")
             }
