@@ -48,6 +48,9 @@ class BaselineTestRule(
                     // Run the test even if it is expected to fail as a change that fixes one test
                     // may fix more. Instead, this will just discard any failure.
                     base.evaluate()
+                } catch (e: AssumptionViolatedException) {
+                    // Catch and rethrow but do not treat as a failure.
+                    throw e
                 } catch (e: Throwable) {
                     if (expectedFailure) {
                         // If this was expected to fail then throw an AssumptionViolatedException
