@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.testing.BaseModelProviderRunner.Instance
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunnerFactory
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.ModelProviderWrapper
 import com.android.tools.metalava.testing.BaselineTestRule
+import java.lang.reflect.AnnotatedElement
 import java.util.Locale
 import org.junit.runner.Runner
 import org.junit.runners.Parameterized
@@ -216,6 +217,17 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                 )
             return baselineTestRule.apply(statement, describeChild(method))
         }
+
+        override fun getChildren(): List<FrameworkMethod> {
+            return super.getChildren().filter { frameworkMethod ->
+                // Create a filter from any annotations on the methods.
+                val filter = createCodebaseCreatorFilter(sequenceOf(frameworkMethod.method))
+
+                // Apply the filter to the [CodebaseCreatorConfig] that would be used for this
+                // method.
+                filter(modelProviderWrapper.codebaseCreatorConfig)
+            }
+        }
     }
 
     companion object {
@@ -227,7 +239,8 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
         ): TestArguments {
             // Create a filter for [CodebaseCreatorConfig]s based off the annotations on the test
             // class and its ancestors.
-            val filter = createCodebaseCreatorFilter(testClass)
+            val hierarchy = generateSequence(testClass.javaClass) { it.superclass }
+            val filter = createCodebaseCreatorFilter(hierarchy)
 
             // Get the list of [CodebaseCreatorConfig]s over which this must run the tests.
             val creatorConfigs =
@@ -260,13 +273,16 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
 
         private val defaultFilter: (CodebaseCreatorConfig<*>) -> Boolean = { true }
 
+        /**
+         * Create a filter for [CodebaseCreatorConfig]s based on the annotations on the
+         * [annotatedElements],
+         */
         private fun createCodebaseCreatorFilter(
-            testClass: TestClass
+            annotatedElements: Sequence<AnnotatedElement>
         ): (CodebaseCreatorConfig<*>) -> Boolean {
-            val hierarchy = generateSequence(testClass.javaClass) { it.superclass }
             val keyToAction = mutableMapOf<String, FilterByProvider.FilterAction>()
-            for (javaClass in hierarchy) {
-                val annotations = javaClass.getAnnotationsByType(FilterByProvider::class.java)
+            for (element in annotatedElements) {
+                val annotations = element.getAnnotationsByType(FilterByProvider::class.java)
                 for (annotation in annotations) {
                     keyToAction.putIfAbsent(annotation.provider, annotation.action)
                 }

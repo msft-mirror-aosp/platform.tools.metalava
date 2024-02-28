@@ -27,7 +27,7 @@ package com.android.tools.metalava.model.testing
  * By default, tests will be run against all providers that are available unless [action] is set to
  * [FilterAction.EXCLUDE].
  */
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @Repeatable
 annotation class FilterByProvider(
     val provider: String,
