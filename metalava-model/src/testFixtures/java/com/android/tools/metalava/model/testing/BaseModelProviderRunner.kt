@@ -324,6 +324,7 @@ class CodebaseCreatorConfig<C : FilterableCodebaseCreator>(
     val modelOptions: ModelOptions = ModelOptions.empty,
     includeProviderNameInTestName: Boolean = true,
     includeInputFormatInTestName: Boolean = false,
+    includeOptionsInTestName: Boolean = true,
 ) {
     val providerName = creator.providerName
 
@@ -342,8 +343,9 @@ class CodebaseCreatorConfig<C : FilterableCodebaseCreator>(
             separator = ","
         }
 
-        // If the [ModelOptions] is not empty then include it in the test name, otherwise ignore it.
-        if (modelOptions != ModelOptions.empty) {
+        // If the [ModelOptions] is not empty, and it is required, then include it in the test name,
+        // otherwise ignore it.
+        if (includeOptionsInTestName && modelOptions != ModelOptions.empty) {
             append(separator)
             append(modelOptions)
         }
