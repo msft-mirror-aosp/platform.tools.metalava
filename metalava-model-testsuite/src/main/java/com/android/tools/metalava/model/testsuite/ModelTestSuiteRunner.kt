@@ -52,14 +52,13 @@ class ModelTestSuiteRunner(clazz: Class<*>) :
             if (modelSuiteRunners.isEmpty()) {
                 fail("No runners found")
             }
-            return modelSuiteRunners.flatMap { runner ->
-                runner.testConfigurations.map {
-                    CodebaseCreatorConfig(
-                        creator = runner,
-                        inputFormat = it.inputFormat,
-                        modelOptions = it.modelOptions,
-                    )
-                }
+            val runner = modelSuiteRunners.single()
+            return runner.testConfigurations.map {
+                CodebaseCreatorConfig(
+                    creator = runner,
+                    inputFormat = it.inputFormat,
+                    modelOptions = it.modelOptions,
+                )
             }
         }
     }
