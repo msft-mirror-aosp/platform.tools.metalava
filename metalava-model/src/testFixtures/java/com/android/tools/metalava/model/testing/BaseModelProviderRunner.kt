@@ -273,6 +273,8 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
 
         private val defaultFilter: (CodebaseCreatorConfig<*>) -> Boolean = { true }
 
+        private data class ProviderOptions(val provider: String, val options: String)
+
         /**
          * Create a filter for [CodebaseCreatorConfig]s based on the annotations on the
          * [annotatedElements],
@@ -280,18 +282,29 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
         private fun createCodebaseCreatorFilter(
             annotatedElements: Sequence<AnnotatedElement>
         ): (CodebaseCreatorConfig<*>) -> Boolean {
-            val keyToAction = mutableMapOf<String, FilterByProvider.FilterAction>()
+            val providerToAction = mutableMapOf<String, FilterAction>()
+            val providerOptionsToAction = mutableMapOf<ProviderOptions, FilterAction>()
             for (element in annotatedElements) {
                 val annotations = element.getAnnotationsByType(FilterByProvider::class.java)
                 for (annotation in annotations) {
-                    keyToAction.putIfAbsent(annotation.provider, annotation.action)
+                    val specifiedOptions = annotation.specifiedOptions
+                    if (specifiedOptions == null) {
+                        providerToAction.putIfAbsent(annotation.provider, annotation.action)
+                    } else {
+                        val key = ProviderOptions(annotation.provider, specifiedOptions)
+                        providerOptionsToAction.putIfAbsent(key, annotation.action)
+                    }
                 }
             }
 
-            return if (keyToAction.isEmpty()) defaultFilter
+            return if (providerToAction.isEmpty() && providerOptionsToAction.isEmpty())
+                defaultFilter
             else
                 { config ->
-                    keyToAction[config.providerName] != FilterByProvider.FilterAction.EXCLUDE
+                    val providerName = config.providerName
+                    val key = ProviderOptions(providerName, config.modelOptions.toString())
+                    val action = providerOptionsToAction[key] ?: providerToAction[providerName]
+                    action != FilterAction.EXCLUDE
                 }
         }
     }

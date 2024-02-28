@@ -17,27 +17,32 @@
 package com.android.tools.metalava.model.testing
 
 /**
- * Controls whether a specific class or any of its subclasses will be run for a particular provider.
+ * Controls whether the annotated test class or any of its subclasses will be run for a particular
+ * provider and optional options.
  *
  * When specified on a class it will determine whether the class or any of its subclasses will be
- * run for the named [provider] unless overridden by a closer annotation on a subclass. Multiple
- * annotations can be applied to each class and the first one that matches a specific provider will
- * win.
+ * run for the named [provider] and optional [options] unless overridden by a closer annotation on a
+ * subclass. Multiple annotations can be applied to each class and the first one that matches a
+ * specific provider and its options will win.
  *
- * By default, tests will be run against all providers that are available unless [action] is set to
- * [FilterAction.EXCLUDE].
+ * By default, tests will be run against all providers and options that are available unless
+ * [action] is set to [FilterAction.EXCLUDE].
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @Repeatable
 annotation class FilterByProvider(
     val provider: String,
+    val options: String = UNSPECIFIED_OPTIONS,
     val action: FilterAction,
 ) {
-    enum class FilterAction {
-        /** The test is run for the matching provider. */
-        INCLUDE,
-
-        /** The test is not for the matching provider. */
-        EXCLUDE,
+    companion object {
+        internal const val UNSPECIFIED_OPTIONS = "unspecified"
     }
 }
+
+/**
+ * Extension property to return the [FilterByProvider.options] only if it was explicitly specified,
+ * i.e. did not match the default value.
+ */
+val FilterByProvider.specifiedOptions: String?
+    get() = options.takeIf { it != FilterByProvider.UNSPECIFIED_OPTIONS }

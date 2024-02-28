@@ -46,8 +46,8 @@ import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
-import com.android.tools.metalava.model.testing.FilterByProvider.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
