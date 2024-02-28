@@ -29,6 +29,8 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
+import org.junit.Assert.assertThrows
+import org.junit.ComparisonFailure
 import org.junit.Test
 
 class SignatureInputOutputTest : Assertions {
@@ -206,7 +208,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(method.parameters()).isEmpty()
 
             assertThat(method.throwsTypes()).hasSize(1)
-            assertThat(method.throwsTypes().single().qualifiedName())
+            assertThat(method.throwsTypes().single().toTypeString())
                 .isEqualTo("java.lang.IllegalStateException")
         }
     }
@@ -535,6 +537,66 @@ class SignatureInputOutputTest : Assertions {
             assertThat(interfaceType.modifiers.annotations().map { it.qualifiedName })
                 .containsExactly("test.pkg.B")
         }
+    }
+
+    @Test
+    fun `Test generic super class with nullable type`() {
+        val api =
+            """
+                package test.pkg {
+                  public interface Foo extends kotlin.collections.List<java.lang.String?> {
+                  }
+                }
+            """
+                .trimIndent()
+        val exception =
+            assertThrows(ComparisonFailure::class.java) {
+                runInputOutputTest(api, kotlinStyleFormat) {}
+            }
+
+        // Note that the List type argument is "String". not "String?" as it is above.
+        assertThat(exception.actual)
+            .isEqualTo(
+                """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+                package test.pkg {
+                  public interface Foo extends kotlin.collections.List<java.lang.String> {
+                  }
+                }
+            """
+                    .trimIndent()
+            )
+    }
+
+    @Test
+    fun `Test generic super interface with nullable type`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo implements kotlin.collections.List<java.lang.String?> {
+                  }
+                }
+            """
+                .trimIndent()
+        val exception =
+            assertThrows(ComparisonFailure::class.java) {
+                runInputOutputTest(api, kotlinStyleFormat) {}
+            }
+
+        // Note that the List type argument is "String". not "String?" as it is above.
+        assertThat(exception.actual)
+            .isEqualTo(
+                """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+                package test.pkg {
+                  public class Foo implements kotlin.collections.List<java.lang.String> {
+                  }
+                }
+            """
+                    .trimIndent()
+            )
     }
 
     companion object {
