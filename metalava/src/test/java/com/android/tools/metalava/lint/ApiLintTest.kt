@@ -1178,11 +1178,9 @@ class ApiLintTest : DriverTest() {
     }
 
     private fun `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-        isK2: Boolean,
         expectedIssues: String?,
     ) {
-        uastCheck(
-            isK2 = isK2,
+        check(
             apiLint = "", // enabled
             expectedIssues = expectedIssues,
             expectedFail = DefaultLintErrorMessage,
@@ -1242,7 +1240,6 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = false,
             // missing errors for `isVisibleSetterBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
@@ -1262,7 +1259,6 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = true,
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
