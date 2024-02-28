@@ -222,7 +222,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class MyTest {
                     method public static int codePointAt(char[], int);
-                    method @NonNull public <K,V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
+                    method @NonNull public <K, V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
                     method @NonNull public java.lang.annotation.Annotation[] getAnnotations();
                     method @NonNull public abstract java.lang.annotation.Annotation[][] getParameterAnnotations();
                     method @NonNull public String[] split(@NonNull String, int);
@@ -315,8 +315,6 @@ class ApiFromTextTest : DriverTest() {
               public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }
@@ -335,7 +333,7 @@ class ApiFromTextTest : DriverTest() {
               public final class Test<T> {
                 ctor public Test();
                 method public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T);
-                method public static <T & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
+                method public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
                 method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws java.lang.Throwable;
                 field public static java.util.List<java.lang.String> LIST;
               }

@@ -16,18 +16,24 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
-class TurbineConstructorItem(
+internal class TurbineConstructorItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
-    returnType: TurbineTypeItem,
-    modifiers: TurbineModifierItem,
+    returnType: ClassTypeItem,
+    modifiers: DefaultModifierList,
     typeParameters: TypeParameterList,
+    documentation: String,
+    private val defaultValue: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -35,7 +41,9 @@ class TurbineConstructorItem(
         containingClass,
         returnType,
         modifiers,
-        typeParameters
+        typeParameters,
+        documentation,
+        defaultValue,
     ),
     ConstructorItem {
 
@@ -45,7 +53,36 @@ class TurbineConstructorItem(
 
     override fun isConstructor(): Boolean = true
 
-    internal fun setReturnType(type: TurbineTypeItem) {
+    internal fun setReturnType(type: TypeItem) {
         returnType = type
+    }
+
+    companion object {
+        fun createDefaultConstructor(
+            codebase: TurbineBasedCodebase,
+            containingClass: TurbineClassItem,
+            symbol: MethodSymbol
+        ): TurbineConstructorItem {
+            val name = containingClass.simpleName()
+            val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val typeParameterList = DefaultTypeParameterList(emptyList())
+
+            val ctorItem =
+                TurbineConstructorItem(
+                    codebase,
+                    name,
+                    symbol,
+                    containingClass,
+                    containingClass.type(),
+                    modifiers,
+                    typeParameterList,
+                    "",
+                    "",
+                )
+            ctorItem.parameters = emptyList()
+            ctorItem.throwableTypes = emptyList()
+            return ctorItem
+        }
     }
 }

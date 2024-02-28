@@ -346,7 +346,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V?> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -443,16 +443,19 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     kotlin(
                         """
-                    @file:Suppress("NOTHING_TO_INLINE", "RedundantVisibilityModifier", "unused")
+                    @file:Suppress("All", "RedundantVisibilityModifier")
 
                     package test.pkg
+                    import kotlin.collections.List
 
-                    inline fun <T> a(t: T) { }
-                    inline fun <reified T> b(t: T) { }
-                    private inline fun <reified T> c(t: T) { } // hide
-                    internal inline fun <reified T> d(t: T) { } // hide
-                    public inline fun <reified T> e(t: T) { }
-                    inline fun <reified T> T.f(t: T) { }
+                    inline fun <T> inlineNoReified(t: T): T { return t }
+                    inline fun <reified T> inlineReified(t: T) { }
+                    private inline fun <reified T> privateInlineReified(t: T) { } // hide
+                    internal inline fun <reified T> internalInlineReified(t: T) { } // hide
+                    public inline fun <reified T> publicInlineReified(t: T): T { return t }
+                    inline fun <reified T> T.inlineReifiedExtension(t: T) { this }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsArray(t: Array<T>): Array<T> { return t }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsList(t: List<T>): List<T> { return t }
                     """
                     )
                 ),
@@ -460,10 +463,12 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void a(T t);
-                    method public static inline <reified T> void b(T t);
-                    method public static inline <reified T> void e(T t);
-                    method public static inline <reified T> void f(T, T t);
+                    method public static inline <T> T inlineNoReified(T t);
+                    method public static inline <reified T> void inlineReified(T t);
+                    method public static inline <reified T> void inlineReifiedExtension(T, T t);
+                    method @NonNull public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(@NonNull T[] t);
+                    method @NonNull public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(@NonNull java.util.List<? extends T> t);
+                    method public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
                 """
@@ -759,8 +764,8 @@ class ApiFileTest : DriverTest() {
                 }
                 package androidx.core.app {
                   public class ActivityOptionsCompat {
-                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...);
-                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...);
+                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...!);
+                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...!);
                   }
                 }
                 """,
@@ -1188,8 +1193,6 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -1675,8 +1678,6 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public enum Foo {
-                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -2421,8 +2422,6 @@ class ApiFileTest : DriverTest() {
             """
             package java.nio.file.attribute {
               public enum AclEntryPermission {
-                method public static java.nio.file.attribute.AclEntryPermission valueOf(String);
-                method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE_CHILD;
@@ -3848,9 +3847,8 @@ class ApiFileTest : DriverTest() {
                 arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
             expectedIssues =
                 """
-            src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,
@@ -4825,7 +4823,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V?> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved);
                   }
                 }
                 """,
@@ -5672,6 +5670,50 @@ class ApiFileTest : DriverTest() {
                         private fun shouldBePrivate() {}
                     """
                     ),
+                    kotlin(
+                        "test/pkg/Path1.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path1(): Path1
+
+                        interface Path1 {
+                          infix fun xor(path: Path1): Path1
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/Path2.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path2(): Path2
+
+                        fun Path2.copy(): Path2 = TODO()
+
+                        interface Path2 {
+                          infix fun xor(path: Path2): Path2
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/LazyLayoutItemProvider.kt",
+                        """
+                        package test.pkg
+
+                        interface LazyLayoutItemProvider {
+                          val itemCount: Int
+                          fun getIndex(): Int = -1
+                        }
+
+                        internal fun LazyLayoutItemProvider.findIndexByKey(
+                          key: Any?,
+                          lastKnownIndex: Int,
+                        ): Int = TODO()
+
+                        expect fun getDefaultLazyLayoutKey(index: Int): Any
+                        """
+                    ),
                     restrictToSource,
                     visibleForTestingSource,
                 ),
@@ -5692,6 +5734,20 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
+                  }
+                  public interface LazyLayoutItemProvider {
+                    method public default int getIndex();
+                    method public int getItemCount();
+                    property public abstract int itemCount;
+                  }
+                  public interface Path1 {
+                    method public infix test.pkg.Path1 xor(test.pkg.Path1 path);
+                  }
+                  public interface Path2 {
+                    method public infix test.pkg.Path2 xor(test.pkg.Path2 path);
+                  }
+                  public final class Path2Kt {
+                    method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
                     method @kotlin.PublishedApi internal static void internalYetPublished();
@@ -6100,6 +6156,97 @@ class ApiFileTest : DriverTest() {
                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
                       }
                     }
+                """
+        )
+    }
+
+    @Test
+    fun `Test signature including parameterized converted type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface VisibleInterface<V> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.RestrictTo;
+                            @RestrictTo(RestrictTo.Scope.LIBRARY)
+                            public interface HiddenInterface<H> extends VisibleInterface<H> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo<F> implements HiddenInterface<List<F>> {}
+                        """
+                    ),
+                    restrictToSource
+                ),
+            // When `HiddenInterface` is hidden, the implements clause for `Foo` is converted to
+            // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
+            // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
+            // `List` for legacy reasons.
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List> {
+                        ctor public Foo();
+                      }
+                      public interface VisibleInterface<V> {
+                      }
+                    }
+                """,
+            skipEmitPackages = listOf("androidx.annotation"),
+            hideAnnotations = arrayOf("androidx.annotation.RestrictTo"),
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: Public class test.pkg.Foo stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]"
+        )
+    }
+
+    @Test
+    fun `sealed class with internal setter`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            sealed class TransitionState<S> {
+                              abstract var currentState: S
+                                internal set
+                            }
+
+                            class SeekableTransitionState<S>(
+                                initialState: S
+                            ) : TransitionState<S>() {
+                              override var currentState: S = initialState
+                                internal set
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
+                    ctor public SeekableTransitionState(S initialState);
+                    method public S getCurrentState();
+                    property public S currentState;
+                  }
+                  public abstract sealed class TransitionState<S> {
+                    method public abstract S getCurrentState();
+                    property public abstract S currentState;
+                  }
+                }
                 """
         )
     }

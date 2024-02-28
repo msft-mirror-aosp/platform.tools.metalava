@@ -17,14 +17,18 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -80,7 +84,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val returnType = method.returnType()
@@ -136,7 +140,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -192,7 +196,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -235,7 +239,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -308,7 +312,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -378,15 +382,15 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val wildcardTypes =
                 method.parameters().map {
                     val paramType = it.type()
                     assertThat(paramType).isInstanceOf(ClassTypeItem::class.java)
-                    assertThat((paramType as ClassTypeItem).parameters).hasSize(1)
-                    paramType.parameters.single()
+                    assertThat((paramType as ClassTypeItem).arguments).hasSize(1)
+                    paramType.arguments.single()
                 }
             assertThat(wildcardTypes).hasSize(4)
 
@@ -459,23 +463,21 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val clz = codebase.assertClass("test.pkg.Foo")
-            val classTypeParam = clz.typeParameterList().typeParameters().single()
+            val classTypeParam = clz.typeParameterList.single()
             val method = clz.methods().single()
-            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val methodTypeParam = method.typeParameterList.single()
             val paramTypes = method.parameters().map { it.type() }
             assertThat(paramTypes).hasSize(2)
 
             val classTypeVariable = paramTypes[0]
-            assertThat(classTypeVariable).isInstanceOf(VariableTypeItem::class.java)
+            classTypeVariable.assertReferencesTypeParameter(classTypeParam)
             assertThat((classTypeVariable as VariableTypeItem).name).isEqualTo("C")
-            assertThat(classTypeVariable.asTypeParameter).isEqualTo(classTypeParam)
 
             val methodTypeVariable = paramTypes[1]
-            assertThat(methodTypeVariable).isInstanceOf(VariableTypeItem::class.java)
+            methodTypeVariable.assertReferencesTypeParameter(methodTypeParam)
             assertThat((methodTypeVariable as VariableTypeItem).name).isEqualTo("M")
-            assertThat(methodTypeVariable.asTypeParameter).isEqualTo(methodTypeParam)
         }
     }
 
@@ -518,31 +520,27 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooTypeParam = foo.typeParameterList().typeParameters().single()
+            val fooTypeParam = foo.typeParameterList.single()
 
             val bar1 = foo.methods().single { it.name() == "bar1" }
             val bar1Return = bar1.returnType()
-            assertThat(bar1Return).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar1Return as VariableTypeItem).asTypeParameter).isEqualTo(fooTypeParam)
+            bar1Return.assertReferencesTypeParameter(fooTypeParam)
 
             val bar2 = foo.methods().single { it.name() == "bar2" }
-            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2TypeParam = bar2.typeParameterList.single()
             val bar2Return = bar2.returnType()
-            assertThat(bar2Return).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar2Return as VariableTypeItem).asTypeParameter).isEqualTo(bar2TypeParam)
+            bar2Return.assertReferencesTypeParameter(bar2TypeParam)
 
             val bar3 = foo.methods().single { it.name() == "bar3" }
             val bar3Return = bar3.returnType()
-            assertThat(bar3Return).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar3Return as VariableTypeItem).asTypeParameter).isEqualTo(fooTypeParam)
+            bar3Return.assertReferencesTypeParameter(fooTypeParam)
 
             val bar4 = foo.methods().single { it.name() == "bar4" }
-            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4TypeParam = bar4.typeParameterList.single()
             val bar4Return = bar4.returnType()
-            assertThat(bar4Return).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar4Return as VariableTypeItem).asTypeParameter).isEqualTo(bar4TypeParam)
+            bar4Return.assertReferencesTypeParameter(bar4TypeParam)
         }
     }
 
@@ -585,31 +583,27 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val bar1 = foo.methods().single { it.name() == "bar1" }
             val bar1Param = bar1.parameters().single().type()
-            assertThat(bar1Param).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar1Param as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
+            bar1Param.assertReferencesTypeParameter(fooParam)
 
             val bar2 = foo.methods().single { it.name() == "bar2" }
-            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2TypeParam = bar2.typeParameterList.single()
             val bar2Param = bar2.parameters().single().type()
-            assertThat(bar2Param).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar2Param as VariableTypeItem).asTypeParameter).isEqualTo(bar2TypeParam)
+            bar2Param.assertReferencesTypeParameter(bar2TypeParam)
 
             val bar3 = foo.methods().single { it.name() == "bar3" }
             val bar3Param = bar3.parameters().single().type()
-            assertThat(bar3Param).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar3Param as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
+            bar3Param.assertReferencesTypeParameter(fooParam)
 
             val bar4 = foo.methods().single { it.name() == "bar4" }
-            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4TypeParam = bar4.typeParameterList.single()
             val bar4Param = bar4.parameters().single().type()
-            assertThat(bar4Param).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bar4Param as VariableTypeItem).asTypeParameter).isEqualTo(bar4TypeParam)
+            bar4Param.assertReferencesTypeParameter(bar4TypeParam)
         }
     }
 
@@ -644,13 +638,12 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val fieldType = foo.fields().single { it.name() == "foo" }.type()
-            assertThat(fieldType).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((fieldType as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
+            fieldType.assertReferencesTypeParameter(fooParam)
         }
     }
 
@@ -678,13 +671,12 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val propertyType = foo.properties().single { it.name() == "foo" }.type()
-            assertThat(propertyType).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((propertyType as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
+            propertyType.assertReferencesTypeParameter(fooParam)
         }
     }
 
@@ -729,7 +721,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val paramTypes = method.parameters().map { it.type() }
 
@@ -737,22 +729,22 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(stringType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((stringType as ClassTypeItem).qualifiedName).isEqualTo("java.lang.String")
             assertThat(stringType.className).isEqualTo("String")
-            assertThat(stringType.parameters).isEmpty()
+            assertThat(stringType.arguments).isEmpty()
 
             // List<String>
             val stringListType = paramTypes[1]
             assertThat(stringListType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((stringListType as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
             assertThat(stringListType.className).isEqualTo("List")
-            assertThat(stringListType.parameters).hasSize(1)
-            assertThat(stringListType.parameters.single().isString()).isTrue()
+            assertThat(stringListType.arguments).hasSize(1)
+            assertThat(stringListType.arguments.single().isString()).isTrue()
 
             // List<String[]> / List<Array<String>>
             val arrayListType = paramTypes[2]
             assertThat(arrayListType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((arrayListType as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
-            assertThat(arrayListType.parameters).hasSize(1)
-            val arrayType = arrayListType.parameters.single()
+            assertThat(arrayListType.arguments).hasSize(1)
+            val arrayType = arrayListType.arguments.single()
             assertThat(arrayType).isInstanceOf(ArrayTypeItem::class.java)
             assertThat((arrayType as ArrayTypeItem).componentType.isString()).isTrue()
 
@@ -760,11 +752,11 @@ class CommonTypeItemTest : BaseModelTest() {
             val mapType = paramTypes[3]
             assertThat(mapType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((mapType as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map")
-            assertThat(mapType.parameters).hasSize(2)
-            val mapKeyType = mapType.parameters.first()
+            assertThat(mapType.arguments).hasSize(2)
+            val mapKeyType = mapType.arguments.first()
             assertThat(mapKeyType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((mapKeyType as ClassTypeItem).isString()).isTrue()
-            val mapValueType = mapType.parameters.last()
+            val mapValueType = mapType.arguments.last()
             assertThat(mapValueType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((mapValueType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Foo")
         }
@@ -819,7 +811,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
 
             // Outer.Middle.Inner
@@ -828,19 +820,19 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat((innerType as ClassTypeItem).qualifiedName)
                 .isEqualTo("test.pkg.Outer.Middle.Inner")
             assertThat(innerType.className).isEqualTo("Inner")
-            assertThat(innerType.parameters).isEmpty()
+            assertThat(innerType.arguments).isEmpty()
 
             val middleType = innerType.outerClassType
             assertThat(middleType).isNotNull()
             assertThat(middleType!!.qualifiedName).isEqualTo("test.pkg.Outer.Middle")
             assertThat(middleType.className).isEqualTo("Middle")
-            assertThat(middleType.parameters).isEmpty()
+            assertThat(middleType.arguments).isEmpty()
 
             val outerType = middleType.outerClassType
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
             assertThat(outerType.className).isEqualTo("Outer")
-            assertThat(outerType.parameters).isEmpty()
+            assertThat(outerType.arguments).isEmpty()
             assertThat(outerType.outerClassType).isNull()
         }
     }
@@ -865,7 +857,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     package test.pkg
 
-                    import java.util.Map;
+                    import java.util.Map
 
                     class Test {
                         fun foo(): Map.Entry<String,String> {
@@ -886,7 +878,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Test").methods().single()
 
             // Map.Entry<String,String>
@@ -899,6 +891,7 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("java.util.Map")
             assertThat(outerType.className).isEqualTo("Map")
+            assertThat(outerType.arguments).hasSize(0)
             assertThat(outerType.outerClassType).isNull()
         }
     }
@@ -946,9 +939,9 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
-            val methodTypeParameters = method.typeParameterList().typeParameters()
+            val methodTypeParameters = method.typeParameterList
             assertThat(methodTypeParameters).hasSize(2)
             val p1 = methodTypeParameters[0]
             val p2 = methodTypeParameters[1]
@@ -958,22 +951,103 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Outer.Inner")
             assertThat(innerType.className).isEqualTo("Inner")
-            assertThat(innerType.parameters).hasSize(1)
-            val innerTypeParameter = innerType.parameters.single()
-            assertThat(innerTypeParameter).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((innerTypeParameter as VariableTypeItem).name).isEqualTo("P2")
-            assertThat(innerTypeParameter.asTypeParameter).isEqualTo(p2)
+            assertThat(innerType.arguments).hasSize(1)
+            val innerTypeArgument = innerType.arguments.single()
+            innerTypeArgument.assertReferencesTypeParameter(p2)
+            assertThat((innerTypeArgument as VariableTypeItem).name).isEqualTo("P2")
 
             val outerType = innerType.outerClassType
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
             assertThat(outerType.className).isEqualTo("Outer")
             assertThat(outerType.outerClassType).isNull()
-            assertThat(outerType.parameters).hasSize(1)
-            val outerClassParameter = outerType.parameters.single()
-            assertThat(outerClassParameter).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((outerClassParameter as VariableTypeItem).name).isEqualTo("P1")
-            assertThat(outerClassParameter.asTypeParameter).isEqualTo(p1)
+            assertThat(outerType.arguments).hasSize(1)
+            val outerClassTypeArgument = outerType.arguments.single()
+            outerClassTypeArgument.assertReferencesTypeParameter(p1)
+            assertThat((outerClassTypeArgument as VariableTypeItem).name).isEqualTo("P1")
+        }
+    }
+
+    @Test
+    fun `Test inner parameterized types without explicit outer type`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import test.pkg1.Outer.Middle.Inner;
+
+                        public class Test {
+                            public Inner<String> foo() {
+                                return new Inner<String>();
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg1;
+
+                        public class Outer<O> {
+                            public class Middle {
+                                public class Inner<I> {}
+                            }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg1 {
+                          public class Outer<O> {
+                            ctor public Outer();
+                          }
+                          public class Outer.Middle {
+                            ctor public Outer.Middle();
+                          }
+                          public class Outer.Middle.Inner<I> {
+                            ctor public Outer.Middle.Inner();
+                          }
+                        }
+                    """
+                ),
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg {
+                          public class Test {
+                            ctor public Test();
+                            method public test.pkg1.Outer.Middle.Inner<String> foo();
+                          }
+                        }
+                    """
+                )
+            )
+        ) {
+            val method = codebase.assertClass("test.pkg.Test").methods().single()
+
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg1.Outer.Middle.Inner")
+            assertThat(innerType.className).isEqualTo("Inner")
+            assertThat(innerType.arguments).hasSize(1)
+
+            val middleType = innerType.outerClassType
+            assertThat(middleType).isNotNull()
+            assertThat(middleType!!.qualifiedName).isEqualTo("test.pkg1.Outer.Middle")
+            assertThat(middleType.className).isEqualTo("Middle")
+            assertThat(middleType.arguments).hasSize(0)
+
+            val outerType = middleType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg1.Outer")
+            assertThat(outerType.className).isEqualTo("Outer")
+            assertThat(outerType.outerClassType).isNull()
+            assertThat(outerType.arguments).hasSize(0)
         }
     }
 
@@ -1012,10 +1086,10 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             // Verify that the Cache superclass type uses the Cache type variables
             val cache = codebase.assertClass("test.pkg.Cache")
-            val cacheTypeParams = cache.typeParameterList().typeParameters()
+            val cacheTypeParams = cache.typeParameterList
             assertThat(cacheTypeParams).hasSize(2)
             val queryParam = cacheTypeParams[0]
             val resultParam = cacheTypeParams[1]
@@ -1024,19 +1098,17 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(cacheSuperclassType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((cacheSuperclassType as ClassTypeItem).qualifiedName)
                 .isEqualTo("java.util.HashMap")
-            assertThat(cacheSuperclassType.parameters).hasSize(2)
+            assertThat(cacheSuperclassType.arguments).hasSize(2)
 
-            val queryVar = cacheSuperclassType.parameters[0]
-            assertThat(queryVar).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((queryVar as VariableTypeItem).asTypeParameter).isEqualTo(queryParam)
+            val queryVar = cacheSuperclassType.arguments[0]
+            queryVar.assertReferencesTypeParameter(queryParam)
 
-            val resultVar = cacheSuperclassType.parameters[1]
-            assertThat(resultVar).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((resultVar as VariableTypeItem).asTypeParameter).isEqualTo(resultParam)
+            val resultVar = cacheSuperclassType.arguments[1]
+            resultVar.assertReferencesTypeParameter(resultParam)
 
             // Verify that the MyList interface type uses the MyList type variable
             val myList = codebase.assertClass("test.pkg.MyList")
-            val myListTypeParams = myList.typeParameterList().typeParameters()
+            val myListTypeParams = myList.typeParameterList
             assertThat(myListTypeParams).hasSize(1)
             val eParam = myListTypeParams.single()
 
@@ -1045,13 +1117,11 @@ class CommonTypeItemTest : BaseModelTest() {
 
             val myListInterfaceType = myListInterfaces.single()
             assertThat(myListInterfaceType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((myListInterfaceType as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.List")
-            assertThat(myListInterfaceType.parameters).hasSize(1)
+            assertThat(myListInterfaceType.qualifiedName).isEqualTo("java.util.List")
+            assertThat(myListInterfaceType.arguments).hasSize(1)
 
-            val eVar = myListInterfaceType.parameters.single()
-            assertThat(eVar).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((eVar as VariableTypeItem).asTypeParameter).isEqualTo(eParam)
+            val eVar = myListInterfaceType.arguments.single()
+            eVar.assertReferencesTypeParameter(eParam)
         }
     }
 
@@ -1090,7 +1160,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             // java.util.Collection<java.util.List<java.lang.String>[]>
@@ -1098,75 +1168,21 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(collectionOfArrayOfStringList).isInstanceOf(ClassTypeItem::class.java)
             assertThat((collectionOfArrayOfStringList as ClassTypeItem).qualifiedName)
                 .isEqualTo("java.util.Collection")
-            assertThat(collectionOfArrayOfStringList.parameters).hasSize(1)
+            assertThat(collectionOfArrayOfStringList.arguments).hasSize(1)
 
             // java.util.List<java.lang.String>[]
-            val arrayOfStringList = collectionOfArrayOfStringList.parameters.single()
+            val arrayOfStringList = collectionOfArrayOfStringList.arguments.single()
             assertThat(arrayOfStringList).isInstanceOf(ArrayTypeItem::class.java)
 
             // java.util.List<java.lang.String>
             val stringList = (arrayOfStringList as ArrayTypeItem).componentType
             assertThat(stringList).isInstanceOf(ClassTypeItem::class.java)
             assertThat((stringList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
-            assertThat(stringList.parameters).hasSize(1)
+            assertThat(stringList.arguments).hasSize(1)
 
             // java.lang.String
-            val string = stringList.parameters.single()
+            val string = stringList.arguments.single()
             assertThat(string.isString()).isTrue()
-        }
-    }
-
-    @Test
-    fun `check TypeItem asClass()`() {
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    import java.util.Map.Entry;
-
-                    public class Test {
-                        public int field;
-
-                        public <T extends Comparable> void method(Outer<String> a,Entry<? extends String,T> b,T c,String [] ... d){}
-                    }
-
-                    class Outer<P> {}
-                """
-            ),
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Test {
-                        field public int field;
-                        method public <T extends java.lang.Comparable> void method(test.pkg.Outer<java.lang.String>,java.util.Map.Entry<? extends java.lang.String,T>,T,java.lang.String[]...);
-                      }
-                      public class Outer<P> {}
-                    }
-                """
-                    .trimIndent()
-            )
-        ) { codebase ->
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val methodItem1 = classItem.methods()[0]
-
-            val fieldTypeClassItem = classItem.assertField("field").type().asClass()
-            val parameterTypeClassItem1 = methodItem1.parameters()[0].type().asClass()
-            val parameterTypeClassItem2 = methodItem1.parameters()[1].type().asClass()
-            val parameterTypeClassItem3 = methodItem1.parameters()[2].type().asClass()
-            val parameterTypeClassItem4 = methodItem1.parameters()[3].type().asClass()
-
-            val outerClassItem = codebase.assertClass("test.pkg.Outer")
-            val stringClassItem = codebase.assertClass("java.lang.String")
-            val entryClassItem = codebase.assertClass("java.util.Map.Entry")
-            val comparableClassItem = codebase.assertClass("java.lang.Comparable")
-
-            assertThat(fieldTypeClassItem).isNull()
-            assertThat(parameterTypeClassItem1).isEqualTo(outerClassItem)
-            assertThat(parameterTypeClassItem2).isEqualTo(entryClassItem)
-            assertThat(parameterTypeClassItem3).isEqualTo(comparableClassItem)
-            assertThat(parameterTypeClassItem4).isEqualTo(stringClassItem)
         }
     }
 
@@ -1176,41 +1192,319 @@ class CommonTypeItemTest : BaseModelTest() {
             kotlin(
                 """
                     package test.pkg
-                    abstract class Foo<E> : MutableCollection<E> {
-                        override fun addAll(elements: Collection<E>): Boolean = true
-                        override fun removeAll(elements: Collection<E>): Boolean = true
+                    abstract class Foo<Z> : MutableCollection<Z> {
+                        override fun addAll(elements: Collection<Z>): Boolean = true
+                        override fun containsAll(elements: Collection<Z>): Boolean = true
+                        override fun removeAll(elements: Collection<Z>): Boolean = true
+                        override fun retainAll(elements: Collection<Z>): Boolean = true
+                    }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val typeParam = fooClass.typeParameterList.single()
+
+            /**
+             * Make sure that the [ClassItem] has a method whose single parameter is of the type
+             * `java.lang.Collection` and then run [body] on that type.
+             */
+            fun ClassItem.assertMethodTakesCollection(
+                name: String,
+                body: TypeArgumentTypeItem.() -> Unit
+            ) {
+                val method = methods().single { it.name() == name }
+                val paramType = method.parameters().single().type()
+                paramType.assertClassTypeItem {
+                    assertThat(qualifiedName).isEqualTo("java.util.Collection")
+                    assertThat(arguments).hasSize(1)
+                    val argument = arguments.single()
+                    argument.body()
+                }
+            }
+
+            /**
+             * Make sure that the [ClassItem] has a method whose single parameter is of the type
+             * `java.lang.Collection<? extends Z>`.
+             */
+            fun ClassItem.assertMethodTakesCollectionWildcardExtendsZ(name: String) {
+                assertMethodTakesCollection(name) {
+                    assertWildcardItem { extendsBound!!.assertReferencesTypeParameter(typeParam) }
+                }
+            }
+
+            // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`. The type of
+            // the `addAll` method in `Foo` should be `addAll(Collection<? extends Z>)`.Where `Z`
+            // references the type parameter in `Foo<Z>`.
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("addAll")
+
+            // Defined in `java.util.Collection` as `...(Collection<?> c)` these methods should be
+            // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
+            // `Foo<Z>`.
+            //
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
+        }
+    }
+
+    @Test
+    fun `Test convertType`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        import java.util.Map;
+                        public class Parent<M, N> {
+                            public M getM() {}
+                            public N[] getNArray() {}
+                            public List<M> getMList() {}
+                            public Map<M, N> getMap() {}
+                            public Parent<? extends M, ? super N> getWildcards() {}
+                        }
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child<X, Y> extends Parent<X, Y> {}
+                    """
+                        .trimIndent()
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Child<X, Y> extends test.pkg.Parent<X,Y> {
+                          }
+                          public class Parent<M, N> {
+                            method public M getM();
+                            method public java.util.List<M> getMList();
+                            method public java.util.Map<M,N> getMap();
+                            method public N[] getNArray();
+                            method public test.pkg.Parent<? extends M, ? super N> getWildcards();
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        open class Parent<M, N> {
+                            fun getM(): M {}
+                            fun getNArray(): Array<N> {}
+                            fun getMList(): List<M> {}
+                            fun getMap(): Map<M, N> {}
+                            fun getWildcards(): Parent<out M, in N> {}
+                        }
+                        class Child<X, Y> : Parent<X, Y>()
+                    """
+                        .trimIndent()
+                )
+            )
+        ) {
+            val parent = codebase.assertClass("test.pkg.Parent")
+            val child = codebase.assertClass("test.pkg.Child")
+            val childTypeParams = child.typeParameterList
+            val x = childTypeParams[0]
+            val y = childTypeParams[1]
+
+            val mVar = parent.assertMethod("getM", "").returnType()
+            val xVar = mVar.convertType(child, parent)
+            assertThat(xVar.toTypeString()).isEqualTo("X")
+            xVar.assertReferencesTypeParameter(x)
+
+            val nArray = parent.assertMethod("getNArray", "").returnType()
+            val yArray = nArray.convertType(child, parent)
+            assertThat(yArray.toTypeString()).isEqualTo("Y[]")
+            assertThat((yArray as ArrayTypeItem).isVarargs).isFalse()
+            yArray.componentType.assertReferencesTypeParameter(y)
+
+            val mList = parent.assertMethod("getMList", "").returnType()
+            val xList = mList.convertType(child, parent)
+            assertThat(xList.toTypeString()).isEqualTo("java.util.List<X>")
+            assertThat((xList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
+            xList.arguments.single().assertReferencesTypeParameter(x)
+
+            val mToNMap = parent.assertMethod("getMap", "").returnType()
+            val xToYMap = mToNMap.convertType(child, parent)
+            assertThat(xToYMap.toTypeString()).isEqualTo("java.util.Map<X,Y>")
+            assertThat((xToYMap as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map")
+            xToYMap.arguments[0].assertReferencesTypeParameter(x)
+            xToYMap.arguments[1].assertReferencesTypeParameter(y)
+
+            val wildcards = parent.assertMethod("getWildcards", "").returnType()
+            val convertedWildcards = wildcards.convertType(child, parent)
+            assertThat(convertedWildcards.toTypeString())
+                .isEqualTo("test.pkg.Parent<? extends X,? super Y>")
+            assertThat((convertedWildcards as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg.Parent")
+            assertThat(convertedWildcards.arguments).hasSize(2)
+
+            val extendsX = convertedWildcards.arguments[0] as WildcardTypeItem
+            extendsX.extendsBound!!.assertReferencesTypeParameter(x)
+            val superN = convertedWildcards.arguments[1] as WildcardTypeItem
+            superN.superBound!!.assertReferencesTypeParameter(y)
+        }
+    }
+
+    @Test
+    fun `Test convertType with maps`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.List;
+                    public class Foo<T, X> {
+                      public Number numberType;
+
+                      public int primitiveType;
+                      public int primitiveTypeAfterMatchingConversion;
+
+                      public T variableType;
+                      public Number variableTypeAfterMatchingConversion;
+
+                      public T[] arrayType;
+                      public Number[] arrayTypeAfterMatchingConversion;
+
+                      public Foo<T, String> classType;
+                      public Foo<Number, String> classTypeAfterMatchingConversion;
+
+                      public Foo<? extends T, String> wildcardExtendsType;
+                      public Foo<? extends Number, String> wildcardExtendsTypeAfterMatchingConversion;
+
+                      public Foo<? super T, String> wildcardSuperType;
+                      public Foo<? super Number, String> wildcardSuperTypeAfterMatchingConversion;
+                    }
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T, X> {
+                        @JvmField val numberType: Number
+
+                        @JvmField val primitiveType: Int
+                        @JvmField val primitiveTypeAfterMatchingConversion: Int
+
+                        @JvmField val variableType: T
+                        @JvmField val variableTypeAfterMatchingConversion: Number
+
+                        @JvmField val arrayType: Array<T>
+                        @JvmField val arrayTypeAfterMatchingConversion: Array<Number>
+
+                        @JvmField val classType: Foo<T, String>
+                        @JvmField val classTypeAfterMatchingConversion: Foo<Number, String>
+
+                        @JvmField val wildcardExtendsType: Foo<out T, String>
+                        @JvmField val wildcardExtendsTypeAfterMatchingConversion: Foo<out Number, String>
+
+                        @JvmField val wildcardSuperType: Foo<in T, String>
+                        @JvmField val wildcardSuperTypeAfterMatchingConversion: Foo<in Number, String>
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<T, X> {
+                        field public Number numberType;
+
+                        field public int primitiveType;
+                        field public int primitiveTypeAfterMatchingConversion;
+
+                        field public T variableType;
+                        field public Number variableTypeAfterMatchingConversion;
+
+                        field public T[] arrayType;
+                        field public Number[] arrayTypeAfterMatchingConversion;
+
+                        field public test.pkg.Foo<T, String> classType;
+                        field public test.pkg.Foo<Number, String> classTypeAfterMatchingConversion;
+
+                        field public test.pkg.Foo<? extends T, String> wildcardExtendsType;
+                        field public test.pkg.Foo<? extends Number, String> wildcardExtendsTypeAfterMatchingConversion;
+
+                        field public test.pkg.Foo<? super T, String> wildcardSuperType;
+                        field public test.pkg.Foo<? super Number, String> wildcardSuperTypeAfterMatchingConversion;
+                      }
                     }
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val typeParam = fooClass.typeParameterList().typeParameters().single()
+            val t = fooClass.typeParameterList.single { it.name() == "T" }
+            val x = fooClass.typeParameterList.single { it.name() == "X" }
+            val numberType = fooClass.assertField("numberType").type() as ReferenceTypeItem
 
-            // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`
-            val addAllParam =
-                fooClass.methods().single { it.name() == "addAll" }.parameters().single().type()
-            assertThat(addAllParam).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((addAllParam as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.Collection")
-            assertThat(addAllParam.parameters).hasSize(1)
-            val addAllWildcard = addAllParam.parameters.single()
-            assertThat(addAllWildcard).isInstanceOf(WildcardTypeItem::class.java)
-            val allAllE = (addAllWildcard as WildcardTypeItem).extendsBound
-            assertThat(allAllE).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((allAllE as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
+            val matchingBindings = mapOf(t to numberType)
+            val nonMatchingBindings = mapOf(x to numberType)
 
-            // Defined in `java.util.Collection` as `removeAll(Collection<?> c)`
-            // Appears in psi as a `PsiImmediateClassType` with no parameters
-            val removeAllParam =
-                fooClass.methods().single { it.name() == "removeAll" }.parameters().single().type()
-            assertThat(removeAllParam).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((removeAllParam as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.Collection")
-            assertThat(removeAllParam.parameters).hasSize(1)
-            val removeAllE = removeAllParam.parameters.single()
-            assertThat(removeAllE).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((removeAllE as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
+            val afterMatchingConversionSuffix = "AfterMatchingConversion"
+            val fieldsToCheck =
+                fooClass.fields().filter {
+                    it.name() != "numberType" && !it.name().endsWith(afterMatchingConversionSuffix)
+                }
+
+            for (fieldItem in fieldsToCheck) {
+                val fieldType = fieldItem.type()
+
+                val fieldName = fieldItem.name()
+                val expectedMatchedFieldType =
+                    fooClass.assertField(fieldName + afterMatchingConversionSuffix).type()
+
+                assertWithMessage("conversion that matches $fieldName")
+                    .that(fieldType.convertType(matchingBindings))
+                    .isEqualTo(expectedMatchedFieldType)
+
+                // Expect no change if it does not match.
+                assertWithMessage("conversion that does not match $fieldName")
+                    .that(fieldType.convertType(nonMatchingBindings))
+                    .isEqualTo(fieldType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test hasTypeArguments`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public abstract class Foo implements Comparable<String> {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    abstract class Foo: Comparable<String>
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo implements Comparable<String> {}
+                    }
+                """
+            ),
+        ) {
+            val classType = codebase.assertClass("test.pkg.Foo").type()
+            assertThat(classType.hasTypeArguments()).isFalse()
+
+            val interfaceType = codebase.assertClass("test.pkg.Foo").interfaceTypes().single()
+            assertThat(interfaceType.hasTypeArguments()).isTrue()
         }
     }
 }
