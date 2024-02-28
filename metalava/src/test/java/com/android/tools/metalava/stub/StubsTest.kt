@@ -559,10 +559,12 @@ class StubsTest : AbstractStubsTest() {
 
                     @SuppressWarnings({"RedundantThrows", "WeakerAccess"})
                     public class Generics {
+                        @SuppressWarnings("HiddenSuperclass") // HiddenParent is not public
                         public class MyClass<X, Y extends Number> extends HiddenParent<X, Y> implements PublicInterface<X, Y> {
                         }
 
                         class HiddenParent<M, N extends Number> extends PublicParent<M, N> {
+                            @SuppressWarnings("ReferencesHidden") // MyThrowable is not public
                             public Map<M, Map<N, String>> createMap(List<M> list) throws MyThrowable {
                                 return null;
                             }
@@ -1203,7 +1205,7 @@ class StubsTest : AbstractStubsTest() {
                         package test.pkg
                         @file:Suppress("ALL")
                         open class ExtendableClass<T> {
-                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!> = error("Stub!")
+                        open fun ExtendableClass(): test.pkg.ExtendableClass<T> = error("Stub!")
                         }
                     """
                     )

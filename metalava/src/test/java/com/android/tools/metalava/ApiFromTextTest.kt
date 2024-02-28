@@ -308,15 +308,13 @@ class ApiFromTextTest : DriverTest() {
         val source =
             """
             package a.b.c {
-              public interface MyStream<T, S extends a.b.c.MyStream<T,S>> {
+              public interface MyStream<T, S extends a.b.c.MyStream<T, S>> {
               }
             }
             package test.pkg {
               public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }

@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
@@ -30,15 +30,15 @@ internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
     private val containingClass: ClassItem,
-    protected var returnType: TurbineTypeItem,
+    protected var returnType: TypeItem,
     modifiers: DefaultModifierList,
-    private val typeParameters: TypeParameterList,
+    override val typeParameterList: TypeParameterList,
     documentation: String,
+    private val defaultValue: String,
 ) : TurbineItem(codebase, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
-    internal lateinit var throwsClassNames: List<String>
-    private lateinit var throwsTypes: List<ThrowableType>
+    internal lateinit var throwableTypes: List<ExceptionTypeItem>
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
@@ -49,7 +49,7 @@ internal open class TurbineMethodItem(
 
     override fun returnType(): TypeItem = returnType
 
-    override fun throwsTypes(): List<ThrowableType> = throwsTypes
+    override fun throwsTypes(): List<ExceptionTypeItem> = throwableTypes
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -104,15 +104,15 @@ internal open class TurbineMethodItem(
                 codebase,
                 methodSymbol,
                 targetContainingClass,
-                retType as TurbineTypeItem,
+                retType,
                 mods,
-                typeParameters,
-                documentation
+                typeParameterList,
+                documentation,
+                defaultValue,
             )
-        mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = containingClass
-        duplicateMethod.throwsTypes = throwsTypes
+        duplicateMethod.throwableTypes = throwableTypes
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -133,17 +133,11 @@ internal open class TurbineMethodItem(
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
-    override fun typeParameterList(): TypeParameterList = typeParameters
-
-    internal fun setThrowsTypes() {
-        val result =
-            throwsClassNames.map { ThrowableType.ofClass(codebase.findOrCreateClass(it)!!) }
-        throwsTypes = result.sortedWith(ThrowableType.fullNameComparator)
-    }
-
-    internal fun setThrowsTypes(throwsList: List<ThrowableType>) {
-        throwsTypes = throwsList
+    internal fun setThrowsTypes(throwsList: List<ExceptionTypeItem>) {
+        throwableTypes = throwsList
     }
 
     internal fun getSymbol(): MethodSymbol = methodSymbol
+
+    override fun defaultValue(): String = defaultValue
 }
