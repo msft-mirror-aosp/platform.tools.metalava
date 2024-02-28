@@ -16,15 +16,18 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
-// Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.
+/** Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions. */
 abstract class UastTestBase : DriverTest() {
 
-    protected fun `Test RequiresOptIn and OptIn`() {
+    @Test
+    fun `Test RequiresOptIn and OptIn`() {
         // See http://b/248341155 for more details
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
         check(
@@ -184,7 +187,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Kotlin Reified Methods`() {
+    @Test
+    fun `Kotlin Reified Methods`() {
         // TODO: once fix for https://youtrack.jetbrains.com/issue/KT-39209 is available (231),
         //  FE1.0 UAST will have implicit nullability too.
         //  Put this back to ApiFileTest, before `Kotlin Reified Methods 2`
@@ -230,7 +234,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Annotation on parameters of data class synthetic copy`() {
+    @Test
+    fun `Annotation on parameters of data class synthetic copy`() {
         // https://youtrack.jetbrains.com/issue/KT-57003
         check(
             sourceFiles =
@@ -264,7 +269,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `declarations with value class in its signature`() {
+    @Test
+    fun `declarations with value class in its signature`() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
         // TODO(b/297113621)
@@ -409,7 +415,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `non-last vararg type`() {
+    @Test
+    fun `non-last vararg type`() {
         // https://youtrack.jetbrains.com/issue/KT-57547
         check(
             sourceFiles =
@@ -433,7 +440,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `implements Comparator`() {
+    @Test
+    fun `implements Comparator`() {
         // https://youtrack.jetbrains.com/issue/KT-57548
         check(
             sourceFiles =
@@ -466,7 +474,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `constant in file-level annotation`() {
+    @Test
+    fun `constant in file-level annotation`() {
         // https://youtrack.jetbrains.com/issue/KT-57550
         check(
             sourceFiles =
@@ -495,7 +504,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `final modifier in enum members`() {
+    @Test
+    fun `final modifier in enum members`() {
         // https://youtrack.jetbrains.com/issue/KT-57567
         check(
             sourceFiles =
@@ -558,7 +568,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `lateinit var as mutable bare field`() {
+    @Test
+    fun `lateinit var as mutable bare field`() {
         // https://youtrack.jetbrains.com/issue/KT-57569
         check(
             sourceFiles =
@@ -590,7 +601,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Upper bound wildcards -- enum members`() {
+    @Test
+    fun `Upper bound wildcards -- enum members`() {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
         check(
@@ -685,7 +697,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Upper bound wildcards -- type alias`() {
+    @Test
+    fun `Upper bound wildcards -- type alias`() {
         // https://youtrack.jetbrains.com/issue/KT-61460
         check(
             sourceFiles =
@@ -715,7 +728,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Upper bound wildcards -- extension function type`() {
+    @Test
+    fun `Upper bound wildcards -- extension function type`() {
         // TODO: https://youtrack.jetbrains.com/issue/KT-61734
         val wildcard1 = if (isK2) "? super " else ""
         val wildcard2 = if (isK2) "? extends " else ""
@@ -760,7 +774,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `boxed type argument as method return type`() {
+    @Test
+    fun `boxed type argument as method return type`() {
         // https://youtrack.jetbrains.com/issue/KT-57579
         check(
             sourceFiles =
@@ -800,7 +815,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `setter returns this with type cast`() {
+    @Test
+    fun `setter returns this with type cast`() {
         // https://youtrack.jetbrains.com/issue/KT-61459
         check(
             sourceFiles =
@@ -856,7 +872,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `suspend fun in interface`() {
+    @Test
+    fun `suspend fun in interface`() {
         // https://youtrack.jetbrains.com/issue/KT-61544
         check(
             sourceFiles =
@@ -890,7 +907,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `nullable return type via type alias`() {
+    @Test
+    fun `nullable return type via type alias`() {
         // https://youtrack.jetbrains.com/issue/KT-61460
         check(
             sourceFiles =
@@ -919,7 +937,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `IntDef with constant in companion object`() {
+    @Test
+    fun `IntDef with constant in companion object`() {
         // https://youtrack.jetbrains.com/issue/KT-61497
         check(
             sourceFiles =
@@ -1337,7 +1356,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `actual typealias -- without value class`() {
+    @Test
+    fun `actual typealias -- without value class`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
         val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         val commonSource =
@@ -1389,7 +1409,8 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `actual typealias -- without common split`() {
+    @Test
+    fun `actual typealias -- without common split`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
         val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         check(
@@ -1439,7 +1460,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `actual typealias`() {
+    // b/324521456: need to set kotlin-stdlib-common for common module
+    @FilterByProvider("psi", "k2", action = EXCLUDE)
+    @Test
+    fun `actual typealias`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
         // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
         val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
