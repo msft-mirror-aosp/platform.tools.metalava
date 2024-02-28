@@ -25,13 +25,12 @@ class UastTestK1 : UastTestBase() {
 
     @Test
     fun `Test RequiresOptIn and OptIn -- K1`() {
-        `Test RequiresOptIn and OptIn`(isK2 = false)
+        `Test RequiresOptIn and OptIn`()
     }
 
     @Test
     fun `renamed via @JvmName -- K1`() {
         `renamed via @JvmName`(
-            isK2 = false,
             api =
                 """
                 // Signature format: 4.0
@@ -55,88 +54,87 @@ class UastTestK1 : UastTestBase() {
 
     @Test
     fun `Kotlin Reified Methods -- K1`() {
-        `Kotlin Reified Methods`(isK2 = false)
+        `Kotlin Reified Methods`()
     }
 
     @Test
     fun `Annotation on parameters of data class synthetic copy -- K1`() {
-        `Annotation on parameters of data class synthetic copy`(isK2 = false)
+        `Annotation on parameters of data class synthetic copy`()
     }
 
     @Test
     fun `declarations with value class in its signature -- K1`() {
-        `declarations with value class in its signature`(isK2 = false)
+        `declarations with value class in its signature`()
     }
 
     @Test
     fun `non-last vararg type -- K1`() {
-        `non-last vararg type`(isK2 = false)
+        `non-last vararg type`()
     }
 
     @Test
     fun `implements Comparator -- K1`() {
-        `implements Comparator`(isK2 = false)
+        `implements Comparator`()
     }
 
     @Test
     fun `constant in file-level annotation -- K1`() {
-        `constant in file-level annotation`(isK2 = false)
+        `constant in file-level annotation`()
     }
 
     @Test
     fun `final modifier in enum members -- K1`() {
-        `final modifier in enum members`(isK2 = false)
+        `final modifier in enum members`()
     }
 
     @Test
     fun `lateinit var as mutable bare field -- K1`() {
-        `lateinit var as mutable bare field`(isK2 = false)
+        `lateinit var as mutable bare field`()
     }
 
     @Test
     fun `Upper bound wildcards -- enum members -- K1`() {
-        `Upper bound wildcards -- enum members`(isK2 = false)
+        `Upper bound wildcards -- enum members`()
     }
 
     @Test
     fun `Upper bound wildcards -- type alias -- K1`() {
-        `Upper bound wildcards -- type alias`(isK2 = false)
+        `Upper bound wildcards -- type alias`()
     }
 
     @Test
     fun `Upper bound wildcards -- extension function type -- K1`() {
-        `Upper bound wildcards -- extension function type`(isK2 = false)
+        `Upper bound wildcards -- extension function type`()
     }
 
     @Test
     fun `boxed type argument as method return type -- K1`() {
-        `boxed type argument as method return type`(isK2 = false)
+        `boxed type argument as method return type`()
     }
 
     @Test
     fun `setter returns this with type cast -- K1`() {
-        `setter returns this with type cast`(isK2 = false)
+        `setter returns this with type cast`()
     }
 
     @Test
     fun `suspend fun in interface -- K1`() {
-        `suspend fun in interface`(isK2 = false)
+        `suspend fun in interface`()
     }
 
     @Test
     fun `nullable return type via type alias -- K1`() {
-        `nullable return type via type alias`(isK2 = false)
+        `nullable return type via type alias`()
     }
 
     @Test
     fun `IntDef with constant in companion object -- K1`() {
-        `IntDef with constant in companion object`(isK2 = false)
+        `IntDef with constant in companion object`()
     }
 
     @Test
     fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors -- K1`() {
         `APIs before and after @Deprecated(HIDDEN) on properties or accessors`(
-            isK2 = false,
             api =
                 """
                 package test.pkg {
@@ -223,16 +221,16 @@ class UastTestK1 : UastTestBase() {
 
     @Test
     fun `actual typealias -- without value class -- K1`() {
-        `actual typealias -- without value class`(isK2 = false)
+        `actual typealias -- without value class`()
     }
 
     @Test
     fun `actual typealias -- without common split -- K1`() {
-        `actual typealias -- without common split`(isK2 = false)
+        `actual typealias -- without common split`()
     }
 
     @Test
     fun `actual typealias -- K1`() {
-        `actual typealias`(isK2 = false)
+        `actual typealias`()
     }
 }

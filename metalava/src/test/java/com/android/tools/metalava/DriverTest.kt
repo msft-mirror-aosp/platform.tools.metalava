@@ -42,6 +42,7 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
@@ -91,6 +92,15 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */
     final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
+
+    /**
+     * The setting of [PsiModelOptions.useK2Uast]. Is computed lazily as it depends on
+     * [codebaseCreatorConfig] which is set after object initialization.
+     */
+    protected val isK2 by
+        lazy(LazyThreadSafetyMode.NONE) {
+            codebaseCreatorConfig.modelOptions[PsiModelOptions.useK2Uast]
+        }
 
     @Before
     fun setup() {
@@ -1328,29 +1338,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             // For each path in the list generate an option with the path as the value.
             return paths.flatMap { listOf(optionName, it) }.toTypedArray()
         }
-    }
-
-    protected fun uastCheck(
-        isK2: Boolean,
-        @Language("TEXT") api: String? = null,
-        format: FileFormat = FileFormat.LATEST,
-        expectedIssues: String? = "",
-        extraArguments: Array<String> = emptyArray(),
-        expectedFail: String? = null,
-        @Language("TEXT") apiLint: String? = null,
-        sourceFiles: Array<TestFile> = emptyArray(),
-        commonSourceFiles: Array<TestFile> = emptyArray(),
-    ) {
-        check(
-            api = api,
-            format = format,
-            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 }),
-            expectedIssues = expectedIssues,
-            expectedFail = expectedFail,
-            apiLint = apiLint,
-            sourceFiles = sourceFiles,
-            commonSourceFiles = commonSourceFiles,
-        )
     }
 
     /** Checks that the given zip annotations file contains the given XML package contents */
