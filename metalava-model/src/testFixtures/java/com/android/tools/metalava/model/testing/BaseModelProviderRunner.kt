@@ -101,7 +101,11 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     private class ModelProviderWrapper<C : FilterableCodebaseCreator>(
         val codebaseCreatorConfig: CodebaseCreatorConfig<C>,
         val baselineResourcePath: String,
+        val additionalArgumentSet: List<Any> = emptyList(),
     ) {
+        fun withAdditionalArgumentSet(argumentSet: List<Any>) =
+            ModelProviderWrapper(codebaseCreatorConfig, baselineResourcePath, argumentSet)
+
         fun injectModelProviderInto(testInstance: Any) {
             @Suppress("UNCHECKED_CAST")
             val injectableTestInstance = testInstance as CodebaseCreatorConfigAware<C>
@@ -109,10 +113,19 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
         }
 
         /**
-         * Delegate this to [codebaseCreatorConfig] as this string representation ends up in the
-         * [TestWithParameters.name].
+         * Get the string representation which will end up inside `[]` in [TestWithParameters.name].
          */
-        override fun toString() = codebaseCreatorConfig.toString()
+        override fun toString() =
+            if (additionalArgumentSet.isEmpty()) codebaseCreatorConfig.toString()
+            else {
+                buildString {
+                    append(codebaseCreatorConfig.toString())
+                    if (isNotEmpty()) {
+                        append(",")
+                    }
+                    additionalArgumentSet.joinTo(this, separator = ",")
+                }
+            }
     }
 
     /** [ParametersRunnerFactory] for creating [Runner]s for a set of arguments. */
@@ -127,20 +140,21 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
         override fun createRunnerForTestWithParameters(test: TestWithParameters): Runner {
             val arguments = test.parameters
 
-            // Extract the [ModelProviderWrapper] from the arguments.
+            // Get the [ModelProviderWrapper] from the arguments.
             val modelProviderWrapper = arguments[0] as ModelProviderWrapper<*>
 
-            // Create a new set of [TestWithParameters] containing just the remaining arguments.
-            // Keep the name as is as that will describe the codebase creator as well as the other
-            // arguments.
-            val remainingArguments = arguments.drop(1)
+            // Get any additional arguments from the wrapper.
+            val additionalArguments = modelProviderWrapper.additionalArgumentSet
 
             // If the suffix to add to the end of the test name matches the default suffix then
             // replace it with an empty string. This will cause [InstanceRunner] to avoid adding a
             // suffix to the end of the test so that it can be run directly from the IDE.
             val suffix = test.name.takeIf { it != DEFAULT_SUFFIX } ?: ""
 
-            val newTest = TestWithParameters(suffix, test.testClass, remainingArguments)
+            // Create a new set of [TestWithParameters] containing any additional arguments, which
+            // may be an empty set. Keep the name as is as that will describe the codebase creator
+            // as well as the other arguments.
+            val newTest = TestWithParameters(suffix, test.testClass, additionalArguments)
 
             // Create a new [InstanceRunner] that will inject the codebase creator into the test
             // class
@@ -237,25 +251,18 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                 // No additional arguments were provided so just return the wrappers.
                 TestArguments("{0}", wrappers)
             } else {
+                // Convert each argument set from Array<Any> to List<Any>
+                val additionalArgumentSetLists = additionalArguments.map { it.toList() }
+                // Duplicate every wrapper with each argument set.
                 val combined =
-                    crossProduct(
-                        wrappers,
-                        additionalArguments,
-                    )
-                TestArguments("{0},{1}", combined)
+                    wrappers.flatMap { wrapper ->
+                        additionalArgumentSetLists.map { argumentSet ->
+                            wrapper.withAdditionalArgumentSet(argumentSet)
+                        }
+                    }
+                TestArguments("{0}", combined)
             }
         }
-
-        /** Compute the cross product of the supplied [data1] and the [data2]. */
-        private fun crossProduct(data1: List<Any>, data2: Iterable<Array<Any>>): List<Array<Any>> =
-            data1.flatMap { p1 ->
-                data2.map { p2 ->
-                    // [data2] is an array that is assumed to have a single parameter within it but
-                    // could have none or multiple. Either way just spread the contents into the
-                    // combined array.
-                    arrayOf(p1, *p2)
-                }
-            }
 
         private val defaultFilter: (CodebaseCreatorConfig<*>) -> Boolean = { true }
 
