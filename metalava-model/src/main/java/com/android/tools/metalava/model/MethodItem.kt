@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import java.util.function.Predicate
 
 @MetalavaApi
-interface MethodItem : MemberItem {
+interface MethodItem : MemberItem, TypeParameterListOwner {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
@@ -42,7 +42,7 @@ interface MethodItem : MemberItem {
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
 
-    override fun type(): TypeItem? = returnType()
+    override fun type() = returnType()
 
     override fun findCorrespondingItemIn(codebase: Codebase) =
         containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
@@ -58,19 +58,13 @@ interface MethodItem : MemberItem {
         }
     }
 
-    /**
-     * Any type parameters for the class, if any, as a source string (with fully qualified class
-     * names)
-     */
-    @MetalavaApi fun typeParameterList(): TypeParameterList
-
     /** Types of exceptions that this method can throw */
-    fun throwsTypes(): List<ClassItem>
+    fun throwsTypes(): List<ExceptionTypeItem>
 
     /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.throwableClass ?: continue
+            val throwableClass = type.erasedClass ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -79,7 +73,7 @@ interface MethodItem : MemberItem {
         return false
     }
 
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ClassItem> {
+    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
@@ -88,20 +82,26 @@ interface MethodItem : MemberItem {
 
     private fun filteredThrowsTypes(
         predicate: Predicate<Item>,
-        classes: LinkedHashSet<ClassItem>
-    ): LinkedHashSet<ClassItem> {
-        for (cls in throwsTypes()) {
-            if (predicate.test(cls) || cls.isTypeParameter) {
-                classes.add(cls)
+        throwsTypes: LinkedHashSet<ExceptionTypeItem>
+    ): LinkedHashSet<ExceptionTypeItem> {
+        for (exceptionType in throwsTypes()) {
+            if (exceptionType is VariableTypeItem) {
+                throwsTypes.add(exceptionType)
             } else {
-                // Excluded, but it may have super class throwables that are included; if so,
-                // include those.
-                cls.allSuperClasses()
-                    .firstOrNull { superClass -> predicate.test(superClass) }
-                    ?.let { superClass -> classes.add(superClass) }
+                val classItem = exceptionType.erasedClass ?: continue
+                if (predicate.test(classItem)) {
+                    throwsTypes.add(exceptionType)
+                } else {
+                    // Excluded, but it may have super class throwables that are included; if so,
+                    // include those.
+                    classItem
+                        .allSuperClasses()
+                        .firstOrNull { superClass -> predicate.test(superClass) }
+                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                }
             }
         }
-        return classes
+        return throwsTypes
     }
 
     /**
@@ -140,6 +140,11 @@ interface MethodItem : MemberItem {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    override fun toStringForItem(): String {
+        return "${if (isConstructor()) "constructor" else "method"} ${
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
     }
 
     companion object {
@@ -289,8 +294,8 @@ interface MethodItem : MemberItem {
             for (i in throwsList12.indices) {
                 val p1 = throwsList12[i]
                 val p2 = throwsList2[i]
-                val pt1 = p1.qualifiedName()
-                val pt2 = p2.qualifiedName()
+                val pt1 = p1.toTypeString()
+                val pt2 = p2.toTypeString()
                 if (pt1 != pt2) { // assumes throws lists are sorted!
                     return false
                 }
@@ -349,22 +354,16 @@ interface MethodItem : MemberItem {
         return true
     }
 
-    override fun implicitNullness(): Boolean? {
+    override fun implicitNullness(): TypeNullability? {
         // Delegate to the super class, only dropping through if it did not determine an implicit
         // nullness.
         super.implicitNullness()?.let { nullable ->
             return nullable
         }
 
-        if (synthetic && isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
-
         // toString has known nullness
         if (name() == "toString" && parameters().isEmpty()) {
-            return false
+            return TypeNullability.NONNULL
         }
 
         return null
@@ -440,7 +439,7 @@ interface MethodItem : MemberItem {
 
         if (returnType().hasHiddenType(filterReference)) return true
 
-        for (typeParameter in typeParameterList().typeParameters()) {
+        for (typeParameter in typeParameterList) {
             if (typeParameter.typeBounds().any { it.hasHiddenType(filterReference) }) return true
         }
 
@@ -466,18 +465,6 @@ interface MethodItem : MemberItem {
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
-
-    /** Returns true if this is a synthetic enum method */
-    fun isEnumSyntheticMethod(): Boolean = isEnumSyntheticValues() || isEnumSyntheticValueOf()
-
-    fun isEnumSyntheticValues(): Boolean =
-        containingClass().isEnum() && name() == JAVA_ENUM_VALUES && parameters().isEmpty()
-
-    fun isEnumSyntheticValueOf(): Boolean =
-        containingClass().isEnum() &&
-            name() == JAVA_ENUM_VALUE_OF &&
-            parameters().size == 1 &&
-            parameters()[0].type().isString()
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that
