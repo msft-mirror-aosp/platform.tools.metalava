@@ -51,19 +51,6 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
             val builder = TextCodebaseBuilder(codebase)
             builder.block()
 
-            // As the codebase has not been created by the parser there is no parser provided
-            // context to use so just use an empty context.
-            val context =
-                object : ResolverContext {
-                    override fun superInterfaceTypeStrings(cl: ClassItem): List<String>? = null
-
-                    override fun superClassTypeString(cl: ClassItem): String? = null
-                }
-
-            // All this actually does is add in an appropriate super class depending on the class
-            // type.
-            ReferenceResolver.resolveReferences(context, codebase)
-
             return codebase
         }
     }
@@ -116,24 +103,25 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
     }
 
     private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
-        val cls = codebase.findClass(fullClass.qualifiedName())
+        val cls = codebase.findClassInCodebase(fullClass.qualifiedName())
         if (cls != null) {
             return cls
         }
         val textClass = fullClass as TextClassItem
         val newClass =
             TextClassItem(
-                codebase,
-                SourcePositionInfo.UNKNOWN,
-                textClass.modifiers,
-                textClass.isInterface(),
-                textClass.isEnum(),
-                textClass.isAnnotationType(),
-                textClass.qualifiedName,
-                textClass.name,
-                textClass.annotations,
-                textClass.typeParameterList
+                codebase = codebase,
+                position = SourcePositionInfo.UNKNOWN,
+                modifiers = textClass.modifiers,
+                classKind = textClass.classKind,
+                qualifiedName = textClass.qualifiedName,
+                simpleName = textClass.simpleName,
+                fullName = textClass.fullName,
+                typeParameterList = textClass.typeParameterList,
             )
+
+        newClass.setSuperClassType(textClass.superClassType())
+
         val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
         pkg.addClass(newClass)
         newClass.setContainingPackage(pkg)
