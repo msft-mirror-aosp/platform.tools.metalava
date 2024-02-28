@@ -53,11 +53,18 @@ class ModelTestSuiteRunner(clazz: Class<*>) :
                 fail("No runners found")
             }
             val runner = modelSuiteRunners.single()
+
             return runner.testConfigurations.map {
                 CodebaseCreatorConfig(
                     creator = runner,
                     inputFormat = it.inputFormat,
                     modelOptions = it.modelOptions,
+                    // There is only a single runner for a single provider so ignore the
+                    // provider name.
+                    includeProviderNameInTestName = false,
+                    // Only include the input format in the test name if the runner supports
+                    // more than one.
+                    includeInputFormatInTestName = runner.supportedInputFormats.size > 1,
                 )
             }
         }

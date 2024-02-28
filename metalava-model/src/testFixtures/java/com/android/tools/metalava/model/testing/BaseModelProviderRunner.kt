@@ -146,10 +146,10 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             // Get any additional arguments from the wrapper.
             val additionalArguments = modelProviderWrapper.additionalArgumentSet
 
-            // If the suffix to add to the end of the test name matches the default suffix then
-            // replace it with an empty string. This will cause [InstanceRunner] to avoid adding a
-            // suffix to the end of the test so that it can be run directly from the IDE.
-            val suffix = test.name.takeIf { it != DEFAULT_SUFFIX } ?: ""
+            // If the suffix to add to the end of the test name is empty then replace it with an
+            // empty string. This will cause [InstanceRunner] to avoid adding a suffix to the end of
+            // the test so that it can be run directly from the IDE.
+            val suffix = test.name.takeIf { it != "[]" } ?: ""
 
             // Create a new set of [TestWithParameters] containing any additional arguments, which
             // may be an empty set. Keep the name as is as that will describe the codebase creator
@@ -216,15 +216,6 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     }
 
     companion object {
-        /**
-         * The default provider; this is the tests that will be run automatically when running a
-         * specific method in the IDE.
-         */
-        private const val DEFAULT_PROVIDER = "psi"
-
-        /** The suffix added to the test method name for the [DEFAULT_PROVIDER]. */
-        const val DEFAULT_SUFFIX = "[$DEFAULT_PROVIDER]"
-
         private fun <C : FilterableCodebaseCreator> createTestArguments(
             testClass: TestClass,
             codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
@@ -299,23 +290,33 @@ class CodebaseCreatorConfig<C : FilterableCodebaseCreator>(
 
     /** Any additional options passed to the codebase creator. */
     val modelOptions: ModelOptions = ModelOptions.empty,
+    includeProviderNameInTestName: Boolean = true,
+    includeInputFormatInTestName: Boolean = false,
 ) {
     val providerName = creator.providerName
 
-    /** Override this to return the string that will be used in the test name. */
-    override fun toString(): String = buildString {
-        append(creator.providerName)
+    private val toStringValue = buildString {
+        var separator = ""
+        if (includeProviderNameInTestName) {
+            append(creator.providerName)
+            separator = ","
+        }
 
-        // If the [inputFormat] is specified then include it in the test name, otherwise ignore it.
-        if (inputFormat != null) {
-            append(",")
+        // If the [inputFormat] is specified and required then include it in the test name,
+        // otherwise ignore it.
+        if (includeInputFormatInTestName && inputFormat != null) {
+            append(separator)
             append(inputFormat.name.lowercase(Locale.US))
+            separator = ","
         }
 
         // If the [ModelOptions] is not empty then include it in the test name, otherwise ignore it.
         if (modelOptions != ModelOptions.empty) {
-            append(",")
+            append(separator)
             append(modelOptions)
         }
     }
+
+    /** Override this to return the string that will be used in the test name. */
+    override fun toString() = toStringValue
 }

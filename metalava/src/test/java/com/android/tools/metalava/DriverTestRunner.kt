@@ -31,8 +31,21 @@ class DriverTestRunner(clazz: Class<*>) :
         "source-model-provider-baseline.txt",
     ) {
     companion object {
+        /**
+         * The default provider; this is the tests that will be run automatically when running a
+         * specific method in the IDE.
+         */
+        private const val DEFAULT_PROVIDER = "psi"
+
         fun getSourceModelProviders(): List<CodebaseCreatorConfig<SourceModelProvider>> {
-            return SourceModelProvider.implementations.map { CodebaseCreatorConfig(creator = it) }
+            return SourceModelProvider.implementations.map { provider ->
+                // Only include the provider name in the test name if it is not the default one.
+                val includeProviderNameInTestName = provider.providerName != DEFAULT_PROVIDER
+                CodebaseCreatorConfig(
+                    creator = provider,
+                    includeProviderNameInTestName = includeProviderNameInTestName,
+                )
+            }
         }
     }
 }
