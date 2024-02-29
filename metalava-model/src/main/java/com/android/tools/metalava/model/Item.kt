@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.BaselineKey
-import com.android.tools.metalava.reporter.Location
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -229,8 +229,8 @@ interface Item : Reportable {
         return null
     }
 
-    /** Returns the [Location] for this item, if any. */
-    override fun location(): Location = Location.unknownLocationAndBaselineKey
+    /** Returns the [IssueLocation] for this item, if any. */
+    override fun location(): IssueLocation = IssueLocation.unknownLocationAndBaselineKey
 
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and

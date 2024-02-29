@@ -23,7 +23,7 @@ package com.android.tools.metalava.reporter
  */
 interface Reportable {
     /** Returns the location of this object. */
-    fun location(): Location
+    fun location(): IssueLocation
 
     /**
      * Get the set of suppressed issues for this.

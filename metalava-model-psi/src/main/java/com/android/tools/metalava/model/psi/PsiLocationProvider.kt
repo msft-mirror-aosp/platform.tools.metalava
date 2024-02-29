@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Location
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VfsUtilCore
@@ -77,30 +77,30 @@ class PsiLocationProvider {
         }
 
         /**
-         * Compute a [Location] (including [BaselineKey]) from a [PsiElement]
+         * Compute a [IssueLocation] (including [BaselineKey]) from a [PsiElement]
          *
          * @param element the optional element from which the path, line and [BaselineKey] will be
          *   computed.
          * @param overridingBaselineKey the optional [BaselineKey] to use instead of the
          *   [BaselineKey] computed from the element.
          */
-        fun elementToLocation(
+        fun elementToIssueLocation(
             element: PsiElement?,
             overridingBaselineKey: BaselineKey? = null
-        ): Location {
-            element ?: return Location.unknownLocationAndBaselineKey
+        ): IssueLocation {
+            element ?: return IssueLocation.unknownLocationAndBaselineKey
             val actualBaselineKey = overridingBaselineKey ?: getBaselineKey(element)
             val psiFile =
                 element.containingFile
-                    ?: return Location.unknownLocationWithBaselineKey(actualBaselineKey)
+                    ?: return IssueLocation.unknownLocationWithBaselineKey(actualBaselineKey)
             val virtualFile =
                 psiFile.virtualFile
-                    ?: return Location.unknownLocationWithBaselineKey(actualBaselineKey)
+                    ?: return IssueLocation.unknownLocationWithBaselineKey(actualBaselineKey)
             val virtualFileAbsolutePath =
                 try {
                     virtualFile.toNioPath().toAbsolutePath()
                 } catch (e: UnsupportedOperationException) {
-                    return Location.unknownLocationWithBaselineKey(actualBaselineKey)
+                    return IssueLocation.unknownLocationWithBaselineKey(actualBaselineKey)
                 }
 
             // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets
@@ -122,7 +122,7 @@ class PsiLocationProvider {
                 } else {
                     getLineNumber(psiFile.text, range.startOffset) + 1
                 }
-            return Location(virtualFileAbsolutePath, lineNumber, actualBaselineKey)
+            return IssueLocation(virtualFileAbsolutePath, lineNumber, actualBaselineKey)
         }
 
         private fun getBaselineKey(element: PsiElement): BaselineKey {
@@ -192,6 +192,6 @@ class PsiLocationProvider {
 }
 
 fun Reporter.report(id: Issues.Issue, element: PsiElement?, message: String): Boolean {
-    val location = PsiLocationProvider.elementToLocation(element)
+    val location = PsiLocationProvider.elementToIssueLocation(element)
     return report(id, null, message, location)
 }

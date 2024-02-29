@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.reporter.Location
+import com.android.tools.metalava.reporter.IssueLocation
 import java.nio.file.Path
 
 internal abstract class TextItem(
@@ -44,9 +44,9 @@ internal abstract class TextItem(
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 
-    override fun location(): Location {
+    override fun location(): IssueLocation {
         val path = if (position == SourcePositionInfo.UNKNOWN) null else Path.of(position.file)
         val line = position.line
-        return Location(path, line, baselineKey)
+        return IssueLocation(path, line, baselineKey)
     }
 }

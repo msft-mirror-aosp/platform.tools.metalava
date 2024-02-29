@@ -35,7 +35,7 @@ import java.nio.file.Path
  * always used together with the source location. The baseline key allows known issues to be
  * identified and filtered out and the source location is used when reporting new issues.
  */
-data class Location(
+data class IssueLocation(
     /** The absolute path to the location, is null when no source location is available. */
     val path: Path?,
     /** The line number, may be non-positive indicating that it could not be found. */
@@ -44,19 +44,19 @@ data class Location(
     val baselineKey: BaselineKey,
 ) {
     companion object {
-        val unknownBaselineKey = BaselineKey.forElementId("?")
+        private val unknownBaselineKey = BaselineKey.forElementId("?")
 
         fun unknownLocationWithBaselineKey(
             baselineKey: BaselineKey = unknownBaselineKey
-        ): Location {
-            return Location(null, 0, baselineKey)
+        ): IssueLocation {
+            return IssueLocation(null, 0, baselineKey)
         }
 
-        val unknownLocationAndBaselineKey = Location(null, 0, unknownBaselineKey)
+        val unknownLocationAndBaselineKey = IssueLocation(null, 0, unknownBaselineKey)
 
-        fun forFile(file: File?): Location {
+        fun forFile(file: File?): IssueLocation {
             file ?: return unknownLocationAndBaselineKey
-            return Location(file.toPath(), 0, BaselineKey.forFile(file))
+            return IssueLocation(file.toPath(), 0, BaselineKey.forFile(file))
         }
     }
 }

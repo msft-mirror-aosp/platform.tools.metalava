@@ -32,7 +32,7 @@ interface Reporter {
      * @return true if the issue was reported false it is a known issue in a baseline file.
      */
     fun report(id: Issues.Issue, file: File?, message: String): Boolean {
-        val location = Location.forFile(file)
+        val location = IssueLocation.forFile(file)
         return report(id, null, message, location)
     }
 
@@ -74,7 +74,7 @@ interface Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: Location = Location.unknownLocationAndBaselineKey
+        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey
     ): Boolean
 
     /**
@@ -101,7 +101,7 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: Location
+        location: IssueLocation
     ): Boolean {
         stderr.println(
             buildString {
