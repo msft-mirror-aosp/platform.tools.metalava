@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
@@ -29,7 +30,7 @@ internal class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
     private val psiClass: PsiTypeParameter,
     private val name: String,
-    modifiers: PsiModifierItem
+    modifiers: DefaultModifierList
 ) :
     PsiItem(
         codebase = codebase,
@@ -41,10 +42,14 @@ internal class PsiTypeParameterItem(
 
     override fun name() = name
 
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var variableTypeItem: VariableTypeItem
+
     override fun type(): VariableTypeItem {
-        val psiType = codebase.getClassType(psiClass)
-        val typeModifiers = PsiTypeModifiers.create(codebase, psiType, null)
-        return PsiVariableTypeItem(psiType, typeModifiers, this)
+        if (!::variableTypeItem.isInitialized) {
+            variableTypeItem = codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
+        }
+        return variableTypeItem
     }
 
     override fun psi() = psiClass
@@ -56,10 +61,6 @@ internal class PsiTypeParameterItem(
     }
 
     internal lateinit var bounds: List<BoundsTypeItem>
-
-    override fun toString(): String {
-        return String.format("%s [0x%x]", name, System.identityHashCode(this))
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -75,7 +76,7 @@ internal class PsiTypeParameterItem(
     companion object {
         fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
             val simpleName = psiClass.name!!
-            val modifiers = modifiers(codebase, psiClass, "")
+            val modifiers = modifiers(codebase, psiClass)
 
             val item =
                 PsiTypeParameterItem(
@@ -84,7 +85,6 @@ internal class PsiTypeParameterItem(
                     name = simpleName,
                     modifiers = modifiers
                 )
-            item.modifiers.setOwner(item)
             item.finishInitialization()
             return item
         }
