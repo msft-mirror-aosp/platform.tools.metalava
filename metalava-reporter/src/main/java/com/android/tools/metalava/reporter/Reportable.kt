@@ -22,6 +22,9 @@ package com.android.tools.metalava.reporter
  * See [Reporter] for more details.
  */
 interface Reportable {
+    /** The file location for this object. */
+    val fileLocation: FileLocation
+
     /** The location for this object that should be used for reporting issues about this object. */
     val issueLocation: IssueLocation
 

@@ -66,7 +66,6 @@ com.android.tools.metalava.ApiFileTest
   When implementing rather than extending package private class, inline members instead[turbine]
 
 com.android.tools.metalava.BaselineTest
-  Check baseline with show annotations[turbine]
   Check baseline[turbine]
 
 com.android.tools.metalava.CoreApiTest
@@ -315,9 +314,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
 com.android.tools.metalava.lint.ApiLintBaselineTest
   Test api-lint error message[turbine]
   Test no api-lint error message[turbine]
-  Test with api-lint specific baseline with update[turbine]
-  Test with api-lint specific baseline[turbine]
-  Test with global baseline[turbine]
   Test with non-api-lint specific baseline[turbine]
 
 com.android.tools.metalava.lint.ApiLintTest
