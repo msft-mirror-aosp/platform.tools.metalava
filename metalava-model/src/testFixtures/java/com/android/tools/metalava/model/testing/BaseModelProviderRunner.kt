@@ -288,11 +288,18 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
          * Create a [CreatorPredicate] for [CodebaseCreatorConfig]s based on the annotations on the
          * [annotatedElements],
          */
-        private fun createCreatorPredicate(
+        private fun createCreatorPredicate(annotatedElements: Sequence<AnnotatedElement>) =
+            predicateFromFilterByProvider(annotatedElements)
+                .and(predicateFromRequiredCapabilities(annotatedElements))
+
+        /** Create a [CreatorPredicate] from [FilterByProvider] annotations. */
+        private fun predicateFromFilterByProvider(
             annotatedElements: Sequence<AnnotatedElement>
         ): CreatorPredicate {
             val providerToAction = mutableMapOf<String, FilterAction>()
             val providerOptionsToAction = mutableMapOf<ProviderOptions, FilterAction>()
+
+            // Iterate over the annotated elements
             for (element in annotatedElements) {
                 val annotations = element.getAnnotationsByType(FilterByProvider::class.java)
                 for (annotation in annotations) {
@@ -306,6 +313,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                 }
             }
 
+            // Create a predicate from the [FilterByProvider] annotations.
             return if (providerToAction.isEmpty() && providerOptionsToAction.isEmpty())
                 alwaysTruePredicate
             else
@@ -315,6 +323,23 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                     val action = providerOptionsToAction[key] ?: providerToAction[providerName]
                     action != FilterAction.EXCLUDE
                 }
+        }
+
+        /** Create a [CreatorPredicate] from [RequiresCapabilities]. */
+        private fun predicateFromRequiredCapabilities(
+            annotatedElements: Sequence<AnnotatedElement>
+        ): CreatorPredicate {
+            // Iterate over the annotated elements stopping at the first which is annotated with
+            // [RequiresCapabilities] and return the set of [RequiresCapabilities.required]
+            // [Capability]s.
+            for (element in annotatedElements) {
+                val requires = element.getAnnotation(RequiresCapabilities::class.java)
+                if (requires != null) {
+                    return createCapabilitiesPredicate(requires.required.toSet())
+                }
+            }
+
+            return alwaysTruePredicate
         }
 
         /**
