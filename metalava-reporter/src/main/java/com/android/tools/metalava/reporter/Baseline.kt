@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.model.Location
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8

@@ -62,7 +62,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -171,6 +170,8 @@ import com.android.tools.metalava.reporter.Issues.USER_HANDLE_NAME
 import com.android.tools.metalava.reporter.Issues.USE_ICU
 import com.android.tools.metalava.reporter.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
+import com.android.tools.metalava.reporter.Location
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
@@ -215,8 +216,14 @@ private constructor(
 
     /** [Reporter] that filters out items that are not relevant for the current API surface. */
     inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
-        override fun report(id: Issue, item: Item?, message: String, location: Location): Boolean {
+        override fun report(
+            id: Issue,
+            reportable: Reportable?,
+            message: String,
+            location: Location
+        ): Boolean {
 
+            val item = reportable as? Item
             if (item != null) {
                 // Don't flag api warnings on deprecated APIs; these are obviously already known to
                 // be problematic.
@@ -232,7 +239,7 @@ private constructor(
                 }
             }
 
-            return delegate.report(id, item, message, location)
+            return delegate.report(id, reportable, message, location)
         }
     }
 
