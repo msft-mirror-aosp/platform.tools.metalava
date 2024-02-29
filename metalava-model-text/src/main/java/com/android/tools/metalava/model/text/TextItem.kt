@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.Location
 import java.nio.file.Path
 
 internal abstract class TextItem(

@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.source.utils.LazyDelegate
+import com.android.tools.metalava.reporter.Location
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement

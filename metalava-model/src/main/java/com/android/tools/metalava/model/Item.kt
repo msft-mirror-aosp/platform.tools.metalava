@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.Location
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
