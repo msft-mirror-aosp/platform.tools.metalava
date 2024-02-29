@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.Location
+import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -31,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * The abstraction also lets us back the model by an alternative implementation read from signature
  * files, to do compatibility checks.
  */
-interface Item {
+interface Item : Reportable {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
@@ -229,7 +230,7 @@ interface Item {
     }
 
     /** Returns the [Location] for this item, if any. */
-    fun location(): Location = Location.unknownLocationAndBaselineKey
+    override fun location(): Location = Location.unknownLocationAndBaselineKey
 
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
@@ -278,12 +279,8 @@ interface Item {
      *
      * These are the values supplied to any of the [SUPPRESS_ANNOTATIONS] on this item. It DOES not
      * include suppressed issues from the [parent].
-     *
-     * Each value could be just the name of an issue in which case all issues of that type are
-     * suppressed. Or, it could be the name of the issue followed by ":" or ": " and the full
-     * message in which case only the issue with that specific message is suppressed.
      */
-    fun suppressedIssues(): Set<String>
+    override fun suppressedIssues(): Set<String>
 
     /** The [BaselineKey] for this. */
     val baselineKey

@@ -25,6 +25,7 @@ import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Location
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.Severity.ERROR
@@ -67,7 +68,7 @@ internal class DefaultReporter(
 
     override fun report(
         id: Issues.Issue,
-        item: Item?,
+        reportable: Reportable?,
         message: String,
         location: Location
     ): Boolean {
@@ -88,7 +89,7 @@ internal class DefaultReporter(
             val reportLocation =
                 when {
                     location.path != null -> location.forReport()
-                    item != null -> item.location().forReport()
+                    reportable != null -> reportable.location().forReport()
                     else -> null
                 }
 
@@ -98,12 +99,13 @@ internal class DefaultReporter(
         // Optionally write to the --report-even-if-suppressed file.
         dispatch(this::reportEvenIfSuppressed)
 
-        if (isSuppressed(id, item, message)) {
+        if (isSuppressed(id, reportable, message)) {
             return false
         }
 
         // If we are only emitting some packages (--stub-packages), don't report
         // issues from other packages
+        val item = reportable as? Item
         if (item != null) {
             if (packageFilter != null) {
                 val pkg = (item as? PackageItem) ?: item.containingPackage()
@@ -120,7 +122,7 @@ internal class DefaultReporter(
             // signature would stay the same.
             val baselineLocation =
                 when {
-                    item != null -> item.location()
+                    reportable != null -> reportable.location()
                     location.path != null -> location
                     else -> null
                 }
@@ -132,16 +134,20 @@ internal class DefaultReporter(
         return dispatch(this::doReport)
     }
 
-    override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean {
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
             return true
         }
 
-        item ?: return false
+        reportable ?: return false
 
         // Suppress the issue if requested for the item.
-        return item.suppressedIssues().any { suppressMatches(it, id.name, message) }
+        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
     }
 
     private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
