@@ -49,8 +49,6 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.DOT_KT
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
@@ -86,7 +84,6 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 
 @RunWith(DriverTestRunner::class)
-@FilterByProvider(provider = "turbine", action = EXCLUDE)
 abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, TemporaryFolderOwner {
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
