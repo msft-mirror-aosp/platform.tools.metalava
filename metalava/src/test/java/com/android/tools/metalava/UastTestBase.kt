@@ -193,8 +193,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `Annotation on parameters of data class synthetic copy`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57003
-        val typeAnno = if (isK2) "" else "@test.pkg.MyAnnotation "
+        // https://youtrack.jetbrains.com/issue/KT-57003
         uastCheck(
             isK2,
             sourceFiles =
@@ -215,7 +214,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
                     method public int component1();
                     method public String component2();
-                    method public test.pkg.Foo copy(${typeAnno}int p1, String p2);
+                    method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
                     method public int getP1();
                     method public String getP2();
                     property public final int p1;
@@ -465,8 +464,6 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        val e = "test.pkg.Event"
-        val s = "test.pkg.State"
         uastCheck(
             isK2,
             sourceFiles =
@@ -503,10 +500,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum Event {
-                    method public static kotlin.enums.EnumEntries<$e> getEntries();
-                    method public static final test.pkg.Event? upTo(test.pkg.State state);
-                    method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Event[] values();
+                    method public static test.pkg.Event? upTo(test.pkg.State state);
                     enum_constant public static final test.pkg.Event ON_CREATE;
                     enum_constant public static final test.pkg.Event ON_DESTROY;
                     enum_constant public static final test.pkg.Event ON_START;
@@ -517,11 +511,8 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Event? upTo(test.pkg.State state);
                   }
                   public enum State {
-                    method public static kotlin.enums.EnumEntries<$s> getEntries();
-                    method public final boolean isAtLeast(test.pkg.State state);
-                    method public final boolean isFinished();
-                    method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.State[] values();
+                    method public boolean isAtLeast(test.pkg.State state);
+                    method public boolean isFinished();
                     property public final boolean isFinished;
                     enum_constant public static final test.pkg.State BLOCKED;
                     enum_constant public static final test.pkg.State CANCELLED;
@@ -571,8 +562,6 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        val c = "test.pkg.PowerCategory"
-        val d = "test.pkg.PowerCategoryDisplayLevel"
         uastCheck(
             isK2,
             sourceFiles =
@@ -628,16 +617,10 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum PowerCategory {
-                    method public static kotlin.enums.EnumEntries<$c> getEntries();
-                    method public static test.pkg.PowerCategory valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.PowerCategory[] values();
                     enum_constant public static final test.pkg.PowerCategory CPU;
                     enum_constant public static final test.pkg.PowerCategory MEMORY;
                   }
                   public enum PowerCategoryDisplayLevel {
-                    method public static kotlin.enums.EnumEntries<$d> getEntries();
-                    method public static test.pkg.PowerCategoryDisplayLevel valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.PowerCategoryDisplayLevel[] values();
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel BREAKDOWN;
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel TOTAL;
                   }
@@ -1142,6 +1125,165 @@ abstract class UastTestBase : DriverTest() {
                     )
                 ),
             api = api,
+        )
+    }
+
+    protected fun `actual typealias -- without value class`(isK2: Boolean) {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/PointerEvent.kt",
+                """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+            )
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public test.pkg.PointerKeyboardModifiers getKeyboardModifiers();
+                    property public final test.pkg.PointerKeyboardModifiers keyboardModifiers;
+                  }
+                  public final class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
+
+    protected fun `actual typealias -- without common split`(isK2: Boolean) {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    kotlin(
+                        "commonMain/src/test/pkg/PointerEvent.kt",
+                        """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        @kotlin.jvm.JvmInline
+                        value class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public $typeAliasExpanded getKeyboardModifiers();
+                    property public final $typeAliasExpanded keyboardModifiers;
+                  }
+                  @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
+
+    protected fun `actual typealias`(isK2: Boolean) {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/PointerEvent.kt",
+                """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        @kotlin.jvm.JvmInline
+                        value class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+            )
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public int getKeyboardModifiers();
+                    property public final int keyboardModifiers;
+                  }
+                  @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
         )
     }
 }

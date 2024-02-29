@@ -26,9 +26,6 @@ internal class TextPackageItem(
     modifiers: DefaultModifierList,
     position: SourcePositionInfo
 ) : TextItem(codebase, position, modifiers = modifiers), PackageItem {
-    init {
-        modifiers.setOwner(this)
-    }
 
     private val classes = ArrayList<ClassItem>(100)
 
@@ -61,6 +58,4 @@ internal class TextPackageItem(
     override fun hashCode(): Int {
         return name.hashCode()
     }
-
-    override fun toString(): String = "package $name"
 }

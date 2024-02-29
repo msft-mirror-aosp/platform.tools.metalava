@@ -2,13 +2,12 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with compound expression values[turbine,java]
   annotation toSource() with constant literal values[turbine,java]
 
+com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
+  Test implicit nullability of constant field initialized from @NonNull method[turbine,java]
+
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
-  Test throws method type parameter does not extend Throwable[turbine,java]
-  Test throws method type parameter extends Throwable[turbine,java]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine,java]
@@ -18,8 +17,11 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test nullability annotation in package info[turbine,java]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test inner types from classpath[turbine,java]
+com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
+  Test assignability without unboxing[turbine,java,boxedInt to primitiveInt]
+  Test assignability without unboxing[turbine,java,number to boxedInt]
+  Test assignability without unboxing[turbine,java,number to primitiveInt]
+  Test assignability without unboxing[turbine,java,obj to string]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test interface types[turbine,java]

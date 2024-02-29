@@ -26,13 +26,9 @@ internal class TextPropertyItem(
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    private val type: TextTypeItem,
+    private val type: TypeItem,
     position: SourcePositionInfo
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers), PropertyItem {
-
-    init {
-        modifiers.setOwner(this)
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -48,6 +44,4 @@ internal class TextPropertyItem(
     override fun hashCode(): Int = name().hashCode()
 
     override fun type(): TypeItem = type
-
-    override fun toString(): String = "Field ${containingClass().fullName()}.${name()}"
 }

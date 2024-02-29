@@ -43,9 +43,11 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
-import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -117,6 +119,7 @@ fun run(
 
 @Suppress("DEPRECATION")
 internal fun processFlags(
+    executionEnvironment: ExecutionEnvironment,
     environmentManager: EnvironmentManager,
     progressTracker: ProgressTracker
 ) {
@@ -125,13 +128,23 @@ internal fun processFlags(
     val reporter = options.reporter
     val reporterApiLint = options.reporterApiLint
     val annotationManager = options.annotationManager
+    val modelOptions =
+        // If the option was specified on the command line then use [ModelOptions] created from
+        // that.
+        options.useK2Uast?.let { useK2Uast ->
+            ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
+        }
+        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+        ?: executionEnvironment.testEnvironment?.modelOptions
+            // Otherwise, use the default
+            ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
             annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
-            useK2Uast = options.useK2Uast,
+            modelOptions = modelOptions,
             jdkHome = options.jdkHome,
         )
 
@@ -601,22 +614,29 @@ private fun ActionContext.loadFromSources(
 ): Codebase {
     progressTracker.progress("Processing sources: ")
 
-    val sources =
-        options.sources.ifEmpty {
+    val sourceSet =
+        if (options.sources.isEmpty()) {
             if (options.verbose) {
                 options.stdout.println(
                     "No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})"
                 )
             }
-            gatherSources(options.reporter, options.sourcePath)
+            SourceSet.createFromSourcePath(options.reporter, options.sourcePath)
+        } else {
+            SourceSet(options.sources, options.sourcePath)
         }
+
+    val commonSourceSet =
+        if (options.commonSourcePath.isNotEmpty())
+            SourceSet.createFromSourcePath(options.reporter, options.commonSourcePath)
+        else SourceSet.empty()
 
     progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
-            sources,
+            sourceSet,
+            commonSourceSet,
             "Codebase loaded from source folders",
-            sourcePath = options.sourcePath,
             classPath = options.classpath,
         )
 
