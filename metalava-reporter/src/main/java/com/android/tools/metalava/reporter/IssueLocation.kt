@@ -49,15 +49,7 @@ class IssueLocation(
         get() = fileLocation?.line ?: 0
 
     companion object {
-        private val unknownBaselineKey = BaselineKey.forElementId("?")
-
-        fun unknownLocationWithBaselineKey(
-            baselineKey: BaselineKey = unknownBaselineKey
-        ): IssueLocation {
-            return IssueLocation(null, baselineKey)
-        }
-
-        val unknownLocationAndBaselineKey = IssueLocation(null, unknownBaselineKey)
+        val unknownLocationAndBaselineKey = IssueLocation(null, BaselineKey.UNKNOWN)
 
         fun forFile(file: File?): IssueLocation {
             file ?: return unknownLocationAndBaselineKey
@@ -78,6 +70,8 @@ sealed interface BaselineKey {
     fun elementId(pathTransformer: (String) -> String = { it }): String
 
     companion object {
+        val UNKNOWN = forElementId("?")
+
         /**
          * Get a [BaselineKey] that for the supplied element id.
          *

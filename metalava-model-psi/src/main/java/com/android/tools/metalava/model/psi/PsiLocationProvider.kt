@@ -78,30 +78,21 @@ class PsiLocationProvider {
         }
 
         /**
-         * Compute a [IssueLocation] (including [BaselineKey]) from a [PsiElement]
+         * Compute a [FileLocation] from a [PsiElement]
          *
-         * @param element the optional element from which the path, line and [BaselineKey] will be
-         *   computed.
-         * @param overridingBaselineKey the optional [BaselineKey] to use instead of the
-         *   [BaselineKey] computed from the element.
+         * @param element the optional element from which the path and line will be computed.
          */
-        fun elementToIssueLocation(
+        fun elementToFileLocation(
             element: PsiElement?,
-            overridingBaselineKey: BaselineKey? = null
-        ): IssueLocation {
-            element ?: return IssueLocation.unknownLocationAndBaselineKey
-            val actualBaselineKey = overridingBaselineKey ?: getBaselineKey(element)
-            val psiFile =
-                element.containingFile
-                    ?: return IssueLocation.unknownLocationWithBaselineKey(actualBaselineKey)
-            val virtualFile =
-                psiFile.virtualFile
-                    ?: return IssueLocation.unknownLocationWithBaselineKey(actualBaselineKey)
+        ): FileLocation {
+            element ?: return FileLocation.UNKNOWN
+            val psiFile = element.containingFile ?: return FileLocation.UNKNOWN
+            val virtualFile = psiFile.virtualFile ?: return FileLocation.UNKNOWN
             val virtualFileAbsolutePath =
                 try {
                     virtualFile.toNioPath().toAbsolutePath()
                 } catch (e: UnsupportedOperationException) {
-                    return IssueLocation.unknownLocationWithBaselineKey(actualBaselineKey)
+                    return FileLocation.UNKNOWN
                 }
 
             // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets
@@ -123,11 +114,28 @@ class PsiLocationProvider {
                 } else {
                     getLineNumber(psiFile.text, range.startOffset) + 1
                 }
-            val fileLocation = FileLocation.createLocation(virtualFileAbsolutePath, lineNumber)
+            return FileLocation.createLocation(virtualFileAbsolutePath, lineNumber)
+        }
+
+        /**
+         * Compute a [IssueLocation] (including [BaselineKey]) from a [PsiElement]
+         *
+         * @param element the optional element from which the path, line and [BaselineKey] will be
+         *   computed.
+         * @param overridingBaselineKey the optional [BaselineKey] to use instead of the
+         *   [BaselineKey] computed from the element.
+         */
+        fun elementToIssueLocation(
+            element: PsiElement?,
+            overridingBaselineKey: BaselineKey? = null
+        ): IssueLocation {
+            val fileLocation = elementToFileLocation(element)
+            val actualBaselineKey = overridingBaselineKey ?: getBaselineKey(element)
             return IssueLocation(fileLocation, actualBaselineKey)
         }
 
-        private fun getBaselineKey(element: PsiElement): BaselineKey {
+        private fun getBaselineKey(element: PsiElement?): BaselineKey {
+            element ?: return BaselineKey.UNKNOWN
             return when (element) {
                 is PsiFile -> {
                     val virtualFile = element.virtualFile
