@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testing
 
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunner
@@ -69,11 +70,14 @@ import org.junit.runners.parameterized.TestWithParameters
  * @param codebaseCreatorConfigsGetter a lambda for getting the [CodebaseCreatorConfig]s.
  * @param baselineResourcePath the resource path to the baseline file that should be consulted for
  *   known errors to ignore / check.
+ * @param minimumCapabilities the minimum set of capabilities the codebase created must provide in
+ *   order to be used by this runner.
  */
 open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     clazz: Class<*>,
     codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
     baselineResourcePath: String,
+    minimumCapabilities: Set<Capability> = emptySet(),
 ) :
     CustomizableParameterizedRunner(
         clazz,
@@ -83,6 +87,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                 codebaseCreatorConfigsGetter,
                 baselineResourcePath,
                 additionalArguments,
+                minimumCapabilities,
             )
         },
         InstanceRunnerFactory::class,
@@ -236,6 +241,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             codebaseCreatorConfigsGetter: (TestClass) -> List<CodebaseCreatorConfig<C>>,
             baselineResourcePath: String,
             additionalArguments: List<Array<Any>>?,
+            minimumCapabilities: Set<Capability>,
         ): TestArguments {
             // Generate a sequence that traverse the super class hierarchy starting with the test
             // class.
@@ -244,6 +250,8 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             val predicate =
                 // Create a predicate from annotations on the test class and its ancestors.
                 createCreatorPredicate(hierarchy)
+                    // AND that with a predicate to check for minimum capabilities.
+                    .and(createCapabilitiesPredicate(minimumCapabilities))
 
             // Get the list of [CodebaseCreatorConfig]s over which this must run the tests.
             val creatorConfigs =
@@ -308,6 +316,14 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                     action != FilterAction.EXCLUDE
                 }
         }
+
+        /**
+         * Create a [CreatorPredicate] to select [CodebaseCreatorConfig]s with the [required]
+         * capabilities.
+         */
+        private fun createCapabilitiesPredicate(required: Set<Capability>): CreatorPredicate =
+            if (required.isEmpty()) alwaysTruePredicate
+            else { config -> config.creator.capabilities.containsAll(required) }
     }
 }
 
@@ -361,3 +377,8 @@ typealias CreatorPredicate = (CodebaseCreatorConfig<*>) -> Boolean
 
 /** The always `true` predicate. */
 private val alwaysTruePredicate: (CodebaseCreatorConfig<*>) -> Boolean = { true }
+
+/** AND this predicate with the [other] predicate. */
+fun CreatorPredicate.and(other: CreatorPredicate) =
+    if (this == alwaysTruePredicate) other
+    else if (other == alwaysTruePredicate) this else { config -> this(config) && other(config) }

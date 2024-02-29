@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
@@ -26,9 +27,10 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
  */
 class DriverTestRunner(clazz: Class<*>) :
     BaseModelProviderRunner<SourceModelProvider, DriverTest>(
-        clazz,
-        { getSourceModelProviders() },
-        "source-model-provider-baseline.txt",
+        clazz = clazz,
+        codebaseCreatorConfigsGetter = { getSourceModelProviders() },
+        baselineResourcePath = "source-model-provider-baseline.txt",
+        minimumCapabilities = setOf(Capability.JAVA, Capability.DOCUMENTATION),
     ) {
     companion object {
         /**

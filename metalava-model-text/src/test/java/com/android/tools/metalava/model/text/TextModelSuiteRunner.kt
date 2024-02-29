@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.testing.getAndroidJar
@@ -33,6 +34,8 @@ class TextModelSuiteRunner : ModelSuiteRunner {
     override val providerName = "text"
 
     override val supportedInputFormats = setOf(InputFormat.SIGNATURE)
+
+    override val capabilities: Set<Capability> = setOf()
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,
