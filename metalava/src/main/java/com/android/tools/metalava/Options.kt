@@ -136,6 +136,7 @@ var options by OptionsDelegate
 private const val INDENT_WIDTH = 45
 
 const val ARG_CLASS_PATH = "--classpath"
+const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_XML_API = "--api-xml"
@@ -231,6 +232,8 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
+    /** Internal list backing [commonSourcePath] */
+    private val mutableCommonSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [sourcePath] */
     private val mutableSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
@@ -255,8 +258,6 @@ class Options(
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [hidePackages] */
     private val mutableHidePackages: MutableList<String> = mutableListOf()
-    /** Internal list backing [skipEmitPackages] */
-    private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -329,6 +330,9 @@ class Options(
 
     /** If true, treat all API lint warnings as errors */
     var lintsAreErrors: Boolean = false
+
+    /** Ths list of source roots in the common module */
+    val commonSourcePath: List<File> = mutableCommonSourcePath
 
     /** The list of source roots */
     val sourcePath: List<File> = mutableSourcePath
@@ -404,7 +408,8 @@ class Options(
     var hidePackages: List<String> = mutableHidePackages
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
-    var skipEmitPackages: List<String> = mutableSkipEmitPackages
+    val skipEmitPackages
+        get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
@@ -758,7 +763,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    var useK2Uast = false
+    var useK2Uast: Boolean? = null
 
     val sourceModelProvider by
         option(
@@ -805,6 +810,21 @@ class Options(
                 else -> error("Internal error: Invalid flag: $flag")
             }
 
+        fun getSourcePath(path: String, arg: String, sourcePathToStore: MutableList<File>) {
+            if (path.isBlank()) {
+                // Don't compute absolute path; we want to skip this file later on.
+                // For current directory one should use ".", not "".
+                sourcePathToStore.add(File(""))
+            } else {
+                if (path.endsWith(SdkConstants.DOT_JAVA)) {
+                    throw MetalavaCliException(
+                        "$arg should point to a source root directory, not a source file ($path)"
+                    )
+                }
+                sourcePathToStore.addAll(stringToExistingDirsOrJars(path))
+            }
+        }
+
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -813,22 +833,15 @@ class Options(
                     val path = getValue(args, ++index)
                     mutableClassPath.addAll(stringToExistingDirsOrJars(path))
                 }
+                ARG_COMMON_SOURCE_PATH -> {
+                    val path = getValue(args, ++index)
+                    getSourcePath(path, arg, mutableCommonSourcePath)
+                }
                 ARG_SOURCE_PATH,
                 "--sources",
                 "--sourcepath" -> {
                     val path = getValue(args, ++index)
-                    if (path.isBlank()) {
-                        // Don't compute absolute path; we want to skip this file later on.
-                        // For current directory one should use ".", not "".
-                        mutableSourcePath.add(File(""))
-                    } else {
-                        if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                            throw MetalavaCliException(
-                                "$arg should point to a source root directory, not a source file ($path)"
-                            )
-                        }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
-                    }
+                    getSourcePath(path, arg, mutableSourcePath)
                 }
                 ARG_SOURCE_FILES -> {
                     val listString = getValue(args, ++index)
@@ -924,10 +937,6 @@ class Options(
                         mutableStubImportPackages.add(pkg)
                         mutableHidePackages.add(pkg)
                     }
-                }
-                "--skip-emit-packages" -> {
-                    val packages = getValue(args, ++index)
-                    mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
@@ -1483,6 +1492,11 @@ object OptionsHelp {
                 "$ARG_SOURCE_PATH <paths>",
                 "One or more directories (separated by `${File.pathSeparator}`) " +
                     "containing source files (within a package hierarchy).",
+                "$ARG_COMMON_SOURCE_PATH <paths>",
+                "One or more directories (separated by `${File.pathSeparator}`) " +
+                    "containing common source files (within a package hierarchy) " +
+                    "where platform-agnostic `expect` declarations as well as " +
+                    "common business logic are defined.",
                 "$ARG_CLASS_PATH <paths>",
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +

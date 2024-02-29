@@ -27,7 +27,7 @@ import java.util.function.Predicate
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : Item {
+interface ClassItem : Item, TypeParameterListOwner {
     /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
     fun simpleName(): String
 
@@ -108,7 +108,7 @@ interface ClassItem : Item {
      * List<String>" the super class is java.util.List and the super class type is
      * java.util.List<java.lang.String>.
      */
-    fun superClassType(): TypeItem?
+    fun superClassType(): ClassTypeItem?
 
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
@@ -151,7 +151,7 @@ interface ClassItem : Item {
         extends(qualifiedName) || implements(qualifiedName)
 
     /** Any interfaces implemented by this class */
-    @MetalavaApi fun interfaceTypes(): List<TypeItem>
+    @MetalavaApi fun interfaceTypes(): List<ClassTypeItem>
 
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
@@ -182,17 +182,19 @@ interface ClassItem : Item {
         return fields().asSequence().plus(constructors().asSequence()).plus(methods().asSequence())
     }
 
+    val classKind: ClassKind
+
     /** Whether this class is an interface */
-    fun isInterface(): Boolean
+    fun isInterface() = classKind == ClassKind.INTERFACE
 
     /** Whether this class is an annotation type */
-    fun isAnnotationType(): Boolean
+    fun isAnnotationType() = classKind == ClassKind.ANNOTATION_TYPE
 
     /** Whether this class is an enum */
-    fun isEnum(): Boolean
+    fun isEnum() = classKind == ClassKind.ENUM
 
     /** Whether this class is a regular class (not an interface, not an enum, etc) */
-    fun isClass(): Boolean = !isInterface() && !isAnnotationType() && !isEnum()
+    fun isClass() = classKind == ClassKind.CLASS
 
     /** The containing class, for inner classes */
     @MetalavaApi override fun containingClass(): ClassItem?
@@ -201,20 +203,12 @@ interface ClassItem : Item {
     override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
-    fun toType(): TypeItem
-
-    override fun type(): TypeItem? = null
+    override fun type(): ClassTypeItem
 
     override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findClass(qualifiedName())
 
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
-
-    /**
-     * Any type parameters for the class, if any, as a source string (with fully qualified class
-     * names)
-     */
-    @MetalavaApi fun typeParameterList(): TypeParameterList
 
     fun isJavaLangObject(): Boolean {
         return qualifiedName() == JAVA_LANG_OBJECT
@@ -223,14 +217,7 @@ interface ClassItem : Item {
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
     // This replaces the interface types implemented by this class
-    fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
-
-    /**
-     * Whether this class is a generic type parameter, such as T, rather than a non-generic type,
-     * like String
-     */
-    val isTypeParameter
-        get() = this is TypeParameterItem
+    fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
     var hasPrivateConstructor: Boolean
 
@@ -247,6 +234,8 @@ interface ClassItem : Item {
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem() = "class ${qualifiedName()}"
 
     companion object {
         /** Looks up the retention policy for the given class */
@@ -459,7 +448,7 @@ interface ClassItem : Item {
     }
 
     fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
-        var superClassType: TypeItem? = superClassType() ?: return null
+        var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
             val superClass = superClassType.asClass() ?: return null
@@ -757,8 +746,13 @@ interface ClassItem : Item {
                 } else {
                     it
                 }
+                // Although a `ClassTypeItem`'s arguments can be `WildcardTypeItem`s as well as
+                // `ReferenceTypeItem`s, a `ClassTypeItem` used in an extends or implements list
+                // cannot have a `WildcardTypeItem` as an argument so this cast is safe. See
+                // https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
+                as ReferenceTypeItem
             }
-        return declaringClass.typeParameterList().typeParameters().zip(classTypeArguments).toMap()
+        return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }
 
     /** Creates a constructor in this class */
