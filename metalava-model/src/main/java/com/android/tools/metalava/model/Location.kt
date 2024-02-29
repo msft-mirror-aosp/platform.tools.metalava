@@ -44,7 +44,7 @@ data class Location(
     val baselineKey: BaselineKey,
 ) {
     companion object {
-        val unknownBaselineKey = getBaselineKeyForElementId("?")
+        val unknownBaselineKey = BaselineKey.forElementId("?")
 
         fun unknownLocationWithBaselineKey(
             baselineKey: BaselineKey = unknownBaselineKey
@@ -56,28 +56,12 @@ data class Location(
 
         fun forFile(file: File?): Location {
             file ?: return unknownLocationAndBaselineKey
-            return Location(file.toPath(), 0, getBaselineKeyForFile(file))
-        }
-
-        /** Gat a [BaselineKey] for the supplied file. */
-        fun getBaselineKeyForFile(file: File): BaselineKey {
-            val path = file.toPath()
-            return PathBaselineKey(path)
-        }
-
-        /**
-         * Gat a [BaselineKey] that for the supplied element id.
-         *
-         * An element id is something that can uniquely identify an API element over a long period
-         * of time, e.g. a class name, class name plus method signature.
-         */
-        fun getBaselineKeyForElementId(elementId: String): BaselineKey {
-            return ElementIdBaselineKey(elementId)
+            return Location(file.toPath(), 0, BaselineKey.forFile(file))
         }
 
         fun getBaselineKeyForItem(item: Item): BaselineKey {
             val elementId = getElementIdForItem(item)
-            return getBaselineKeyForElementId(elementId)
+            return BaselineKey.forElementId(elementId)
         }
 
         private fun getElementIdForItem(item: Item): String {
@@ -111,21 +95,38 @@ sealed interface BaselineKey {
      *   it into a form suitable for its use.
      */
     fun elementId(pathTransformer: (String) -> String = { it }): String
-}
 
-/**
- * A [BaselineKey] for an element id (which is simply a string that identifies a specific API
- * element).
- */
-private data class ElementIdBaselineKey(val elementId: String) : BaselineKey {
-    override fun elementId(pathTransformer: (String) -> String): String {
-        return elementId
+    companion object {
+        /**
+         * Get a [BaselineKey] that for the supplied element id.
+         *
+         * An element id is something that can uniquely identify an API element over a long period
+         * of time, e.g. a class name, class name plus method signature.
+         */
+        fun forElementId(elementId: String): BaselineKey {
+            return ElementIdBaselineKey(elementId)
+        }
+
+        /** Get a [BaselineKey] for the supplied file. */
+        fun forFile(file: File): BaselineKey {
+            return PathBaselineKey(file.toPath())
+        }
     }
-}
 
-/** A [BaselineKey] for a [Path]. */
-private data class PathBaselineKey(val path: Path) : BaselineKey {
-    override fun elementId(pathTransformer: (String) -> String): String {
-        return pathTransformer(path.toString())
+    /**
+     * A [BaselineKey] for an element id (which is simply a string that identifies a specific API
+     * element).
+     */
+    private data class ElementIdBaselineKey(val elementId: String) : BaselineKey {
+        override fun elementId(pathTransformer: (String) -> String): String {
+            return elementId
+        }
+    }
+
+    /** A [BaselineKey] for a [Path]. */
+    private data class PathBaselineKey(val path: Path) : BaselineKey {
+        override fun elementId(pathTransformer: (String) -> String): String {
+            return pathTransformer(path.toString())
+        }
     }
 }

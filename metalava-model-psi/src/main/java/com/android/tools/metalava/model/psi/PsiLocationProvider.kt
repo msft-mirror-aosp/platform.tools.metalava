@@ -130,11 +130,11 @@ class PsiLocationProvider {
                 is PsiFile -> {
                     val virtualFile = element.virtualFile
                     val file = VfsUtilCore.virtualToIoFile(virtualFile)
-                    return Location.getBaselineKeyForFile(file)
+                    BaselineKey.forFile(file)
                 }
                 else -> {
                     val elementId = getElementId(element)
-                    Location.getBaselineKeyForElementId(elementId)
+                    BaselineKey.forElementId(elementId)
                 }
             }
         }
