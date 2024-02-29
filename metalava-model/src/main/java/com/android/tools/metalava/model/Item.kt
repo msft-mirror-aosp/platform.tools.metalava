@@ -271,6 +271,18 @@ interface Item {
      */
     fun findCorrespondingItemIn(codebase: Codebase): Item?
 
+    /**
+     * Get the set of suppressed issues for this [Item].
+     *
+     * These are the values supplied to any of the [SUPPRESS_ANNOTATIONS] on this item. It DOES not
+     * include suppressed issues from the [parent].
+     *
+     * Each value could be just the name of an issue in which case all issues of that type are
+     * suppressed. Or, it could be the name of the issue followed by ":" or ": " and the full
+     * message in which case only the issue with that specific message is suppressed.
+     */
+    fun suppressedIssues(): Set<String>
+
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
             return when (item) {
@@ -428,6 +440,30 @@ abstract class DefaultItem(final override val modifiers: DefaultModifierList) : 
 
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
+    }
+
+    override fun suppressedIssues(): Set<String> {
+        return buildSet {
+            for (annotation in modifiers.annotations()) {
+                val annotationName = annotation.qualifiedName
+                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                    for (attribute in annotation.attributes) {
+                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                        // one attribute such as value/names that is varargs of String
+                        val value = attribute.value
+                        if (value is AnnotationArrayAttributeValue) {
+                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                            for (innerValue in value.values) {
+                                innerValue.value()?.toString()?.let { add(it) }
+                            }
+                        } else {
+                            // Example: @SuppressLint("RequiresFeature")
+                            value.value()?.toString()?.let { add(it) }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     final override fun toString() = toStringForItem()

@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.plainTerminal
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.PackageItem
@@ -141,33 +140,8 @@ internal class DefaultReporter(
 
         item ?: return false
 
-        for (annotation in item.modifiers.annotations()) {
-            val annotationName = annotation.qualifiedName
-            if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
-                for (attribute in annotation.attributes) {
-                    // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                    // one attribute such as value/names that is varargs of String
-                    val value = attribute.value
-                    if (value is AnnotationArrayAttributeValue) {
-                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                        for (innerValue in value.values) {
-                            val string = innerValue.value()?.toString() ?: continue
-                            if (suppressMatches(string, id.name, message)) {
-                                return true
-                            }
-                        }
-                    } else {
-                        // Example: @SuppressLint("RequiresFeature")
-                        val string = value.value()?.toString()
-                        if (string != null && (suppressMatches(string, id.name, message))) {
-                            return true
-                        }
-                    }
-                }
-            }
-        }
-
-        return false
+        // Suppress the issue if requested for the item.
+        return item.suppressedIssues().any { suppressMatches(it, id.name, message) }
     }
 
     private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
@@ -312,9 +286,6 @@ internal class DefaultReporter(
         }
     }
 }
-
-private val SUPPRESS_ANNOTATIONS =
-    listOf(ANDROID_SUPPRESS_LINT, JAVA_LANG_SUPPRESS_WARNINGS, KOTLIN_SUPPRESS)
 
 /**
  * Provides access to information about the environment within which the [Reporter] will be being
