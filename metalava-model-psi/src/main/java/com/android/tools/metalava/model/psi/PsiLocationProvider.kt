@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -122,7 +123,8 @@ class PsiLocationProvider {
                 } else {
                     getLineNumber(psiFile.text, range.startOffset) + 1
                 }
-            return IssueLocation(virtualFileAbsolutePath, lineNumber, actualBaselineKey)
+            val fileLocation = FileLocation.createLocation(virtualFileAbsolutePath, lineNumber)
+            return IssueLocation(fileLocation, actualBaselineKey)
         }
 
         private fun getBaselineKey(element: PsiElement): BaselineKey {

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueLocation
 import java.nio.file.Path
 
@@ -46,8 +47,9 @@ internal abstract class TextItem(
 
     override val issueLocation: IssueLocation
         get() {
-            val path = if (position == SourcePositionInfo.UNKNOWN) null else Path.of(position.file)
-            val line = position.line
-            return IssueLocation(path, line, baselineKey)
+            val fileLocation =
+                if (position == SourcePositionInfo.UNKNOWN) FileLocation.UNKNOWN
+                else FileLocation.createLocation(Path.of(position.file), position.line)
+            return IssueLocation(fileLocation, baselineKey)
         }
 }
