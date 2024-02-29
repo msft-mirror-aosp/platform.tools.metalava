@@ -62,7 +62,7 @@ internal constructor(
     abstract fun psi(): PsiElement
 
     override fun location(): Location {
-        return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
+        return PsiLocationProvider.elementToLocation(psi(), baselineKey)
     }
 
     override fun isFromClassPath(): Boolean {

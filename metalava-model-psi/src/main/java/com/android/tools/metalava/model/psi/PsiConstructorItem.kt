@@ -82,7 +82,7 @@ private constructor(
                 psiMethod
             }
 
-        return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))
+        return PsiLocationProvider.elementToLocation(element, baselineKey)
     }
 
     companion object {

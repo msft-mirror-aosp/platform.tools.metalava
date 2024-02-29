@@ -283,6 +283,17 @@ interface Item {
      */
     fun suppressedIssues(): Set<String>
 
+    /** The [BaselineKey] for this. */
+    val baselineKey
+        get() = BaselineKey.forElementId(baselineElementId())
+
+    /**
+     * Get the baseline element id from which [baselineKey] is constructed.
+     *
+     * See [BaselineKey.forElementId] for more details.
+     */
+    fun baselineElementId(): String
+
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
             return when (item) {

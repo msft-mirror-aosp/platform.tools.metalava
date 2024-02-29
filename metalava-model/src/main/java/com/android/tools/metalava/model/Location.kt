@@ -58,31 +58,6 @@ data class Location(
             file ?: return unknownLocationAndBaselineKey
             return Location(file.toPath(), 0, BaselineKey.forFile(file))
         }
-
-        fun getBaselineKeyForItem(item: Item): BaselineKey {
-            val elementId = getElementIdForItem(item)
-            return BaselineKey.forElementId(elementId)
-        }
-
-        private fun getElementIdForItem(item: Item): String {
-            return when (item) {
-                is ClassItem -> item.qualifiedName()
-                is MethodItem ->
-                    item.containingClass().qualifiedName() +
-                        "#" +
-                        item.name() +
-                        "(" +
-                        item.parameters().joinToString { it.type().toSimpleType() } +
-                        ")"
-                is FieldItem -> item.containingClass().qualifiedName() + "#" + item.name()
-                is PackageItem -> item.qualifiedName()
-                is ParameterItem ->
-                    getElementIdForItem(item.containingMethod()) +
-                        " parameter #" +
-                        item.parameterIndex
-                else -> item.describe(false)
-            }
-        }
     }
 }
 

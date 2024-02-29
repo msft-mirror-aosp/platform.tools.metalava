@@ -47,7 +47,6 @@ internal abstract class TextItem(
     override fun location(): Location {
         val path = if (position == SourcePositionInfo.UNKNOWN) null else Path.of(position.file)
         val line = position.line
-        val baselineKey = Location.getBaselineKeyForItem(this)
         return Location(path, line, baselineKey)
     }
 }
