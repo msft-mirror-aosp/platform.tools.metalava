@@ -443,16 +443,19 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     kotlin(
                         """
-                    @file:Suppress("NOTHING_TO_INLINE", "RedundantVisibilityModifier", "unused")
+                    @file:Suppress("All", "RedundantVisibilityModifier")
 
                     package test.pkg
+                    import kotlin.collections.List
 
-                    inline fun <T> a(t: T) { }
-                    inline fun <reified T> b(t: T) { }
-                    private inline fun <reified T> c(t: T) { } // hide
-                    internal inline fun <reified T> d(t: T) { } // hide
-                    public inline fun <reified T> e(t: T) { }
-                    inline fun <reified T> T.f(t: T) { }
+                    inline fun <T> inlineNoReified(t: T): T { return t }
+                    inline fun <reified T> inlineReified(t: T) { }
+                    private inline fun <reified T> privateInlineReified(t: T) { } // hide
+                    internal inline fun <reified T> internalInlineReified(t: T) { } // hide
+                    public inline fun <reified T> publicInlineReified(t: T): T { return t }
+                    inline fun <reified T> T.inlineReifiedExtension(t: T) { this }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsArray(t: Array<T>): Array<T> { return t }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsList(t: List<T>): List<T> { return t }
                     """
                     )
                 ),
@@ -460,10 +463,12 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void a(T t);
-                    method public static inline <reified T> void b(T t);
-                    method public static inline <reified T> void e(T t);
-                    method public static inline <reified T> void f(T, T t);
+                    method public static inline <T> T inlineNoReified(T t);
+                    method public static inline <reified T> void inlineReified(T t);
+                    method public static inline <reified T> void inlineReifiedExtension(T, T t);
+                    method @NonNull public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(@NonNull T[] t);
+                    method @NonNull public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(@NonNull java.util.List<? extends T> t);
+                    method public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
                 """
@@ -1188,8 +1193,6 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -1675,8 +1678,6 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public enum Foo {
-                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -2421,8 +2422,6 @@ class ApiFileTest : DriverTest() {
             """
             package java.nio.file.attribute {
               public enum AclEntryPermission {
-                method public static java.nio.file.attribute.AclEntryPermission valueOf(String);
-                method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE_CHILD;
@@ -3848,9 +3847,8 @@ class ApiFileTest : DriverTest() {
                 arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
             expectedIssues =
                 """
-            src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,

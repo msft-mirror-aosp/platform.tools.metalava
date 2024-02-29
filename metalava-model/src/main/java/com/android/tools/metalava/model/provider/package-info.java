@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
-
-import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
-
-internal class TurbineAnnotationItem
-constructor(
-    override val codebase: TurbineBasedCodebase,
-    originalName: String?,
-    val annotationAttribute: List<AnnotationAttribute>,
-) : DefaultAnnotationItem(codebase, originalName, { annotationAttribute }) {}
+/**
+ * Contains classes related to model providers. Although there is no overarching type to represent
+ * a model provider they do have a number of features in common. Types to represent those features
+ * are provided by this package.
+ */
+package com.android.tools.metalava.model.provider;
