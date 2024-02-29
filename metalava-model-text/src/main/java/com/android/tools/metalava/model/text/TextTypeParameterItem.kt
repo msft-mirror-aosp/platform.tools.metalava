@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
 internal class TextTypeParameterItem(
@@ -40,23 +41,8 @@ internal class TextTypeParameterItem(
         return name
     }
 
-    override fun toString() =
-        if (bounds.isEmpty() && !isReified) name
-        else
-            buildString {
-                if (isReified) append("reified ")
-                append(name)
-                if (bounds.isNotEmpty()) {
-                    append(" extends ")
-                    bounds.joinTo(this, " & ")
-                }
-            }
-
     override fun type(): VariableTypeItem {
-        return DefaultVariableTypeItem(
-            TextTypeModifiers.create(codebase, emptyList(), null),
-            this,
-        )
+        return DefaultVariableTypeItem(DefaultTypeModifiers.create(emptyList()), this)
     }
 
     override fun typeBounds(): List<BoundsTypeItem> = bounds

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -29,11 +30,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
-@RunWith(Parameterized::class)
 class CommonClassItemTest : BaseModelTest() {
 
     @Test
@@ -1221,6 +1219,63 @@ class CommonClassItemTest : BaseModelTest() {
 
             val methodReturnType = genericClass.methods().single().returnType()
             methodReturnType.assertReferencesTypeParameter(typeParameter)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability and annotations of ClassItem type()`() {
+        val typeUseAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Target;
+
+                    @Target(ElementType.TYPE_USE)
+                    @interface TypeUse {}
+                """
+            )
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @test.pkg.TypeUse public class Foo {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseAnnotation,
+                java(
+                    """
+                        package test.pkg;
+
+                        @TypeUse
+                        public class Foo {}
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseAnnotation,
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo
+                    """
+                ),
+            ),
+        ) {
+            val classType = codebase.assertClass("test.pkg.Foo").type()
+            val modifiers = classType.modifiers
+
+            // Class types are always non-null without needing an annotation
+            assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NONNULL)
+
+            // Class types do not have any annotations.
+            assertThat(modifiers.annotations()).isEmpty()
         }
     }
 }
