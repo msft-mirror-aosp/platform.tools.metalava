@@ -105,7 +105,7 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
     ): Boolean {
         stderr.println(
             buildString {
-                val usableLocation = reportable?.location() ?: location
+                val usableLocation = reportable?.issueLocation ?: location
                 append(usableLocation.path)
                 if (usableLocation.line > 0) {
                     append(":")

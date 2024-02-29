@@ -761,7 +761,7 @@ private constructor(
                 val existingTypeParameterListString = existingTypeParameterList.toString()
                 val normalizedTypeParameterListString = typeParameterList.toString()
                 if (normalizedTypeParameterListString != existingTypeParameterListString) {
-                    val location = existingClass.location()
+                    val location = existingClass.issueLocation
                     throw ApiParseException(
                         "Inconsistent type parameter list for $qualifiedName, this has $normalizedTypeParameterListString but it was previously defined as $existingTypeParameterListString at ${location.path}:${location.line}",
                         classPosition

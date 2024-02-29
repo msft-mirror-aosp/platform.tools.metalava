@@ -230,7 +230,8 @@ interface Item : Reportable {
     }
 
     /** Returns the [IssueLocation] for this item, if any. */
-    override fun location(): IssueLocation = IssueLocation.unknownLocationAndBaselineKey
+    override val issueLocation
+        get() = IssueLocation.unknownLocationAndBaselineKey
 
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and

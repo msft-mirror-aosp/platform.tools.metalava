@@ -89,7 +89,7 @@ internal class DefaultReporter(
             val reportLocation =
                 when {
                     location.path != null -> location.forReport()
-                    reportable != null -> reportable.location().forReport()
+                    reportable != null -> reportable.issueLocation.forReport()
                     else -> null
                 }
 
@@ -122,7 +122,7 @@ internal class DefaultReporter(
             // signature would stay the same.
             val baselineLocation =
                 when {
-                    reportable != null -> reportable.location()
+                    reportable != null -> reportable.issueLocation
                     location.path != null -> location
                     else -> null
                 }

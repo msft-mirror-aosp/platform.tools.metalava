@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.source.utils.LazyDelegate
-import com.android.tools.metalava.reporter.IssueLocation
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -61,9 +60,8 @@ internal constructor(
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
 
-    override fun location(): IssueLocation {
-        return PsiLocationProvider.elementToIssueLocation(psi(), baselineKey)
-    }
+    override val issueLocation
+        get() = PsiLocationProvider.elementToIssueLocation(psi(), baselineKey)
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
