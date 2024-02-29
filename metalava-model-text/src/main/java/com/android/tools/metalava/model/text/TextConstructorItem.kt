@@ -16,16 +16,16 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.TypeItem
 
 internal class TextConstructorItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    returnType: TypeItem,
+    returnType: ClassTypeItem,
     parameters: List<TextParameterItem>,
     position: SourcePositionInfo
 ) :
@@ -58,7 +58,6 @@ internal class TextConstructorItem(
                     parameters = emptyList(),
                     position = position,
                 )
-            modifiers.setOwner(item)
             return item
         }
     }
