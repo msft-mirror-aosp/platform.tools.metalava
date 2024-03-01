@@ -44,7 +44,5 @@ internal abstract class TextItem(
         codebase.unsupported() // source language not recorded in signature files
 
     override val fileLocation: FileLocation
-        get() =
-            if (position == SourcePositionInfo.UNKNOWN) FileLocation.UNKNOWN
-            else FileLocation.createLocation(position.path, position.line)
+        get() = position
 }

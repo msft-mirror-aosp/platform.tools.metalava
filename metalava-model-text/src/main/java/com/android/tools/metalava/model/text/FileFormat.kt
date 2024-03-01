@@ -461,7 +461,7 @@ data class FileFormat(
                 // original thrower does not have that context.
                 throw ApiParseException(
                     "Signature format error - ${cause.message}",
-                    SourcePositionInfo(path, lineNumberReader.lineNumber),
+                    SourcePositionInfo.createLocation(path, lineNumberReader.lineNumber),
                     cause,
                 )
             }

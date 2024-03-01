@@ -31,7 +31,7 @@ internal class Tokenizer(val path: Path, private val buffer: CharArray) {
     var line = 1
 
     fun pos(): SourcePositionInfo {
-        return SourcePositionInfo(path, line)
+        return SourcePositionInfo.createLocation(path, line)
     }
 
     private fun eatWhitespace(): Boolean {

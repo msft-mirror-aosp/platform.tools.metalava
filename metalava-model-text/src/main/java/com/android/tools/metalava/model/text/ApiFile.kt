@@ -159,7 +159,7 @@ private constructor(
                     } catch (ex: IOException) {
                         throw ApiParseException(
                             "Error reading API file",
-                            location = SourcePositionInfo(file.toPath()),
+                            location = SourcePositionInfo.createLocation(file.toPath()),
                             cause = ex
                         )
                     }

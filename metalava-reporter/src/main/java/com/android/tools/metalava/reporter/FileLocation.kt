@@ -26,6 +26,12 @@ abstract class FileLocation {
     /** The line number, may be non-positive indicating that it could not be found. */
     abstract val line: Int
 
+    /** Append the string representation of this to the [builder]. */
+    fun appendTo(builder: StringBuilder) {
+        builder.append(path)
+        if (line > 0) builder.append(":").append(line)
+    }
+
     override fun toString() = if (line < 1) path.toString() else "$path:$line"
 
     /** A fixed location, known at construction time. */

@@ -15,22 +15,6 @@
  */
 package com.android.tools.metalava.model.text
 
-import java.nio.file.Path
+import com.android.tools.metalava.reporter.FileLocation
 
-class SourcePositionInfo(
-    /** The absolute path to the location. */
-    val path: Path,
-    /** The line number, may be non-positive indicating that it could not be found. */
-    val line: Int = 0,
-) {
-    override fun toString() = if (line < 1) path.toString() else "$path:$line"
-
-    fun appendTo(builder: StringBuilder) {
-        builder.append(path)
-        if (line > 0) builder.append(":").append(line)
-    }
-
-    companion object {
-        val UNKNOWN = SourcePositionInfo(Path.of("unknown"), 0)
-    }
-}
+typealias SourcePositionInfo = FileLocation
