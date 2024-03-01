@@ -74,7 +74,9 @@ class TokenizerTest(private val params: Params) {
                 ),
             )
 
-        @JvmStatic @Parameterized.Parameters(name = "{0}") fun testParams(): List<Params> = params
+        @JvmStatic
+        @Parameterized.Parameters(name = "#{index} -{0}")
+        fun testParams(): List<Params> = params
     }
 
     @Test

@@ -39,7 +39,7 @@ com.android.tools.metalava.ApiFileTest
   Indirect Field Includes from Interfaces[turbine]
   Inheriting from package private classes, package private class should be included[turbine]
   Inheriting generic method from package private class[turbine]
-  Kotlin expect-actual with JvmOverloads[k2]
+  Kotlin expect-actual with JvmOverloads[psi,k2]
   Remove findViewById type nullness annotation[turbine]
   Skip inherited package private methods from private parents[turbine]
   Subclass definition is not included in removed api file[turbine]
