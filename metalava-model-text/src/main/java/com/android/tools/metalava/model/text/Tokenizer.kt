@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
 
 /**
@@ -30,8 +31,8 @@ internal class Tokenizer(val path: Path, private val buffer: CharArray) {
     var position = 0
     var line = 1
 
-    fun pos(): SourcePositionInfo {
-        return SourcePositionInfo.createLocation(path, line)
+    fun fileLocation(): FileLocation {
+        return FileLocation.createLocation(path, line)
     }
 
     private fun eatWhitespace(): Boolean {

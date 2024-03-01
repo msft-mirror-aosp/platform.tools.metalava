@@ -22,7 +22,7 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextItem(
     override val codebase: TextCodebase,
-    internal val position: SourcePositionInfo,
+    override val fileLocation: FileLocation,
     override var docOnly: Boolean = false,
     override var documentation: String = "",
     modifiers: DefaultModifierList,
@@ -42,7 +42,4 @@ internal abstract class TextItem(
 
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
-
-    override val fileLocation: FileLocation
-        get() = position
 }

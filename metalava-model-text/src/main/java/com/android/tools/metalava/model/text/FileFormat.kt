@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
 import java.nio.file.Path
@@ -461,7 +462,7 @@ data class FileFormat(
                 // original thrower does not have that context.
                 throw ApiParseException(
                     "Signature format error - ${cause.message}",
-                    SourcePositionInfo.createLocation(path, lineNumberReader.lineNumber),
+                    FileLocation.createLocation(path, lineNumberReader.lineNumber),
                     cause,
                 )
             }

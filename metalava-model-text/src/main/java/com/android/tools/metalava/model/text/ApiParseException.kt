@@ -16,11 +16,12 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.reporter.FileLocation
 
 @MetalavaApi
 class ApiParseException(
     message: String,
-    private val location: SourcePositionInfo? = null,
+    private val location: FileLocation? = null,
     cause: Exception? = null,
 ) : Exception(message, cause) {
 
@@ -28,7 +29,7 @@ class ApiParseException(
         message: String,
         tokenizer: Tokenizer,
         cause: Exception? = null,
-    ) : this(message, tokenizer.pos(), cause = cause)
+    ) : this(message, tokenizer.fileLocation(), cause = cause)
 
     override val message: String
         get() {
