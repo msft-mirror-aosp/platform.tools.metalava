@@ -220,12 +220,12 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
 
         override fun getChildren(): List<FrameworkMethod> {
             return super.getChildren().filter { frameworkMethod ->
-                // Create a filter from any annotations on the methods.
-                val filter = createCodebaseCreatorFilter(sequenceOf(frameworkMethod.method))
+                // Create a predicate from any annotations on the methods.
+                val predicate = createCreatorPredicate(sequenceOf(frameworkMethod.method))
 
-                // Apply the filter to the [CodebaseCreatorConfig] that would be used for this
+                // Apply the predicate to the [CodebaseCreatorConfig] that would be used for this
                 // method.
-                filter(modelProviderWrapper.codebaseCreatorConfig)
+                predicate(modelProviderWrapper.codebaseCreatorConfig)
             }
         }
     }
@@ -237,16 +237,19 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             baselineResourcePath: String,
             additionalArguments: List<Array<Any>>?,
         ): TestArguments {
-            // Create a filter for [CodebaseCreatorConfig]s based off the annotations on the test
-            // class and its ancestors.
+            // Generate a sequence that traverse the super class hierarchy starting with the test
+            // class.
             val hierarchy = generateSequence(testClass.javaClass) { it.superclass }
-            val filter = createCodebaseCreatorFilter(hierarchy)
+
+            val predicate =
+                // Create a predicate from annotations on the test class and its ancestors.
+                createCreatorPredicate(hierarchy)
 
             // Get the list of [CodebaseCreatorConfig]s over which this must run the tests.
             val creatorConfigs =
                 codebaseCreatorConfigsGetter(testClass)
                     // Filter out any [CodebaseCreatorConfig]s as requested.
-                    .filter(filter)
+                    .filter(predicate)
 
             // Wrap each codebase creator object with information needed by [InstanceRunnerFactory].
             val wrappers =
@@ -271,17 +274,15 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             }
         }
 
-        private val defaultFilter: (CodebaseCreatorConfig<*>) -> Boolean = { true }
-
         private data class ProviderOptions(val provider: String, val options: String)
 
         /**
-         * Create a filter for [CodebaseCreatorConfig]s based on the annotations on the
+         * Create a [CreatorPredicate] for [CodebaseCreatorConfig]s based on the annotations on the
          * [annotatedElements],
          */
-        private fun createCodebaseCreatorFilter(
+        private fun createCreatorPredicate(
             annotatedElements: Sequence<AnnotatedElement>
-        ): (CodebaseCreatorConfig<*>) -> Boolean {
+        ): CreatorPredicate {
             val providerToAction = mutableMapOf<String, FilterAction>()
             val providerOptionsToAction = mutableMapOf<ProviderOptions, FilterAction>()
             for (element in annotatedElements) {
@@ -298,7 +299,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             }
 
             return if (providerToAction.isEmpty() && providerOptionsToAction.isEmpty())
-                defaultFilter
+                alwaysTruePredicate
             else
                 { config ->
                     val providerName = config.providerName
@@ -354,3 +355,9 @@ class CodebaseCreatorConfig<C : FilterableCodebaseCreator>(
     /** Override this to return the string that will be used in the test name. */
     override fun toString() = toStringValue
 }
+
+/** A predicate for use when filtering [CodebaseCreatorConfig]s. */
+typealias CreatorPredicate = (CodebaseCreatorConfig<*>) -> Boolean
+
+/** The always `true` predicate. */
+private val alwaysTruePredicate: (CodebaseCreatorConfig<*>) -> Boolean = { true }
