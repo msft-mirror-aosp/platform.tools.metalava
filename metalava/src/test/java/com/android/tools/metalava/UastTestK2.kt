@@ -19,7 +19,4 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 
-@FilterByProvider("psi", "k1", action = EXCLUDE)
-// No point in running both this and UastTestK1 on turbine as the result would be identical.
-@FilterByProvider("turbine", action = EXCLUDE)
-class UastTestK2 : UastTestBase()
+@FilterByProvider("psi", "k1", action = EXCLUDE) class UastTestK2 : UastTestBase()

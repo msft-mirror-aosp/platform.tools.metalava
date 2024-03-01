@@ -16,14 +16,17 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 /** Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions. */
+@RequiresCapabilities(Capability.KOTLIN)
 abstract class UastTestBase : DriverTest() {
 
     @Test
