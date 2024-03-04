@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
@@ -137,23 +138,48 @@ internal data class KotlinTypeInfo(
          */
         fun fromContext(context: PsiElement): KotlinTypeInfo {
             return when (val sourcePsi = (context as? UElement)?.sourcePsi) {
+                is KtElement -> fromKtElement(sourcePsi)
+                else -> {
+                    typeFromSyntheticElement(context)
+                }
+            }
+                ?: KotlinTypeInfo(null, null, context)
+        }
+
+        /** Try and compute [KotlinTypeInfo] from a [KtElement]. */
+        private fun fromKtElement(context: KtElement): KotlinTypeInfo? =
+            when (context) {
                 is KtCallableDeclaration -> {
-                    analyze(sourcePsi) {
-                        KotlinTypeInfo(this, sourcePsi.getReturnKtType(), sourcePsi)
-                    }
+                    analyze(context) { KotlinTypeInfo(this, context.getReturnKtType(), context) }
                 }
                 is KtTypeReference ->
-                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType(), sourcePsi) }
+                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
                 is KtPropertyAccessor ->
-                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType(), sourcePsi) }
+                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                else -> null
+            }
+
+        /**
+         * Try and compute the type from a synthetic elements, e.g. a property setter.
+         *
+         * In order to get this far the [context] is either not a [UElement], or it has a null
+         * [UElement.sourcePsi]. That means it is most likely a parameter in a synthetic method
+         * created for use by code that operates on a "Psi" view of the source, i.e. java code. This
+         * method will attempt to reverse engineer the "Kt" -> "Psi" mapping to find the real Kotlin
+         * types.
+         */
+        private fun typeFromSyntheticElement(context: PsiElement): KotlinTypeInfo? {
+            // If this is not a UParameter in a UMethod then it is an unknown synthetic element so
+            // just return.
+            val containingMethod = (context as? UParameter)?.getContainingUMethod() ?: return null
+            return when (containingMethod.sourcePsi) {
+                is KtProperty -> {
+                    // This is the parameter of a synthetic setter, so get its type from the
+                    // containing method.
+                    fromContext(containingMethod)
+                }
                 else -> {
-                    // Check if this is the parameter of a synthetic setter
-                    val containingMethod = (context as? UParameter)?.getContainingUMethod()
-                    return if (containingMethod?.sourcePsi is KtProperty) {
-                        fromContext(containingMethod)
-                    } else {
-                        KotlinTypeInfo(null, null, context)
-                    }
+                    null
                 }
             }
         }
