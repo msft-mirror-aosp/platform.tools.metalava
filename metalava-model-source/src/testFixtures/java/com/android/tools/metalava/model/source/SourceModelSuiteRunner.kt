@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.reporter.BasicReporter
@@ -40,6 +41,8 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
     override val providerName = sourceModelProvider.providerName
 
     override val supportedInputFormats = sourceModelProvider.supportedInputFormats
+
+    override val capabilities: Set<Capability> = sourceModelProvider.capabilities
 
     override val testConfigurations: List<TestConfiguration> =
         supportedInputFormats.flatMap { inputFormat ->

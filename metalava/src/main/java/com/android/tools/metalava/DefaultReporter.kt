@@ -23,8 +23,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.IssueConfiguration
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Location
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -70,7 +70,7 @@ internal class DefaultReporter(
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: Location
+        location: IssueLocation
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
@@ -89,7 +89,7 @@ internal class DefaultReporter(
             val reportLocation =
                 when {
                     location.path != null -> location.forReport()
-                    reportable != null -> reportable.location().forReport()
+                    reportable != null -> reportable.issueLocation.forReport()
                     else -> null
                 }
 
@@ -122,7 +122,7 @@ internal class DefaultReporter(
             // signature would stay the same.
             val baselineLocation =
                 when {
-                    reportable != null -> reportable.location()
+                    reportable != null -> reportable.issueLocation
                     location.path != null -> location
                     else -> null
                 }
@@ -183,11 +183,12 @@ internal class DefaultReporter(
     }
 
     /**
-     * Convert the [Location] to an optional string representation suitable for use in a report.
+     * Convert the [IssueLocation] to an optional string representation suitable for use in a
+     * report.
      *
      * See [relativizeLocationPath].
      */
-    private fun Location.forReport(): String? {
+    private fun IssueLocation.forReport(): String? {
         val pathString = path?.let { relativizeLocationPath(it) } ?: return null
         return if (line > 0) "$pathString:$line" else pathString
     }

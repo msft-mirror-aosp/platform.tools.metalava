@@ -16,17 +16,17 @@
 
 package com.android.tools.metalava.model.provider
 
-/**
- * Provides access to codebase creator specific information needed to support filtering tests based
- * on the creator's capabilities and requirements.
- */
-interface FilterableCodebaseCreator {
-    /** The name of the provider. */
-    val providerName: String
+/** The set of different capabilities that a codebase creator can provide. */
+enum class Capability() {
+    /** Can parse java files. */
+    JAVA,
 
-    /** The set of supported input formats. */
-    val supportedInputFormats: Set<InputFormat>
+    /** Can parse kotlin files. */
+    KOTLIN,
 
-    /** The set of supported [Capability]s. */
-    val capabilities: Set<Capability>
+    /** Has access to the method body. */
+    METHOD_BODY,
+
+    /** Has access to documentation. */
+    DOCUMENTATION,
 }
