@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -43,25 +42,6 @@ class CommonDataClassTest : BaseModelTest() {
                     data class Foo(val i: Int, val s: String, var opt: String?)
                 """
         )
-
-    /**
-     * Create a Kotlin like method description. It uses Kotlin structure for a method and Kotlin
-     * style nulls but not Kotlin types.
-     */
-    private fun MethodItem.kotlinLikeDescription(): String = buildString {
-        if (isConstructor()) {
-            append("constructor ")
-        } else {
-            append("fun ")
-        }
-        append(name())
-        append("(")
-        parameters().joinTo(this) {
-            "${it.name()}: ${it.type().toTypeString(kotlinStyleNulls = true)}"
-        }
-        append("): ")
-        append(returnType().toTypeString(kotlinStyleNulls = true))
-    }
 
     @Test
     fun `Test data class fields`() {
