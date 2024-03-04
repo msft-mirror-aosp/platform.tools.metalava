@@ -40,10 +40,11 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
+import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -560,7 +561,7 @@ class ApiAnalyzer(
             val psi = (cls as? PsiClassItem)?.psi()
             if (
                 psi != null &&
-                    isKotlin(psi) &&
+                    psi.isKotlin() &&
                     psi is UClass &&
                     psi.javaPsi is KtLightClassForFacade &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
@@ -1288,7 +1289,7 @@ class ApiAnalyzer(
             )
         }
         // cant strip any of the type's generics
-        cantStripThis(cl.typeParameterList(), filter, notStrippable, stubImportPackages, cl)
+        cantStripThis(cl.typeParameterList, filter, notStrippable, stubImportPackages, cl)
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
@@ -1312,7 +1313,8 @@ class ApiAnalyzer(
         cl.superClass()?.let { superClass -> superItems.add(superClass) }
 
         for (superItem in superItems) {
-            if (superItem.isHiddenOrRemoved()) {
+            // allInterfaces includes cl itself if cl is an interface
+            if (superItem.isHiddenOrRemoved() && superItem != cl) {
                 // cl is a public class declared as extending a hidden superclass.
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
@@ -1361,7 +1363,7 @@ class ApiAnalyzer(
                 continue
             }
             cantStripThis(
-                method.typeParameterList(),
+                method.typeParameterList,
                 filter,
                 notStrippable,
                 stubImportPackages,
@@ -1378,9 +1380,10 @@ class ApiAnalyzer(
                 )
             }
             for (thrown in method.throwsTypes()) {
-                if (thrown.isTypeParameter) continue
+                if (thrown is VariableTypeItem) continue
+                val classItem = thrown.erasedClass ?: continue
                 cantStripThis(
-                    thrown.classItem,
+                    classItem,
                     filter,
                     notStrippable,
                     stubImportPackages,
@@ -1406,7 +1409,7 @@ class ApiAnalyzer(
         stubImportPackages: Set<String>?,
         context: Item
     ) {
-        for (typeParameter in typeParameterList.typeParameters()) {
+        for (typeParameter in typeParameterList) {
             for (bound in typeParameter.typeBounds()) {
                 cantStripThis(
                     bound,

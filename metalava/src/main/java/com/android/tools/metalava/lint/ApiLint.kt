@@ -75,7 +75,6 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
-import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
@@ -1205,19 +1204,9 @@ private constructor(
                 name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")
             ) {
                 val returnType = method.returnType()
-                val returnsClassType =
-                    if (returnType is PsiTypeItem && clsType is PsiTypeItem) {
-                        clsType.isAssignableFromWithoutUnboxing(returnType)
-                    } else {
-                        // fallback to a limited text based check
-                        val returnTypeBounds =
-                            (returnType as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map {
-                                it.toTypeString()
-                            }
-                                ?: emptyList()
-                        returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
-                    }
-                if (!returnsClassType) {
+                val methodReturnsBuilderClassType =
+                    clsType.isAssignableFromWithoutUnboxing(returnType)
+                if (!methodReturnsBuilderClassType) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1710,10 +1699,10 @@ private constructor(
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
-            val throwableClass = throwableType.throwableClass ?: continue
+            val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
                 report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
-            } else if (throwableType.isTypeParameter) {
+            } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without
                 // any package or containing class could never match a qualified exception name.
@@ -1865,7 +1854,7 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
+        if (!item.hasNullnessInfo() && item.type()?.modifiers?.nullability()?.isKnown != true) {
             val type = item.type()
             val inherited =
                 when (item) {
@@ -1877,7 +1866,7 @@ private constructor(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type is VariableTypeItem || item.hasInheritedGenericType()) {
+            if (type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.
