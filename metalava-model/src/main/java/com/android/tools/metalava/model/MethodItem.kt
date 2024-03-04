@@ -59,12 +59,12 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     }
 
     /** Types of exceptions that this method can throw */
-    fun throwsTypes(): List<ThrowableType>
+    fun throwsTypes(): List<ExceptionTypeItem>
 
     /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.throwableClass ?: continue
+            val throwableClass = type.erasedClass ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -73,7 +73,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return false
     }
 
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ThrowableType> {
+    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
@@ -82,21 +82,26 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     private fun filteredThrowsTypes(
         predicate: Predicate<Item>,
-        throwableTypes: LinkedHashSet<ThrowableType>
-    ): LinkedHashSet<ThrowableType> {
-        for (throwableType in throwsTypes()) {
-            if (throwableType.isTypeParameter || predicate.test(throwableType.classItem)) {
-                throwableTypes.add(throwableType)
+        throwsTypes: LinkedHashSet<ExceptionTypeItem>
+    ): LinkedHashSet<ExceptionTypeItem> {
+        for (exceptionType in throwsTypes()) {
+            if (exceptionType is VariableTypeItem) {
+                throwsTypes.add(exceptionType)
             } else {
-                // Excluded, but it may have super class throwables that are included; if so,
-                // include those.
-                throwableType.classItem
-                    .allSuperClasses()
-                    .firstOrNull { superClass -> predicate.test(superClass) }
-                    ?.let { superClass -> throwableTypes.add(ThrowableType.ofClass(superClass)) }
+                val classItem = exceptionType.erasedClass ?: continue
+                if (predicate.test(classItem)) {
+                    throwsTypes.add(exceptionType)
+                } else {
+                    // Excluded, but it may have super class throwables that are included; if so,
+                    // include those.
+                    classItem
+                        .allSuperClasses()
+                        .firstOrNull { superClass -> predicate.test(superClass) }
+                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                }
             }
         }
-        return throwableTypes
+        return throwsTypes
     }
 
     /**
@@ -133,8 +138,22 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return null
     }
 
+    override fun baselineElementId() = buildString {
+        append(containingClass().qualifiedName())
+        append("#")
+        append(name())
+        append("(")
+        parameters().joinTo(this) { it.type().toSimpleType() }
+        append(")")
+    }
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    override fun toStringForItem(): String {
+        return "${if (isConstructor()) "constructor" else "method"} ${
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
     }
 
     companion object {
@@ -284,8 +303,8 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
             for (i in throwsList12.indices) {
                 val p1 = throwsList12[i]
                 val p2 = throwsList2[i]
-                val pt1 = p1.qualifiedName()
-                val pt2 = p2.qualifiedName()
+                val pt1 = p1.toTypeString()
+                val pt2 = p2.toTypeString()
                 if (pt1 != pt2) { // assumes throws lists are sorted!
                     return false
                 }
@@ -344,22 +363,16 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return true
     }
 
-    override fun implicitNullness(): Boolean? {
+    override fun implicitNullness(): TypeNullability? {
         // Delegate to the super class, only dropping through if it did not determine an implicit
         // nullness.
         super.implicitNullness()?.let { nullable ->
             return nullable
         }
 
-        if (synthetic && isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
-
         // toString has known nullness
         if (name() == "toString" && parameters().isEmpty()) {
-            return false
+            return TypeNullability.NONNULL
         }
 
         return null
@@ -435,7 +448,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
         if (returnType().hasHiddenType(filterReference)) return true
 
-        for (typeParameter in typeParameterList().typeParameters()) {
+        for (typeParameter in typeParameterList) {
             if (typeParameter.typeBounds().any { it.hasHiddenType(filterReference) }) return true
         }
 
@@ -461,18 +474,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
-
-    /** Returns true if this is a synthetic enum method */
-    fun isEnumSyntheticMethod(): Boolean = isEnumSyntheticValues() || isEnumSyntheticValueOf()
-
-    fun isEnumSyntheticValues(): Boolean =
-        containingClass().isEnum() && name() == JAVA_ENUM_VALUES && parameters().isEmpty()
-
-    fun isEnumSyntheticValueOf(): Boolean =
-        containingClass().isEnum() &&
-            name() == JAVA_ENUM_VALUE_OF &&
-            parameters().size == 1 &&
-            parameters()[0].type().isString()
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that

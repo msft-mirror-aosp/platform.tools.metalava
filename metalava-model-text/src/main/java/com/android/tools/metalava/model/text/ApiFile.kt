@@ -17,36 +17,37 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
-import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MetalavaApi
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
-import com.android.tools.metalava.model.ThrowableType
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.typeNullability
+import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.StringReader
+import java.nio.file.Path
 import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
@@ -55,16 +56,24 @@ class ApiFile
 private constructor(
     private val codebase: TextCodebase,
     private val formatForLegacyFiles: FileFormat?,
-) : ResolverContext {
+) {
 
     /**
-     * Provides support for parsing and caching `TypeItem` instances.
+     * Provides support for parsing and caching [TypeItem]s.
      *
      * Defer creation until after the first file has been read and [kotlinStyleNulls] has been set
      * to a non-null value to ensure that it picks up the correct setting of [kotlinStyleNulls].
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
+
+    /**
+     * Provides support for creating [TypeItem]s for specific uses.
+     *
+     * Defer creation as it depends on [typeParser].
+     */
+    private val globalTypeItemFactory by
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -77,8 +86,15 @@ private constructor(
     /** The file format of the file being parsed. */
     lateinit var format: FileFormat
 
-    /** Map from [ClassItem] to [TypeParameterScope]. */
-    private val classToTypeParameterScope = IdentityHashMap<ClassItem, TypeParameterScope>()
+    /** Map from [ClassItem] to [TextTypeItemFactory]. */
+    private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
+
+    /**
+     * The set of super class types needed for later resolution.
+     *
+     * TODO(b/323516595): Find a better way.
+     */
+    private val superClassTypesForResolution = mutableSetOf<ClassTypeItem>()
 
     /**
      * The set of interface types needed for later resolution.
@@ -86,8 +102,6 @@ private constructor(
      * TODO(b/323516595): Find a better way.
      */
     private val interfaceTypesForResolution = mutableSetOf<ClassTypeItem>()
-
-    private val mClassToSuper = HashMap<TextClassItem, String>(30000)
 
     companion object {
         /**
@@ -110,7 +124,7 @@ private constructor(
          * Read API signature files into a [TextCodebase].
          *
          * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [com.android.tools.metalava.model.text.TextItem.position]
+         * first file specified. each [com.android.tools.metalava.model.text.TextItem.fileLocation]
          * would correctly point out the source file of each item.
          *
          * @param files input signature files
@@ -146,11 +160,11 @@ private constructor(
                     } catch (ex: IOException) {
                         throw ApiParseException(
                             "Error reading API file",
-                            file = file.path,
+                            location = FileLocation.createLocation(file.toPath()),
                             cause = ex
                         )
                     }
-                parser.parseApiSingleFile(!first, file.path, apiText)
+                parser.parseApiSingleFile(!first, file.toPath(), apiText)
                 first = false
             }
             api.description = actualDescription
@@ -198,15 +212,16 @@ private constructor(
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
+            val path = Path.of(filename)
             val api =
                 TextCodebase(
-                    location = File(filename),
+                    location = path.toFile(),
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,
                 )
             api.description = "Codebase loaded from $filename"
             val parser = ApiFile(api, formatForLegacyFiles)
-            parser.parseApiSingleFile(false, filename, apiText)
+            parser.parseApiSingleFile(false, path, apiText)
             parser.postProcess()
             return api
         }
@@ -263,9 +278,10 @@ private constructor(
      * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
      */
     private fun postProcess() {
-        // Use this as the context for resolving references.
-        ReferenceResolver.resolveReferences(this, codebase, typeParser) {
-            typeParameterScopeForClass(it)
+        // Resolve all super class types that were found in the signature file.
+        // TODO(b/323516595): Find a better way.
+        for (superClassType in superClassTypesForResolution) {
+            superClassType.asClass()
         }
 
         // Resolve all interface types that were found in the signature file.
@@ -278,13 +294,13 @@ private constructor(
 
     private fun parseApiSingleFile(
         appending: Boolean,
-        filename: String,
+        path: Path,
         apiText: String,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
         format =
-            FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
+            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
                 ?: FileFormat.V2
 
         // Disallow a mixture of kotlinStyleNulls settings.
@@ -303,7 +319,7 @@ private constructor(
             }
         }
 
-        val tokenizer = Tokenizer(filename, apiText.toCharArray())
+        val tokenizer = Tokenizer(path, apiText.toCharArray())
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
@@ -319,7 +335,7 @@ private constructor(
         var token: String = tokenizer.requireToken()
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC, null)
         modifiers.addAnnotations(annotations)
         token = tokenizer.current
@@ -345,7 +361,8 @@ private constructor(
                 }
                 existing
             } else {
-                val newPackageItem = TextPackageItem(codebase, name, modifiers, tokenizer.pos())
+                val newPackageItem =
+                    TextPackageItem(codebase, name, modifiers, tokenizer.fileLocation())
                 codebase.addPackage(newPackageItem)
                 newPackageItem
             }
@@ -364,26 +381,19 @@ private constructor(
         }
     }
 
-    private fun mapClassToSuper(classInfo: TextClassItem, superclass: String?) {
-        superclass?.let { mClassToSuper.put(classInfo, superclass) }
-    }
-
-    /** Implements [ResolverContext] interface */
-    override fun superClassTypeString(cl: ClassItem): String? = mClassToSuper[cl]
-
     private fun parseClass(pkg: TextPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
-        var superClassTypeString: String? = null
+        var superClassType: ClassTypeItem? = null
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
 
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
-        val classPosition = tokenizer.pos()
+        val classPosition = tokenizer.fileLocation()
 
         token = tokenizer.current
         when (token) {
@@ -404,7 +414,7 @@ private constructor(
                 classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
-                superClassTypeString = JAVA_LANG_ENUM
+                superClassType = typeParser.superEnumType
                 token = tokenizer.requireToken()
             }
             else -> {
@@ -424,13 +434,17 @@ private constructor(
             qualifiedClassName,
             outerClass,
             typeParameterList,
-            typeParameterScope,
+            typeItemFactory,
         ) = parseDeclaredClassType(pkg, declaredClassType, classPosition)
 
         token = tokenizer.requireToken()
 
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
-            superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
+            val superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
+            superClassType =
+                typeItemFactory.getSuperClassType(
+                    superClassTypeString,
+                )
             token = tokenizer.current
         }
 
@@ -442,8 +456,7 @@ private constructor(
                     break
                 } else if ("," != token) {
                     val interfaceTypeString = parseSuperTypeString(tokenizer, token)
-                    val interfaceType =
-                        typeParser.getSuperType(interfaceTypeString, typeParameterScope)
+                    val interfaceType = typeItemFactory.getInterfaceType(interfaceTypeString)
                     interfaceTypes.add(interfaceType)
                     token = tokenizer.current
                 } else {
@@ -451,7 +464,7 @@ private constructor(
                 }
             }
         }
-        if (JAVA_LANG_ENUM == superClassTypeString) {
+        if (superClassType == typeParser.superEnumType) {
             // This can be taken either for an enum class, or a normal class that extends
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
@@ -480,12 +493,12 @@ private constructor(
         // the characteristics of the same class from a previously processed signature file.
         val newClassCharacteristics =
             ClassCharacteristics(
-                position = classPosition,
+                fileLocation = classPosition,
                 qualifiedName = qualifiedClassName,
                 fullName = fullName,
                 classKind = classKind,
                 modifiers = modifiers,
-                superClassTypeString = superClassTypeString,
+                superClassType = superClassType,
             )
 
         // Check to see if there is an existing class, if so merge this class definition into that
@@ -499,27 +512,35 @@ private constructor(
         val cl =
             TextClassItem(
                 codebase = codebase,
-                position = classPosition,
+                fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
-                annotations = annotations,
                 typeParameterList = typeParameterList,
             )
 
+        // Default the superClassType() to java.lang.Object for any class that is not an interface,
+        // annotation, or enum and which is not itself java.lang.Object.
+        if (classKind == ClassKind.CLASS && superClassType == null && !cl.isJavaLangObject()) {
+            superClassType = typeParser.superObjectType
+        }
+        cl.setSuperClassType(superClassType)
+
         cl.setInterfaceTypes(interfaceTypes.toList())
 
-        // Save the interface types to later when they will be resolved. That is needed to avoid
-        // later changes to the model which would/could cause concurrent modification issues.
+        // Save the super class and interface types to later when they will be resolved. That is
+        // needed to avoid later changes to the model which would/could cause concurrent
+        // modification issues.
         // TODO(b/323516595): Find a better way.
+        superClassType?.let { superClassTypesForResolution.add(it) }
         interfaceTypesForResolution.addAll(interfaceTypes)
 
-        // Store the [TypeParameterScope] for this [ClassItem] so it can be retrieved later in
-        // [typeParameterScopeFromClass].
-        if (!typeParameterScope.isEmpty()) {
-            classToTypeParameterScope[cl] = typeParameterScope
+        // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
+        // [typeItemFactoryForClass].
+        if (!typeItemFactory.typeParameterScope.isEmpty()) {
+            classToTypeItemFactory[cl] = typeItemFactory
         }
 
         cl.setContainingPackage(pkg)
@@ -534,11 +555,8 @@ private constructor(
         }
         codebase.registerClass(cl)
 
-        // Record the super class type string as needing to be resolved for this class.
-        mapClassToSuper(cl, superClassTypeString)
-
         // Parse the class body adding each member created to the class item being populated.
-        parseClassBody(tokenizer, cl, typeParameterScope)
+        parseClassBody(tokenizer, cl, typeItemFactory)
     }
 
     /**
@@ -565,33 +583,35 @@ private constructor(
         if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
             throw ApiParseException(
                 "Incompatible $existingClass definitions",
-                newClassCharacteristics.position
+                newClassCharacteristics.fileLocation
             )
         }
 
         // Use the latest super class.
-        val newSuperClassTypeString = newClassCharacteristics.superClassTypeString
-        if (mClassToSuper[existingClass] != newSuperClassTypeString) {
+        val newSuperClassType = newClassCharacteristics.superClassType
+        if (
+            newSuperClassType != null && existingCharacteristics.superClassType != newSuperClassType
+        ) {
             // Duplicate class with conflicting superclass names are found. Since the class
-            // definition found later should be prioritized, overwrite the superclass name.
-            mapClassToSuper(existingClass, newSuperClassTypeString)
+            // definition found later should be prioritized, overwrite the superclass type.
+            existingClass.setSuperClassType(newSuperClassType)
         }
 
         // Parse the class body adding each member created to the existing class.
-        parseClassBody(tokenizer, existingClass, typeParameterScopeForClass(existingClass))
+        parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
 
         return true
     }
 
-    /** Get the [TypeParameterScope] for a previously created [ClassItem]. */
-    private fun typeParameterScopeForClass(classItem: ClassItem?): TypeParameterScope =
-        classItem?.let { classToTypeParameterScope[classItem] } ?: TypeParameterScope.empty
+    /** Get the [TextTypeItemFactory] for a previously created [ClassItem]. */
+    private fun typeItemFactoryForClass(classItem: ClassItem?): TextTypeItemFactory =
+        classItem?.let { classToTypeItemFactory[classItem] } ?: globalTypeItemFactory
 
     /** Parse the class body, adding members to [cl]. */
     private fun parseClassBody(
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        classTypeParameterScope: TypeParameterScope,
+        classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
         while (true) {
@@ -599,19 +619,19 @@ private constructor(
                 break
             } else if ("ctor" == token) {
                 token = tokenizer.requireToken()
-                parseConstructor(tokenizer, cl, classTypeParameterScope, token)
+                parseConstructor(tokenizer, cl, classTypeItemFactory, token)
             } else if ("method" == token) {
                 token = tokenizer.requireToken()
-                parseMethod(tokenizer, cl, classTypeParameterScope, token)
+                parseMethod(tokenizer, cl, classTypeItemFactory, token)
             } else if ("field" == token) {
                 token = tokenizer.requireToken()
-                parseField(tokenizer, cl, classTypeParameterScope, token, false)
+                parseField(tokenizer, cl, classTypeItemFactory, token, false)
             } else if ("enum_constant" == token) {
                 token = tokenizer.requireToken()
-                parseField(tokenizer, cl, classTypeParameterScope, token, true)
+                parseField(tokenizer, cl, classTypeItemFactory, token, true)
             } else if ("property" == token) {
                 token = tokenizer.requireToken()
-                parseProperty(tokenizer, cl, classTypeParameterScope, token)
+                parseProperty(tokenizer, cl, classTypeItemFactory, token)
             } else {
                 throw ApiParseException("expected ctor, enum_constant, field or method", tokenizer)
             }
@@ -661,8 +681,11 @@ private constructor(
         val outerClass: ClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
-        /** The [TypeParameterScope] including [typeParameterList]. */
-        val typeParameterScope: TypeParameterScope,
+        /**
+         * The [TextTypeItemFactory] including any type parameters in the [typeParameterList] in its
+         * [TextTypeItemFactory.typeParameterScope].
+         */
+        val typeItemFactory: TextTypeItemFactory,
     )
 
     /**
@@ -677,7 +700,7 @@ private constructor(
     private fun parseDeclaredClassType(
         pkg: TextPackageItem,
         declaredClassType: String,
-        classPosition: SourcePositionInfo,
+        classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {
         // Split the declared class type into full name and type parameters.
         val paramIndex = declaredClassType.indexOf('<')
@@ -711,41 +734,47 @@ private constructor(
                 Pair(outerClass, innerClassName)
             }
 
-        // Get the [TypeParameterScope] for the outer class, if any, from a previously stored one,
-        // otherwise use the empty scope as the [ClassItem] is a stub and so has no type parameters.
-        val outerClassTypeParameterScope = typeParameterScopeForClass(outerClass)
+        // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
+        // otherwise use the [globalTypeItemFactory] as the [ClassItem] is a stub and so has no type
+        // parameters.
+        val outerClassTypeItemFactory = typeItemFactoryForClass(outerClass)
 
-        // Create type parameter list and scope from the string and optional outer class scope.
-        val (typeParameterList, typeParameterScope) =
+        // Create type parameter list and factory from the string and optional outer class factory.
+        val (typeParameterList, typeItemFactory) =
             if (typeParameterListString == "")
-                Pair(TypeParameterList.NONE, outerClassTypeParameterScope)
-            else createTypeParameterList(outerClassTypeParameterScope, typeParameterListString)
+                Pair(TypeParameterList.NONE, outerClassTypeItemFactory)
+            else
+                createTypeParameterList(
+                    outerClassTypeItemFactory,
+                    "class $qualifiedName",
+                    typeParameterListString,
+                )
 
-        // Decide which type parameter list and scope to actually use.
+        // Decide which type parameter list and factory to actually use.
         //
-        // If the class already exists then reuse its type parameter list and scope, otherwise use
+        // If the class already exists then reuse its type parameter list and factory, otherwise use
         // the newly created one.
         //
-        // The reason for this is that otherwise any types parsed with the newly created scope would
-        // reference type parameters in the newly created list which are different to the ones
+        // The reason for this is that otherwise any types parsed with the newly created factory
+        // would reference type parameters in the newly created list which are different to the ones
         // belonging to the existing class.
-        val (actualTypeParameterList, actualTypeParameterScope) =
+        val (actualTypeParameterList, actualTypeItemFactory) =
             codebase.findClassInCodebase(qualifiedName)?.let { existingClass ->
                 // Check to make sure that the type parameter lists are the same.
                 val existingTypeParameterList = existingClass.typeParameterList
                 val existingTypeParameterListString = existingTypeParameterList.toString()
                 val normalizedTypeParameterListString = typeParameterList.toString()
-                if (!normalizedTypeParameterListString.equals(existingTypeParameterListString)) {
-                    val location = existingClass.location()
+                if (normalizedTypeParameterListString != existingTypeParameterListString) {
+                    val location = existingClass.issueLocation
                     throw ApiParseException(
                         "Inconsistent type parameter list for $qualifiedName, this has $normalizedTypeParameterListString but it was previously defined as $existingTypeParameterListString at ${location.path}:${location.line}",
-                        classPosition
+                        classFileLocation
                     )
                 }
 
-                Pair(existingTypeParameterList, typeParameterScopeForClass(existingClass))
+                Pair(existingTypeParameterList, typeItemFactoryForClass(existingClass))
             }
-                ?: Pair(typeParameterList, typeParameterScope)
+                ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
             simpleName = simpleName,
@@ -753,7 +782,7 @@ private constructor(
             qualifiedName = qualifiedName,
             outerClass = outerClass,
             typeParameterList = actualTypeParameterList,
-            typeParameterScope = actualTypeParameterScope,
+            typeItemFactory = actualTypeItemFactory,
         )
     }
 
@@ -769,7 +798,7 @@ private constructor(
         return if (startingToken.contains('@')) {
             val prefix = startingToken.substringBefore('@')
             val annotationStart = startingToken.substring(startingToken.indexOf('@'))
-            val annotation = getAnnotation(tokenizer, annotationStart)
+            val annotation = getAnnotationSource(tokenizer, annotationStart)
             "$prefix$annotation"
         } else {
             tokenizer.requireToken()
@@ -783,7 +812,7 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation.
      */
-    private fun getAnnotation(tokenizer: Tokenizer, startingToken: String): String? {
+    private fun getAnnotationSource(tokenizer: Tokenizer, startingToken: String): String? {
         var token = startingToken
         if (token.startsWith('@')) {
             // Annotation
@@ -824,40 +853,43 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
-        val annotations: MutableList<String> = mutableListOf()
+    private fun getAnnotations(
+        tokenizer: Tokenizer,
+        startingToken: String
+    ): MutableList<AnnotationItem> {
+        val annotations: MutableList<AnnotationItem> = mutableListOf()
         var token = startingToken
         while (true) {
-            val annotation = getAnnotation(tokenizer, token) ?: break
+            val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            annotations.add(annotation)
+            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
         }
         return annotations
     }
 
     private fun parseConstructor(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
-        classTypeParameterScope: TypeParameterScope,
+        containingClass: TextClassItem,
+        classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
         var token = startingToken
         val method: TextConstructorItem
 
         // Metalava: including annotations in file now
-        val annotations: List<String> = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
         token = tokenizer.current
 
-        // Get a TypeParameterList and accompanying TypeParameterScope
-        val (typeParameterList, typeParameterScope) =
+        // Get a TypeParameterList and accompanying TypeItemFactory
+        val (typeParameterList, typeItemFactory) =
             if ("<" == token) {
-                parseTypeParameterList(tokenizer, classTypeParameterScope).also {
+                parseTypeParameterList(tokenizer, classTypeItemFactory).also {
                     token = tokenizer.requireToken()
                 }
             } else {
-                Pair(TypeParameterList.NONE, classTypeParameterScope)
+                Pair(TypeParameterList.NONE, classTypeItemFactory)
             }
 
         tokenizer.assertIdent(token)
@@ -865,36 +897,56 @@ private constructor(
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
-        val parameters = parseParameterList(tokenizer, typeParameterScope)
-        // Constructors cannot return null.
-        val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
-        method =
-            TextConstructorItem(
-                codebase,
-                name,
-                cl,
-                modifiers,
-                ctorReturn,
-                parameters,
-                tokenizer.pos()
-            )
-        method.setTypeParameterList(typeParameterList)
+        val parameters = parseParameterList(tokenizer, typeItemFactory)
         token = tokenizer.requireToken()
+        var throwsList = emptyList<ExceptionTypeItem>()
         if ("throws" == token) {
-            token = parseThrows(tokenizer, method)
+            throwsList = parseThrows(tokenizer, typeItemFactory)
+            token = tokenizer.current
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        if (!cl.constructors().contains(method)) {
-            cl.addConstructor(method)
+
+        method =
+            TextConstructorItem(
+                codebase,
+                name,
+                containingClass,
+                modifiers,
+                containingClass.type(),
+                parameters,
+                tokenizer.fileLocation()
+            )
+        method.typeParameterList = typeParameterList
+        method.setThrowsTypes(throwsList)
+
+        if (!containingClass.constructors().contains(method)) {
+            containingClass.addConstructor(method)
         }
+    }
+
+    /**
+     * Check whether the method is a synthetic enum method.
+     *
+     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
+     * Kotlin.
+     */
+    private fun isEnumSyntheticMethod(
+        containingClass: ClassItem,
+        name: String,
+        parameters: List<ParameterItem>
+    ): Boolean {
+        if (!containingClass.isEnum()) return false
+        val parameterCount = parameters.size
+        return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
+            (parameterCount == 1 && name == "valueOf" && parameters[0].type().isString())
     }
 
     private fun parseMethod(
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        classTypeParameterScope: TypeParameterScope,
+        classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
         var token = startingToken
@@ -907,24 +959,24 @@ private constructor(
         token = tokenizer.current
 
         // Get a TypeParameterList and accompanying TypeParameterScope
-        val (typeParameterList, typeParameterScope) =
+        val (typeParameterList, typeItemFactory) =
             if ("<" == token) {
-                parseTypeParameterList(tokenizer, classTypeParameterScope).also {
+                parseTypeParameterList(tokenizer, classTypeItemFactory).also {
                     token = tokenizer.requireToken()
                 }
             } else {
-                Pair(TypeParameterList.NONE, classTypeParameterScope)
+                Pair(TypeParameterList.NONE, classTypeItemFactory)
             }
 
         tokenizer.assertIdent(token)
 
-        val returnType: TextTypeItem
+        val returnType: TypeItem
         val parameters: List<TextParameterItem>
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
-            parameters = parseParameterList(tokenizer, typeParameterScope)
+            parameters = parseParameterList(tokenizer, typeItemFactory)
             token = tokenizer.requireToken()
             if (token != ":") {
                 throw ApiParseException(
@@ -934,56 +986,80 @@ private constructor(
             }
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            returnType = parseType(tokenizer, token, typeParameterScope, annotations)
+            returnType = parseType(tokenizer, token, typeItemFactory, annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
-            returnType = parseType(tokenizer, token, typeParameterScope, annotations)
+            returnType = parseType(tokenizer, token, typeItemFactory, annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
-            parameters = parseParameterList(tokenizer, typeParameterScope)
+            parameters = parseParameterList(tokenizer, typeItemFactory)
             token = tokenizer.requireToken()
         }
 
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
         }
-        method =
-            TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
-        method.setTypeParameterList(typeParameterList)
-        if ("throws" == token) {
-            token = parseThrows(tokenizer, method)
-        }
-        if ("default" == token) {
-            token = parseDefault(tokenizer, method)
+
+        var throwsList = emptyList<ExceptionTypeItem>()
+        var defaultAnnotationMethodValue = ""
+
+        when (token) {
+            "throws" -> {
+                throwsList = parseThrows(tokenizer, typeItemFactory)
+                token = tokenizer.current
+            }
+            "default" -> {
+                defaultAnnotationMethodValue = parseDefault(tokenizer)
+                token = tokenizer.current
+            }
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
+
+        // Ignore enum synthetic methods.
+        if (isEnumSyntheticMethod(cl, name, parameters)) return
+
+        method =
+            TextMethodItem(
+                codebase,
+                name,
+                cl,
+                modifiers,
+                returnType,
+                parameters,
+                tokenizer.fileLocation()
+            )
+        method.typeParameterList = typeParameterList
+        method.setThrowsTypes(throwsList)
+        method.setAnnotationDefault(defaultAnnotationMethodValue)
+
         if (!cl.methods().contains(method)) {
             cl.addMethod(method)
         }
     }
 
     private fun mergeAnnotations(
-        annotations: MutableList<String>,
-        annotation: String
-    ): MutableList<String> {
+        annotations: MutableList<AnnotationItem>,
+        annotationQualifiedName: String
+    ) {
         // Reverse effect of TypeItem.shortenTypes(...)
-        val qualifiedName =
-            if (annotation.indexOf('.') == -1) "@androidx.annotation$annotation" else "@$annotation"
-        annotations.add(qualifiedName)
-        return annotations
+        val annotationSource =
+            if (annotationQualifiedName.indexOf('.') == -1)
+                "@androidx.annotation$annotationQualifiedName"
+            else "@$annotationQualifiedName"
+        annotations.add(codebase.createAnnotation(annotationSource))
     }
 
     private fun parseField(
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        classTypeParameterScope: TypeParameterScope,
+        classTypeItemFactory: TextTypeItemFactory,
         startingToken: String,
         isEnum: Boolean
     ) {
@@ -994,20 +1070,20 @@ private constructor(
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        var type: TextTypeItem
+        var type: TypeItem
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type = parseType(tokenizer, token, classTypeParameterScope, annotations)
+            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the name, then the type.
-            type = parseType(tokenizer, token, classTypeParameterScope, annotations)
+            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
@@ -1033,7 +1109,8 @@ private constructor(
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val field = TextFieldItem(codebase, name, cl, modifiers, type, value, tokenizer.pos())
+        val field =
+            TextFieldItem(codebase, name, cl, modifiers, type, value, tokenizer.fileLocation())
         if (isEnum) {
             cl.addEnumConstant(field)
         } else {
@@ -1044,7 +1121,7 @@ private constructor(
     private fun parseModifiers(
         tokenizer: Tokenizer,
         startingToken: String?,
-        annotations: List<String>?
+        annotations: List<AnnotationItem>?
     ): DefaultModifierList {
         var token = startingToken
         val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
@@ -1152,7 +1229,7 @@ private constructor(
         return modifiers
     }
 
-    private fun parseValue(type: TextTypeItem, value: String?, tokenizer: Tokenizer): Any? {
+    private fun parseValue(type: TypeItem, value: String?, tokenizer: Tokenizer): Any? {
         return if (value != null) {
             if (type is PrimitiveTypeItem) {
                 parsePrimitiveValue(type, value, tokenizer)
@@ -1209,7 +1286,7 @@ private constructor(
     private fun parseProperty(
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        classTypeParameterScope: TypeParameterScope,
+        classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
         var token = startingToken
@@ -1221,20 +1298,20 @@ private constructor(
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        val type: TextTypeItem
+        val type: TypeItem
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type = parseType(tokenizer, token, classTypeParameterScope, annotations)
+            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the type, then the name.
-            type = parseType(tokenizer, token, classTypeParameterScope, annotations)
+            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
@@ -1245,14 +1322,15 @@ private constructor(
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val property = TextPropertyItem(codebase, name, cl, modifiers, type, tokenizer.pos())
+        val property =
+            TextPropertyItem(codebase, name, cl, modifiers, type, tokenizer.fileLocation())
         cl.addProperty(property)
     }
 
     private fun parseTypeParameterList(
         tokenizer: Tokenizer,
-        enclosingTypeParameterScope: TypeParameterScope,
-    ): Pair<TypeParameterList, TypeParameterScope> {
+        enclosingTypeItemFactory: TextTypeItemFactory,
+    ): Pair<TypeParameterList, TextTypeItemFactory> {
         var token: String
         val start = tokenizer.offset() - 1
         var balance = 1
@@ -1266,60 +1344,57 @@ private constructor(
         }
         val typeParameterListString = tokenizer.getStringFromOffset(start)
         return if (typeParameterListString.isEmpty()) {
-            Pair(TypeParameterList.NONE, enclosingTypeParameterScope)
+            Pair(TypeParameterList.NONE, enclosingTypeItemFactory)
         } else {
-            createTypeParameterList(enclosingTypeParameterScope, typeParameterListString)
+            // Use the line number as a part of the description of the scope as at this point there
+            // is no other information available.
+            val scopeDescription = "line ${tokenizer.line}"
+            createTypeParameterList(
+                enclosingTypeItemFactory,
+                scopeDescription,
+                typeParameterListString
+            )
         }
     }
 
     /**
-     * Creates a [TextTypeParameterList].
+     * Creates a [TypeParameterList] and accompanying [TypeParameterScope].
      *
      * The [typeParameterListString] should be the string representation of a list of type
      * parameters, like "<A>" or "<A, B extends java.lang.String, C>".
      *
-     * @return a [Pair] of [TypeParameterList] and [TypeParameterScope] that contains those type
+     * @return a [Pair] of [TypeParameterList] and [TextTypeItemFactory] that contains those type
      *   parameters.
      */
     private fun createTypeParameterList(
-        enclosingTypeParameterScope: TypeParameterScope,
+        enclosingTypeItemFactory: TextTypeItemFactory,
+        scopeDescription: String,
         typeParameterListString: String
-    ): Pair<TypeParameterList, TypeParameterScope> {
-        // A type parameter list can contain cycles between its type parameters, e.g.
-        //     class Node<L extends Node<L, R>, R extends Node<L, R>>
-        // Parsing that requires a multi-stage approach.
-        // 1. Separate the list into a mapping from `TextTypeParameterItem` that have not yet
-        //    had their `bounds` property initialized to the bounds string list.
-        // 2. Create a nested scope of the enclosing scope which includes the type parameters.
-        //    That will allow references between them to be resolved.
-        // 3. Completing the initialization by converting each bounds string into a TypeItem.
-
+    ): Pair<TypeParameterList, TextTypeItemFactory> {
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
         val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
 
-        // Creating a mapping from a `TextTypeParameterItem` to the bounds string list.
-        val itemToBoundsList =
-            typeParameterStrings.associateBy({ TextTypeParameterItem.create(codebase, it) }) {
-                extractTypeParameterBoundsStringList(it)
-            }
+        // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
+        // used to resolve TypeParameterItems from the list. This performs the construction in two
+        // stages to handle cycles between the parameters.
+        val (typeParameters, typeItemFactory) =
+            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+                enclosingTypeItemFactory,
+                scopeDescription,
+                typeParameterStrings,
+                // Create a `TextTypeParameterItem` from the type parameter string.
+                { TextTypeParameterItem.create(codebase, it) },
+                // Create, set and return the [BoundsTypeItem] list.
+                { typeItemFactory, item, typeParameterString ->
+                    val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
+                    boundsStringList
+                        .map { typeItemFactory.getBoundsType(it) }
+                        .also { item.bounds = it }
+                },
+            )
 
-        // Extract the `TextTypeParameterItem`s into a list and then use that to construct a
-        // scope that can be used to resolve the type parameters, including self references
-        // between the ones in this list.
-        val typeParameters = itemToBoundsList.keys.toList()
-        val scope = enclosingTypeParameterScope.nestedScope(typeParameters)
-
-        // Complete the initialization of the `TextTypeParameterItem`s by converting each bounds
-        // string into a `TypeItem`.
-        for ((typeParameterItem, boundsStringList) in itemToBoundsList) {
-            typeParameterItem.bounds =
-                boundsStringList.map {
-                    typeParser.obtainTypeFromString(it, scope) as BoundsTypeItem
-                }
-        }
-
-        return Pair(TextTypeParameterList.create(codebase, typeParameters), scope)
+        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
     }
 
     /**
@@ -1331,7 +1406,7 @@ private constructor(
      */
     private fun parseParameterList(
         tokenizer: Tokenizer,
-        typeParameterScope: TypeParameterScope
+        typeItemFactory: TextTypeItemFactory,
     ): List<TextParameterItem> {
         val parameters = mutableListOf<TextParameterItem>()
         var token: String = tokenizer.requireToken()
@@ -1362,7 +1437,7 @@ private constructor(
             val modifiers = parseModifiers(tokenizer, token, null)
             token = tokenizer.current
 
-            val type: TextTypeItem
+            val type: TypeItem
             val name: String
             val publicName: String?
             if (format.kotlinNameTypeOrder) {
@@ -1377,13 +1452,13 @@ private constructor(
                     }
                 token = tokenizer.requireToken()
                 // Token should now represent the type
-                type = parseType(tokenizer, token, typeParameterScope, annotations)
+                type = parseType(tokenizer, token, typeItemFactory, annotations)
                 // TODO(b/300081840): update nullability handling
                 modifiers.addAnnotations(annotations)
                 token = tokenizer.current
             } else {
                 // Java style: parse the type, then the public name if it has one.
-                type = parseType(tokenizer, token, typeParameterScope, annotations)
+                type = parseType(tokenizer, token, typeItemFactory, annotations)
                 modifiers.addAnnotations(annotations)
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token) && token != "=") {
@@ -1463,56 +1538,64 @@ private constructor(
                     index,
                     type,
                     modifiers,
-                    tokenizer.pos()
+                    tokenizer.fileLocation()
                 )
             )
             index++
         }
     }
 
-    private fun parseDefault(tokenizer: Tokenizer, method: TextMethodItem): String {
-        val sb = StringBuilder()
-        while (true) {
-            val token = tokenizer.requireToken()
-            if (";" == token) {
-                method.setAnnotationDefault(sb.toString())
-                return token
-            } else {
-                sb.append(token)
+    private fun parseDefault(tokenizer: Tokenizer): String {
+        return buildString {
+            while (true) {
+                val token = tokenizer.requireToken()
+                if (";" == token) {
+                    break
+                } else {
+                    append(token)
+                }
             }
         }
     }
 
-    private fun parseThrows(tokenizer: Tokenizer, method: TextMethodItem): String {
+    private fun parseThrows(
+        tokenizer: Tokenizer,
+        typeItemFactory: TextTypeItemFactory,
+    ): List<ExceptionTypeItem> {
         var token = tokenizer.requireToken()
-        var comma = true
-        while (true) {
-            when (token) {
-                ";" -> {
-                    return token
-                }
-                "," -> {
-                    if (comma) {
-                        throw ApiParseException("Expected exception, got ','", tokenizer)
+        val throwsList = buildList {
+            var comma = true
+            while (true) {
+                when (token) {
+                    ";" -> {
+                        break
                     }
-                    comma = true
-                }
-                else -> {
-                    if (!comma) {
-                        throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
+                    "," -> {
+                        if (comma) {
+                            throw ApiParseException("Expected exception, got ','", tokenizer)
+                        }
+                        comma = true
                     }
-                    comma = false
-                    method.addException(token)
+                    else -> {
+                        if (!comma) {
+                            throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
+                        }
+                        comma = false
+                        val exceptionType = typeItemFactory.getExceptionType(token)
+                        add(exceptionType)
+                    }
                 }
+                token = tokenizer.requireToken()
             }
-            token = tokenizer.requireToken()
         }
+
+        return throwsList
     }
 
     /**
-     * Parses a [TextTypeItem] from the [tokenizer], starting with the [startingToken] and ensuring
-     * that the full type string is gathered, even when there are type-use annotations. Once the
-     * full type string is found, this parses the type in the context of the [typeParameterScope].
+     * Parses a [TypeItem] from the [tokenizer], starting with the [startingToken] and ensuring that
+     * the full type string is gathered, even when there are type-use annotations. Once the full
+     * type string is found, this parses the type in the context of the [typeItemFactory].
      *
      * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
      * that nullability to [annotations].
@@ -1529,9 +1612,9 @@ private constructor(
     private fun parseType(
         tokenizer: Tokenizer,
         startingToken: String,
-        typeParameterScope: TypeParameterScope,
-        annotations: MutableList<String>
-    ): TextTypeItem {
+        typeItemFactory: TextTypeItemFactory,
+        annotations: MutableList<AnnotationItem>
+    ): TypeItem {
         var prev = getAnnotationCompleteToken(tokenizer, startingToken)
         var type = prev
         var token = tokenizer.current
@@ -1547,7 +1630,7 @@ private constructor(
             token = tokenizer.current
         }
 
-        val parsedType = typeParser.obtainTypeFromString(type, typeParameterScope)
+        val parsedType = typeItemFactory.getGeneralType(type)
         if (typeParser.kotlinStyleNulls) {
             // Treat varargs as non-null for consistency with the psi model.
             if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
@@ -1563,16 +1646,7 @@ private constructor(
             }
         } else if (parsedType.modifiers.nullability() == TypeNullability.PLATFORM) {
             // See if the type has nullability from the context item annotations.
-            val nullabilityFromContext =
-                annotations
-                    .singleOrNull { isNullnessAnnotation(it) }
-                    ?.let {
-                        if (isNullableAnnotation(it)) {
-                            TypeNullability.NULLABLE
-                        } else {
-                            TypeNullability.NONNULL
-                        }
-                    }
+            val nullabilityFromContext = annotations.typeNullability
             if (nullabilityFromContext != null) {
                 return parsedType.duplicate(nullabilityFromContext)
             }
@@ -1633,147 +1707,12 @@ private constructor(
     )
 }
 
-/**
- * Provides access to information that is needed by the [ReferenceResolver].
- *
- * This is provided by [ApiFile] which tracks the names of interfaces and super classes that each
- * class implements/extends respectively before they are resolved.
- */
-internal interface ResolverContext {
-    /**
-     * Get the string representation of the super class type extended by the supplied class, returns
-     * null if there was no specified super class type.
-     */
-    fun superClassTypeString(cl: ClassItem): String?
-}
-
-/** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
-internal class ReferenceResolver(
-    private val context: ResolverContext,
-    private val codebase: TextCodebase,
-    private val typeParser: TextTypeParser,
-    private val classScopeProvider: (ClassItem) -> TypeParameterScope,
-) {
-    /**
-     * A list of all the classes in the text codebase.
-     *
-     * This takes a copy of the `values` collection rather than use it correctly to avoid
-     * [ConcurrentModificationException].
-     */
-    private val classes = codebase.mAllClasses.values.toList()
-
-    companion object {
-        fun resolveReferences(
-            context: ResolverContext,
-            codebase: TextCodebase,
-            typeParser: TextTypeParser,
-            classScopeProvider: (ClassItem) -> TypeParameterScope = { TypeParameterScope.empty },
-        ) {
-            val resolver = ReferenceResolver(context, codebase, typeParser, classScopeProvider)
-            resolver.resolveReferences()
-        }
-    }
-
-    fun resolveReferences() {
-        resolveSuperclasses()
-        resolveThrowsClasses()
-    }
-
-    private fun resolveSuperclasses() {
-        for (cl in classes) {
-            // java.lang.Object has no superclass and neither do interfaces
-            if (cl.isJavaLangObject() || cl.isInterface()) {
-                continue
-            }
-            val superClassTypeString: String =
-                context.superClassTypeString(cl)
-                    ?: when (cl.classKind) {
-                        ClassKind.ENUM -> JAVA_LANG_ENUM
-                        // Interfaces and annotations do not have super classes so drop out before
-                        // the else clause.
-                        ClassKind.ANNOTATION_TYPE,
-                        ClassKind.INTERFACE -> continue
-                        else -> JAVA_LANG_OBJECT
-                    }
-
-            val superClassType =
-                typeParser.getSuperType(superClassTypeString, classScopeProvider(cl))
-            cl.setSuperClassType(superClassType)
-
-            // Resolve super class types. This is needed because otherwise code that manipulates
-            // the codebase while visiting the codebase can cause concurrent modification
-            // exceptions.
-            // TODO(b/323516595): Find a better way.
-            cl.superClass()
-        }
-    }
-
-    private fun resolveThrowsClasses() {
-        for (cl in classes) {
-            val classTypeParameterScope = classScopeProvider(cl)
-            for (methodItem in cl.constructors()) {
-                resolveThrowsClasses(classTypeParameterScope, methodItem)
-            }
-            for (methodItem in cl.methods()) {
-                resolveThrowsClasses(classTypeParameterScope, methodItem)
-            }
-        }
-    }
-
-    private fun resolveThrowsClasses(
-        classTypeParameterScope: TypeParameterScope,
-        methodItem: MethodItem
-    ) {
-        val methodInfo = methodItem as TextMethodItem
-        val names = methodInfo.throwsTypeNames()
-        if (names.isNotEmpty()) {
-            val typeParameterScope =
-                classTypeParameterScope.nestedScope(methodItem.typeParameterList().typeParameters())
-            val throwsList =
-                names.map { exception ->
-                    // Search in this codebase, then possibly check for a type parameter, if not
-                    // found then fall back to searching in a base codebase and finally creating a
-                    // stub.
-                    codebase.findClassInCodebase(exception)?.let { ThrowableType.ofClass(it) }
-                        ?: typeParameterScope.findTypeParameter(exception)?.let {
-                            ThrowableType.ofTypeParameter(it)
-                        }
-                            ?: getOrCreateThrowableClass(exception)
-                }
-            methodInfo.setThrowsList(throwsList)
-        }
-    }
-
-    private fun getOrCreateThrowableClass(exception: String): ThrowableType {
-        // Exception not provided by this codebase. Either try and retrieve it from a base codebase
-        // or create a stub.
-        val exceptionClass = codebase.getOrCreateClass(exception)
-
-        // A class retrieved from another codebase is assumed to have been fully resolved by the
-        // codebase. However, a stub that has just been created will need some additional work. A
-        // stub can be differentiated from a ClassItem retrieved from another codebase because it
-        // belongs to this codebase and is a TextClassItem.
-        if (exceptionClass.codebase == codebase && exceptionClass is TextClassItem) {
-            // An exception class needs to extend Throwable, unless it is Throwable in
-            // which case it does not need modifying.
-            if (exception != JAVA_LANG_THROWABLE) {
-                val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
-                exceptionClass.setSuperClassType(throwableClass.type())
-            }
-        }
-
-        return ThrowableType.ofClass(exceptionClass)
-    }
-}
-
-private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) {
-    if (annotationSources.isEmpty()) {
+private fun DefaultModifierList.addAnnotations(items: List<AnnotationItem>) {
+    if (items.isEmpty()) {
         return
     }
 
-    annotationSources.forEach { source ->
-        val item = codebase.createAnnotation(source)
-
+    for (item in items) {
         // @Deprecated is also treated as a "modifier"
         if (item.qualifiedName == JAVA_LANG_DEPRECATED) {
             setDeprecated(true)
