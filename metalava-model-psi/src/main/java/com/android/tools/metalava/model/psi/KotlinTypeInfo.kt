@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
@@ -27,12 +28,15 @@ import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
+import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
 
@@ -186,11 +190,40 @@ internal data class KotlinTypeInfo(
                     // type of the parameter as it is most likely to be the correct type.
                     fromKtElement(sourcePsi)
                 }
-                else -> {
-                    null
+                is KtClass -> {
+                    // The underlying source representation of the synthetic method is a whole
+                    // class.
+                    typeFromKtClass(context, containingMethod, sourcePsi)
                 }
+                else -> null
             }
         }
+
+        /** Try and get the type for [parameter] in [containingMethod] from the [ktClass]. */
+        private fun typeFromKtClass(
+            parameter: UParameter,
+            containingMethod: UMethod,
+            ktClass: KtClass
+        ) =
+            when {
+                ktClass.isData() && containingMethod.name == "copy" -> {
+                    // The parameters in the copy constructor correspond to the parameters in the
+                    // primary constructor so find the corresponding parameter in the primary
+                    // constructor and use its type.
+                    ktClass.primaryConstructor?.let { primaryConstructor ->
+                        val index = (parameter.javaPsi as PsiParameter).parameterIndex()
+                        val ktParameter = primaryConstructor.valueParameters[index]
+                        analyze(ktParameter) {
+                            KotlinTypeInfo(
+                                this,
+                                ktParameter.getReturnKtType(),
+                                ktParameter,
+                            )
+                        }
+                    }
+                }
+                else -> null
+            }
 
         // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
         fun KtAnalysisSession.isInheritedGenericType(ktType: KtType): Boolean {
