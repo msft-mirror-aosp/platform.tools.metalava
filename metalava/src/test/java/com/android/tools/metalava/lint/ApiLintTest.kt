@@ -22,6 +22,8 @@ import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -1236,6 +1238,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k2", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
@@ -1255,6 +1258,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(

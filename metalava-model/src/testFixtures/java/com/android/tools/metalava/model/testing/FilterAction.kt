@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-plugins {
-    `java-library`
-    id("org.jetbrains.kotlin.jvm")
-    id("metalava-build-plugin")
-    id("maven-publish")
-}
+package com.android.tools.metalava.model.testing
 
-dependencies {
-    testImplementation(libs.junit4)
-    testImplementation(libs.truth)
-    testImplementation(libs.kotlinTest)
+enum class FilterAction {
+    /** The test is run for the matching codebase creator config. */
+    INCLUDE,
+
+    /** The test is not for the matching codebase creator config. */
+    EXCLUDE,
 }

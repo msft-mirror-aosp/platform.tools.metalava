@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.Location
+import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -29,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * The abstraction also lets us back the model by an alternative implementation read from signature
  * files, to do compatibility checks.
  */
-interface Item {
+interface Item : Reportable {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
@@ -227,7 +230,7 @@ interface Item {
     }
 
     /** Returns the [Location] for this item, if any. */
-    fun location(): Location = Location.unknownLocationAndBaselineKey
+    override fun location(): Location = Location.unknownLocationAndBaselineKey
 
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
@@ -270,6 +273,25 @@ interface Item {
      * item.
      */
     fun findCorrespondingItemIn(codebase: Codebase): Item?
+
+    /**
+     * Get the set of suppressed issues for this [Item].
+     *
+     * These are the values supplied to any of the [SUPPRESS_ANNOTATIONS] on this item. It DOES not
+     * include suppressed issues from the [parent].
+     */
+    override fun suppressedIssues(): Set<String>
+
+    /** The [BaselineKey] for this. */
+    val baselineKey
+        get() = BaselineKey.forElementId(baselineElementId())
+
+    /**
+     * Get the baseline element id from which [baselineKey] is constructed.
+     *
+     * See [BaselineKey.forElementId] for more details.
+     */
+    fun baselineElementId(): String
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -428,6 +450,30 @@ abstract class DefaultItem(final override val modifiers: DefaultModifierList) : 
 
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
+    }
+
+    override fun suppressedIssues(): Set<String> {
+        return buildSet {
+            for (annotation in modifiers.annotations()) {
+                val annotationName = annotation.qualifiedName
+                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                    for (attribute in annotation.attributes) {
+                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                        // one attribute such as value/names that is varargs of String
+                        val value = attribute.value
+                        if (value is AnnotationArrayAttributeValue) {
+                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                            for (innerValue in value.values) {
+                                innerValue.value()?.toString()?.let { add(it) }
+                            }
+                        } else {
+                            // Example: @SuppressLint("RequiresFeature")
+                            value.value()?.toString()?.let { add(it) }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     final override fun toString() = toStringForItem()
