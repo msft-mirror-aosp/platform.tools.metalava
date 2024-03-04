@@ -38,4 +38,6 @@ internal class PsiSourceModelProvider : SourceModelProvider {
         disableStderrDumping: Boolean,
         forTesting: Boolean,
     ): EnvironmentManager = PsiEnvironmentManager(disableStderrDumping, forTesting)
+
+    override fun toString() = providerName
 }

@@ -115,8 +115,6 @@ class MetalavaBuildPlugin : Plugin<Project> {
             task.testLogging.events =
                 hashSetOf(
                     TestLogEvent.FAILED,
-                    TestLogEvent.PASSED,
-                    TestLogEvent.SKIPPED,
                     TestLogEvent.STANDARD_OUT,
                     TestLogEvent.STANDARD_ERROR
                 )
