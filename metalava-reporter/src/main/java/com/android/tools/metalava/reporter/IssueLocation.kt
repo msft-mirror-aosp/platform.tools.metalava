@@ -35,28 +35,26 @@ import java.nio.file.Path
  * always used together with the source location. The baseline key allows known issues to be
  * identified and filtered out and the source location is used when reporting new issues.
  */
-data class Location(
-    /** The absolute path to the location, is null when no source location is available. */
-    val path: Path?,
-    /** The line number, may be non-positive indicating that it could not be found. */
-    val line: Int,
+class IssueLocation(
+    val fileLocation: FileLocation?,
     /** The baseline key that identifies the API element. */
     val baselineKey: BaselineKey,
 ) {
+    /** The absolute path to the location, is null when no source location is available. */
+    val path: Path?
+        get() = fileLocation?.path
+
+    /** The line number, may be non-positive indicating that it could not be found. */
+    val line: Int
+        get() = fileLocation?.line ?: 0
+
     companion object {
-        val unknownBaselineKey = BaselineKey.forElementId("?")
+        val unknownLocationAndBaselineKey = IssueLocation(null, BaselineKey.UNKNOWN)
 
-        fun unknownLocationWithBaselineKey(
-            baselineKey: BaselineKey = unknownBaselineKey
-        ): Location {
-            return Location(null, 0, baselineKey)
-        }
-
-        val unknownLocationAndBaselineKey = Location(null, 0, unknownBaselineKey)
-
-        fun forFile(file: File?): Location {
+        fun forFile(file: File?): IssueLocation {
             file ?: return unknownLocationAndBaselineKey
-            return Location(file.toPath(), 0, BaselineKey.forFile(file))
+            val fileLocation = FileLocation.createLocation(file.toPath(), 0)
+            return IssueLocation(fileLocation, BaselineKey.forFile(file))
         }
     }
 }
@@ -72,6 +70,8 @@ sealed interface BaselineKey {
     fun elementId(pathTransformer: (String) -> String = { it }): String
 
     companion object {
+        val UNKNOWN = forElementId("?")
+
         /**
          * Get a [BaselineKey] that for the supplied element id.
          *

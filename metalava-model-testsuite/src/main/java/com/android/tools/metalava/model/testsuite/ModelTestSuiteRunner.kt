@@ -40,9 +40,9 @@ import org.junit.runners.Parameterized
  */
 class ModelTestSuiteRunner(clazz: Class<*>) :
     BaseModelProviderRunner<ModelSuiteRunner, CodebaseCreatorConfigAware<ModelSuiteRunner>>(
-        clazz,
-        { getModelSuiteRunners() },
-        ModelTestSuiteBaseline.RESOURCE_PATH,
+        clazz = clazz,
+        codebaseCreatorConfigsGetter = { getModelSuiteRunners() },
+        baselineResourcePath = ModelTestSuiteBaseline.RESOURCE_PATH,
     ) {
 
     companion object {

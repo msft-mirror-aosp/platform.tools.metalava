@@ -76,6 +76,7 @@ import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
 import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
@@ -170,7 +171,6 @@ import com.android.tools.metalava.reporter.Issues.USER_HANDLE_NAME
 import com.android.tools.metalava.reporter.Issues.USE_ICU
 import com.android.tools.metalava.reporter.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
-import com.android.tools.metalava.reporter.Location
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -220,7 +220,7 @@ private constructor(
             id: Issue,
             reportable: Reportable?,
             message: String,
-            location: Location
+            location: IssueLocation
         ): Boolean {
 
             val item = reportable as? Item
@@ -249,7 +249,7 @@ private constructor(
         id: Issue,
         item: Item,
         message: String,
-        location: Location = Location.unknownLocationAndBaselineKey
+        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey
     ) {
         reporter.report(id, item, message, location)
     }
@@ -1006,7 +1006,7 @@ private constructor(
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiLocationProvider.elementToLocation(psi)
+            val location = PsiLocationProvider.elementToIssueLocation(psi)
             report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
