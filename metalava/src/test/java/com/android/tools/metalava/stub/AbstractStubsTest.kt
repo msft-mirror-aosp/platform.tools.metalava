@@ -20,13 +20,10 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
-import com.android.tools.metalava.model.testing.FilterAction.INCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 
-@FilterByProvider(provider = "turbine", action = INCLUDE)
 abstract class AbstractStubsTest : DriverTest() {
     protected fun checkStubs(
         // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
