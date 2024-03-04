@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
+import com.android.tools.metalava.model.testing.FilterByProvider
 import org.junit.Test
 
+@FilterByProvider("psi", "k2", action = EXCLUDE)
 class UastTestK1 : UastTestBase() {
 
     @Test
