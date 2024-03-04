@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
@@ -172,11 +173,18 @@ internal data class KotlinTypeInfo(
             // If this is not a UParameter in a UMethod then it is an unknown synthetic element so
             // just return.
             val containingMethod = (context as? UParameter)?.getContainingUMethod() ?: return null
-            return when (containingMethod.sourcePsi) {
+            return when (val sourcePsi = containingMethod.sourcePsi) {
                 is KtProperty -> {
                     // This is the parameter of a synthetic setter, so get its type from the
                     // containing method.
                     fromContext(containingMethod)
+                }
+                is KtParameter -> {
+                    // The underlying source representation of the synthetic method is a parameter,
+                    // most likely a parameter of the primary constructor. In which case the
+                    // synthetic method is most like a property setter. Whatever it may be, use the
+                    // type of the parameter as it is most likely to be the correct type.
+                    fromKtElement(sourcePsi)
                 }
                 else -> {
                     null
