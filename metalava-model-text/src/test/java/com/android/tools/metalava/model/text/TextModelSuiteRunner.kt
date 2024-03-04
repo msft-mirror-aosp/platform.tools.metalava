@@ -30,6 +30,8 @@ import java.net.URLClassLoader
 // @AutoService(ModelSuiteRunner::class)
 class TextModelSuiteRunner : ModelSuiteRunner {
 
+    override val providerName = "text"
+
     override val supportedInputFormats = setOf(InputFormat.SIGNATURE)
 
     override fun createCodebaseAndRun(
@@ -46,7 +48,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         test(codebase)
     }
 
-    override fun toString(): String = "text"
+    override fun toString() = providerName
 }
 
 /**

@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.BaselineKey
-import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Location
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VfsUtilCore
@@ -130,11 +130,11 @@ class PsiLocationProvider {
                 is PsiFile -> {
                     val virtualFile = element.virtualFile
                     val file = VfsUtilCore.virtualToIoFile(virtualFile)
-                    return Location.getBaselineKeyForFile(file)
+                    BaselineKey.forFile(file)
                 }
                 else -> {
                     val elementId = getElementId(element)
-                    Location.getBaselineKeyForElementId(elementId)
+                    BaselineKey.forElementId(elementId)
                 }
             }
         }

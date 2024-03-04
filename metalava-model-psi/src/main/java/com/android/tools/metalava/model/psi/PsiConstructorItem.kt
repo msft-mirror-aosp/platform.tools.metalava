@@ -21,9 +21,9 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.reporter.Location
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
@@ -82,7 +82,7 @@ private constructor(
                 psiMethod
             }
 
-        return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))
+        return PsiLocationProvider.elementToLocation(element, baselineKey)
     }
 
     companion object {
