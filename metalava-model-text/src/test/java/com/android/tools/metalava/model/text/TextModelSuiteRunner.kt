@@ -21,8 +21,10 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import java.net.URLClassLoader
@@ -33,6 +35,8 @@ class TextModelSuiteRunner : ModelSuiteRunner {
     override val providerName = "text"
 
     override val supportedInputFormats = setOf(InputFormat.SIGNATURE)
+
+    override val capabilities: Set<Capability> = setOf()
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,
@@ -107,7 +111,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                                 codebase = codebase,
                                 name = packageName,
                                 modifiers = DefaultModifierList(codebase),
-                                position = SourcePositionInfo.UNKNOWN,
+                                fileLocation = FileLocation.UNKNOWN,
                             )
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 

@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.provider
+package com.android.tools.metalava.model.testing
+
+import com.android.tools.metalava.model.provider.Capability
 
 /**
- * Provides access to codebase creator specific information needed to support filtering tests based
- * on the creator's capabilities and requirements.
+ * Indicates that the annotated item requires specific capabilities from the provider.
+ *
+ * If this is not specified then it is assumed that the provider has the minimum capabilities needed
+ * by the [BaseModelProviderRunner].
  */
-interface FilterableCodebaseCreator {
-    /** The name of the provider. */
-    val providerName: String
-
-    /** The set of supported input formats. */
-    val supportedInputFormats: Set<InputFormat>
-
-    /** The set of supported [Capability]s. */
-    val capabilities: Set<Capability>
-}
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+annotation class RequiresCapabilities(
+    /** The list of capabilities that it requires. */
+    vararg val required: Capability,
+)
