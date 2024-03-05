@@ -307,6 +307,13 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface Foo {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface Foo
+                """
+            ),
         ) {
             val fooInterface = codebase.assertClass("test.pkg.Foo")
 
@@ -349,6 +356,16 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface Foo extends A, B, C {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface A
+                    interface B
+                    interface C
+                    interface Foo: A, B, C
+                """
+            ),
         ) {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
@@ -383,6 +400,13 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Foo {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo
                 """
             ),
         ) {
@@ -426,6 +450,14 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo extends Bar {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    open class Bar
+                    class Foo: Bar()
+                """
+            ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -467,6 +499,16 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface B {}
                     public interface C {}
                     public class Foo implements A, B, C {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface A
+                    interface B
+                    interface C
+                    class Foo: A, B, C
                 """
             ),
         ) {
@@ -520,6 +562,17 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface B {}
                     public interface C {}
                     public class Foo extends Bar implements A, B, C {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    open class Bar
+                    interface A
+                    interface B
+                    interface C
+                    class Foo: Bar(), A, B, C
                 """
             ),
         ) {
