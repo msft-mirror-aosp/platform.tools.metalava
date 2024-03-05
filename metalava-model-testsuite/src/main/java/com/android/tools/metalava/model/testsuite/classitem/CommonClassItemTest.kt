@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -1084,7 +1086,7 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inheritMethodFromNonApiAncestor`() {
+    fun `Test inheritMethodFromNonApiAncestor without type substitutions`() {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -1102,6 +1104,23 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                 ),
             ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        /** @hide */
+                        open class HiddenClass {
+                            fun foo() {}
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class PublicClass: HiddenClass()
+                    """
+                ),
+            ),
         ) {
             val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
             val hiddenClassMethod = hiddenClass.methods().single()
@@ -1110,6 +1129,63 @@ class CommonClassItemTest : BaseModelTest() {
             val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
             assertSame(hiddenClass, inheritedMethod.inheritedFrom)
             assertTrue(inheritedMethod.inheritedFromAncestor)
+
+            assertEquals("fun foo(): void", inheritedMethod.kotlinLikeDescription())
+        }
+    }
+
+    @Test
+    fun `Test inheritMethodFromNonApiAncestor with type substitutions`() {
+        runSourceCodebaseTest(
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        class HiddenClass<@Nullable T, @Nullable S> {
+                            public void foo(T t, @Nullable S s) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class PublicClass extends HiddenClass<@NonNull String, @Nullable Integer> {}
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        internal class HiddenClass<T, S> {
+                            fun foo(t: T, s: S?) {}
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class PublicClass: HiddenClass<String, Integer>()
+                    """
+                ),
+            ),
+        ) {
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClassMethod = hiddenClass.methods().single()
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+
+            val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
+            assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+            assertTrue(inheritedMethod.inheritedFromAncestor)
+
+            assertEquals(
+                "fun foo(t: java.lang.String, s: java.lang.Integer?): void",
+                inheritedMethod.kotlinLikeDescription()
+            )
         }
     }
 
