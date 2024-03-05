@@ -7,6 +7,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k2]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test class super class generic type[kotlin,k1]
+  Test class super class generic type[kotlin,k2]
+  Test class super interface generic type[kotlin,k1]
+  Test class super interface generic type[kotlin,k2]
   Test inheritMethodFromNonApiAncestor with type substitutions[kotlin,k1]
   Test inheritMethodFromNonApiAncestor with type substitutions[kotlin,k2]
 

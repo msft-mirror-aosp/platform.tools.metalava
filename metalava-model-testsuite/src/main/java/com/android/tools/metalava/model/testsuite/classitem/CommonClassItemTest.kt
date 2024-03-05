@@ -594,6 +594,132 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test class super class generic type`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg {
+                          public class Generic<T, U> {
+                          }
+                          public class Foo extends test.pkg.Generic<String?, Integer> {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Generic<T, U> {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Foo extends Generic<@Nullable String, @NonNull Integer> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        open class Generic<T, U>
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo: Generic<String?, Integer>()
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val superClassType = fooClass.superClassType()!!
+            assertEquals(
+                "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
+                superClassType.toTypeString(kotlinStyleNulls = true)
+            )
+        }
+    }
+
+    @Test
+    fun `Test class super interface generic type`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg {
+                          public interface Generic<T, U> {
+                          }
+                          public class Foo implements test.pkg.Generic<String?, Integer> {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public interface Generic<T, U> {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Foo implements Generic<@Nullable String, @NonNull Integer> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        interface Generic<T, U>
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo: Generic<String?, Integer>
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val superClassType = fooClass.interfaceTypes().single()
+            assertEquals(
+                "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
+                superClassType.toTypeString(kotlinStyleNulls = true)
+            )
+        }
+    }
+
+    @Test
     fun `Test class Object has no super class type`() {
         runCodebaseTest(
             signature(
