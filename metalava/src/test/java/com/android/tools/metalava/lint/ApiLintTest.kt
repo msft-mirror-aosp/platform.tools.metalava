@@ -17,12 +17,15 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.ARG_API_LINT
-import com.android.tools.metalava.ARG_API_LINT_IGNORE_PREFIX
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -30,20 +33,13 @@ import org.junit.Test
 
 class ApiLintTest : DriverTest() {
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test names`() {
         // Make sure we only flag issues in new API
         check(
             apiLint = "", // enabled
-            extraArguments =
-                arrayOf(
-                    ARG_API_LINT_IGNORE_PREFIX,
-                    "android.icu.",
-                    ARG_API_LINT_IGNORE_PREFIX,
-                    "java.",
-                    ARG_HIDE,
-                    "MissingNullability"
-                ),
+            extraArguments = arrayOf(ARG_HIDE, "MissingNullability"),
             expectedIssues =
                 """
                 src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName]
@@ -102,63 +98,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    java(
-                        """
-                    package android.icu;
-
-                    import androidx.annotation.Nullable;
-
-                    // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-                        public void BadlyNamedMethod1() { }
-
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.icu.sub;
-
-                    import androidx.annotation.Nullable;
-
-                    // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-                        public void BadlyNamedMethod1() { }
-
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package java;
-
-                    import androidx.annotation.Nullable;
-
-                    // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-                        public void BadlyNamedMethod1() { }
-
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { }
-                    }
-                    """
-                    ),
                     kotlin(
                         """
                     inline class Dp(val value: Float)
@@ -168,12 +107,6 @@ class ApiLintTest : DriverTest() {
                     ),
                     androidxNullableSource
                 )
-            /*
-            expectedOutput = """
-                9 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """
-             */
         )
     }
 
@@ -610,6 +543,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Fields must be final and properly named`() {
         check(
@@ -977,7 +911,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                warning: Should avoid odd sized primitives; use `int` instead of `short` in method android.pkg.Ok.Public.shouldFail(PublicT) [NoByteOrShort]
+                src/android/pkg/Ok.java:11: warning: Should avoid odd sized primitives; use `int` instead of `short` in method android.pkg.Ok.Public.shouldFail(PublicT) [NoByteOrShort]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1176,6 +1110,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check boolean property accessor naming patterns in Kotlin`() {
         check(
@@ -1248,11 +1183,9 @@ class ApiLintTest : DriverTest() {
     }
 
     private fun `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-        isK2: Boolean,
         expectedIssues: String?,
     ) {
-        uastCheck(
-            isK2 = isK2,
+        check(
             apiLint = "", // enabled
             expectedIssues = expectedIssues,
             expectedFail = DefaultLintErrorMessage,
@@ -1308,10 +1241,11 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @FilterByProvider("psi", "k2", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = false,
             // missing errors for `isVisibleSetterBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
@@ -1327,10 +1261,11 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = true,
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
@@ -1515,47 +1450,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check exception related issues`() {
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_API_LINT,
-                    // Conflicting advice:
-                    ARG_HIDE,
-                    "BannedThrow"
-                ),
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.java:6: error: Methods must not throw generic exceptions (`java.lang.Exception`) [GenericException]
-                src/android/pkg/MyClass.java:7: error: Methods must not throw generic exceptions (`java.lang.Throwable`) [GenericException]
-                src/android/pkg/MyClass.java:8: error: Methods must not throw generic exceptions (`java.lang.Error`) [GenericException]
-                src/android/pkg/MyClass.java:11: error: Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-                    import android.os.RemoteException;
-
-                    @SuppressWarnings("RedundantThrows")
-                    public class MyClass {
-                        public void method1() throws Exception { }
-                        public void method2() throws Throwable { }
-                        public void method3() throws Error { }
-                        public void method4() throws IllegalArgumentException { }
-                        public void method4() throws NullPointerException { }
-                        public void method5() throws RemoteException { }
-                        public void ok(int p) throws NullPointerException { }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
     fun `Check no mentions of Google in APIs`() {
         check(
             apiLint = "", // enabled
@@ -1658,58 +1552,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check boxed types`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/test/pkg/KotlinClass.kt:4: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing]
-                src/test/pkg/KotlinClass.kt:6: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing]
-                src/test/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing]
-                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing]
-                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing]
-                src/test/pkg/MyClass.java:14: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing]
-                src/test/pkg/MyClass.java:7: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass {
-                        @Nullable
-                        public final Integer integer1;
-                        public final int integer2;
-                        public MyClass(@Nullable Long l) {
-                        }
-                        @Nullable
-                        public Short getDouble(@Nullable Double l) { return null; }
-                        @Nullable
-                        public Boolean getBoolean() { return null; }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    class KotlinClass {
-                        fun getIntegerOk(): Double { TODO() }
-                        fun getIntegerBad(): Double? { TODO() }
-                        fun getBooleanOk(): Boolean { TODO() }
-                        fun getBooleanBad(): Boolean? { TODO() }
-                    }
-                """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check static utilities`() {
         check(
             apiLint = "", // enabled
@@ -1776,6 +1618,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check context first`() {
         check(
@@ -1860,6 +1703,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check listener last for suspend functions`() {
         check(
@@ -2497,6 +2341,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Return collections instead of arrays`() {
         check(
@@ -2908,6 +2753,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test fields, parameters and returns require nullability`() {
         check(
@@ -3160,37 +3006,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `No issues for ignored packages`() {
-        check(
-            apiLint =
-                """
-                package java.math {
-                  public class BigInteger {
-                    ctor public BigInteger();
-                  }
-                }
-            """
-                    .trimIndent(),
-            extraArguments = arrayOf(ARG_API_LINT_IGNORE_PREFIX, "java."),
-            expectedIssues = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package java.math;
-
-                    public class BigInteger {
-                        public byte newMethod() {
-                            return 0;
-                        }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `vararg use in annotations`() {
         check(
@@ -3319,6 +3135,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No warnings about nullability on private constructor getters`() {
         check(
@@ -3428,6 +3245,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No warning on generic return type`() {
         check(
@@ -3477,6 +3295,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No error for nullability on synthetic methods`() {
         check(
@@ -3562,6 +3381,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
         check(
@@ -3664,110 +3484,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Unchecked exceptions not allowed`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:22: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:23: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:24: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:25: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:26: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:27: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:28: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:29: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:30: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:31: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:32: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:33: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:34: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:35: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:36: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:37: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:38: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:39: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:40: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:41: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:42: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:43: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:44: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:45: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:46: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:47: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:48: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:49: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:50: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:51: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:52: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/test/pkg/Foo.java:53: error: Methods must not throw unchecked exceptions [BannedThrow]
-            """,
-            apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package test.pkg;
-                        import java.lang.reflect.UndeclaredThrowableException;
-                        import java.lang.reflect.MalformedParametersException;
-                        import java.lang.reflect.MalformedParameterizedTypeException;
-                        import java.lang.invoke.WrongMethodTypeException;
-                        import java.lang.annotation.AnnotationTypeMismatchException;
-                        import java.lang.annotation.IncompleteAnnotationException;
-                        import java.util.MissingResourceException;
-                        import java.util.EmptyStackException;
-                        import java.util.concurrent.CompletionException;
-                        import java.util.concurrent.RejectedExecutionException;
-                        import java.util.IllformedLocaleException;
-                        import java.util.ConcurrentModificationException;
-                        import java.util.NoSuchElementException;
-                        import java.io.UncheckedIOException;
-                        import java.time.DateTimeException;
-                        import java.security.ProviderException;
-                        import java.nio.BufferUnderflowException;
-                        import java.nio.BufferOverflowException;
-                        public class Foo {
-                            // 32 errors
-                            public void a() throws NullPointerException;
-                            public void b() throws ClassCastException;
-                            public void c() throws IndexOutOfBoundsException;
-                            public void d() throws UndeclaredThrowableException;
-                            public void e() throws MalformedParametersException;
-                            public void f() throws MalformedParameterizedTypeException;
-                            public void g() throws WrongMethodTypeException;
-                            public void h() throws EnumConstantNotPresentException;
-                            public void i() throws IllegalMonitorStateException;
-                            public void j() throws SecurityException;
-                            public void k() throws UnsupportedOperationException;
-                            public void l() throws AnnotationTypeMismatchException;
-                            public void m() throws IncompleteAnnotationException;
-                            public void n() throws TypeNotPresentException;
-                            public void o() throws IllegalStateException;
-                            public void p() throws ArithmeticException;
-                            public void q() throws IllegalArgumentException;
-                            public void r() throws ArrayStoreException;
-                            public void s() throws NegativeArraySizeException;
-                            public void t() throws MissingResourceException;
-                            public void u() throws EmptyStackException;
-                            public void v() throws CompletionException;
-                            public void w() throws RejectedExecutionException;
-                            public void x() throws IllformedLocaleException;
-                            public void y() throws ConcurrentModificationException;
-                            public void z() throws NoSuchElementException;
-                            public void aa() throws UncheckedIOException;
-                            public void ab() throws DateTimeException;
-                            public void ac() throws ProviderException;
-                            public void ad() throws BufferUnderflowException;
-                            public void ae() throws BufferOverflowException;
-                            public void af() throws AssertionError;
-                        }
-                    """
-                    ),
-                )
-        )
-    }
-
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics should be allowed`() {
         check(
@@ -3799,6 +3516,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
         check(
@@ -3836,6 +3554,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
         check(
@@ -3872,6 +3591,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability on vararg with inherited generic type`() {
         check(
@@ -3912,6 +3632,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin required parameters must come before optional parameters`() {
         check(
@@ -4134,6 +3855,7 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No parameter ordering for sealed class constructor`() {
         check(
@@ -4155,6 +3877,7 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `members in sealed class are not hidden abstract`() {
         check(
