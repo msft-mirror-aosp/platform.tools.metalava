@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
@@ -26,36 +27,18 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
  */
 class DriverTestRunner(clazz: Class<*>) :
     BaseModelProviderRunner<SourceModelProvider, DriverTest>(
-        clazz,
-        { getSourceModelProviders() },
-        "source-model-provider-baseline.txt",
+        clazz = clazz,
+        codebaseCreatorConfigsGetter = { getSourceModelProviders() },
+        baselineResourcePath = "source-model-provider-baseline.txt",
+        minimumCapabilities = setOf(Capability.JAVA, Capability.DOCUMENTATION),
     ) {
     companion object {
-        /**
-         * The default provider; this is the provider with which tests will be run automatically
-         * when running a specific method in the IDE.
-         */
-        private const val DEFAULT_PROVIDER = "psi"
-
-        /**
-         * The default provider's default options; these are the options with which tests will be
-         * run automatically when running a specific method in the IDE.
-         */
-        private const val DEFAULT_MODEL_OPTIONS = "k1"
-
         fun getSourceModelProviders(): List<CodebaseCreatorConfig<SourceModelProvider>> {
             return SourceModelProvider.implementations.flatMap { provider ->
-                // Only include the provider name in the test name if it is not the default one.
-                val includeProviderNameInTestName = provider.providerName != DEFAULT_PROVIDER
                 provider.modelOptionsList.map { modelOptions ->
-                    // Only include the options name in the test name if it is not the default one.
-                    val includeOptionsInTestName = modelOptions.toString() != DEFAULT_MODEL_OPTIONS
-
                     CodebaseCreatorConfig(
                         creator = provider,
                         modelOptions = modelOptions,
-                        includeProviderNameInTestName = includeProviderNameInTestName,
-                        includeOptionsInTestName = includeOptionsInTestName,
                     )
                 }
             }

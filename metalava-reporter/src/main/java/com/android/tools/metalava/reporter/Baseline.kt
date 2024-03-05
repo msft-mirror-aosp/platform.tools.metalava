@@ -87,7 +87,7 @@ private constructor(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(location: Location, message: String, issue: Issues.Issue): Boolean {
+    fun mark(location: IssueLocation, message: String, issue: Issues.Issue): Boolean {
         val elementId =
             location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)

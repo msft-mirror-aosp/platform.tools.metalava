@@ -22,8 +22,10 @@ import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.FilterAction
 import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -31,6 +33,7 @@ import org.junit.Test
 
 class ApiLintTest : DriverTest() {
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test names`() {
         // Make sure we only flag issues in new API
@@ -540,6 +543,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Fields must be final and properly named`() {
         check(
@@ -1106,6 +1110,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check boolean property accessor naming patterns in Kotlin`() {
         check(
@@ -1178,11 +1183,9 @@ class ApiLintTest : DriverTest() {
     }
 
     private fun `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-        isK2: Boolean,
         expectedIssues: String?,
     ) {
-        uastCheck(
-            isK2 = isK2,
+        check(
             apiLint = "", // enabled
             expectedIssues = expectedIssues,
             expectedFail = DefaultLintErrorMessage,
@@ -1238,11 +1241,11 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @FilterByProvider("psi", "k2", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = false,
             // missing errors for `isVisibleSetterBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
@@ -1258,11 +1261,11 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = true,
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
@@ -1615,6 +1618,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check context first`() {
         check(
@@ -1699,6 +1703,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check listener last for suspend functions`() {
         check(
@@ -2336,6 +2341,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Return collections instead of arrays`() {
         check(
@@ -2747,6 +2753,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test fields, parameters and returns require nullability`() {
         check(
@@ -2999,6 +3006,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `vararg use in annotations`() {
         check(
@@ -3127,6 +3135,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No warnings about nullability on private constructor getters`() {
         check(
@@ -3236,6 +3245,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No warning on generic return type`() {
         check(
@@ -3285,6 +3295,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No error for nullability on synthetic methods`() {
         check(
@@ -3370,6 +3381,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
         check(
@@ -3472,6 +3484,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics should be allowed`() {
         check(
@@ -3503,6 +3516,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
         check(
@@ -3540,6 +3554,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
         check(
@@ -3576,6 +3591,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability on vararg with inherited generic type`() {
         check(
@@ -3616,6 +3632,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin required parameters must come before optional parameters`() {
         check(
@@ -3838,6 +3855,7 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No parameter ordering for sealed class constructor`() {
         check(
@@ -3859,6 +3877,7 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `members in sealed class are not hidden abstract`() {
         check(
