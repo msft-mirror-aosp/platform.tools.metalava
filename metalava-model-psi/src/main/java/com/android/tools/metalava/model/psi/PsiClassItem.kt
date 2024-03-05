@@ -339,29 +339,8 @@ internal constructor(
                     psiClass
                 )
 
-            // Construct the super class type if needed and available.
-            val superClassType =
-                if (classKind != ClassKind.INTERFACE) {
-                    val superClassPsiType = psiClass.superClassType as? PsiType
-                    superClassPsiType?.let { superType ->
-                        classTypeItemFactory.getSuperClassType(PsiTypeInfo(superType))
-                    }
-                } else null
-
-            // Get the interfaces from the appropriate list.
-            val interfaces =
-                if (classKind == ClassKind.INTERFACE || classKind == ClassKind.ANNOTATION_TYPE) {
-                    // An interface uses "extends <interfaces>", either explicitly for normal
-                    // interfaces or implicitly for annotations.
-                    psiClass.extendsListTypes
-                } else {
-                    // A class uses "extends <interfaces>".
-                    psiClass.implementsListTypes
-                }
-
-            // Map them to PsiTypeItems.
-            val interfaceTypes =
-                interfaces.map { classTypeItemFactory.getInterfaceType(PsiTypeInfo(it)) }
+            val (superClassType, interfaceTypes) =
+                computeSuperTypes(psiClass, classKind, classTypeItemFactory)
 
             val item =
                 PsiClassItem(
@@ -581,7 +560,45 @@ internal constructor(
             return item
         }
 
-        internal fun getClassKind(psiClass: PsiClass): ClassKind {
+        /**
+         * Compute the super types for the class.
+         *
+         * Returns a pair of the optional super class type and the possibly empty list of interface
+         * types.
+         */
+        private fun computeSuperTypes(
+            psiClass: PsiClass,
+            classKind: ClassKind,
+            classTypeItemFactory: PsiTypeItemFactory
+        ): Pair<ClassTypeItem?, List<ClassTypeItem>> {
+
+            // Construct the super class type if needed and available.
+            val superClassType =
+                if (classKind != ClassKind.INTERFACE) {
+                    val superClassPsiType = psiClass.superClassType as? PsiType
+                    superClassPsiType?.let { superType ->
+                        classTypeItemFactory.getSuperClassType(PsiTypeInfo(superType))
+                    }
+                } else null
+
+            // Get the interfaces from the appropriate list.
+            val interfaces =
+                if (classKind == ClassKind.INTERFACE || classKind == ClassKind.ANNOTATION_TYPE) {
+                    // An interface uses "extends <interfaces>", either explicitly for normal
+                    // interfaces or implicitly for annotations.
+                    psiClass.extendsListTypes
+                } else {
+                    // A class uses "extends <interfaces>".
+                    psiClass.implementsListTypes
+                }
+
+            // Map them to PsiTypeItems.
+            val interfaceTypes =
+                interfaces.map { classTypeItemFactory.getInterfaceType(PsiTypeInfo(it)) }
+            return Pair(superClassType, interfaceTypes)
+        }
+
+        private fun getClassKind(psiClass: PsiClass): ClassKind {
             return when {
                 psiClass.isAnnotationType -> ClassKind.ANNOTATION_TYPE
                 psiClass.isInterface -> ClassKind.INTERFACE
