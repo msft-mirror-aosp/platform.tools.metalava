@@ -508,6 +508,16 @@ private constructor(
 
             return DefaultAnnotationItem(codebase, originalName, ::attributes)
         }
+
+        fun create(
+            codebase: Codebase,
+            originalName: String,
+            attributes: List<AnnotationAttribute> = emptyList(),
+            context: Item? = null
+        ): AnnotationItem {
+            val source = formatAnnotationItem(originalName, attributes)
+            return codebase.createAnnotation(source, context)
+        }
     }
 }
 
