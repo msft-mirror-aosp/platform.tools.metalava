@@ -509,4 +509,40 @@ class CommonParameterItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test nullability of Kotlin varargs last in inline reified fun`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    inline fun <reified T> nullable(vararg elements: T?) = listOf(*elements)
+                    inline fun <reified T> nonNull(vararg elements: T) = listOf(*elements)
+                """
+            ),
+        ) {
+            val expectedTypes =
+                // These are broken, Kotlin varargs are non-null.
+                mapOf(
+                    "nullable" to "T?...?",
+                    "nonNull" to "T...?",
+                )
+            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+                val name = method.name()
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage("$name type")
+                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
 }
