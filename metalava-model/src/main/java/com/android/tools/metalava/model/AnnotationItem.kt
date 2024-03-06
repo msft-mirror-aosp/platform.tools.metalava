@@ -22,7 +22,7 @@ fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName.endsWith("Nullable")
+    return qualifiedName.endsWith("Nullable") || qualifiedName.endsWith("NullableType")
 }
 
 fun isNonNullAnnotation(qualifiedName: String): Boolean {
