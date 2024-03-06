@@ -26,9 +26,11 @@ import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -224,8 +226,45 @@ private constructor(
                     // class.
                     typeFromKtClass(parameterIndex, containingMethod, sourcePsi)
                 }
+                is KtFunction -> {
+                    if (
+                        sourcePsi.modifierList?.hasModifier(KtTokens.SUSPEND_KEYWORD) == true &&
+                            parameterIndex == containingMethod.parameters.size - 1
+                    ) {
+                        // Compute the [KotlinTypeInfo] for the suspend function's synthetic
+                        // [kotlin.coroutines.Continuation] parameter.
+                        analyze(sourcePsi) {
+                            val returnKtType = sourcePsi.getReturnKtType()
+                            syntheticContinuationParameter(sourcePsi, returnKtType)
+                        }
+                    } else null
+                }
                 else -> null
             }
+        }
+
+        /**
+         * Create a [KotlinTypeInfo] that represents the continuation parameter of a `suspend`
+         * function with [returnKtType].
+         *
+         * Ideally, this would create a [KtNonErrorClassType] for `Continuation<$returnType$>`,
+         * where `$returnType$` is the return type of the Kotlin suspend function but while that
+         * works in K2 it fails in K1 as it cannot resolve the `Continuation` type even though it is
+         * in the Kotlin stdlib which will be on the classpath.
+         *
+         * Fortunately, doing that is not strictly necessary as the [KtType] is only used to
+         * retrieve nullability for the `Continuation` type and its type argument. So, this uses
+         * non-nullable [Any] as the fake type for `Continuation` (as that is always non-nullable)
+         * and stores the suspend function's return type in [KotlinTypeInfo.overrideTypeArguments]
+         * from where it will be retrieved.
+         */
+        internal fun KtAnalysisSession.syntheticContinuationParameter(
+            context: PsiElement,
+            returnKtType: KtType
+        ): KotlinTypeInfo {
+            val returnTypeInfo = KotlinTypeInfo(this, returnKtType, context)
+            val fakeContinuationKtType = builtinTypes.ANY
+            return KotlinTypeInfo(this, fakeContinuationKtType, context, listOf(returnTypeInfo))
         }
 
         /** Try and get the type for [parameterIndex] in [containingMethod] from the [ktClass]. */
