@@ -11,7 +11,6 @@ com.android.tools.metalava.AnnotationsMergerTest
   Merge Contract and Language annotations from signature files[turbine]
   Merge qualifier annotations from Java stub files making sure they apply to public members of hidden superclasses[turbine]
   Merge type use qualifier annotations from Java stub files[turbine]
-  Merged class and method annotations with no arguments[turbine]
   Signature files contain annotations[turbine]
 
 com.android.tools.metalava.ApiAnalyzerTest
