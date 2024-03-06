@@ -142,10 +142,14 @@ internal data class KotlinTypeInfo(
          * [KtType] for the [context] can't be resolved.
          */
         fun fromContext(context: PsiElement): KotlinTypeInfo {
-            return when (val sourcePsi = (context as? UElement)?.sourcePsi) {
-                is KtElement -> fromKtElement(sourcePsi)
-                else -> {
-                    typeFromSyntheticElement(context)
+            return if (context is KtElement) {
+                fromKtElement(context)
+            } else {
+                when (val sourcePsi = (context as? UElement)?.sourcePsi) {
+                    is KtElement -> fromKtElement(sourcePsi)
+                    else -> {
+                        typeFromSyntheticElement(context)
+                    }
                 }
             }
                 ?: KotlinTypeInfo(null, null, context)

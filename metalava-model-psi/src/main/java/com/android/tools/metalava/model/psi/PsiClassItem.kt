@@ -43,6 +43,7 @@ import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
@@ -572,12 +573,38 @@ internal constructor(
             classTypeItemFactory: PsiTypeItemFactory
         ): Pair<ClassTypeItem?, List<ClassTypeItem>> {
 
+            // A map from the qualified type name to the corresponding [KtTypeReference]. This is
+            // empty for non-Kotlin code, otherwise it maps from the qualified type name of a
+            // super type to the associated [KtTypeReference]. The qualified name is used to map
+            // between them because Kotlin does not differentiate between `implements` and `extends`
+            // lists and just has one super type list. The qualified name is safe because a class
+            // cannot implement/extend the same generic type multiple times with different type
+            // arguments so the qualified name should be unique among the super type list.
+            // The [KtTypeReference] is needed to access the type nullability of the generic type
+            // arguments.
+            val qualifiedNameToKt =
+                if (psiClass is UClass) {
+                    psiClass.uastSuperTypes.associateBy({ it.getQualifiedName() }) {
+                        it.sourcePsi as KtTypeReference
+                    }
+                } else emptyMap()
+
+            // Get the [KtTypeReference], if any, associated with ths [PsiType] which must be a
+            // [PsiClassType] as that is the only type allowed in an extends/implements list.
+            fun PsiType.ktTypeReference(): KtTypeReference? {
+                val qualifiedName = (this as PsiClassType).computeQualifiedName()
+                return qualifiedNameToKt[qualifiedName]
+            }
+
             // Construct the super class type if needed and available.
             val superClassType =
                 if (classKind != ClassKind.INTERFACE) {
                     val superClassPsiType = psiClass.superClassType as? PsiType
-                    superClassPsiType?.let { superType ->
-                        classTypeItemFactory.getSuperClassType(PsiTypeInfo(superType))
+                    superClassPsiType?.let { superClassType ->
+                        val ktTypeRef = superClassType.ktTypeReference()
+                        classTypeItemFactory.getSuperClassType(
+                            PsiTypeInfo(superClassType, ktTypeRef)
+                        )
                     }
                 } else null
 
@@ -594,7 +621,10 @@ internal constructor(
 
             // Map them to PsiTypeItems.
             val interfaceTypes =
-                interfaces.map { classTypeItemFactory.getInterfaceType(PsiTypeInfo(it)) }
+                interfaces.map { interfaceType ->
+                    val ktTypeRef = interfaceType.ktTypeReference()
+                    classTypeItemFactory.getInterfaceType(PsiTypeInfo(interfaceType, ktTypeRef))
+                }
             return Pair(superClassType, interfaceTypes)
         }
 
