@@ -22,7 +22,6 @@ import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
 import org.jetbrains.kotlin.analysis.api.symbols.KtNamedClassOrObjectSymbol
-import org.jetbrains.kotlin.analysis.api.types.KtFunctionalType
 import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
@@ -34,7 +33,6 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
-import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
@@ -49,6 +47,11 @@ private constructor(
     val analysisSession: KtAnalysisSession?,
     ktType: KtType?,
     val context: PsiElement,
+    /**
+     * Override list of type arguments that should have been, but for some reason could not be,
+     * encapsulated within [ktType].
+     */
+    val overrideTypeArguments: List<KotlinTypeInfo>? = null,
 ) {
     constructor(context: PsiElement) : this(null, null, context)
 
@@ -62,6 +65,11 @@ private constructor(
     override fun toString(): String {
         return "KotlinTypeInfo($ktType for $context)"
     }
+
+    fun copy(
+        ktType: KtType? = this.ktType,
+        overrideTypeArguments: List<KotlinTypeInfo>? = this.overrideTypeArguments,
+    ) = KotlinTypeInfo(analysisSession, ktType, context, overrideTypeArguments)
 
     /**
      * Finds the nullability of the [ktType]. If there is no [analysisSession] or [ktType], defaults
@@ -102,28 +110,13 @@ private constructor(
      * it is a class type.
      */
     fun forTypeArgument(index: Int): KotlinTypeInfo {
+        overrideTypeArguments?.getOrNull(index)?.let {
+            return it
+        }
         return KotlinTypeInfo(
             analysisSession,
             analysisSession?.run {
                 when (ktType) {
-                    is KtFunctionalType -> {
-                        if (ktType.hasReceiver && index == 0) {
-                            ktType.receiverType
-                        } else {
-                            // If there's a receiver, the index into the parameter list is one less.
-                            val effectiveIndex =
-                                if (ktType.hasReceiver) {
-                                    index - 1
-                                } else {
-                                    index
-                                }
-                            if (effectiveIndex >= ktType.parameterTypes.size) {
-                                ktType.returnType
-                            } else {
-                                ktType.parameterTypes[effectiveIndex]
-                            }
-                        }
-                    }
                     is KtNonErrorClassType -> ktType.ownTypeArguments.getOrNull(index)?.type
                     else -> null
                 }
