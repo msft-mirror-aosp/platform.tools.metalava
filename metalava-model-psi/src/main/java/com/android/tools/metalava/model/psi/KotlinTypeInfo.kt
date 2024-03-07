@@ -148,6 +148,22 @@ private constructor(
         )
     }
 
+    /** Get a [KotlinTypeInfo] that represents a suspend function's `Continuation` parameter. */
+    fun forSyntheticContinuationParameter(returnType: KtType): KotlinTypeInfo {
+        // This cast is safe as this will only be called for a lambda function whose context will
+        // be [KtFunction].
+        val ktElement = context as KtElement
+        return analyze(ktElement) { syntheticContinuationParameter(context, returnType) }
+    }
+
+    /** Get a [KotlinTypeInfo] that represents `Any?`. */
+    fun nullableAny(): KotlinTypeInfo {
+        // This cast is safe as this will only be called for a lambda function whose context will
+        // be [KtFunction].
+        val ktElement = context as KtElement
+        return analyze(ktElement) { KotlinTypeInfo(this, builtinTypes.NULLABLE_ANY, context) }
+    }
+
     companion object {
         /**
          * Creates a [KotlinTypeInfo] instance from the given [context], with null values if the

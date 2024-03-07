@@ -317,7 +317,8 @@ internal class PsiTypeItemFactory(
             }
 
         return psiParameters.mapIndexed { i, param ->
-            createTypeItem(param, kotlinType?.forTypeArgument(i)) as TypeArgumentTypeItem
+            val forTypeArgument = kotlinType?.forTypeArgument(i)
+            createTypeItem(param, forTypeArgument) as TypeArgumentTypeItem
         }
     }
 
@@ -527,19 +528,20 @@ internal class PsiTypeItemFactory(
                         ktType.receiverType?.let { add(kotlinType.copy(ktType = it)) }
                         // The lambda's explicit parameters appear next.
                         ktType.parameterTypes.mapTo(this) { kotlinType.copy(ktType = it) }
-                        // The optional continuation parameter goes at the end of the lambda's
-                        // explicit parameters.
+                        // A `suspend` lambda is transformed by Kotlin in the same way that a
+                        // `suspend` function is, i.e. an additional continuation parameter is added
+                        // at the end of the explicit parameters that encapsulates the return type
+                        // and the return type is changed to `Any?`.
                         if (isSuspend) {
-                            // Use the return type for the continuation parameter that is added by
-                            // Kotlin for suspend functions. This is incorrect but it replicates the
-                            // previous behavior which is to give the continuation parameter the
-                            // same nullability as the return type but the continuation parameter
-                            // should always be non-null.
-                            // TODO - fix this to use the correct nullability.
+                            // Create a KotlinTypeInfo for the continuation parameter that
+                            // encapsulates the actual return type.
+                            add(kotlinType.forSyntheticContinuationParameter(ktType.returnType))
+                            // Add the `Any?` for the return type.
+                            add(kotlinType.nullableAny())
+                        } else {
+                            // As it is not a `suspend` lambda add the return type last.
                             add(kotlinType.copy(ktType = ktType.returnType))
                         }
-                        // Finally the return type is last.
-                        add(kotlinType.copy(ktType = ktType.returnType))
                     }
             )
 

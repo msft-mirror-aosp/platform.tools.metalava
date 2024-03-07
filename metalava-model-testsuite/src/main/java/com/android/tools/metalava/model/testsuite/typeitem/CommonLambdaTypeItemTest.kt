@@ -314,19 +314,13 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                 // the string representation of the extended class type.
                 assertThat(toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
-                        // TODO: Fix this - `Continuation` should be non-null but its bound should
-                        //  be nullable.
-                        "kotlin.jvm.functions.Function2<java.lang.Integer,kotlin.coroutines.Continuation<? super java.lang.String>?,java.lang.Object?>"
+                        "kotlin.jvm.functions.Function2<java.lang.Integer,kotlin.coroutines.Continuation<? super java.lang.String?>,java.lang.Object?>"
                     )
 
                 assertThat(isSuspend).isTrue()
                 assertThat(receiverType).isNull()
                 assertThat(parameterTypes.joinToString { it.toTypeString(kotlinStyleNulls = true) })
-                    .isEqualTo(
-                        // TODO: Fix this - `Continuation` should be non-null but its bound should
-                        //  be nullable.
-                        "int, kotlin.coroutines.Continuation<? super java.lang.String>?"
-                    )
+                    .isEqualTo("int, kotlin.coroutines.Continuation<? super java.lang.String?>")
                 assertThat(returnType.toTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.lang.Object?")
             }
@@ -353,19 +347,13 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                 // the string representation of the extended class type.
                 assertThat(toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
-                        // TODO: Fix this - `Continuation` should be non-null but its bound should
-                        //  be nullable.
-                        "kotlin.jvm.functions.Function3<java.lang.Number,java.lang.Integer,kotlin.coroutines.Continuation<? super java.lang.String>?,java.lang.Object?>"
+                        "kotlin.jvm.functions.Function3<java.lang.Number,java.lang.Integer,kotlin.coroutines.Continuation<? super java.lang.String?>,java.lang.Object?>"
                     )
 
                 assertThat(isSuspend).isTrue()
                 assertThat(receiverType.toString()).isEqualTo("java.lang.Number")
                 assertThat(parameterTypes.joinToString { it.toTypeString(kotlinStyleNulls = true) })
-                    .isEqualTo(
-                        // TODO: Fix this - `Continuation` should be non-null but its bound should
-                        //  be nullable.
-                        "int, kotlin.coroutines.Continuation<? super java.lang.String>?"
-                    )
+                    .isEqualTo("int, kotlin.coroutines.Continuation<? super java.lang.String?>")
                 assertThat(returnType.toTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.lang.Object?")
             }
@@ -392,8 +380,7 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                 // the string representation of the extended class type.
                 assertThat(toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
-                        // TODO: Fix this - `java.lang.Object` should be nullable.
-                        "kotlin.jvm.functions.Function3<java.lang.Number,java.lang.Integer,kotlin.coroutines.Continuation<? super kotlin.Unit>,java.lang.Object>"
+                        "kotlin.jvm.functions.Function3<java.lang.Number,java.lang.Integer,kotlin.coroutines.Continuation<? super kotlin.Unit>,java.lang.Object?>"
                     )
 
                 assertThat(isSuspend).isTrue()
@@ -401,8 +388,7 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                 assertThat(parameterTypes.joinToString { it.toTypeString(kotlinStyleNulls = true) })
                     .isEqualTo("int, kotlin.coroutines.Continuation<? super kotlin.Unit>")
                 assertThat(returnType.toTypeString(kotlinStyleNulls = true))
-                    // TODO: Fix this - `java.lang.Object` should be nullable.
-                    .isEqualTo("java.lang.Object")
+                    .isEqualTo("java.lang.Object?")
             }
         }
     }
