@@ -76,7 +76,8 @@ private constructor(
 
     /**
      * Finds the nullability of the [ktType]. If there is no [analysisSession] or [ktType], defaults
-     * to [TypeNullability.NONNULL] since the type is from Kotlin source.
+     * to `null` to allow for other sources, like annotations and inferred nullability to take
+     * effect.
      */
     fun nullability(): TypeNullability? {
         return if (analysisSession != null && ktType != null) {
@@ -93,7 +94,7 @@ private constructor(
                 }
             }
         } else {
-            TypeNullability.NONNULL
+            null
         }
     }
 
