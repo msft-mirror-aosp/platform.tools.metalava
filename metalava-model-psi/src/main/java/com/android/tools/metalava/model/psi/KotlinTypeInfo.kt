@@ -201,7 +201,9 @@ private constructor(
                 is KtTypeReference ->
                     analyze(ktElement) { KotlinTypeInfo(this, ktElement.getKtType(), ktElement) }
                 is KtPropertyAccessor ->
-                    analyze(ktElement) { KotlinTypeInfo(this, ktElement.getKtType(), ktElement) }
+                    analyze(ktElement) {
+                        KotlinTypeInfo(this, ktElement.getReturnKtType(), ktElement)
+                    }
                 is KtClass -> {
                     analyze(ktElement) {
                         // If this is a named class or object then return a KotlinTypeInfo for the
@@ -246,6 +248,10 @@ private constructor(
                     // class.
                     typeFromKtClass(context, containingMethod, sourcePsi)
                 }
+                is KtPropertyAccessor ->
+                    analyze(sourcePsi) {
+                        KotlinTypeInfo(this, sourcePsi.getReturnKtType(), context)
+                    }
                 else -> null
             }
         }
