@@ -317,7 +317,7 @@ internal class PsiTypeItemFactory(
             }
 
         return psiParameters.mapIndexed { i, param ->
-            createTypeItem(param, kotlinType?.forParameter(i)) as TypeArgumentTypeItem
+            createTypeItem(param, kotlinType?.forTypeArgument(i)) as TypeArgumentTypeItem
         }
     }
 

@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
@@ -99,32 +98,35 @@ private constructor(
     }
 
     /**
-     * Creates [KotlinTypeInfo] for the parameter number [index] of this [ktType], assuming it is a
-     * class type.
+     * Creates [KotlinTypeInfo] for the type argument at [index] of this [KotlinTypeInfo], assuming
+     * it is a class type.
      */
-    fun forParameter(index: Int): KotlinTypeInfo {
+    fun forTypeArgument(index: Int): KotlinTypeInfo {
         return KotlinTypeInfo(
             analysisSession,
             analysisSession?.run {
-                (ktType as? KtFunctionalType)?.let {
-                    if (it.hasReceiver && index == 0) {
-                        it.receiverType
-                    } else {
-                        // If there's a receiver, the index into the parameter list is one less.
-                        val effectiveIndex =
-                            if (it.hasReceiver) {
-                                index - 1
-                            } else {
-                                index
-                            }
-                        if (effectiveIndex >= it.parameterTypes.size) {
-                            it.returnType
+                when (ktType) {
+                    is KtFunctionalType -> {
+                        if (ktType.hasReceiver && index == 0) {
+                            ktType.receiverType
                         } else {
-                            it.parameterTypes[effectiveIndex]
+                            // If there's a receiver, the index into the parameter list is one less.
+                            val effectiveIndex =
+                                if (ktType.hasReceiver) {
+                                    index - 1
+                                } else {
+                                    index
+                                }
+                            if (effectiveIndex >= ktType.parameterTypes.size) {
+                                ktType.returnType
+                            } else {
+                                ktType.parameterTypes[effectiveIndex]
+                            }
                         }
                     }
+                    is KtNonErrorClassType -> ktType.ownTypeArguments.getOrNull(index)?.type
+                    else -> null
                 }
-                    ?: (ktType as? KtNonErrorClassType)?.ownTypeArguments?.getOrNull(index)?.type
             },
             context,
         )
@@ -206,6 +208,11 @@ private constructor(
             // If this is not a UParameter in a UMethod then it is an unknown synthetic element so
             // just return.
             val containingMethod = (context as? UParameter)?.getContainingUMethod() ?: return null
+
+            // Get the parameter index from the containing methods `uastParameters` as the parameter
+            // is a `UParameter`.
+            val parameterIndex = containingMethod.uastParameters.indexOf(context)
+
             return when (val sourcePsi = containingMethod.sourcePsi) {
                 is KtProperty -> {
                     // This is the parameter of a synthetic setter, so get its type from the
@@ -222,15 +229,15 @@ private constructor(
                 is KtClass -> {
                     // The underlying source representation of the synthetic method is a whole
                     // class.
-                    typeFromKtClass(context, containingMethod, sourcePsi)
+                    typeFromKtClass(parameterIndex, containingMethod, sourcePsi)
                 }
                 else -> null
             }
         }
 
-        /** Try and get the type for [parameter] in [containingMethod] from the [ktClass]. */
+        /** Try and get the type for [parameterIndex] in [containingMethod] from the [ktClass]. */
         private fun typeFromKtClass(
-            parameter: UParameter,
+            parameterIndex: Int,
             containingMethod: UMethod,
             ktClass: KtClass
         ) =
@@ -240,8 +247,7 @@ private constructor(
                     // primary constructor so find the corresponding parameter in the primary
                     // constructor and use its type.
                     ktClass.primaryConstructor?.let { primaryConstructor ->
-                        val index = (parameter.javaPsi as PsiParameter).parameterIndex()
-                        val ktParameter = primaryConstructor.valueParameters[index]
+                        val ktParameter = primaryConstructor.valueParameters[parameterIndex]
                         analyze(ktParameter) {
                             KotlinTypeInfo(
                                 this,
