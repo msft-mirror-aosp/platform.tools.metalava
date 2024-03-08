@@ -549,6 +549,7 @@ internal class PsiTypeItemFactory(
             // This should be able to use `psiType.name`, but that sometimes returns null.
             className = ClassTypeItem.computeClassName(qualifiedName),
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
+            isSuspend = ktType.isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,
