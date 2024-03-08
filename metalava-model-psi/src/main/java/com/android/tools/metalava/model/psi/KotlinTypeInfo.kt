@@ -22,6 +22,7 @@ import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
+import org.jetbrains.kotlin.analysis.api.symbols.KtNamedClassOrObjectSymbol
 import org.jetbrains.kotlin.analysis.api.types.KtFunctionalType
 import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
@@ -165,6 +166,16 @@ internal data class KotlinTypeInfo(
                     analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
                 is KtPropertyAccessor ->
                     analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                is KtClass -> {
+                    analyze(context) {
+                        // If this is a named class or object then return a KotlinTypeInfo for the
+                        // class. If it is generic then the type parameters will be used as the
+                        // type arguments.
+                        (context.getSymbol() as? KtNamedClassOrObjectSymbol)?.let { symbol ->
+                            KotlinTypeInfo(this, symbol.buildSelfClassType(), context)
+                        }
+                    }
+                }
                 else -> null
             }
 
