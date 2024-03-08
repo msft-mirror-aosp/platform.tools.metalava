@@ -6,6 +6,12 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test inheritMethodFromNonApiAncestor with type substitutions[java,k1]
+  Test inheritMethodFromNonApiAncestor with type substitutions[java,k2]
+  Test inheritMethodFromNonApiAncestor with type substitutions[kotlin,k1]
+  Test inheritMethodFromNonApiAncestor with type substitutions[kotlin,k2]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]
