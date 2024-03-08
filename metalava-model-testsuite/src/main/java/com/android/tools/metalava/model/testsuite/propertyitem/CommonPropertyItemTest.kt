@@ -529,10 +529,9 @@ class CommonPropertyItemTest : BaseModelTest() {
                 fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
             assertThat(methods)
                 .isEqualTo(
-                    // TODO: Fix - java.lang.String in setter should be nullable.
                     """
                         fun getProperty(): java.util.List<java.lang.String?>
-                        fun setProperty(<set-?>: java.util.List<java.lang.String>): void
+                        fun setProperty(<set-?>: java.util.List<java.lang.String?>): void
                     """
                         .trimIndent()
                 )

@@ -281,7 +281,9 @@ private constructor(
                 }
                 is KtPropertyAccessor ->
                     analyze(sourcePsi) {
-                        KotlinTypeInfo(this, sourcePsi.getReturnKtType(), context)
+                        // Getters and setters are always the same type as the property so use its
+                        // type.
+                        fromKtElement(sourcePsi.property, context)
                     }
                 else -> null
             }
