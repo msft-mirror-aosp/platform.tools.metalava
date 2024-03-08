@@ -293,14 +293,12 @@ class CommonPropertyItemTest : BaseModelTest() {
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
                 assertThat(toTypeString(kotlinStyleNulls = true))
-                    // TODO - fix - String should be nullable
-                    .isEqualTo("java.util.List<java.lang.String>")
+                    .isEqualTo("java.util.List<java.lang.String?>")
             }
 
             val getter = fooClass.methods().single()
             assertThat(getter.kotlinLikeDescription())
-                // TODO - fix - String should be nullable
-                .isEqualTo("fun getProperty(): java.util.List<java.lang.String>")
+                .isEqualTo("fun getProperty(): java.util.List<java.lang.String?>")
         }
     }
 
@@ -422,17 +420,15 @@ class CommonPropertyItemTest : BaseModelTest() {
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
                 assertThat(toTypeString(kotlinStyleNulls = true))
-                    // TODO - fix - String should be nullable
-                    .isEqualTo("java.util.List<java.lang.String>")
+                    .isEqualTo("java.util.List<java.lang.String?>")
             }
 
             val methods =
                 fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
             assertThat(methods)
-                // TODO - fix - String should be nullable
                 .isEqualTo(
                     """
-                        fun getProperty(): java.util.List<java.lang.String>
+                        fun getProperty(): java.util.List<java.lang.String?>
                         fun setProperty(value: java.util.List<java.lang.String?>): void
                     """
                         .trimIndent()
