@@ -45,11 +45,25 @@ import org.jetbrains.uast.getContainingUMethod
  * A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it and the [PsiElement]
  * that is the use site.
  */
-internal data class KotlinTypeInfo(
+internal class KotlinTypeInfo
+private constructor(
     val analysisSession: KtAnalysisSession?,
-    val ktType: KtType?,
+    ktType: KtType?,
     val context: PsiElement,
 ) {
+    constructor(context: PsiElement) : this(null, null, context)
+
+    /** Make sure that any typealiases are fully expanded. */
+    val ktType =
+        analysisSession?.run { ktType?.fullyExpandedType }
+            ?: ktType?.let {
+                error("cannot have non-null ktType ($ktType) with a null analysisSession")
+            }
+
+    override fun toString(): String {
+        return "KotlinTypeInfo($ktType for $context)"
+    }
+
     /**
      * Finds the nullability of the [ktType]. If there is no [analysisSession] or [ktType], defaults
      * to [TypeNullability.NONNULL] since the type is from Kotlin source.
@@ -153,7 +167,7 @@ internal data class KotlinTypeInfo(
                     }
                 }
             }
-                ?: KotlinTypeInfo(null, null, context)
+                ?: KotlinTypeInfo(context)
         }
 
         /** Try and compute [KotlinTypeInfo] from a [KtElement]. */
