@@ -199,4 +199,312 @@ class CommonPropertyItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test abstract property of non-null string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val property: String
+                             get() = ""
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String")
+            }
+
+            val getter = fooClass.methods().single()
+            assertThat(getter.kotlinLikeDescription())
+                .isEqualTo("fun getProperty(): java.lang.String")
+        }
+    }
+
+    @Test
+    fun `Test abstract property of nullable string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val property: String?
+                             get() = null
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String?")
+            }
+
+            val getter = fooClass.methods().single()
+            assertThat(getter.kotlinLikeDescription())
+                .isEqualTo("fun getProperty(): java.lang.String?")
+        }
+    }
+
+    @Test
+    fun `Test abstract property of list of non-null string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val property: List<String>
+                             get() = emptyList()
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.util.List<java.lang.String>")
+            }
+
+            val getter = fooClass.methods().single()
+            assertThat(getter.kotlinLikeDescription())
+                .isEqualTo("fun getProperty(): java.util.List<java.lang.String>")
+        }
+    }
+
+    @Test
+    fun `Test abstract property of list of nullable string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val property: List<String?>
+                             get() = emptyList()
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    // TODO - fix - String should be nullable
+                    .isEqualTo("java.util.List<java.lang.String>")
+            }
+
+            val getter = fooClass.methods().single()
+            assertThat(getter.kotlinLikeDescription())
+                // TODO - fix - String should be nullable
+                .isEqualTo("fun getProperty(): java.util.List<java.lang.String>")
+        }
+    }
+
+    @Test
+    fun `Test abstract mutable property of non-null string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        var property: String
+                            get() = ""
+                            set(value) {field = value}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String")
+            }
+
+            val methods =
+                fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
+            assertThat(methods)
+                .isEqualTo(
+                    """
+                        fun getProperty(): java.lang.String
+                        fun setProperty(value: java.lang.String): void
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test abstract mutable property of nullable string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        var property: String?
+                            get() = null
+                            set(value) {field = value}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String?")
+            }
+
+            val methods =
+                fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
+            assertThat(methods)
+                .isEqualTo(
+                    """
+                        fun getProperty(): java.lang.String?
+                        fun setProperty(value: java.lang.String?): void
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test abstract mutable property of list of non-null string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        var property: List<String>
+                            get() = emptyList()
+                            set(value) {field = value}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.util.List<java.lang.String>")
+            }
+
+            val methods =
+                fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
+            assertThat(methods)
+                .isEqualTo(
+                    """
+                        fun getProperty(): java.util.List<java.lang.String>
+                        fun setProperty(value: java.util.List<java.lang.String>): void
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test abstract mutable property of list of nullable string`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        var property: List<String?>
+                            get() = emptyList()
+                            set(value) {field = value}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    // TODO - fix - String should be nullable
+                    .isEqualTo("java.util.List<java.lang.String>")
+            }
+
+            val methods =
+                fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
+            assertThat(methods)
+                // TODO - fix - String should be nullable
+                .isEqualTo(
+                    """
+                        fun getProperty(): java.util.List<java.lang.String>
+                        fun setProperty(value: java.util.List<java.lang.String?>): void
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test mutable non-null generic property overriding property exposing public setter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    abstract class Baz<T> {
+                        abstract var property: T
+                            internal set
+                    }
+
+                    class Foo<T>(initialValue: T) : Baz<T> {
+                        override var property: T = initialValue
+                            public set
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val methods =
+                fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
+            assertThat(methods)
+                .isEqualTo(
+                    """
+                        fun getProperty(): T
+                        fun setProperty(<set-?>: T): void
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test mutable nullable generic property overriding property exposing public setter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    abstract class Baz<T> {
+                        abstract var property: T?
+                            internal set
+                    }
+
+                    class Foo<T> : Baz<T> {
+                        override var property: T? = null
+                            public set
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val methods =
+                fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
+            assertThat(methods)
+                .isEqualTo(
+                    """
+                        fun getProperty(): T?
+                        fun setProperty(<set-?>: T?): void
+                    """
+                        .trimIndent()
+                )
+        }
+    }
 }
