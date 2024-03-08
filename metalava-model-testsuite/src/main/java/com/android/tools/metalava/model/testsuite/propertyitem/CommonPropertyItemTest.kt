@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.testsuite.propertyitem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
-import com.google.common.truth.Truth
+import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -120,12 +120,84 @@ class CommonPropertyItemTest : BaseModelTest() {
             fieldType.assertClassTypeItem {
                 // The type of the field is NOT `String` (that is the type of the property). The
                 // type of the field is the property delegate.
-                Truth.assertThat(qualifiedName).isEqualTo("kotlin.properties.ReadOnlyProperty")
+                assertThat(qualifiedName).isEqualTo("kotlin.properties.ReadOnlyProperty")
             }
 
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                Truth.assertThat(qualifiedName).isEqualTo("java.lang.String")
+                assertThat(qualifiedName).isEqualTo("java.lang.String")
+            }
+        }
+    }
+
+    @Test
+    fun `Test property delegate to generic Kotlin object`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    val targetList: List<String?> = emptyList()
+                    class Foo {
+                        val delegatingList by ::targetList
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fieldItem = fooClass.fields().single()
+            assertThat(fieldItem.name()).isEqualTo("delegatingList\$delegate")
+            val fieldType = fieldItem.type()
+            fieldType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(
+                        // TODO: fix - java.lang.String should be nullable not java.lang.List.
+                        "kotlin.reflect.KProperty0<? extends java.util.List<? extends java.lang.String>?>"
+                    )
+            }
+
+            val propertyItem = fooClass.properties().single()
+            assertThat(propertyItem.name()).isEqualTo("delegatingList")
+            val propertyType = propertyItem.type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.util.List<java.lang.String?>")
+            }
+        }
+    }
+
+    @Test
+    fun `Test property delegate to lambda Kotlin object`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    val targetList: (Int, String?) -> Boolean = {}
+                    class Foo {
+                        val delegatingList by ::targetList
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fieldItem = fooClass.fields().single()
+            assertThat(fieldItem.name()).isEqualTo("delegatingList\$delegate")
+            val fieldType = fieldItem.type()
+            fieldType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(
+                        // TODO: fix - java.lang.String should be nullable.
+                        "kotlin.reflect.KProperty0<? extends kotlin.jvm.functions.Function2<? super java.lang.Integer,? super java.lang.String,? extends java.lang.Boolean>>"
+                    )
+            }
+
+            val propertyItem = fooClass.properties().single()
+            assertThat(propertyItem.name()).isEqualTo("delegatingList")
+            val propertyType = propertyItem.type()
+            propertyType.assertClassTypeItem {
+                assertThat(toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.String?,java.lang.Boolean>"
+                    )
             }
         }
     }
