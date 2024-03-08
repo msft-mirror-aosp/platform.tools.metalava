@@ -515,8 +515,36 @@ internal class PsiTypeItemFactory(
 
         val ktType = kotlinType.ktType as KtFunctionalType
 
+        val isSuspend = ktType.isSuspend
+
+        val actualKotlinType =
+            kotlinType.copy(
+                overrideTypeArguments =
+                    // Compute a set of [KtType]s corresponding to the type arguments in the
+                    // underlying `kotlin.jvm.functions.Function*`.
+                    buildList {
+                        // The optional lambda receiver is the first type argument.
+                        ktType.receiverType?.let { add(kotlinType.copy(ktType = it)) }
+                        // The lambda's explicit parameters appear next.
+                        ktType.parameterTypes.mapTo(this) { kotlinType.copy(ktType = it) }
+                        // The optional continuation parameter goes at the end of the lambda's
+                        // explicit parameters.
+                        if (isSuspend) {
+                            // Use the return type for the continuation parameter that is added by
+                            // Kotlin for suspend functions. This is incorrect but it replicates the
+                            // previous behavior which is to give the continuation parameter the
+                            // same nullability as the return type but the continuation parameter
+                            // should always be non-null.
+                            // TODO - fix this to use the correct nullability.
+                            add(kotlinType.copy(ktType = ktType.returnType))
+                        }
+                        // Finally the return type is last.
+                        add(kotlinType.copy(ktType = ktType.returnType))
+                    }
+            )
+
         // Get the type arguments for the kotlin.jvm.functions.Function<X> class.
-        val typeArguments = computeTypeArguments(psiType, kotlinType)
+        val typeArguments = computeTypeArguments(psiType, actualKotlinType)
 
         // If the function has a receiver then it is the first type argument.
         var firstParameterTypeIndex = 0
@@ -545,11 +573,11 @@ internal class PsiTypeItemFactory(
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = typeArguments,
-            outerClassType = computeOuterClass(psiType, kotlinType),
+            outerClassType = computeOuterClass(psiType, actualKotlinType),
             // This should be able to use `psiType.name`, but that sometimes returns null.
             className = ClassTypeItem.computeClassName(qualifiedName),
-            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
-            isSuspend = ktType.isSuspend,
+            modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
+            isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,
