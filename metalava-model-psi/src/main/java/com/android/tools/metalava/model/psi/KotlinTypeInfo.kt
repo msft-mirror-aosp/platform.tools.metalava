@@ -36,6 +36,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
@@ -190,9 +191,21 @@ private constructor(
          * require different views of its types. The [context] is provided to differentiate between
          * them.
          */
-        @Suppress("UNUSED_PARAMETER")
         private fun fromKtElement(ktElement: KtElement, context: PsiElement): KotlinTypeInfo? =
             when (ktElement) {
+                is KtProperty -> {
+                    analyze(ktElement) {
+                        val ktType =
+                            when {
+                                // If the context is the backing field then use the type of the
+                                // delegate, if any.
+                                context is UField -> ktElement.delegateExpression?.getKtType()
+                                else -> null
+                            }
+                                ?: ktElement.getReturnKtType()
+                        KotlinTypeInfo(this, ktType, ktElement)
+                    }
+                }
                 is KtCallableDeclaration -> {
                     analyze(ktElement) {
                         KotlinTypeInfo(this, ktElement.getReturnKtType(), ktElement)

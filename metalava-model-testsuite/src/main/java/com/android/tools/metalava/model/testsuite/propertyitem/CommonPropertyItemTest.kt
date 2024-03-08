@@ -150,8 +150,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             fieldType.assertClassTypeItem {
                 assertThat(toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
-                        // TODO: fix - java.lang.String should be nullable not java.lang.List.
-                        "kotlin.reflect.KProperty0<? extends java.util.List<? extends java.lang.String>?>"
+                        "kotlin.reflect.KProperty0<? extends java.util.List<? extends java.lang.String?>>"
                     )
             }
 
@@ -185,8 +184,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             fieldType.assertClassTypeItem {
                 assertThat(toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
-                        // TODO: fix - java.lang.String should be nullable.
-                        "kotlin.reflect.KProperty0<? extends kotlin.jvm.functions.Function2<? super java.lang.Integer,? super java.lang.String,? extends java.lang.Boolean>>"
+                        "kotlin.reflect.KProperty0<? extends kotlin.jvm.functions.Function2<? super java.lang.Integer,? super java.lang.String?,? extends java.lang.Boolean>>"
                     )
             }
 
