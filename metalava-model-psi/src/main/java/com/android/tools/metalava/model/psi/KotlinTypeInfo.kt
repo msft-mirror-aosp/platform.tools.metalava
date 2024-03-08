@@ -158,10 +158,10 @@ private constructor(
          */
         fun fromContext(context: PsiElement): KotlinTypeInfo {
             return if (context is KtElement) {
-                fromKtElement(context)
+                fromKtElement(context, context)
             } else {
                 when (val sourcePsi = (context as? UElement)?.sourcePsi) {
-                    is KtElement -> fromKtElement(sourcePsi)
+                    is KtElement -> fromKtElement(sourcePsi, context)
                     else -> {
                         typeFromSyntheticElement(context)
                     }
@@ -170,23 +170,32 @@ private constructor(
                 ?: KotlinTypeInfo(context)
         }
 
-        /** Try and compute [KotlinTypeInfo] from a [KtElement]. */
-        private fun fromKtElement(context: KtElement): KotlinTypeInfo? =
-            when (context) {
+        /**
+         * Try and compute [KotlinTypeInfo] from a [KtElement].
+         *
+         * Multiple different [PsiElement] subclasses can be generated from the same [KtElement] and
+         * require different views of its types. The [context] is provided to differentiate between
+         * them.
+         */
+        @Suppress("UNUSED_PARAMETER")
+        private fun fromKtElement(ktElement: KtElement, context: PsiElement): KotlinTypeInfo? =
+            when (ktElement) {
                 is KtCallableDeclaration -> {
-                    analyze(context) { KotlinTypeInfo(this, context.getReturnKtType(), context) }
+                    analyze(ktElement) {
+                        KotlinTypeInfo(this, ktElement.getReturnKtType(), ktElement)
+                    }
                 }
                 is KtTypeReference ->
-                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                    analyze(ktElement) { KotlinTypeInfo(this, ktElement.getKtType(), ktElement) }
                 is KtPropertyAccessor ->
-                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                    analyze(ktElement) { KotlinTypeInfo(this, ktElement.getKtType(), ktElement) }
                 is KtClass -> {
-                    analyze(context) {
+                    analyze(ktElement) {
                         // If this is a named class or object then return a KotlinTypeInfo for the
                         // class. If it is generic then the type parameters will be used as the
                         // type arguments.
-                        (context.getSymbol() as? KtNamedClassOrObjectSymbol)?.let { symbol ->
-                            KotlinTypeInfo(this, symbol.buildSelfClassType(), context)
+                        (ktElement.getSymbol() as? KtNamedClassOrObjectSymbol)?.let { symbol ->
+                            KotlinTypeInfo(this, symbol.buildSelfClassType(), ktElement)
                         }
                     }
                 }
@@ -217,7 +226,7 @@ private constructor(
                     // most likely a parameter of the primary constructor. In which case the
                     // synthetic method is most like a property setter. Whatever it may be, use the
                     // type of the parameter as it is most likely to be the correct type.
-                    fromKtElement(sourcePsi)
+                    fromKtElement(sourcePsi, context)
                 }
                 is KtClass -> {
                     // The underlying source representation of the synthetic method is a whole
