@@ -117,9 +117,8 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-
+    /** Finish initialization of the classes in this package */
+    fun finishInitialization() {
         // Take a copy of the list just in case additional classes are added during iteration. Those
         // classes will have their [PsiClassItem.finishInitialization] called so there is no need to
         // handle them here.

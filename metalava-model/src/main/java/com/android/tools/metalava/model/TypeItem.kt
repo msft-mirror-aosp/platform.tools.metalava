@@ -1081,16 +1081,3 @@ fun bestGuessAtFullName(qualifiedName: String): String {
         qualifiedName.substring(lastDotIndex + 1)
     }
 }
-
-/**
- * Finishes initialization of a type by correcting its nullability based on the owning item, which
- * was not constructed yet when the type was created.
- */
-fun TypeItem.fixUpTypeNullability(owner: Item) {
-    val implicitNullness = owner.implicitNullness()
-    if (implicitNullness == TypeNullability.NULLABLE || owner.modifiers.isNullable()) {
-        modifiers.setNullability(TypeNullability.NULLABLE)
-    } else if (implicitNullness == TypeNullability.NONNULL || owner.modifiers.isNonNull()) {
-        modifiers.setNullability(TypeNullability.NONNULL)
-    }
-}

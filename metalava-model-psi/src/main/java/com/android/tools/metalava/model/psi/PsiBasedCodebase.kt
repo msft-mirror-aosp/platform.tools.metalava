@@ -821,9 +821,6 @@ open class PsiBasedCodebase(
                     PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
                 methods[method] = extra
                 methods[updatedMethod] = extra
-                if (!initializing) {
-                    extra.finishInitialization()
-                }
 
                 return extra
             }

@@ -223,9 +223,6 @@ internal constructor(
         return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
     }
 
-    /** Finish initialization of the item */
-    open fun finishInitialization() {}
-
     override fun isJava(): Boolean {
         return !isKotlin()
     }

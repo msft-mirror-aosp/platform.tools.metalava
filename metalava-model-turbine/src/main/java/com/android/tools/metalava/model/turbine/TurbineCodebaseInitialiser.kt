@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -32,14 +31,10 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.fixUpTypeNullability
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -177,31 +172,6 @@ internal open class TurbineCodebaseInitialiser(
 
         createAllPackages()
         createAllClasses()
-        correctNullability()
-    }
-
-    /**
-     * Corrects the nullability of types in the codebase based on their context items. If an item is
-     * non-null or nullable, its type is too.
-     */
-    private fun correctNullability() {
-        codebase.accept(
-            object : BaseItemVisitor() {
-                override fun visitItem(item: Item) {
-                    // The ClassItem.type() is never nullable even if the class has an @Nullable
-                    // annotation.
-                    if (item is ClassItem) return
-                    // Fields are handle by [TurbineTypeItemFactory.getFieldType].
-                    if (item is FieldItem) return
-                    // Parameters are handle by [TurbineTypeItemFactory.getMethodParameterType].
-                    if (item is ParameterItem) return
-                    // Ignore any items that do not have types.
-                    val type = item.type() ?: return
-
-                    type.fixUpTypeNullability(item)
-                }
-            }
-        )
     }
 
     private fun createAllPackages() {
