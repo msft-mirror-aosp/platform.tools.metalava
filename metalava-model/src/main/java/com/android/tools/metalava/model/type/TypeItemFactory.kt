@@ -278,6 +278,7 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
     ): TypeItem {
         val contextNullability =
             ContextNullability(
+                itemAnnotations = itemAnnotations,
                 inferNullability = {
                     // Check for a known method's nullability.
                     getMethodParameterNullability(fingerprint, parameterIndex)

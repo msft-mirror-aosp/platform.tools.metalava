@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.fixUpTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -302,11 +301,6 @@ internal constructor(
                 return isSamType || isFunctionalType
             }
         }
-    }
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-        type.fixUpTypeNullability(this)
     }
 
     companion object {

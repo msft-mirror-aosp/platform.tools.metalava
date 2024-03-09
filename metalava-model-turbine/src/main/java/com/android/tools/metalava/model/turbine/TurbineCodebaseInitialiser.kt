@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
@@ -192,6 +193,8 @@ internal open class TurbineCodebaseInitialiser(
                     if (item is ClassItem) return
                     // Fields are handle by [TurbineTypeItemFactory.getFieldType].
                     if (item is FieldItem) return
+                    // Parameters are handle by [TurbineTypeItemFactory.getMethodParameterType].
+                    if (item is ParameterItem) return
                     // Ignore any items that do not have types.
                     val type = item.type() ?: return
 

@@ -277,7 +277,6 @@ open class PsiMethodItem(
         super.finishInitialization()
 
         returnType.fixUpTypeNullability(this)
-        parameters.forEach { it.finishInitialization() }
     }
 
     companion object {
