@@ -329,9 +329,11 @@ open class PsiMethodItem(
                     psiMethod
                 )
             val parameters = parameterList(codebase, psiMethod, methodTypeItemFactory)
+            val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
             val returnType =
                 methodTypeItemFactory.getMethodReturnType(
                     underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
+                    fingerprint = fingerprint,
                 )
 
             val method =

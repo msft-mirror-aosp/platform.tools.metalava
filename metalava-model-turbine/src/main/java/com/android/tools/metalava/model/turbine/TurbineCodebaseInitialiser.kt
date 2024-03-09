@@ -732,9 +732,12 @@ internal open class TurbineCodebaseInitialiser(
                             extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
                         else ""
 
+                    val parameters = method.parameters()
+                    val fingerprint = MethodFingerprint(method.name(), parameters.size)
                     val returnType =
                         methodTypeItemFactory.getMethodReturnType(
                             underlyingReturnType = method.returnType(),
+                            fingerprint = fingerprint,
                         )
 
                     val methodItem =
@@ -752,7 +755,7 @@ internal open class TurbineCodebaseInitialiser(
                     createParameters(
                         methodItem,
                         decl?.params(),
-                        method.parameters(),
+                        parameters,
                         methodTypeItemFactory,
                     )
                     methodItem.throwableTypes =

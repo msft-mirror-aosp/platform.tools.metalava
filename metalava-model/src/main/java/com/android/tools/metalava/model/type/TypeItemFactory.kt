@@ -139,10 +139,17 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
     /**
      * Get the return type for a method.
      *
+     * This considers a number of factors, in addition to the declared type, to determine the
+     * appropriate [TypeNullability] for the field type, i.e.:
+     * * Method [fingerprint], which may match a known method whose return type has a known
+     *   [TypeNullability].
+     *
      * @param underlyingReturnType the underlying model's return type.
+     * @param fingerprint method fingerprint
      */
     fun getMethodReturnType(
         underlyingReturnType: T,
+        fingerprint: MethodFingerprint,
     ): TypeItem = error("unsupported")
 }
 
@@ -303,9 +310,18 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
 
     override fun getMethodReturnType(
         underlyingReturnType: T,
+        fingerprint: MethodFingerprint,
     ): TypeItem {
-        // Get the method's return type.
-        return getType(underlyingReturnType)
+        val contextNullability =
+            ContextNullability(
+                inferNullability = {
+                    // Check for a known method's nullability.
+                    getMethodReturnTypeNullability(fingerprint)
+                }
+            )
+
+        // Get the method's return type, passing in the context nullability.
+        return getType(underlyingReturnType, contextNullability = contextNullability)
     }
 
     /** Type safe access to `this`. */
@@ -339,6 +355,20 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             return when {
                 name == "equals" && parameterCount == 1 ->
                     TypeNullability.NULLABLE.takeIf { parameterIndex == 0 }
+                else -> null
+            }
+        }
+
+        /**
+         * Get [TypeNullability], if known, for the return type of the method with [fingerprint], or
+         * `null` if the method is not known.
+         */
+        private fun getMethodReturnTypeNullability(
+            fingerprint: MethodFingerprint
+        ): TypeNullability? {
+            val (name, parameterCount) = fingerprint
+            return when {
+                name == "toString" && parameterCount == 0 -> TypeNullability.NONNULL
                 else -> null
             }
         }
