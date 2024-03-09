@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -133,6 +134,14 @@ class ContextNullability(
     val forcedNullability: TypeNullability? = null,
 
     /**
+     * The annotations from the [Item] whose type this is.
+     *
+     * If supplied then this may be used by [compute] to determine the [TypeNullability] of the
+     * constructed type.
+     */
+    val itemAnnotations: List<AnnotationItem>? = null,
+
+    /**
      * A [TypeNullability] that can be inferred from the context.
      *
      * It is passed as a lambda as it may be expensive to compute.
@@ -153,6 +162,8 @@ class ContextNullability(
         ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
+            // If item annotations are found then check them.
+            ?: itemAnnotations?.typeNullability
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
             // Finally default to [TypeNullability.PLATFORM].
@@ -210,12 +221,10 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             if (isEnumConstant) ContextNullability.forceNonNull
             else {
                 ContextNullability(
+                    itemAnnotations = itemAnnotations,
                     inferNullability = {
-                        // Check annotations from the item first, and then whether the field is
-                        // final and has a non-null value.
-                        itemAnnotations.typeNullability
-                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
-                            else null
+                        // Treat the field as non-null if it is final and has a non-null value.
+                        TypeNullability.NONNULL.takeIf { isFinal && isInitialValueNonNull() }
                     }
                 )
             }
