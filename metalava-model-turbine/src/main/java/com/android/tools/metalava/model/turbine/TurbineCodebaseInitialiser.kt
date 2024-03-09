@@ -739,6 +739,7 @@ internal open class TurbineCodebaseInitialiser(
                     val returnType =
                         methodTypeItemFactory.getMethodReturnType(
                             underlyingReturnType = method.returnType(),
+                            itemAnnotations = methodModifierItem.annotations(),
                             fingerprint = fingerprint,
                             isAnnotationElement = isAnnotationElement,
                         )

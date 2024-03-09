@@ -146,11 +146,13 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
      *   [TypeNullability].
      *
      * @param underlyingReturnType the underlying model's return type.
+     * @param itemAnnotations the annotations on the field (not the type).
      * @param fingerprint method fingerprint
      * @param isAnnotationElement true for a non-static method of an annotation class.
      */
     fun getMethodReturnType(
         underlyingReturnType: T,
+        itemAnnotations: List<AnnotationItem>,
         fingerprint: MethodFingerprint,
         isAnnotationElement: Boolean,
     ): TypeItem = error("unsupported")
@@ -333,6 +335,7 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
 
     override fun getMethodReturnType(
         underlyingReturnType: T,
+        itemAnnotations: List<AnnotationItem>,
         fingerprint: MethodFingerprint,
         isAnnotationElement: Boolean,
     ): TypeItem {
@@ -343,6 +346,7 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             ContextNullability(
                 forcedNullability = annotationElementNullability,
                 forcedComponentNullability = annotationElementNullability,
+                itemAnnotations = itemAnnotations,
                 inferNullability = {
                     // Check for a known method's nullability.
                     getMethodReturnTypeNullability(fingerprint)

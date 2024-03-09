@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
-import com.android.tools.metalava.model.fixUpTypeNullability
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
@@ -273,12 +272,6 @@ open class PsiMethodItem(
             parameters.any { it.hasDefaultValue() }
     }
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        returnType.fixUpTypeNullability(this)
-    }
-
     companion object {
         /**
          * Create a [PsiMethodItem].
@@ -334,6 +327,7 @@ open class PsiMethodItem(
             val returnType =
                 methodTypeItemFactory.getMethodReturnType(
                     underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
+                    itemAnnotations = modifiers.annotations(),
                     fingerprint = fingerprint,
                     isAnnotationElement = isAnnotationElement,
                 )
