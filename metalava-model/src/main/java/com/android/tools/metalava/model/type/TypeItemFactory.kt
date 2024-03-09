@@ -88,12 +88,14 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
      *
      * This considers a number of factors, in addition to the declared type, to determine the
      * appropriate [TypeNullability] for the field type, i.e.:
+     * * Any [AnnotationItem.typeNullability] annotations in [itemAnnotations].
      * * Setting of [isEnumConstant]; if it is `true` then it is always [TypeNullability.NONNULL].
      * * If the field is `final` then the nullability of the field's value can be considered
      *   ([isInitialValueNonNull]). Otherwise, it cannot as it may change over the lifetime of the
      *   field.
      *
      * @param underlyingType the underlying model's type.
+     * @param itemAnnotations the annotations on the field (not the type).
      * @param isFinal `true` if the field is `final`.
      * @param isEnumConstant `true` if the field is actually an enum constant.
      * @param isInitialValueNonNull a lambda that will be invoked on `final` fields to determine
