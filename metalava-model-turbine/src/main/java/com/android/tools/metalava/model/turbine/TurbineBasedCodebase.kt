@@ -39,7 +39,7 @@ internal open class TurbineBasedCodebase(
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
 
     /**
-     * Map from class name to class item. Classes are added via [populateClasses] while initialising
+     * Map from class name to class item. Classes are added via [registerClass] while initialising
      * the codebase
      */
     private lateinit var classMap: MutableMap<String, TurbineClassItem>
@@ -96,7 +96,7 @@ internal open class TurbineBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun addClass(classItem: TurbineClassItem, isTopClass: Boolean) {
+    fun registerClass(classItem: TurbineClassItem, isTopClass: Boolean) {
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
