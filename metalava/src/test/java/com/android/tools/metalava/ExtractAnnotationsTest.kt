@@ -783,6 +783,8 @@ class ExtractAnnotationsTest : DriverTest() {
                                 <annotation name="androidx.annotation.IntDef">
                                   <val name="value" val="{test.pkg.PublicClass.VALUE1, test.pkg.PublicClass.VALUE2}" />
                                 </annotation>
+                              </item>
+                              <item name="test.pkg.PublicClass.PublicNestedClassB int getIntDefType()">
                                 <annotation name="androidx.annotation.IntDef">
                                   <val name="value" val="{test.pkg.PublicClass.VALUE1, test.pkg.PublicClass.VALUE2}" />
                                 </annotation>
