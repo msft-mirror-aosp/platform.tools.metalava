@@ -159,4 +159,14 @@ abstract class DefaultCodebase(
             // Repeat until no new classes were added.
         } while (start < end)
     }
+
+    /** Iterate over all the classes resolving their super class and interface types. */
+    fun resolveSuperTypes() {
+        iterateAllClasses { classItem ->
+            classItem.superClass()
+            for (interfaceType in classItem.interfaceTypes()) {
+                interfaceType.asClass()
+            }
+        }
+    }
 }

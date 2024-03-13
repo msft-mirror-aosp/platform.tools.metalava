@@ -231,13 +231,7 @@ internal open class TurbineCodebaseInitialiser(
             createTopLevelClassAndContents(classSymbol)
         }
 
-        // Iterate over all the classes resolving their super class and interface types.
-        codebase.iterateAllClasses { classItem ->
-            classItem.superClass()
-            for (interfaceType in classItem.interfaceTypes()) {
-                interfaceType.asClass()
-            }
-        }
+        codebase.resolveSuperTypes()
     }
 
     val ClassSymbol.isTopClass
