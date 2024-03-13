@@ -86,6 +86,8 @@ internal class TextCodebase(
             )
         }
 
+        addClass(classItem)
+
         // A real class exists so a stub will not be created.
         requiredStubKindForClass.remove(qualifiedName)
     }
