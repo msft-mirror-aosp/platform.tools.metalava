@@ -77,9 +77,14 @@ internal class TextCodebase(
         }
     }
 
-    fun registerClass(cls: TextClassItem) {
-        val qualifiedName = cls.qualifiedName
-        allClassesByName[qualifiedName] = cls
+    fun registerClass(classItem: TextClassItem) {
+        val qualifiedName = classItem.qualifiedName
+        val existing = allClassesByName.put(qualifiedName, classItem)
+        if (existing != null) {
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+            )
+        }
 
         // A real class exists so a stub will not be created.
         requiredStubKindForClass.remove(qualifiedName)
