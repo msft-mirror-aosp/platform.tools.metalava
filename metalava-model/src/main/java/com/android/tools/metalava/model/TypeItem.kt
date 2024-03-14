@@ -56,6 +56,14 @@ interface TypeItem {
     fun hashCodeForType(): Int
 
     /**
+     * Provide a helpful description of the type, for use in error messages.
+     *
+     * This is not suitable for use in signature or stubs as while it defaults to [toTypeString] for
+     * most types it is overridden by others to provide additional information.
+     */
+    fun description(): String = toTypeString()
+
+    /**
      * Generates a string for this type.
      *
      * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
@@ -133,6 +141,16 @@ interface TypeItem {
         return this
     }
 
+    /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
+    fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
+        // Limited text based check
+        if (this == other) return true
+        val bounds =
+            (other as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map { it.toTypeString() }
+                ?: emptyList()
+        return bounds.contains(toTypeString())
+    }
+
     fun isJavaLangObject(): Boolean = false
 
     fun isString(): Boolean = false
@@ -141,8 +159,15 @@ interface TypeItem {
 
     fun defaultValueString(): String = "null"
 
-    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
+    /** Creates an identical type, with a copy of this type's modifiers, so they can be mutated. */
     fun duplicate(): TypeItem
+
+    /**
+     * Creates an identical type, with a copy of this type's modifiers with the specified
+     * [withNullability] that can be modified further if needed.
+     */
+    fun duplicate(withNullability: TypeNullability) =
+        duplicate().apply { modifiers.setNullability(withNullability) }
 
     companion object {
         /** Shortens types, if configured */
@@ -337,7 +362,9 @@ interface TypeItem {
  */
 typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
 
-abstract class DefaultTypeItem() : TypeItem {
+abstract class DefaultTypeItem(
+    final override val modifiers: TypeModifiers,
+) : TypeItem {
 
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
@@ -682,7 +709,48 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
-sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem
+sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
+    /**
+     * Get the erased [ClassItem], if any.
+     *
+     * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
+     * types have been erased. This will cause an error if it is called on a [VariableTypeItem]
+     * whose [TypeParameterItem]'s upper bound is not a [ExceptionTypeItem]. However, that should
+     * never happen as it would be a compile time error.
+     */
+    val erasedClass: ClassItem?
+
+    /**
+     * The best guess of the full name, i.e. the qualified class name without the package but
+     * including the outer class names.
+     *
+     * This is not something that can be accurately determined solely by examining the reference or
+     * even the import as there is no distinction made between a package name and a class name. Java
+     * naming conventions do say that package names should start with a lower case letter and class
+     * names should start with an upper case letter, but they are not enforced so cannot be fully
+     * relied upon.
+     *
+     * It is possible that in some contexts a model could provide a better full name than guessing
+     * from the fully qualified name, e.g. a reference within the same package, however that is not
+     * something that will be supported by all models and so attempting to use that could lead to
+     * subtle model differences that could break users of the models.
+     *
+     * The only way to fully determine the full name is to resolve the class and extract it from
+     * there but this avoids resolving a class as it can be expensive. Instead, this just makes the
+     * best guess assuming normal Java conventions.
+     */
+    @Deprecated(
+        "Do not use as full name is only ever a best guess based on naming conventions; use the full type string instead",
+        ReplaceWith("toTypeString()")
+    )
+    fun fullName(): String = bestGuessAtFullName(toTypeString())
+
+    companion object {
+        /** A partial ordering over [ExceptionTypeItem] comparing [ExceptionTypeItem] full names. */
+        val fullNameComparator: Comparator<ExceptionTypeItem> =
+            Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
+    }
+}
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
@@ -785,6 +853,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      */
     val className: String
 
+    override val erasedClass: ClassItem?
+        get() = asClass()
+
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
@@ -841,6 +912,35 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     }
 }
 
+/**
+ * Represents a kotlin lambda type.
+ *
+ * This extends [ClassTypeItem] out of necessity because that is how lambdas have been represented
+ * in Metalava up until this was created and so until such time as all the code that consumes this
+ * has been updated to handle lambdas specifically it will need to remain a [ClassTypeItem].
+ */
+interface LambdaTypeItem : ClassTypeItem {
+    /** True if the lambda is a suspend function, false otherwise. */
+    val isSuspend: Boolean
+
+    /** The type of the optional receiver. */
+    val receiverType: TypeItem?
+
+    /** The parameter types. */
+    val parameterTypes: List<TypeItem>
+
+    /** The return type. */
+    val returnType: TypeItem
+
+    override fun duplicate(): LambdaTypeItem =
+        duplicate(outerClassType?.duplicate(), arguments.map { it.duplicate() })
+
+    override fun duplicate(
+        outerClass: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): LambdaTypeItem
+}
+
 /** Represents a type variable type. */
 interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, ExceptionTypeItem {
     /** The name of the type variable */
@@ -849,12 +949,35 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
 
+    override val erasedClass: ClassItem?
+        get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
+
+    override fun description() =
+        "$name (extends ${this.asTypeParameter.asErasedType()?.description() ?: "unknown type"})}"
+
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
-        return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
+        val nullability = modifiers.nullability()
+        return (typeParameterBindings[asTypeParameter] ?: this).duplicate().apply {
+            // If this use of the type parameter is marked as nullable, then it overrides the
+            // nullability of the substituted type.
+            if (nullability == TypeNullability.NULLABLE) {
+                modifiers.setNullability(nullability)
+            } else {
+                // If the type that is replacing the type parameter has platform nullability, i.e.
+                // carries no information one way or another about whether it is nullable, then
+                // use the nullability of the use of the type parameter as while at worst it may
+                // also have no nullability information, it could have some, e.g. from a declaration
+                // nullability annotation.
+                val typeParameterNullability = modifiers.nullability()
+                if (typeParameterNullability == TypeNullability.PLATFORM) {
+                    modifiers.setNullability(nullability)
+                }
+            }
+        }
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()

@@ -35,6 +35,7 @@ internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
+    val allowReadingComments: Boolean
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
 
     /**
@@ -99,7 +100,9 @@ internal open class TurbineBasedCodebase(
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
-            error("Attempted to register $qualifiedName twice, $classItem and $existing")
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+            )
         }
 
         if (isTopClass) {

@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -32,15 +33,17 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.SyntheticElement
 import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
@@ -55,10 +58,10 @@ internal constructor(
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
     override val classKind: ClassKind,
-    private val typeParameterList: TypeParameterList,
+    override val typeParameterList: TypeParameterList,
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -175,12 +178,17 @@ internal constructor(
     final override var primaryConstructor: PsiConstructorItem? = null
         private set
 
-    override fun type(): ClassTypeItem =
-        codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var classTypeItem: PsiClassTypeItem
+
+    override fun type(): ClassTypeItem {
+        if (!::classTypeItem.isInitialized) {
+            classTypeItem = codebase.globalTypeItemFactory.getClassTypeForClass(this)
+        }
+        return classTypeItem
+    }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
-
-    override fun typeParameterList() = typeParameterList
 
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
@@ -202,9 +210,8 @@ internal constructor(
         return PsiSourceFile(codebase, containingFile, uFile)
     }
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-
+    /** Finish initialization of the class */
+    fun finishInitialization() {
         // Force the super class and interfaces to be resolved. Otherwise, they are not added to the
         // list of classes to be scanned in [PsiPackageItem] which causes problems for operations
         // that expect that to be done.
@@ -213,17 +220,6 @@ internal constructor(
             interfaceType.asClass()
         }
 
-        for (method in methods) {
-            method.finishInitialization()
-        }
-        for (method in constructors) {
-            method.finishInitialization()
-        }
-        for (field in fields) {
-            // There may be non-Psi fields here later (thanks to addField) but not during
-            // construction
-            (field as PsiFieldItem).finishInitialization()
-        }
         for (inner in innerClasses) {
             inner.finishInitialization()
         }
@@ -243,9 +239,10 @@ internal constructor(
 
     override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
-        val newMethod = PsiMethodItem.create(codebase, this, method)
-
-        newMethod.finishInitialization()
+        require(method.codebase == codebase) {
+            "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
+        }
+        val newMethod = PsiMethodItem.create(this, method)
 
         // Remember which class this method was copied from.
         newMethod.inheritedFrom = template.containingClass()
@@ -274,11 +271,9 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "class ${qualifiedName()}"
-
     companion object {
         private fun hasExplicitRetention(
-            modifiers: PsiModifierItem,
+            modifiers: DefaultModifierList,
             psiClass: PsiClass,
             isKotlin: Boolean
         ): Boolean {
@@ -300,11 +295,12 @@ internal constructor(
             return false
         }
 
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
             containingClassItem: PsiClassItem?,
-            fromClassPath: Boolean
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
+            fromClassPath: Boolean,
         ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
                 error(
@@ -317,33 +313,21 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadoc(psiClass)
+            val commentText = javadoc(psiClass, codebase.allowReadingComments)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
-            val typeParameterList = PsiTypeParameterList.create(codebase, psiClass)
+            val (typeParameterList, classTypeItemFactory) =
+                PsiTypeParameterList.create(
+                    codebase,
+                    enclosingClassTypeItemFactory,
+                    "class $qualifiedName",
+                    psiClass
+                )
 
-            // Construct the super class type if needed and available.
-            val superClassType =
-                if (classKind != ClassKind.INTERFACE) {
-                    val superClassPsiType = psiClass.superClassType as? PsiType
-                    superClassPsiType?.let { superType -> codebase.getSuperType(superType) }
-                } else null
-
-            // Get the interfaces from the appropriate list.
-            val interfaces =
-                if (classKind == ClassKind.INTERFACE || classKind == ClassKind.ANNOTATION_TYPE) {
-                    // An interface uses "extends <interfaces>", either explicitly for normal
-                    // interfaces or implicitly for annotations.
-                    psiClass.extendsListTypes
-                } else {
-                    // A class uses "extends <interfaces>".
-                    psiClass.implementsListTypes
-                }
-
-            // Map them to PsiTypeItems.
-            val interfaceTypes = interfaces.map { codebase.getSuperType(it) }
+            val (superClassType, interfaceTypes) =
+                computeSuperTypes(psiClass, classKind, classTypeItemFactory)
 
             val item =
                 PsiClassItem(
@@ -361,7 +345,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )
-            item.modifiers.setOwner(item)
             item.containingClass = containingClassItem
 
             // Register this class now.
@@ -370,7 +353,7 @@ internal constructor(
             // Construct the children
             val psiMethods = psiClass.methods
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
-            val isKotlin = isKotlin(psiClass)
+            val isKotlin = psiClass.isKotlin()
 
             if (
                 classKind == ClassKind.ANNOTATION_TYPE &&
@@ -400,7 +383,13 @@ internal constructor(
             var noArgConstructor: PsiConstructorItem? = null
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
-                    val constructor = PsiConstructorItem.create(codebase, item, psiMethod)
+                    val constructor =
+                        PsiConstructorItem.create(
+                            codebase,
+                            item,
+                            psiMethod,
+                            classTypeItemFactory,
+                        )
                     // After KT-13495, "all constructors of `sealed` classes now have `protected`
                     // visibility by default," and (S|U)LC follows that (hence the same in UAST).
                     // However, that change was made to allow more flexible class hierarchy and
@@ -426,10 +415,11 @@ internal constructor(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classKind == ClassKind.ENUM && psiMethod is SyntheticElement) {
+                } else if (classKind == ClassKind.ENUM && psiMethod.isSyntheticEnumMethod()) {
                     // skip
                 } else {
-                    val method = PsiMethodItem.create(codebase, item, psiMethod)
+                    val method =
+                        PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
                     methods.add(method)
                 }
             }
@@ -458,7 +448,9 @@ internal constructor(
             val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
-                psiFields.asSequence().mapTo(fields) { PsiFieldItem.create(codebase, item, it) }
+                psiFields.asSequence().mapTo(fields) {
+                    PsiFieldItem.create(codebase, item, it, classTypeItemFactory)
+                }
             }
 
             if (classKind == ClassKind.INTERFACE) {
@@ -545,6 +537,7 @@ internal constructor(
                                 codebase.createClass(
                                     psiClass = it,
                                     containingClassItem = item,
+                                    enclosingClassTypeItemFactory = classTypeItemFactory
                                 )
                             }
                             .toMutableList()
@@ -554,7 +547,74 @@ internal constructor(
             return item
         }
 
-        internal fun getClassKind(psiClass: PsiClass): ClassKind {
+        /**
+         * Compute the super types for the class.
+         *
+         * Returns a pair of the optional super class type and the possibly empty list of interface
+         * types.
+         */
+        private fun computeSuperTypes(
+            psiClass: PsiClass,
+            classKind: ClassKind,
+            classTypeItemFactory: PsiTypeItemFactory
+        ): Pair<ClassTypeItem?, List<ClassTypeItem>> {
+
+            // A map from the qualified type name to the corresponding [KtTypeReference]. This is
+            // empty for non-Kotlin code, otherwise it maps from the qualified type name of a
+            // super type to the associated [KtTypeReference]. The qualified name is used to map
+            // between them because Kotlin does not differentiate between `implements` and `extends`
+            // lists and just has one super type list. The qualified name is safe because a class
+            // cannot implement/extend the same generic type multiple times with different type
+            // arguments so the qualified name should be unique among the super type list.
+            // The [KtTypeReference] is needed to access the type nullability of the generic type
+            // arguments.
+            val qualifiedNameToKt =
+                if (psiClass is UClass) {
+                    psiClass.uastSuperTypes.associateBy({ it.getQualifiedName() }) {
+                        it.sourcePsi as KtTypeReference
+                    }
+                } else emptyMap()
+
+            // Get the [KtTypeReference], if any, associated with ths [PsiType] which must be a
+            // [PsiClassType] as that is the only type allowed in an extends/implements list.
+            fun PsiType.ktTypeReference(): KtTypeReference? {
+                val qualifiedName = (this as PsiClassType).computeQualifiedName()
+                return qualifiedNameToKt[qualifiedName]
+            }
+
+            // Construct the super class type if needed and available.
+            val superClassType =
+                if (classKind != ClassKind.INTERFACE) {
+                    val superClassPsiType = psiClass.superClassType as? PsiType
+                    superClassPsiType?.let { superClassType ->
+                        val ktTypeRef = superClassType.ktTypeReference()
+                        classTypeItemFactory.getSuperClassType(
+                            PsiTypeInfo(superClassType, ktTypeRef)
+                        )
+                    }
+                } else null
+
+            // Get the interfaces from the appropriate list.
+            val interfaces =
+                if (classKind == ClassKind.INTERFACE || classKind == ClassKind.ANNOTATION_TYPE) {
+                    // An interface uses "extends <interfaces>", either explicitly for normal
+                    // interfaces or implicitly for annotations.
+                    psiClass.extendsListTypes
+                } else {
+                    // A class uses "extends <interfaces>".
+                    psiClass.implementsListTypes
+                }
+
+            // Map them to PsiTypeItems.
+            val interfaceTypes =
+                interfaces.map { interfaceType ->
+                    val ktTypeRef = interfaceType.ktTypeReference()
+                    classTypeItemFactory.getInterfaceType(PsiTypeInfo(interfaceType, ktTypeRef))
+                }
+            return Pair(superClassType, interfaceTypes)
+        }
+
+        private fun getClassKind(psiClass: PsiClass): ClassKind {
             return when {
                 psiClass.isAnnotationType -> ClassKind.ANNOTATION_TYPE
                 psiClass.isInterface -> ClassKind.INTERFACE
@@ -636,4 +696,19 @@ internal constructor(
             return false
         }
     }
+}
+
+/**
+ * Check whether the method is a synthetic enum method.
+ *
+ * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and Kotlin.
+ */
+private fun PsiMethod.isSyntheticEnumMethod(): Boolean {
+    if (containingClass?.isEnum != true) return false
+    val parameterCount = parameterList.parametersCount
+    return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
+        (parameterCount == 1 &&
+            name == "valueOf" &&
+            (parameterList.parameters[0].type as? PsiClassType)?.computeQualifiedName() ==
+                "java.lang.String")
 }

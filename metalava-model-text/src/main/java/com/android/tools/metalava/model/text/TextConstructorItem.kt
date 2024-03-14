@@ -16,19 +16,29 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextConstructorItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    returnType: TextTypeItem,
+    returnType: ClassTypeItem,
     parameters: List<TextParameterItem>,
-    position: SourcePositionInfo
+    fileLocation: FileLocation
 ) :
-    TextMethodItem(codebase, name, containingClass, modifiers, returnType, parameters, position),
+    TextMethodItem(
+        codebase,
+        name,
+        containingClass,
+        modifiers,
+        returnType,
+        parameters,
+        fileLocation
+    ),
     ConstructorItem {
 
     override var superConstructor: ConstructorItem? = null
@@ -39,7 +49,7 @@ internal class TextConstructorItem(
         fun createDefaultConstructor(
             codebase: TextCodebase,
             containingClass: TextClassItem,
-            position: SourcePositionInfo,
+            fileLocation: FileLocation,
         ): TextConstructorItem {
             val name = containingClass.simpleName
             // The default constructor is package private because while in Java a class without
@@ -55,9 +65,8 @@ internal class TextConstructorItem(
                     modifiers = modifiers,
                     returnType = containingClass.type(),
                     parameters = emptyList(),
-                    position = position,
+                    fileLocation = fileLocation,
                 )
-            modifiers.setOwner(item)
             return item
         }
     }

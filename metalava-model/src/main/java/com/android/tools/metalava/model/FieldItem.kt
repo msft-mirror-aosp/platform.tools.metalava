@@ -49,9 +49,13 @@ interface FieldItem : MemberItem {
      */
     override fun duplicate(targetContainingClass: ClassItem): FieldItem
 
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
 
     /**
      * Check the declared value with a typed comparison, not a string comparison, to accommodate
@@ -105,22 +109,6 @@ interface FieldItem : MemberItem {
         }
 
         return true
-    }
-
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // Constant field not initialized to null?
-        if (isEnumConstant() || modifiers.isFinal() && initialValue(false) != null) {
-            // Assigned to constant: not nullable
-            return false
-        }
-
-        return null
     }
 
     companion object {

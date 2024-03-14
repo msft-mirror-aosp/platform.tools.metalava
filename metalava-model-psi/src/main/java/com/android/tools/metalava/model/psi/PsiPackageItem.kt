@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.intellij.psi.PsiPackage
@@ -26,7 +27,7 @@ internal constructor(
     codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
@@ -116,11 +117,8 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "package $qualifiedName"
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-
+    /** Finish initialization of the classes in this package */
+    fun finishInitialization() {
         // Take a copy of the list just in case additional classes are added during iteration. Those
         // classes will have their [PsiClassItem.finishInitialization] called so there is no need to
         // handle them here.
@@ -138,9 +136,11 @@ internal constructor(
             psiPackage: PsiPackage,
             extraDocs: String?,
             overviewHtml: String?,
-            fromClassPath: Boolean
+            fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
+            val commentText =
+                javadoc(psiPackage, codebase.allowReadingComments) +
+                    if (extraDocs != null) "\n$extraDocs" else ""
             val modifiers = modifiers(codebase, psiPackage, commentText)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
@@ -158,7 +158,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath
                 )
-            pkg.modifiers.setOwner(pkg)
             return pkg
         }
     }
