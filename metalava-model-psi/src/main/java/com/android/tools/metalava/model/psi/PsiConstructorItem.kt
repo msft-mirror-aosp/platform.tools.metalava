@@ -35,6 +35,7 @@ class PsiConstructorItem
 private constructor(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
@@ -51,6 +52,7 @@ private constructor(
         modifiers = modifiers,
         documentation = documentation,
         psiMethod = psiMethod,
+        fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
         returnType = returnType,
@@ -67,18 +69,6 @@ private constructor(
     override var superConstructor: ConstructorItem? = null
 
     override fun superMethods(): List<MethodItem> = emptyList()
-
-    /**
-     * Override to handle providing the location for a synthetic/implicit constructor which has no
-     * associated file.
-     */
-    override val fileLocation: FileLocation
-        get() =
-            // Delegate to the constructor's location first.
-            super<PsiMethodItem>.fileLocation.takeIf { it.path != null }
-            // If that is not valid (because it is a synthetic/implicit constructor that does
-            // not appear in the source) then fallback to the containing class's location.
-            ?: containingClass().fileLocation
 
     companion object {
         internal fun create(
@@ -135,6 +125,9 @@ private constructor(
                 PsiConstructorItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
+                    // Use the location of the containing class for the implicit default
+                    // constructor.
+                    fileLocation = containingClass.fileLocation,
                     containingClass = containingClass,
                     name = name,
                     documentation = "",

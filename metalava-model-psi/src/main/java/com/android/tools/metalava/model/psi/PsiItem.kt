@@ -35,6 +35,7 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
+    final override val fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     override var documentation: String,
 ) : DefaultItem(modifiers) {
@@ -60,8 +61,6 @@ internal constructor(
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
-
-    override val fileLocation: FileLocation = PsiFileLocation(element)
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
