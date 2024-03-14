@@ -35,10 +35,14 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
-    final override val fileLocation: FileLocation = PsiFileLocation(element),
+    fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     override var documentation: String,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     @Suppress(
         "LeakingThis"
