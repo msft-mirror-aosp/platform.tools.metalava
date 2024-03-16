@@ -39,8 +39,7 @@ class CommonSuspendMethodTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.TestKt").methods().single()
             assertThat(method.kotlinLikeDescription())
                 .isEqualTo(
-                    // TODO: Fix, java.lang.String should be nullable.
-                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String>): java.lang.Object?"
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String?>): java.lang.Object?"
                 )
         }
     }
@@ -80,8 +79,7 @@ class CommonSuspendMethodTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             assertThat(method.kotlinLikeDescription())
                 .isEqualTo(
-                    // TODO: Fix, java.lang.String should be nullable.
-                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String>): java.lang.Object?"
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String?>): java.lang.Object?"
                 )
         }
     }
@@ -123,8 +121,7 @@ class CommonSuspendMethodTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             assertThat(method.kotlinLikeDescription())
                 .isEqualTo(
-                    // TODO: Fix, java.lang.Integer should be nullable.
-                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.Integer>): java.lang.Object?"
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.Integer?>): java.lang.Object?"
                 )
         }
     }
@@ -146,6 +143,25 @@ class CommonSuspendMethodTest : BaseModelTest() {
             assertThat(method.kotlinLikeDescription())
                 .isEqualTo(
                     "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.Integer>): java.lang.Object?"
+                )
+        }
+    }
+
+    @Test
+    fun `Test suspend inline fun with reified type`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    suspend inline fun <reified T> foo(): T
+                """
+            ),
+        ) {
+            val method = codebase.assertClass("test.pkg.TestKt").methods().single()
+            assertThat(method.kotlinLikeDescription())
+                .isEqualTo(
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super T>): java.lang.Object?"
                 )
         }
     }
