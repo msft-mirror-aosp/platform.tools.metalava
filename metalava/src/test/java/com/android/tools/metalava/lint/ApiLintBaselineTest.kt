@@ -21,6 +21,8 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -200,6 +202,7 @@ class ApiLintBaselineTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check generic builders with synthesized setter`() {
         check(
@@ -241,12 +244,12 @@ class ApiLintBaselineTest : DriverTest() {
                     public class Base {
                         public static abstract class BaseBuilder<B extends BaseBuilder<B>> {
                             protected int field;
-                            
+
                             protected BaseBuilder() {}
-                            
+
                             @NonNull
                             protected abstract B getThis();
-                            
+
                             @NonNull
                             public B setField(int i) {
                                 this.field = i;
@@ -265,7 +268,7 @@ class ApiLintBaselineTest : DriverTest() {
                         private Foo(int i) {
                             this.field = i;
                         }
-                        
+
                         public static final class Builder extends BaseBuilder<Builder> {
                             public Builder() {}
 

@@ -33,8 +33,11 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
@@ -133,6 +136,7 @@ var options by OptionsDelegate
 private const val INDENT_WIDTH = 45
 
 const val ARG_CLASS_PATH = "--classpath"
+const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_XML_API = "--api-xml"
@@ -153,12 +157,10 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
+const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
-const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
-const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
@@ -181,7 +183,6 @@ const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_API_LINT = "--api-lint"
-const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -207,7 +208,6 @@ const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
-const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -216,6 +216,7 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
     private val issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
+    private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
@@ -232,6 +233,8 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
+    /** Internal list backing [commonSourcePath] */
+    private val mutableCommonSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [sourcePath] */
     private val mutableSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
@@ -256,8 +259,6 @@ class Options(
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [hidePackages] */
     private val mutableHidePackages: MutableList<String> = mutableListOf()
-    /** Internal list backing [skipEmitPackages] */
-    private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -325,11 +326,21 @@ class Options(
      */
     var enhanceDocumentation = false
 
+    /**
+     * Whether to allow reading comments If false, any attempts by Metalava to read a PSI comment
+     * will return "" This can help callers to be sure that comment-only changes shouldn't affect
+     * Metalava output
+     */
+    var allowReadingComments = true
+
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
 
     /** If true, treat all API lint warnings as errors */
     var lintsAreErrors: Boolean = false
+
+    /** Ths list of source roots in the common module */
+    val commonSourcePath: List<File> = mutableCommonSourcePath
 
     /** The list of source roots */
     val sourcePath: List<File> = mutableSourcePath
@@ -392,8 +403,6 @@ class Options(
     /** Whether to validate the API for best practices */
     var checkApi = false
 
-    val checkApiIgnorePrefix: MutableList<String> = mutableListOf()
-
     /** If non-null, an API file to use to hide for controlling what parts of the API are new */
     var checkApiBaselineApiFile: File? = null
 
@@ -407,7 +416,8 @@ class Options(
     var hidePackages: List<String> = mutableHidePackages
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
-    var skipEmitPackages: List<String> = mutableSkipEmitPackages
+    val skipEmitPackages
+        get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
@@ -429,25 +439,14 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
-                previouslyReleasedRemovedCodebaseProvider = { previouslyReleasedRemovedCodebase },
+                previouslyReleasedCodebasesProvider = {
+                    compatibilityCheckOptions.previouslyReleasedCodebases(signatureFileCache)
+                },
             )
         )
     }
 
     internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
-
-    private var previouslyReleasedApi: File? = null
-
-    private val previouslyReleasedCodebase by lazy {
-        previouslyReleasedApi?.let { file -> signatureFileCache.load(file) }
-    }
-
-    private var previouslyReleasedRemovedApi: File? = null
-
-    private val previouslyReleasedRemovedCodebase by lazy {
-        previouslyReleasedRemovedApi?.let { file -> signatureFileCache.load(file) }
-    }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     private val suppressCompatibilityMetaAnnotations by
@@ -455,7 +454,7 @@ class Options(
                 ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
                 help =
                     """
-                       Suppress compatibility checks for any elements within the scope of an 
+                       Suppress compatibility checks for any elements within the scope of an
                        annotation which is itself annotated with the given meta-annotation.
                     """
                         .trimIndent(),
@@ -595,14 +594,11 @@ class Options(
     /** A signature file to migrate nullness data from */
     var migrateNullsFrom: File? = null
 
-    /** Private backing list for [compatibilityChecks]] */
-    private val mutableCompatibilityChecks: MutableList<CheckRequest> = mutableListOf()
-
     /** The list of compatibility checks to run */
-    val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
+    val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
 
     /** The API to use a base for the otherwise checked API during compat checks. */
-    var baseApiForCompatCheck: File? = null
+    val baseApiForCompatCheck by compatibilityCheckOptions::baseApiForCompatCheck
 
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
@@ -695,12 +691,6 @@ class Options(
      */
     private var errorMessageApiLint: String = DefaultLintErrorMessage
 
-    /**
-     * If set, metalava will show this error message when "check-compatibility:*:released" fails.
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
-     */
-    private var errorMessageCompatibilityReleased: String? = null
-
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
@@ -781,7 +771,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    var useK2Uast = false
+    var useK2Uast: Boolean? = null
 
     val sourceModelProvider by
         option(
@@ -828,6 +818,21 @@ class Options(
                 else -> error("Internal error: Invalid flag: $flag")
             }
 
+        fun getSourcePath(path: String, arg: String, sourcePathToStore: MutableList<File>) {
+            if (path.isBlank()) {
+                // Don't compute absolute path; we want to skip this file later on.
+                // For current directory one should use ".", not "".
+                sourcePathToStore.add(File(""))
+            } else {
+                if (path.endsWith(SdkConstants.DOT_JAVA)) {
+                    throw MetalavaCliException(
+                        "$arg should point to a source root directory, not a source file ($path)"
+                    )
+                }
+                sourcePathToStore.addAll(stringToExistingDirsOrJars(path))
+            }
+        }
+
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -836,22 +841,15 @@ class Options(
                     val path = getValue(args, ++index)
                     mutableClassPath.addAll(stringToExistingDirsOrJars(path))
                 }
+                ARG_COMMON_SOURCE_PATH -> {
+                    val path = getValue(args, ++index)
+                    getSourcePath(path, arg, mutableCommonSourcePath)
+                }
                 ARG_SOURCE_PATH,
                 "--sources",
                 "--sourcepath" -> {
                     val path = getValue(args, ++index)
-                    if (path.isBlank()) {
-                        // Don't compute absolute path; we want to skip this file later on.
-                        // For current directory one should use ".", not "".
-                        mutableSourcePath.add(File(""))
-                    } else {
-                        if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                            throw MetalavaCliException(
-                                "$arg should point to a source root directory, not a source file ($path)"
-                            )
-                        }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
-                    }
+                    getSourcePath(path, arg, mutableSourcePath)
                 }
                 ARG_SOURCE_FILES -> {
                     val listString = getValue(args, ++index)
@@ -917,6 +915,7 @@ class Options(
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
+                ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path ->
@@ -947,10 +946,6 @@ class Options(
                         mutableStubImportPackages.add(pkg)
                         mutableHidePackages.add(pkg)
                     }
-                }
-                "--skip-emit-packages" -> {
-                    val packages = getValue(args, ++index)
-                    mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
@@ -985,8 +980,6 @@ class Options(
                     }
                 }
                 ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
-                ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED ->
-                    errorMessageCompatibilityReleased = getValue(args, ++index)
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
@@ -995,20 +988,6 @@ class Options(
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
                 ARG_MIGRATE_NULLNESS -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    previouslyReleasedApi = file
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
-                }
-                ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    previouslyReleasedRemovedApi = file
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
-                }
-                ARG_CHECK_COMPATIBILITY_BASE_API -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    baseApiForCompatCheck = file
                 }
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
@@ -1024,9 +1003,6 @@ class Options(
                             }
                         }
                     }
-                }
-                ARG_API_LINT_IGNORE_PREFIX -> {
-                    checkApiIgnorePrefix.add(getValue(args, ++index))
                 }
 
                 // Extracting API levels
@@ -1238,7 +1214,7 @@ class Options(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
                 baseline = baselineCompatibilityReleased ?: baseline,
-                errorMessage = errorMessageCompatibilityReleased,
+                errorMessage = compatibilityCheckOptions.errorMessage,
                 packageFilter = stubPackages,
             )
 
@@ -1469,47 +1445,15 @@ class Options(
     }
 
     private fun stringToExistingFiles(value: String): List<File> {
-        return stringToExistingFilesOrDirsInternal(value, false)
-    }
-
-    private fun stringToExistingFilesOrDirsInternal(value: String, allowDirs: Boolean): List<File> {
-        val files = mutableListOf<File>()
-        value
+        return value
             .split(File.pathSeparatorChar)
             .map { fileForPathInner(it) }
-            .forEach { file ->
-                if (file.path.startsWith("@")) {
-                    // File list; files to be read are stored inside. SHOULD have been one per line
-                    // but sadly often uses spaces for separation too (so we split by whitespace,
-                    // which means you can't point to files in paths with spaces)
-                    val listFile = File(file.path.substring(1))
-                    if (!allowDirs && !listFile.isFile) {
-                        throw MetalavaCliException("$listFile is not a file")
-                    }
-                    val contents = listFile.readText()
-                    val pathList =
-                        contents
-                            .split("""\s""".toRegex())
-                            .map { it.trim() }
-                            .filter { it.isNotEmpty() }
-                            .toList()
-                    pathList
-                        .asSequence()
-                        .map { File(it) }
-                        .forEach {
-                            if (!allowDirs && !it.isFile) {
-                                throw MetalavaCliException("$it is not a file")
-                            }
-                            files.add(it)
-                        }
-                } else {
-                    if (!allowDirs && !file.isFile) {
-                        throw MetalavaCliException("$file is not a file")
-                    }
-                    files.add(file)
+            .map { file ->
+                if (!file.isFile) {
+                    throw MetalavaCliException("$file is not a file")
                 }
+                file
             }
-        return files
     }
 
     private fun stringToNewOrExistingDir(value: String): File {
@@ -1557,6 +1501,11 @@ object OptionsHelp {
                 "$ARG_SOURCE_PATH <paths>",
                 "One or more directories (separated by `${File.pathSeparator}`) " +
                     "containing source files (within a package hierarchy).",
+                "$ARG_COMMON_SOURCE_PATH <paths>",
+                "One or more directories (separated by `${File.pathSeparator}`) " +
+                    "containing common source files (within a package hierarchy) " +
+                    "where platform-agnostic `expect` declarations as well as " +
+                    "common business logic are defined.",
                 "$ARG_CLASS_PATH <paths>",
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
@@ -1626,6 +1575,8 @@ object OptionsHelp {
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
+                ARG_SKIP_READING_COMMENTS,
+                "Ignore any comments in source files.",
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
@@ -1662,21 +1613,9 @@ object OptionsHelp {
                     "Documentation stubs (--doc-stubs) are not affected.)",
                 "",
                 "Diffs and Checks:",
-                "--check-compatibility:type:released <file>",
-                "Check compatibility. Type is one of 'api' " +
-                    "and 'removed', which checks either the public api or the removed api.",
-                "$ARG_CHECK_COMPATIBILITY_BASE_API <file>",
-                "When performing a compat check, use the provided signature " +
-                    "file as a base api, which is treated as part of the API being checked. This allows us to compute the " +
-                    "full API surface from a partial API surface (e.g. the current @SystemApi txt file), which allows us to " +
-                    "recognize when an API is moved from the partial API to the base API and avoid incorrectly flagging this " +
-                    "as an API removal.",
                 "$ARG_API_LINT [api file]",
                 "Check API for Android API best practices. If a signature file is " +
                     "provided, only the APIs that are new since the API will be checked.",
-                "$ARG_API_LINT_IGNORE_PREFIX [prefix]",
-                "A list of package prefixes to ignore API issues in " +
-                    "when running with $ARG_API_LINT.",
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",
@@ -1711,9 +1650,6 @@ object OptionsHelp {
                     "to include.",
                 "$ARG_ERROR_MESSAGE_API_LINT <message>",
                 "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
-                "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED <message>",
-                "If set, $PROGRAM_NAME shows it " +
-                    "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
                 "",
                 "JDiff:",
                 "$ARG_XML_API <file>",

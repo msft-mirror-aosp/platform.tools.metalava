@@ -27,6 +27,7 @@ import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.github.ajalt.clikt.core.CliktCommand
@@ -80,6 +81,9 @@ class MainCommand(
     private val issueReportingOptions by
         IssueReportingOptions(executionEnvironment.reporterEnvironment)
 
+    /** Compatibility check options. */
+    private val compatibilityCheckOptions by CompatibilityCheckOptions()
+
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()
 
@@ -93,9 +97,10 @@ class MainCommand(
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
-    private val optionGroup by
+    internal val optionGroup by
         Options(
             commonOptions = commonOptions,
+            compatibilityCheckOptions = compatibilityCheckOptions,
             issueReportingOptions = issueReportingOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
@@ -136,9 +141,12 @@ class MainCommand(
         options = optionGroup
 
         val sourceModelProvider =
-            SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
+            // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
+            executionEnvironment.testEnvironment?.sourceModelProvider
+            // Otherwise, use the one specified on the command line, or the default.
+            ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
         sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
-            processFlags(it, progressTracker)
+            processFlags(executionEnvironment, it, progressTracker)
         }
 
         if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {

@@ -18,6 +18,8 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -32,6 +34,7 @@ import org.junit.Test
 )
 class VisiblySynchronizedTest : DriverTest() {
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Api methods should not be synchronized in their signature`() {
         check(
@@ -143,6 +146,55 @@ class VisiblySynchronizedTest : DriverTest() {
                     ),
                     androidxNullableSource,
                     nullableSource
+                )
+        )
+    }
+
+    @Test
+    fun `Suppression of issues with previously released APIs`() {
+        check(
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void fooSynchronized();
+                      }
+                    }
+                """, // enabled
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: Internal locks must not be exposed: method test.pkg.Foo.newSynchronized() [VisiblySynchronized]
+                """,
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            VisiblySynchronized: test.pkg.Foo#newSynchronized():
+                                Internal locks must not be exposed: method test.pkg.Foo.newSynchronized()
+                        """,
+                    silentUpdate = false,
+                ),
+            expectedFail =
+                """
+                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
+
+                """
+                    .trimIndent() + DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public synchronized void fooSynchronized() {}
+                                public synchronized void newSynchronized() {}
+                            }
+                        """
+                    ),
                 )
         )
     }
