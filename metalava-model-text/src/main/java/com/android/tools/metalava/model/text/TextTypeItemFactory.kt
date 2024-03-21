@@ -16,23 +16,20 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.TypeItemFactory
+import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 
 internal class TextTypeItemFactory(
     private val codebase: TextCodebase,
     private val typeParser: TextTypeParser,
-    override val typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
-) : TypeItemFactory<String, TextTypeItemFactory> {
+    typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
+) : DefaultTypeItemFactory<String, TextTypeItemFactory>(typeParameterScope) {
 
     /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
     val superAnnotationType
@@ -46,40 +43,32 @@ internal class TextTypeItemFactory(
     val superObjectType
         get() = getSuperClassType(JAVA_LANG_OBJECT)
 
-    override fun nestedFactory(
-        scopeDescription: String,
-        typeParameters: List<TypeParameterItem>
-    ): TextTypeItemFactory {
-        val scope = typeParameterScope.nestedScope(scopeDescription, typeParameters)
-        return if (scope === typeParameterScope) this
-        else TextTypeItemFactory(codebase, typeParser, scope)
-    }
+    override fun self() = this
 
-    override fun getBoundsType(underlyingType: String) =
-        typeParser.obtainTypeFromString(underlyingType, typeParameterScope) as BoundsTypeItem
+    override fun createNestedFactory(scope: TypeParameterScope) =
+        TextTypeItemFactory(codebase, typeParser, scope)
 
-    override fun getExceptionType(underlyingType: String) =
-        (typeParser.obtainTypeFromString(underlyingType, typeParameterScope) as ExceptionTypeItem)
-            .also { exceptionTypeItem ->
-                if (exceptionTypeItem is ClassTypeItem) {
-                    codebase.requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
-                }
-            }
-
-    override fun getGeneralType(underlyingType: String): TypeItem =
-        typeParser.obtainTypeFromString(underlyingType, typeParameterScope)
-
-    private fun getSuperType(underlyingType: String): ClassTypeItem =
-        typeParser.obtainTypeFromString(
+    override fun getType(
+        underlyingType: String,
+        contextNullability: ContextNullability,
+        isVarArg: Boolean
+    ): TypeItem {
+        return typeParser.obtainTypeFromString(
             underlyingType,
             typeParameterScope,
-            ContextNullability.forceNonNull,
-        ) as ClassTypeItem
+            contextNullability,
+        )
+    }
 
-    override fun getInterfaceType(underlyingType: String) =
-        getSuperType(underlyingType).also { classTypeItem ->
-            codebase.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
+    override fun getExceptionType(underlyingType: String) =
+        super.getExceptionType(underlyingType).also { exceptionTypeItem ->
+            if (exceptionTypeItem is ClassTypeItem) {
+                codebase.requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
+            }
         }
 
-    override fun getSuperClassType(underlyingType: String) = getSuperType(underlyingType)
+    override fun getInterfaceType(underlyingType: String) =
+        super.getInterfaceType(underlyingType).also { classTypeItem ->
+            codebase.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
+        }
 }
