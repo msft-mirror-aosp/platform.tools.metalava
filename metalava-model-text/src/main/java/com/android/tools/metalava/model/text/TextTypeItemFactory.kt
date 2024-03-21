@@ -19,9 +19,13 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.type.TypeItemFactory
 
 internal class TextTypeItemFactory(
@@ -29,6 +33,18 @@ internal class TextTypeItemFactory(
     private val typeParser: TextTypeParser,
     override val typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : TypeItemFactory<String, TextTypeItemFactory> {
+
+    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
+    val superAnnotationType
+        get() = getInterfaceType(JAVA_LANG_ANNOTATION)
+
+    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
+    val superEnumType
+        get() = getSuperClassType(JAVA_LANG_ENUM)
+
+    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
+    val superObjectType
+        get() = getSuperClassType(JAVA_LANG_OBJECT)
 
     override fun nestedFactory(
         scopeDescription: String,
@@ -53,11 +69,17 @@ internal class TextTypeItemFactory(
     override fun getGeneralType(underlyingType: String): TypeItem =
         typeParser.obtainTypeFromString(underlyingType, typeParameterScope)
 
+    private fun getSuperType(underlyingType: String): ClassTypeItem =
+        typeParser.obtainTypeFromString(
+            underlyingType,
+            typeParameterScope,
+            typeUse = TypeUse.SUPER_TYPE
+        ) as ClassTypeItem
+
     override fun getInterfaceType(underlyingType: String) =
-        typeParser.getSuperType(underlyingType, typeParameterScope).also { classTypeItem ->
+        getSuperType(underlyingType).also { classTypeItem ->
             codebase.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
         }
 
-    override fun getSuperClassType(underlyingType: String) =
-        typeParser.getSuperType(underlyingType, typeParameterScope)
+    override fun getSuperClassType(underlyingType: String) = getSuperType(underlyingType)
 }

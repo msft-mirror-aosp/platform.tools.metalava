@@ -389,7 +389,7 @@ private constructor(
                 classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
-                superClassType = typeParser.superEnumType
+                superClassType = globalTypeItemFactory.superEnumType
                 token = tokenizer.requireToken()
             }
             else -> {
@@ -439,7 +439,7 @@ private constructor(
                 }
             }
         }
-        if (superClassType == typeParser.superEnumType) {
+        if (superClassType == globalTypeItemFactory.superEnumType) {
             // This can be taken either for an enum class, or a normal class that extends
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
@@ -447,8 +447,8 @@ private constructor(
         } else if (classKind == ClassKind.ANNOTATION_TYPE) {
             // If the annotation was defined using @interface then add the implicit
             // "implements java.lang.annotation.Annotation".
-            interfaceTypes.add(typeParser.superAnnotationType)
-        } else if (typeParser.superAnnotationType in interfaceTypes) {
+            interfaceTypes.add(globalTypeItemFactory.superAnnotationType)
+        } else if (globalTypeItemFactory.superAnnotationType in interfaceTypes) {
             // A normal class that implements java.lang.annotation.Annotation which was the old way
             // of representing an annotation in the API signature files. So, update the class kind
             // to match.
@@ -499,7 +499,7 @@ private constructor(
         // Default the superClassType() to java.lang.Object for any class that is not an interface,
         // annotation, or enum and which is not itself java.lang.Object.
         if (classKind == ClassKind.CLASS && superClassType == null && !cl.isJavaLangObject()) {
-            superClassType = typeParser.superObjectType
+            superClassType = globalTypeItemFactory.superObjectType
         }
         cl.setSuperClassType(superClassType)
 

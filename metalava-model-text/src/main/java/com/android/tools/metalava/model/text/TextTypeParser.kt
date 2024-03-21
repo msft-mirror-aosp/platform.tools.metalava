@@ -22,8 +22,6 @@ import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -69,39 +67,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     internal var cacheHit = 0
     internal var cacheSize = 0
 
-    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
-    val superAnnotationType
-        get() = createJavaLangSuperType(JAVA_LANG_ANNOTATION)
-
-    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
-    val superEnumType
-        get() = createJavaLangSuperType(JAVA_LANG_ENUM)
-
-    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
-    val superObjectType
-        get() = createJavaLangSuperType(JAVA_LANG_OBJECT)
-
-    /**
-     * Create a [ClassTypeItem] for a standard java.lang class suitable for use by a super class or
-     * interface.
-     */
-    private fun createJavaLangSuperType(standardClassName: String): ClassTypeItem {
-        return getSuperType(standardClassName, TypeParameterScope.empty)
-    }
-
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType: ReferenceTypeItem
         get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty) as ReferenceTypeItem
-
-    /**
-     * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
-     * type, e.g. in an `extends` or `implements` list.
-     */
-    fun getSuperType(
-        type: String,
-        typeParameterScope: TypeParameterScope,
-    ): ClassTypeItem =
-        obtainTypeFromString(type, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
