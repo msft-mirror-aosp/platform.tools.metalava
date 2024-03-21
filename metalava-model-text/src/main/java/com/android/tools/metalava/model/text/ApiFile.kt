@@ -89,20 +89,6 @@ private constructor(
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
-    /**
-     * The set of super class types needed for later resolution.
-     *
-     * TODO(b/323516595): Find a better way.
-     */
-    private val superClassTypesForResolution = mutableSetOf<ClassTypeItem>()
-
-    /**
-     * The set of interface types needed for later resolution.
-     *
-     * TODO(b/323516595): Find a better way.
-     */
-    private val interfaceTypesForResolution = mutableSetOf<ClassTypeItem>()
-
     companion object {
         /**
          * Same as `parseApi(List<File>, ...)`, but takes a single file for convenience.
@@ -278,18 +264,7 @@ private constructor(
      * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
      */
     private fun postProcess() {
-        // Resolve all super class types that were found in the signature file.
-        // TODO(b/323516595): Find a better way.
-        for (superClassType in superClassTypesForResolution) {
-            superClassType.asClass()
-        }
-
-        // Resolve all interface types that were found in the signature file.
-        // TODO(b/323516595): Find a better way.
-        for (interfaceType in interfaceTypesForResolution) {
-            // Resolve the interface type to a class.
-            interfaceType.asClass()
-        }
+        codebase.resolveSuperTypes()
     }
 
     private fun parseApiSingleFile(
@@ -530,13 +505,6 @@ private constructor(
 
         cl.setInterfaceTypes(interfaceTypes.toList())
 
-        // Save the super class and interface types to later when they will be resolved. That is
-        // needed to avoid later changes to the model which would/could cause concurrent
-        // modification issues.
-        // TODO(b/323516595): Find a better way.
-        superClassType?.let { superClassTypesForResolution.add(it) }
-        interfaceTypesForResolution.addAll(interfaceTypes)
-
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
         if (!typeItemFactory.typeParameterScope.isEmpty()) {
@@ -585,6 +553,13 @@ private constructor(
                 "Incompatible $existingClass definitions",
                 newClassCharacteristics.fileLocation
             )
+        }
+
+        // Add new annotations to the existing class
+        val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
+        val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
+        for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
+            existingClass.addAnnotation(annotation)
         }
 
         // Use the latest super class.
