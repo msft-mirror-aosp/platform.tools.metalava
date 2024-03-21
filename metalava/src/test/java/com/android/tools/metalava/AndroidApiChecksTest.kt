@@ -76,6 +76,7 @@ class AndroidApiChecksTest : DriverTest() {
                 """
                 src/android/pkg/PermissionTest.java:14: error: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
                 src/android/pkg/PermissionTest.java:21: error: Method 'test1' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
+                src/android/pkg/PermissionTest.java:34: error: Method 'conditionalOk' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
                 """,
             sourceFiles =
                 arrayOf(
@@ -108,6 +109,13 @@ class AndroidApiChecksTest : DriverTest() {
                         // of the permissions is annotated but not mentioned
                         @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION)
                         public void test2() {
+                        }
+
+                        /**
+                         * Sometimes requires {@link Manifest.permission#ACCESS_COARSE_LOCATION}.
+                         */
+                        @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION, conditional = true)
+                        public void conditionalOk() {
                         }
                     }
                     """
