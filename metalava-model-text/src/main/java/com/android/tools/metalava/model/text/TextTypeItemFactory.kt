@@ -25,7 +25,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemFactory
 
 internal class TextTypeItemFactory(
@@ -73,7 +73,7 @@ internal class TextTypeItemFactory(
         typeParser.obtainTypeFromString(
             underlyingType,
             typeParameterScope,
-            typeUse = TypeUse.SUPER_TYPE
+            ContextNullability.forceNonNull,
         ) as ClassTypeItem
 
     override fun getInterfaceType(underlyingType: String) =
