@@ -53,11 +53,20 @@ internal class TextTypeItemFactory(
         contextNullability: ContextNullability,
         isVarArg: Boolean
     ): TypeItem {
-        return typeParser.obtainTypeFromString(
-            underlyingType,
-            typeParameterScope,
-            contextNullability,
-        )
+        val typeItem =
+            typeParser.obtainTypeFromString(
+                underlyingType,
+                typeParameterScope,
+                contextNullability,
+            )
+
+        // Check if the type's nullability needs to be updated based on the context.
+        val typeNullability = typeItem.modifiers.nullability()
+        val actualTypeNullability =
+            contextNullability.compute(typeNullability, typeItem.modifiers.annotations())
+        return if (actualTypeNullability != typeNullability) {
+            typeItem.duplicate(actualTypeNullability)
+        } else typeItem
     }
 
     override fun getExceptionType(underlyingType: String) =

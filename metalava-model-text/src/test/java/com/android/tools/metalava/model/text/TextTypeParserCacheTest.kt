@@ -81,8 +81,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                             totalClasses = 7315,
                             typeCacheRequests = 190871,
                             typeCacheSkip = 0,
-                            typeCacheHit = 179508,
-                            typeCacheSize = 11363,
+                            typeCacheHit = 179357,
+                            typeCacheSize = 11514,
                         )
                     )
             }

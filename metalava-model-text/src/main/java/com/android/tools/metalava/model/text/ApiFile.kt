@@ -1155,22 +1155,19 @@ private constructor(
                 token.also { token = tokenizer.requireToken() }
             } else null
 
-        // Parse the type string and then snychronize with the annotations.
-        val parsedType = classTypeItemFactory.getGeneralType(typeString)
-        var type = synchronizeNullability(parsedType, modifiers)
+        // Parse the type string and then synchronize the field's nullability with the type.
+        val type =
+            classTypeItemFactory.getFieldType(
+                underlyingType = typeString,
+                isEnumConstant = isEnumConstant,
+                isFinal = modifiers.isFinal(),
+                isInitialValueNonNull = { valueString != null && valueString != "null" },
+                itemAnnotations = annotations,
+            )
+        synchronizeNullability(type, modifiers)
 
         // Parse the value string.
         val value = valueString?.let { parseValue(type, valueString, tokenizer) }
-
-        // If this is an implicitly null constant, add the nullability.
-        if (
-            !typeParser.kotlinStyleNulls &&
-                modifiers.isFinal() &&
-                value != null &&
-                type.modifiers.nullability() != TypeNullability.NONNULL
-        ) {
-            type = type.duplicate(TypeNullability.NONNULL)
-        }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
