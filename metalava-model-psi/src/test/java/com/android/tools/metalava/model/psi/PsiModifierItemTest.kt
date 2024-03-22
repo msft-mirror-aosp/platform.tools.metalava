@@ -17,16 +17,54 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.jetbrainsNullableTypeUseSource
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class PsiModifierItemTest : BasePsiTest() {
+class PsiModifierItemTest : BaseModelTest() {
+    @Test
+    fun `Test type-use nullability annotation used from Java and Kotlin source`() {
+        val javaSource =
+            java(
+                """
+            package test.pkg;
+            public class Foo {
+                public @org.jetbrains.annotations.Nullable String foo() {}
+            }
+        """
+                    .trimIndent()
+            )
+        val kotlinSource =
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    fun foo(): String?
+                }
+            """
+                    .trimIndent()
+            )
+
+        runCodebaseTest(
+            inputSet(javaSource, jetbrainsNullableTypeUseSource),
+            inputSet(kotlinSource, jetbrainsNullableTypeUseSource),
+        ) {
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+            // For now, the nullability annotation needs to be attached to the method.
+            assertThat(method.annotationNames())
+                .containsExactly("org.jetbrains.annotations.Nullable")
+        }
+    }
+
     @Test
     fun `Kotlin implicit internal visibility inheritance`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     open class Base {
@@ -40,7 +78,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val inherited = codebase.assertClass("Inherited")
             val method = inherited.methods().first { it.name().startsWith("method") }
             val property = inherited.properties().single()
@@ -52,7 +90,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class visibility modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     internal class Internal
@@ -64,7 +102,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             assertTrue(codebase.assertClass("Internal").isInternal)
             assertTrue(codebase.assertClass("Public").isPublic)
             assertTrue(codebase.assertClass("DefaultPublic").isPublic)
@@ -75,7 +113,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class abstract and final modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     abstract class Abstract
@@ -87,7 +125,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     annotation class Annotation
                 """
             )
-        ) { codebase ->
+        ) {
             codebase.assertClass("Abstract").modifiers.let {
                 assertTrue(it.isAbstract())
                 assertFalse(it.isSealed())
@@ -129,7 +167,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class type modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     inline class Inline(val value: Int)
@@ -144,7 +182,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             assertTrue(codebase.assertClass("Inline").modifiers.isInline())
             assertTrue(codebase.assertClass("Value").modifiers.isValue())
             assertTrue(codebase.assertClass("Data").modifiers.isData())
@@ -155,7 +193,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class static modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     class TopLevel {
@@ -168,7 +206,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     object Object
                 """
             )
-        ) { codebase ->
+        ) {
             assertFalse(codebase.assertClass("TopLevel").modifiers.isStatic())
             assertFalse(codebase.assertClass("TopLevel.Inner").modifiers.isStatic())
             assertFalse(codebase.assertClass("Object").modifiers.isStatic())
@@ -180,8 +218,9 @@ class PsiModifierItemTest : BasePsiTest() {
         }
     }
 
+    @Test
     fun `Kotlin vararg parameters`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 "Foo.kt",
                 """
@@ -189,7 +228,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     fun nonVarArg(parameter: Int) { TODO() }
                 """
             )
-        ) { codebase ->
+        ) {
             val facade = codebase.assertClass("FooKt")
             val varArg = facade.methods().single { it.name() == "varArg" }.parameters().single()
             val nonVarArg =

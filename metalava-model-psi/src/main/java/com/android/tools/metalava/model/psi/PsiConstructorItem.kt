@@ -16,18 +16,17 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
-import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiExpressionStatement
-import com.intellij.psi.PsiKeyword
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiMethodCallExpression
-import com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
@@ -36,12 +35,15 @@ class PsiConstructorItem
 private constructor(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: PsiClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     parameters: List<PsiParameterItem>,
-    returnType: PsiTypeItem,
+    returnType: ClassTypeItem,
+    typeParameterList: TypeParameterList,
+    throwsTypes: List<ExceptionTypeItem>,
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
@@ -50,18 +52,15 @@ private constructor(
         modifiers = modifiers,
         documentation = documentation,
         psiMethod = psiMethod,
+        fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
         returnType = returnType,
-        parameters = parameters
+        parameters = parameters,
+        typeParameterList = typeParameterList,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
-
-    init {
-        if (implicitConstructor) {
-            setThrowsTypes(emptyList())
-        }
-    }
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
@@ -69,71 +68,29 @@ private constructor(
 
     override var superConstructor: ConstructorItem? = null
 
-    override fun isCloned(): Boolean = false
-
-    private var _superMethods: List<MethodItem>? = null
-
-    override fun superMethods(): List<MethodItem> {
-        if (_superMethods == null) {
-            val result = mutableListOf<MethodItem>()
-            psiMethod.findSuperMethods().mapTo(result) { codebase.findMethod(it) }
-
-            if (result.isEmpty() && isConstructor() && containingClass().superClass() != null) {
-                // Try a little harder; psi findSuperMethod doesn't seem to find super constructors
-                // in
-                // some cases, but maybe we can find it by resolving actual super() calls!
-                // TODO: Port to UAST
-                var curr: PsiElement? = psiMethod.body?.firstBodyElement
-                while (curr != null && curr is PsiWhiteSpace) {
-                    curr = curr.nextSibling
-                }
-                if (
-                    curr is PsiExpressionStatement &&
-                        curr.expression is PsiMethodCallExpression &&
-                        curr.expression.firstChild?.lastChild is PsiKeyword &&
-                        curr.expression.firstChild?.lastChild?.text == "super"
-                ) {
-                    val resolved = (curr.expression as PsiMethodCallExpression).resolveMethod()
-                    if (resolved is PsiMethod) {
-                        val superConstructor = codebase.findMethod(resolved)
-                        result.add(superConstructor)
-                    }
-                }
-            }
-            _superMethods = result
-        }
-
-        return _superMethods!!
-    }
-
-    /**
-     * Override to handle providing the location for a synthetic/implicit constructor which has no
-     * associated file.
-     */
-    override fun location(): Location {
-        // If no PSI element, is this a synthetic/implicit constructor? If so
-        // grab the parent class' PSI element instead for file/location purposes
-        val element =
-            if (implicitConstructor && element.containingFile?.virtualFile == null) {
-                (containingClass() as PsiClassItem).psi()
-            } else {
-                element
-            }
-
-        return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))
-    }
+    override fun superMethods(): List<MethodItem> = emptyList()
 
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
-            val commentText = javadoc(psiMethod)
+            val commentText = javadoc(psiMethod, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiMethod, commentText)
-            val parameters = parameterList(codebase, psiMethod)
+            // Create the TypeParameterList for this before wrapping any of the other types used by
+            // it as they may reference a type parameter in the list.
+            val (typeParameterList, constructorTypeItemFactory) =
+                PsiTypeParameterList.create(
+                    codebase,
+                    enclosingClassTypeItemFactory,
+                    "constructor $name",
+                    psiMethod
+                )
+            val parameters = parameterList(codebase, psiMethod, constructorTypeItemFactory)
             val constructor =
                 PsiConstructorItem(
                     codebase = codebase,
@@ -143,39 +100,44 @@ private constructor(
                     documentation = commentText,
                     modifiers = modifiers,
                     parameters = parameters,
-                    returnType = codebase.getType(containingClass.psiClass),
+                    returnType = containingClass.type(),
                     implicitConstructor = false,
-                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
+                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
+                    typeParameterList = typeParameterList,
+                    throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                 )
-            constructor.modifiers.setOwner(constructor)
             return constructor
         }
 
         fun createDefaultConstructor(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
-            psiClass: PsiClass
+            psiClass: PsiClass,
         ): PsiConstructorItem {
             val name = psiClass.name!!
 
             val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
             val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = PsiModifierItem(codebase, PACKAGE_PRIVATE, null)
+            val modifiers = DefaultModifierList(codebase, PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
             val item =
                 PsiConstructorItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
+                    // Use the location of the containing class for the implicit default
+                    // constructor.
+                    fileLocation = containingClass.fileLocation,
                     containingClass = containingClass,
                     name = name,
                     documentation = "",
                     modifiers = modifiers,
                     parameters = emptyList(),
-                    returnType = codebase.getType(psiClass),
-                    implicitConstructor = true
+                    returnType = containingClass.type(),
+                    implicitConstructor = true,
+                    typeParameterList = TypeParameterList.NONE,
+                    throwsTypes = emptyList(),
                 )
-            modifiers.setOwner(item)
             return item
         }
 

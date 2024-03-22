@@ -18,30 +18,41 @@ package com.android.tools.metalava.model.text
 
 import java.io.LineNumberReader
 import java.io.StringReader
+import java.nio.file.Path
 import kotlin.test.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
+val DEFAULTABLE_PROPERTY_NAMES =
+    listOf(
+        "add-additional-overrides",
+        "overloaded-method-order",
+        "sort-whole-extends-list",
+    )
+
+val DEFAULTABLE_PROPERTIES = DEFAULTABLE_PROPERTY_NAMES.joinToString { "'$it'" }
+
 class FileFormatTest {
     private fun checkParseHeader(
         apiText: String,
+        formatForLegacyFiles: FileFormat? = null,
         expectedFormat: FileFormat? = null,
         expectedError: String? = null,
         expectedNextLine: String? = null
     ) {
         val reader = LineNumberReader(StringReader(apiText.trimIndent()))
+        val parseHeader = {
+            FileFormat.parseHeader(Path.of("api.txt"), reader, formatForLegacyFiles)
+        }
         if (expectedError == null) {
-            val format = FileFormat.parseHeader("api.txt", reader)
+            val format = parseHeader()
             assertEquals(expectedFormat, format)
             val nextLine = reader.readLine()
             assertEquals(expectedNextLine, nextLine, "next line mismatch")
         } else {
             assertNull("cannot specify both expectedFormat and expectedError", expectedFormat)
-            val e =
-                assertThrows(ApiParseException::class.java) {
-                    FileFormat.parseHeader("api.txt", reader)
-                }
+            val e = assertThrows(ApiParseException::class.java) { parseHeader() }
             assertEquals(expectedError, e.message)
         }
     }
@@ -60,7 +71,7 @@ class FileFormatTest {
         val reader = LineNumberReader(StringReader(header.trimIndent()))
         assertEquals(
             format,
-            FileFormat.parseHeader("api.txt", reader),
+            FileFormat.parseHeader(Path.of("api.txt"), reader),
             message = "format parsed from header does not match"
         )
         val nextLine = reader.readLine()
@@ -114,6 +125,22 @@ class FileFormatTest {
             """,
             expectedError =
                 "api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '",
+        )
+    }
+
+    @Test
+    fun `Check format parsing (v1 + legacy format)`() {
+        checkParseHeader(
+            """
+                package test.pkg {
+                  public class MyTest {
+                    ctor public MyTest();
+                  }
+                }
+            """,
+            formatForLegacyFiles = FileFormat.V2,
+            expectedFormat = FileFormat.V2,
+            expectedNextLine = "package test.pkg {",
         )
     }
 
@@ -313,7 +340,7 @@ class FileFormatTest {
                 package fred {
             """,
             expectedError =
-                "api.txt:2: Signature format error - unknown format property name `foo`, expected one of 'add-additional-overrides', 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'"
+                "api.txt:2: Signature format error - unknown format property name `foo`, expected one of $FILE_FORMAT_PROPERTIES"
         )
     }
 
@@ -430,5 +457,267 @@ class FileFormatTest {
                     migrating = "test",
                 ),
         )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + language=java)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=java
+
+            """,
+            specifier = "5.0:language=java",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.JAVA,
+                    conciseDefaultValues = false,
+                    kotlinStyleNulls = false,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + kotlin-style-nulls=yes,language=java)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=java
+                // - kotlin-style-nulls=yes
+
+            """,
+            specifier = "5.0:language=java,kotlin-style-nulls=yes",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.JAVA,
+                    conciseDefaultValues = false,
+                    kotlinStyleNulls = true,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + language=kotlin)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=kotlin
+
+            """,
+            specifier = "5.0:language=kotlin",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.KOTLIN,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + concise-default-values=no,language=kotlin)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=kotlin
+                // - concise-default-values=no
+
+            """,
+            specifier = "5.0:language=kotlin,concise-default-values=no",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.KOTLIN,
+                    conciseDefaultValues = false,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + kotlinNameTypeOrder=yes)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+
+            """,
+            specifier = "5.0:kotlin-name-type-order=yes",
+            format =
+                FileFormat.V5.copy(
+                    kotlinNameTypeOrder = true,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + kotlin-name-type-order=yes,kotlin-name-type-order=yes)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - include-type-use-annotations=yes
+                // - kotlin-name-type-order=yes
+
+            """,
+            specifier = "5.0:include-type-use-annotations=yes,kotlin-name-type-order=yes",
+            format =
+                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+        )
+    }
+
+    @Test
+    fun `Check that include-type-use-annotations=yes cannot be set without kotlin-name-type-order=yes`() {
+        val e =
+            assertThrows(IllegalStateException::class.java) {
+                checkParseHeader(
+                    """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=no
+                    // - include-type-use-annotations=yes
+                """
+                        .trimIndent()
+                )
+            }
+        assertEquals(
+            "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set",
+            e.message
+        )
+    }
+
+    @Test
+    fun `Check name with valid and invalid values`() {
+        fun checkValidName(name: String) {
+            headerAndSpecifierTest(
+                header =
+                    """
+                // Signature format: 5.0
+                // - name=$name
+
+            """,
+                specifier = "5.0:name=$name",
+                format =
+                    FileFormat.V5.copy(
+                        name = name,
+                    ),
+            )
+        }
+
+        fun checkInvalidName(name: String) {
+            val e =
+                assertThrows(IllegalStateException::class.java) {
+                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(name = name)
+                }
+
+            assertEquals(
+                """invalid value for property 'name': '$name' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number""",
+                e.message
+            )
+        }
+
+        checkValidName("a")
+        checkValidName("a1")
+        checkValidName("a--1")
+        checkValidName("large-name")
+
+        checkInvalidName("")
+        checkInvalidName("1")
+        checkInvalidName("-")
+        checkInvalidName("a-")
+        checkInvalidName("aBa")
+    }
+
+    @Test
+    fun `Check surface with valid and invalid values`() {
+        fun checkValidSurface(surface: String) {
+            headerAndSpecifierTest(
+                header =
+                    """
+                // Signature format: 5.0
+                // - surface=$surface
+
+            """,
+                specifier = "5.0:surface=$surface",
+                format =
+                    FileFormat.V5.copy(
+                        surface = surface,
+                    ),
+            )
+        }
+
+        fun checkInvalidSurface(surface: String) {
+            val e =
+                assertThrows(IllegalStateException::class.java) {
+                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(surface = surface)
+                }
+
+            assertEquals(
+                """invalid value for property 'surface': '$surface' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number""",
+                e.message
+            )
+        }
+
+        checkValidSurface("a")
+        checkValidSurface("a1")
+        checkValidSurface("a--1")
+        checkValidSurface("large-surface")
+
+        checkInvalidSurface("")
+        checkInvalidSurface("1")
+        checkInvalidSurface("-")
+        checkInvalidSurface("a-")
+        checkInvalidSurface("aBa")
+    }
+
+    @Test
+    fun `Check defaultable properties`() {
+        assertEquals(DEFAULTABLE_PROPERTY_NAMES, FileFormat.defaultableProperties())
+    }
+
+    @Test
+    fun `Check parseDefaults overloaded-method-order=source`() {
+        val defaults = FileFormat.parseDefaults("overloaded-method-order=source")
+        assertEquals(
+            FileFormat.OverloadedMethodOrder.SOURCE,
+            defaults.specifiedOverloadedMethodOrder
+        )
+    }
+
+    @Test
+    fun `Check parseDefaults kotlin-style-nulls=yes`() {
+        val e =
+            assertThrows(ApiParseException::class.java) {
+                FileFormat.parseDefaults("kotlin-style-nulls=yes")
+            }
+        assertEquals(
+            "unknown format property name `kotlin-style-nulls`, expected one of $DEFAULTABLE_PROPERTIES",
+            e.message
+        )
+    }
+
+    @Test
+    fun `Check parseDefaults foo=bar`() {
+        val e = assertThrows(ApiParseException::class.java) { FileFormat.parseDefaults("foo=bar") }
+        assertEquals(
+            "unknown format property name `foo`, expected one of $DEFAULTABLE_PROPERTIES",
+            e.message
+        )
+    }
+
+    @Test
+    fun `Check defaults are not written to header or specifier`() {
+        val defaults = FileFormat.parseDefaults("add-additional-overrides=yes")
+        val format = FileFormat.V5.copy(formatDefaults = defaults)
+        // Defaults should not be written to the header or specifier.
+        assertEquals(
+            """
+                // Signature format: 5.0
+
+            """
+                .trimIndent(),
+            format.header()
+        )
+        assertEquals("5.0", format.specifier())
     }
 }
