@@ -80,6 +80,7 @@ Available Issues                             |  Category                |   Defa
   ChangedVolatile                            |  compatibility           |   error
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
+  ConditionalRequiresPermissionNotExplained  |  api_lint                |   hidden
   ConfigFieldName                            |  api_lint                |   error
   ConfigFileProblem                          |  unknown                 |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
