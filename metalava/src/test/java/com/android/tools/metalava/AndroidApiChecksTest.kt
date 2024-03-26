@@ -75,8 +75,7 @@ class AndroidApiChecksTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/PermissionTest.java:14: error: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
-                src/android/pkg/PermissionTest.java:21: error: Method 'test1' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
-                src/android/pkg/PermissionTest.java:34: error: Method 'conditionalOk' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
+                src/android/pkg/PermissionTest.java:21: error: Method 'test1' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation [RequiresPermission]
                 """,
             sourceFiles =
                 arrayOf(
