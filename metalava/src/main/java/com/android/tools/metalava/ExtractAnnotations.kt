@@ -35,7 +35,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.UAnnotationItem
 import com.android.tools.metalava.model.psi.report
@@ -83,7 +82,6 @@ class ExtractAnnotations(
     private data class AnnotationHolder(
         val annotationClass: ClassItem?,
         val annotationItem: AnnotationItem,
-        val uAnnotation: UAnnotation?
     )
 
     private val fieldNamePrinter =
@@ -210,11 +208,11 @@ class ExtractAnnotations(
             ) {
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
-                    addItem(item, AnnotationHolder(null, annotation, null))
+                    addItem(item, AnnotationHolder(null, annotation))
                 } else if (
                     annotation.targets.contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)
                 ) {
-                    addItem(item, AnnotationHolder(null, annotation, null))
+                    addItem(item, AnnotationHolder(null, annotation))
                 }
 
                 continue
@@ -223,7 +221,7 @@ class ExtractAnnotations(
                     qualifiedName.startsWith(ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX)
             ) {
                 // Externally merged metadata, like @Contract and @Language
-                addItem(item, AnnotationHolder(null, annotation, null))
+                addItem(item, AnnotationHolder(null, annotation))
                 continue
             }
 
@@ -256,40 +254,17 @@ class ExtractAnnotations(
                         )
                     }
 
-                    val result =
-                        if (
-                            typeDefAnnotation is PsiAnnotationItem && typeDefClass is PsiClassItem
-                        ) {
-                            AnnotationHolder(
-                                typeDefClass,
-                                typeDefAnnotation,
-                                UastFacade.convertElement(
-                                    typeDefAnnotation.psiAnnotation,
-                                    null,
-                                    UAnnotation::class.java
-                                ) as UAnnotation
-                            )
-                        } else if (
-                            typeDefAnnotation is UAnnotationItem && typeDefClass is PsiClassItem
-                        ) {
-                            AnnotationHolder(
-                                typeDefClass,
-                                typeDefAnnotation,
-                                typeDefAnnotation.uAnnotation
-                            )
-                        } else {
-                            continue
-                        }
-
+                    val result = AnnotationHolder(typeDefClass, typeDefAnnotation)
                     classToAnnotationHolder[className] = result
                     addItem(item, result)
 
                     if (
                         item is PsiMethodItem &&
-                            result.uAnnotation != null &&
                             !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
                     ) {
-                        verifyReturnedConstants(item, result.uAnnotation, result, className)
+                        result.annotationItem.uAnnotation?.let { uAnnotation ->
+                            verifyReturnedConstants(item, uAnnotation, result, className)
+                        }
                     }
                     continue
                 }
@@ -464,15 +439,7 @@ class ExtractAnnotations(
         annotationHolder: AnnotationHolder
     ) {
         val annotationItem = annotationHolder.annotationItem
-        val uAnnotation =
-            annotationHolder.uAnnotation
-                ?: when (annotationItem) {
-                    is UAnnotationItem -> annotationItem.uAnnotation
-                    is PsiAnnotationItem ->
-                        // Imported annotation
-                        annotationItem.psiAnnotation.toUElement(UAnnotation::class.java) ?: return
-                    else -> return
-                }
+        val uAnnotation = annotationItem.uAnnotation ?: return
         val qualifiedName = annotationItem.qualifiedName
 
         writer.mark()
@@ -591,6 +558,14 @@ class ExtractAnnotations(
     private val sortAnnotations: Boolean = true
 
     companion object {
-        private const val SOURCE = "SOURCE"
+        private val AnnotationItem.uAnnotation: UAnnotation?
+            get() =
+                when (this) {
+                    is UAnnotationItem -> uAnnotation
+                    is PsiAnnotationItem ->
+                        // Imported annotation
+                        psiAnnotation.toUElement(UAnnotation::class.java)
+                    else -> null
+                }
     }
 }
