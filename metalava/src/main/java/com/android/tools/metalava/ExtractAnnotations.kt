@@ -437,7 +437,16 @@ class ExtractAnnotations(
         writer.print("    <annotation name=\"")
         writer.print(qualifiedName)
 
-        var attributes = uAnnotation.attributeValues
+        var attributes =
+            // Ensure consistent ordering.
+            uAnnotation.attributeValues.sortedWith(
+                compareBy(
+                    // Ensure that the value attribute is written first
+                    { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
+                    { it.name }
+                )
+            )
+
         if (attributes.isEmpty()) {
             writer.print("\"/>")
             writer.println()
@@ -447,24 +456,12 @@ class ExtractAnnotations(
         writer.print("\">")
         writer.println()
 
-        // noinspection PointlessBooleanExpression,ConstantConditions
-        if (sortAnnotations) {
-            // Ensure that the value attribute is written first
-            attributes =
-                attributes.sortedWith(
-                    compareBy(
-                        { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
-                        { it.name }
-                    )
-                )
-        }
-
         if (attributes.size == 1 && Extractor.REQUIRES_PERMISSION.isPrefix(qualifiedName, true)) {
             val expression = attributes[0].expression
             if (expression is UAnnotation) {
                 // The external annotations format does not allow for nested/complex annotations.
                 // However, these special annotations (@RequiresPermission.Read,
-                // @RequiresPermission.Write, etc) are known to only be simple containers with a
+                // @RequiresPermission.Write, etc.) are known to only be simple containers with a
                 // single permission child, so instead we "inline" the content:
                 //  @Read(@RequiresPermission(allOf={P1,P2},conditional=true)
                 //     =>
@@ -502,7 +499,7 @@ class ExtractAnnotations(
                 name = ANNOTATION_ATTR_VALUE // default name
             }
 
-            // Platform typedef annotations declare prefix/suffix attributes for historical reasons
+            // Platform typedef annotations declare prefix/suffix attributes for historical reasons,
             // and they are no longer necessary; they should also not be part of the extracted
             // metadata.
             if (("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()) {
@@ -544,9 +541,6 @@ class ExtractAnnotations(
     private fun isInlinedConstant(annotationItem: AnnotationItem): Boolean {
         return annotationItem.isTypeDefAnnotation()
     }
-
-    /** Whether to sort annotation attributes (otherwise their declaration order is used) */
-    private val sortAnnotations: Boolean = true
 
     companion object {
         private val AnnotationItem.uAnnotation: UAnnotation?
