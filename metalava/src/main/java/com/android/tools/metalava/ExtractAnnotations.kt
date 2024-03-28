@@ -77,11 +77,7 @@ class ExtractAnnotations(
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
     private val packageToAnnotationPairs =
-        LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationHolder>>>()
-
-    private data class AnnotationHolder(
-        val annotationItem: AnnotationItem,
-    )
+        LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationItem>>>()
 
     private val fieldNamePrinter =
         CodePrinter(
@@ -101,7 +97,7 @@ class ExtractAnnotations(
             skipUnknown = true,
         )
 
-    private val classToAnnotationHolder = mutableMapOf<String, AnnotationHolder>()
+    private val classToAnnotationHolder = mutableMapOf<String, AnnotationItem>()
 
     fun extractAnnotations() {
         codebase.accept(this)
@@ -166,7 +162,7 @@ class ExtractAnnotations(
         }
     }
 
-    private fun addItem(item: Item, annotation: AnnotationHolder) {
+    private fun addItem(item: Item, annotation: AnnotationItem) {
         val pkg =
             when (item) {
                 is MemberItem -> item.containingClass().containingPackage()
@@ -177,7 +173,7 @@ class ExtractAnnotations(
         val list =
             packageToAnnotationPairs[pkg]
                 ?: run {
-                    val new = mutableListOf<Pair<Item, AnnotationHolder>>()
+                    val new = mutableListOf<Pair<Item, AnnotationItem>>()
                     packageToAnnotationPairs[pkg] = new
                     new
                 }
@@ -207,11 +203,11 @@ class ExtractAnnotations(
             ) {
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
-                    addItem(item, AnnotationHolder(annotation))
+                    addItem(item, annotation)
                 } else if (
                     annotation.targets.contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)
                 ) {
-                    addItem(item, AnnotationHolder(annotation))
+                    addItem(item, annotation)
                 }
 
                 continue
@@ -220,7 +216,7 @@ class ExtractAnnotations(
                     qualifiedName.startsWith(ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX)
             ) {
                 // Externally merged metadata, like @Contract and @Language
-                addItem(item, AnnotationHolder(annotation))
+                addItem(item, annotation)
                 continue
             }
 
@@ -253,9 +249,8 @@ class ExtractAnnotations(
                         )
                     }
 
-                    val result = AnnotationHolder(typeDefAnnotation)
-                    classToAnnotationHolder[className] = result
-                    addItem(item, result)
+                    classToAnnotationHolder[className] = typeDefAnnotation
+                    addItem(item, typeDefAnnotation)
 
                     if (
                         item is PsiMethodItem &&
@@ -433,9 +428,8 @@ class ExtractAnnotations(
     private fun writeAnnotation(
         writer: StringPrintWriter,
         item: Item,
-        annotationHolder: AnnotationHolder
+        annotationItem: AnnotationItem
     ) {
-        val annotationItem = annotationHolder.annotationItem
         val uAnnotation = annotationItem.uAnnotation ?: return
         val qualifiedName = annotationItem.qualifiedName
 
