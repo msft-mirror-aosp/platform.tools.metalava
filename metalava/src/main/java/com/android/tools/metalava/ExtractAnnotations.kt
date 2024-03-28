@@ -80,7 +80,6 @@ class ExtractAnnotations(
         LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationHolder>>>()
 
     private data class AnnotationHolder(
-        val annotationClass: ClassItem?,
         val annotationItem: AnnotationItem,
     )
 
@@ -208,11 +207,11 @@ class ExtractAnnotations(
             ) {
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
-                    addItem(item, AnnotationHolder(null, annotation))
+                    addItem(item, AnnotationHolder(annotation))
                 } else if (
                     annotation.targets.contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)
                 ) {
-                    addItem(item, AnnotationHolder(null, annotation))
+                    addItem(item, AnnotationHolder(annotation))
                 }
 
                 continue
@@ -221,7 +220,7 @@ class ExtractAnnotations(
                     qualifiedName.startsWith(ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX)
             ) {
                 // Externally merged metadata, like @Contract and @Language
-                addItem(item, AnnotationHolder(null, annotation))
+                addItem(item, AnnotationHolder(annotation))
                 continue
             }
 
@@ -254,7 +253,7 @@ class ExtractAnnotations(
                         )
                     }
 
-                    val result = AnnotationHolder(typeDefClass, typeDefAnnotation)
+                    val result = AnnotationHolder(typeDefAnnotation)
                     classToAnnotationHolder[className] = result
                     addItem(item, result)
 
@@ -262,9 +261,7 @@ class ExtractAnnotations(
                         item is PsiMethodItem &&
                             !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
                     ) {
-                        result.annotationItem.uAnnotation?.let { uAnnotation ->
-                            verifyReturnedConstants(item, uAnnotation, result, className)
-                        }
+                        verifyReturnedConstants(item, typeDefAnnotation, typeDefClass)
                     }
                     continue
                 }
@@ -278,10 +275,11 @@ class ExtractAnnotations(
      */
     private fun verifyReturnedConstants(
         item: PsiMethodItem,
-        uAnnotation: UAnnotation,
-        result: AnnotationHolder,
-        className: String
+        typeDefAnnotation: AnnotationItem,
+        typeDefClass: ClassItem,
     ) {
+        val uAnnotation = typeDefAnnotation.uAnnotation ?: return
+
         val method = item.psiMethod
         if (method.body != null) {
             method.body?.accept(
@@ -314,8 +312,7 @@ class ExtractAnnotations(
                                     reporter.report(
                                         Issues.RETURNING_UNEXPECTED_CONSTANT,
                                         value as PsiElement,
-                                        "Returning unexpected constant $name; is @${result.annotationClass?.simpleName()
-                                        ?: className} missing this constant? Expected one of $expected"
+                                        "Returning unexpected constant $name; is @${typeDefClass.simpleName()} missing this constant? Expected one of $expected"
                                     )
                                 }
                             }
