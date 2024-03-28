@@ -135,7 +135,10 @@ internal fun processFlags(
             ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
         }
         // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-        ?: executionEnvironment.testEnvironment?.modelOptions
+        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+                // Make sure that the [options.useK2Uast] matches the test environment.
+                options.useK2Uast = this[PsiModelOptions.useK2Uast]
+            }
             // Otherwise, use the default
             ?: ModelOptions.empty
     val sourceParser =
@@ -145,6 +148,7 @@ internal fun processFlags(
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
+            allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
         )
 

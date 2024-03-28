@@ -19,12 +19,18 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.source.utils.LazyDelegate
+import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     final override var documentation: String,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     override var docOnly: Boolean = documentation.contains("@doconly")
 

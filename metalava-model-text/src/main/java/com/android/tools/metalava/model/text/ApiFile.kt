@@ -42,10 +42,12 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.typeNullability
+import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.StringReader
+import java.nio.file.Path
 import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
@@ -87,20 +89,6 @@ private constructor(
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
-    /**
-     * The set of super class types needed for later resolution.
-     *
-     * TODO(b/323516595): Find a better way.
-     */
-    private val superClassTypesForResolution = mutableSetOf<ClassTypeItem>()
-
-    /**
-     * The set of interface types needed for later resolution.
-     *
-     * TODO(b/323516595): Find a better way.
-     */
-    private val interfaceTypesForResolution = mutableSetOf<ClassTypeItem>()
-
     companion object {
         /**
          * Same as `parseApi(List<File>, ...)`, but takes a single file for convenience.
@@ -122,7 +110,7 @@ private constructor(
          * Read API signature files into a [TextCodebase].
          *
          * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [com.android.tools.metalava.model.text.TextItem.position]
+         * first file specified. each [com.android.tools.metalava.model.text.TextItem.fileLocation]
          * would correctly point out the source file of each item.
          *
          * @param files input signature files
@@ -158,11 +146,11 @@ private constructor(
                     } catch (ex: IOException) {
                         throw ApiParseException(
                             "Error reading API file",
-                            file = file.path,
+                            location = FileLocation.createLocation(file.toPath()),
                             cause = ex
                         )
                     }
-                parser.parseApiSingleFile(!first, file.path, apiText)
+                parser.parseApiSingleFile(!first, file.toPath(), apiText)
                 first = false
             }
             api.description = actualDescription
@@ -210,15 +198,16 @@ private constructor(
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
+            val path = Path.of(filename)
             val api =
                 TextCodebase(
-                    location = File(filename),
+                    location = path.toFile(),
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,
                 )
             api.description = "Codebase loaded from $filename"
             val parser = ApiFile(api, formatForLegacyFiles)
-            parser.parseApiSingleFile(false, filename, apiText)
+            parser.parseApiSingleFile(false, path, apiText)
             parser.postProcess()
             return api
         }
@@ -275,29 +264,18 @@ private constructor(
      * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
      */
     private fun postProcess() {
-        // Resolve all super class types that were found in the signature file.
-        // TODO(b/323516595): Find a better way.
-        for (superClassType in superClassTypesForResolution) {
-            superClassType.asClass()
-        }
-
-        // Resolve all interface types that were found in the signature file.
-        // TODO(b/323516595): Find a better way.
-        for (interfaceType in interfaceTypesForResolution) {
-            // Resolve the interface type to a class.
-            interfaceType.asClass()
-        }
+        codebase.resolveSuperTypes()
     }
 
     private fun parseApiSingleFile(
         appending: Boolean,
-        filename: String,
+        path: Path,
         apiText: String,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
         format =
-            FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
+            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
                 ?: FileFormat.V2
 
         // Disallow a mixture of kotlinStyleNulls settings.
@@ -316,7 +294,7 @@ private constructor(
             }
         }
 
-        val tokenizer = Tokenizer(filename, apiText.toCharArray())
+        val tokenizer = Tokenizer(path, apiText.toCharArray())
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
@@ -358,7 +336,8 @@ private constructor(
                 }
                 existing
             } else {
-                val newPackageItem = TextPackageItem(codebase, name, modifiers, tokenizer.pos())
+                val newPackageItem =
+                    TextPackageItem(codebase, name, modifiers, tokenizer.fileLocation())
                 codebase.addPackage(newPackageItem)
                 newPackageItem
             }
@@ -389,7 +368,7 @@ private constructor(
 
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
-        val classPosition = tokenizer.pos()
+        val classPosition = tokenizer.fileLocation()
 
         token = tokenizer.current
         when (token) {
@@ -489,7 +468,7 @@ private constructor(
         // the characteristics of the same class from a previously processed signature file.
         val newClassCharacteristics =
             ClassCharacteristics(
-                position = classPosition,
+                fileLocation = classPosition,
                 qualifiedName = qualifiedClassName,
                 fullName = fullName,
                 classKind = classKind,
@@ -508,7 +487,7 @@ private constructor(
         val cl =
             TextClassItem(
                 codebase = codebase,
-                position = classPosition,
+                fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
                 qualifiedName = qualifiedClassName,
@@ -525,13 +504,6 @@ private constructor(
         cl.setSuperClassType(superClassType)
 
         cl.setInterfaceTypes(interfaceTypes.toList())
-
-        // Save the super class and interface types to later when they will be resolved. That is
-        // needed to avoid later changes to the model which would/could cause concurrent
-        // modification issues.
-        // TODO(b/323516595): Find a better way.
-        superClassType?.let { superClassTypesForResolution.add(it) }
-        interfaceTypesForResolution.addAll(interfaceTypes)
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -579,8 +551,15 @@ private constructor(
         if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
             throw ApiParseException(
                 "Incompatible $existingClass definitions",
-                newClassCharacteristics.position
+                newClassCharacteristics.fileLocation
             )
+        }
+
+        // Add new annotations to the existing class
+        val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
+        val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
+        for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
+            existingClass.addAnnotation(annotation)
         }
 
         // Use the latest super class.
@@ -696,7 +675,7 @@ private constructor(
     private fun parseDeclaredClassType(
         pkg: TextPackageItem,
         declaredClassType: String,
-        classPosition: SourcePositionInfo,
+        classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {
         // Split the declared class type into full name and type parameters.
         val paramIndex = declaredClassType.indexOf('<')
@@ -761,10 +740,10 @@ private constructor(
                 val existingTypeParameterListString = existingTypeParameterList.toString()
                 val normalizedTypeParameterListString = typeParameterList.toString()
                 if (normalizedTypeParameterListString != existingTypeParameterListString) {
-                    val location = existingClass.location()
+                    val location = existingClass.issueLocation
                     throw ApiParseException(
                         "Inconsistent type parameter list for $qualifiedName, this has $normalizedTypeParameterListString but it was previously defined as $existingTypeParameterListString at ${location.path}:${location.line}",
-                        classPosition
+                        classFileLocation
                     )
                 }
 
@@ -912,7 +891,7 @@ private constructor(
                 modifiers,
                 containingClass.type(),
                 parameters,
-                tokenizer.pos()
+                tokenizer.fileLocation()
             )
         method.typeParameterList = typeParameterList
         method.setThrowsTypes(throwsList)
@@ -1022,7 +1001,15 @@ private constructor(
         if (isEnumSyntheticMethod(cl, name, parameters)) return
 
         method =
-            TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
+            TextMethodItem(
+                codebase,
+                name,
+                cl,
+                modifiers,
+                returnType,
+                parameters,
+                tokenizer.fileLocation()
+            )
         method.typeParameterList = typeParameterList
         method.setThrowsTypes(throwsList)
         method.setAnnotationDefault(defaultAnnotationMethodValue)
@@ -1097,7 +1084,8 @@ private constructor(
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val field = TextFieldItem(codebase, name, cl, modifiers, type, value, tokenizer.pos())
+        val field =
+            TextFieldItem(codebase, name, cl, modifiers, type, value, tokenizer.fileLocation())
         if (isEnum) {
             cl.addEnumConstant(field)
         } else {
@@ -1309,7 +1297,8 @@ private constructor(
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val property = TextPropertyItem(codebase, name, cl, modifiers, type, tokenizer.pos())
+        val property =
+            TextPropertyItem(codebase, name, cl, modifiers, type, tokenizer.fileLocation())
         cl.addProperty(property)
     }
 
@@ -1524,7 +1513,7 @@ private constructor(
                     index,
                     type,
                     modifiers,
-                    tokenizer.pos()
+                    tokenizer.fileLocation()
                 )
             )
             index++
