@@ -221,7 +221,8 @@ internal class PsiSourceParser(
         rootDir: File,
     ) {
         // TODO(b/322111050): consider providing a nice DSL at Lint level
-        val projectXml = File.createTempFile("project", ".xml", rootDir)
+        val projectXml = File.createTempFile("project", ".xml")
+        projectXml.deleteOnExit()
 
         fun describeSources(sources: List<File>) = buildString {
             for (source in sources) {
