@@ -97,6 +97,22 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     )
                 }
             }
+
+        /**
+         * Regular expression that matches a FlaggedApi annotation in a signature file. It is not
+         * fully qualified as the annotation is shortened in signature files. It includes the
+         * following white space as this is used to remove the annotation by replacing the matched
+         * text with an empty string.
+         */
+        val flaggedApiInSignatureRegex = """@FlaggedApi\([^)]+\) """.toRegex()
+
+        /**
+         * Regular expression that matches a FlaggedApi annotation in a stubs file. It is fully
+         * qualified as annotations are fully qualified in stub files. It includes the following
+         * newline or space as this is used to remove the annotation by replacing the matched text
+         * with an empty string.
+         */
+        val flaggedApiInStubsRegex = """@android\.annotation\.FlaggedApi\([^)]+\)[\n ]""".toRegex()
     }
 
     @Suppress("ArrayInDataClass")
@@ -132,8 +148,19 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         it,
                         it.copy(
                             flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
-                            expectedApi =
-                                it.expectedApi.replace("""@FlaggedApi\([^)]+\) """.toRegex(), "")
+                            // Remove any FlaggedApi annotations from the signature files
+                            expectedApi = it.expectedApi.replace(flaggedApiInSignatureRegex, ""),
+                            // Remove any FlaggedApi annotations from the stubs files
+                            expectedStubs =
+                                it.expectedStubs
+                                    .map {
+                                        val copy = TestFile()
+                                        copy.contents =
+                                            it.contents.replace(flaggedApiInStubsRegex, "")
+                                        copy.targetRelativePath = it.targetRelativePath
+                                        copy
+                                    }
+                                    .toTypedArray()
                         ),
                     )
                 } else {
@@ -653,7 +680,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             arrayOf(
                                 "test/pkg/Foo.java",
                             ),
-                        // Make sure that no FlaggedApi annotation appears in the stubs.
                         expectedStubs =
                             arrayOf(
                                 java(
@@ -663,6 +689,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                      * @hide
                                      */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    @android.annotation.FlaggedApi("foo/bar")
                                     public final class Foo {
                                     /**
                                      * @hide
@@ -710,6 +737,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @android.annotation.FlaggedApi("foo/bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -900,6 +928,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @android.annotation.FlaggedApi("foo/bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -1063,7 +1092,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public interface Foo {
-                        public static final int CONSTANT = 1; // 0x1
+                        @android.annotation.FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
                         }
                     """
                 ),
@@ -1169,6 +1198,21 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @android.annotation.FlaggedApi("foo/bar")
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        // TODO(b/316873097): Fix the test. The Foo class should be abstract.
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
                         }
@@ -1231,9 +1275,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
-                        // TODO(b/316873097): Fix the test. This should not be the same as with
-                        //  flagged apis.
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubs = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.SYSTEM,
