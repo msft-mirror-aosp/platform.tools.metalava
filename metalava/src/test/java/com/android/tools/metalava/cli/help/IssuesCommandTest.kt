@@ -19,7 +19,7 @@ package com.android.tools.metalava.cli.help
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import org.junit.Test
 
-class IssuesCommandTest : BaseCommandTest<HelpCommand>(::HelpCommand) {
+class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
 
     @Test
     fun `Test help`() {
@@ -77,12 +77,10 @@ Available Issues                             |  Category                |   Defa
   ChangedType                                |  compatibility           |   error
   ChangedValue                               |  compatibility           |   error
   ChangedVolatile                            |  compatibility           |   error
-  CommonArgsFirst                            |  api_lint                |   warning
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
   ConfigFieldName                            |  api_lint                |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
-  ConsistentArgumentOrder                    |  api_lint                |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  api_lint                |   error
@@ -90,6 +88,7 @@ Available Issues                             |  Category                |   Defa
   DeprecatedOption                           |  unknown                 |   warning
   DeprecationMismatch                        |  documentation           |   error
   DocumentExceptions                         |  api_lint                |   error
+  DuplicateSourceClass                       |  unknown                 |   warning
   EndsWithImpl                               |  api_lint                |   error
   Enum                                       |  api_lint                |   error
   EqualsAndHashCode                          |  api_lint                |   error
@@ -98,6 +97,7 @@ Available Issues                             |  Category                |   Defa
   ExpectedPlatformType                       |  unknown                 |   hidden
   ExtendsDeprecated                          |  unknown                 |   hidden
   ExtendsError                               |  api_lint                |   error
+  FlaggedApiLiteral                          |  api_lint                |   hidden
   ForbiddenSuperClass                        |  api_lint                |   error
   ForbiddenTag                               |  unknown                 |   error
   FractionFloat                              |  api_lint                |   error
@@ -121,6 +121,7 @@ Available Issues                             |  Category                |   Defa
   InternalClasses                            |  api_lint                |   error
   InternalError                              |  unknown                 |   error
   InternalField                              |  api_lint                |   error
+  InvalidFeatureEnforcement                  |  documentation           |   lint
   InvalidNullConversion                      |  compatibility           |   error
   InvalidNullabilityAnnotation               |  unknown                 |   error
   InvalidNullabilityAnnotationWarning        |  unknown                 |   warning
@@ -210,7 +211,7 @@ Available Issues                             |  Category                |   Defa
   UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  unknown                 |   error
   UniqueKotlinOperator                       |  api_lint                |   error
-  UnmatchedMergeAnnotation                   |  unknown                 |   warning
+  UnmatchedMergeAnnotation                   |  unknown                 |   error
   UnresolvedClass                            |  documentation           |   lint
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   lint

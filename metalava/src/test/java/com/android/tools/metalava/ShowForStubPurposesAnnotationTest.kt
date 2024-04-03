@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -482,10 +483,11 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                src/test/pkg/SystemClass.java:6: error: Class test.pkg.ModuleClass is hidden but was referenced (as parameter type) from public parameter arg in test.pkg.SystemClass.foo(test.pkg.ModuleClass arg) [ReferencesHidden]
+                src/test/pkg/SystemClass.java:6: error: Class test.pkg.ModuleClass is hidden but was referenced (in parameter type) from public parameter arg in test.pkg.SystemClass.foo(test.pkg.ModuleClass arg) [ReferencesHidden]
                 src/test/pkg/SystemClass.java:6: error: Parameter of unavailable type test.pkg.ModuleClass in test.pkg.SystemClass.foo() [UnavailableSymbol]
                 src/test/pkg/SystemClass.java:6: error: Parameter arg references hidden type test.pkg.ModuleClass. [HiddenTypeParameter]
-                """
+                """,
+            expectedFail = DefaultLintErrorMessage,
         )
     }
 

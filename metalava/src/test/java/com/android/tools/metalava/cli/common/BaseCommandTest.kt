@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.run
@@ -23,8 +24,6 @@ import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
 import org.junit.After
 import org.junit.Assert
 import org.junit.Before
@@ -38,8 +37,9 @@ import org.junit.rules.TemporaryFolder
  * Tests that need to run command tests must extend this and call [commandTest] to configure the
  * test.
  */
-abstract class BaseCommandTest<C : CliktCommand>(internal val commandFactory: () -> C) :
-    TemporaryFolderOwner {
+abstract class BaseCommandTest<C : CliktCommand>(
+    internal val commandFactory: (ExecutionEnvironment) -> C
+) : TemporaryFolderOwner {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -120,11 +120,15 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      */
     lateinit var command: C
 
+    /** The exit code of the command. */
+    var exitCode: Int? = null
+        private set
+
     /** The list of lambdas that are invoked after the command has been run. */
     val verifiers = mutableListOf<() -> Unit>()
 
     /** Create a temporary folder. */
-    fun folder(): File = test.temporaryFolder.newFolder()
+    fun folder(path: String): File = test.temporaryFolder.newFolder(path)
 
     /**
      * Create a file that can be passed as an input to a command.
@@ -198,15 +202,11 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
 
     /** Run the test defined by the configuration. */
     internal fun runTest() {
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-
-        val printOut = PrintWriter(stdout)
-        val printErr = PrintWriter(stderr)
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
 
         // Runs the command
-        command = test.commandFactory()
-        runCommand(printOut, printErr, command)
+        command = test.commandFactory(executionEnvironment)
+        exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
         verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
@@ -219,25 +219,17 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         }
     }
 
-    private fun runCommand(printOut: PrintWriter, printErr: PrintWriter, command: C) {
-        val progressTracker = ProgressTracker(stdout = printOut)
+    private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C): Int {
+        val progressTracker = ProgressTracker(stdout = executionEnvironment.stdout)
 
         val metalavaCommand =
             MetalavaCommand(
-                stdout = printOut,
-                stderr = printErr,
-                defaultCommandFactory = { FakeDefaultCommand() },
-                progressTracker,
+                executionEnvironment = executionEnvironment,
+                progressTracker = progressTracker,
             )
 
         metalavaCommand.subcommands(command)
 
-        metalavaCommand.process(args.toTypedArray())
-    }
-
-    private class FakeDefaultCommand : CliktCommand() {
-        override fun run() {
-            throw NotImplementedError("Should never be called")
-        }
+        return metalavaCommand.process(args.toTypedArray())
     }
 }

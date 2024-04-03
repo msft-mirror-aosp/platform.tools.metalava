@@ -19,10 +19,13 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.plainTerminal
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.IssueConfiguration
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.Severity.ERROR
@@ -31,24 +34,27 @@ import com.android.tools.metalava.reporter.Severity.INFO
 import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
-import com.google.common.annotations.VisibleForTesting
 import java.io.File
+import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
 
 @Suppress("DEPRECATION")
 internal class DefaultReporter(
+    private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
 
-    /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */
-    // See the comment on [getBaseline] for why it's nullable.
-    private val customBaseline: Baseline? = null,
+    /** [Baseline] file associated with this [Reporter]. */
+    private val baseline: Baseline? = null,
 
     /**
      * An error message associated with this [Reporter], which should be shown to the user when
      * metalava finishes with errors.
      */
     private val errorMessage: String? = null,
+
+    /** Filter to hide issues reported in packages which are not part of the API. */
+    private val packageFilter: PackageFilter? = null,
 ) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
@@ -60,15 +66,11 @@ internal class DefaultReporter(
     /** Returns whether any errors have been detected. */
     fun hasErrors(): Boolean = errors.size > 0
 
-    // Note we can't set [options.baseline] as the default for [customBaseline], because
-    // options.baseline will be initialized after the global [Reporter] is instantiated.
-    private fun getBaseline(): Baseline? = customBaseline ?: options.baseline
-
     override fun report(
         id: Issues.Issue,
-        item: Item?,
+        reportable: Reportable?,
         message: String,
-        location: Location
+        location: IssueLocation
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
@@ -80,79 +82,72 @@ internal class DefaultReporter(
                 (
                     severity: Severity, location: String?, message: String, id: Issues.Issue
                 ) -> Boolean
-        ) =
-            when {
-                location.path != null -> which(severity, location.forReport(), message, id)
-                item != null -> which(severity, item.location().forReport(), message, id)
-                else -> which(severity, null as String?, message, id)
-            }
+        ): Boolean {
+            // When selecting a location to use for reporting the issue the location is used in
+            // preference to the item because the location is more specific. e.g. if the item is a
+            // method then the location may be a line within the body of the method.
+            val reportLocation =
+                when {
+                    location.path != null -> location.forReport()
+                    reportable != null -> reportable.issueLocation.forReport()
+                    else -> null
+                }
+
+            return which(severity, reportLocation, message, id)
+        }
 
         // Optionally write to the --report-even-if-suppressed file.
         dispatch(this::reportEvenIfSuppressed)
 
-        if (isSuppressed(id, item, message)) {
+        if (isSuppressed(id, reportable, message)) {
             return false
         }
 
         // If we are only emitting some packages (--stub-packages), don't report
         // issues from other packages
+        val item = reportable as? Item
         if (item != null) {
-            val packageFilter = options.stubPackages
             if (packageFilter != null) {
-                val pkg = item.containingPackage(false)
+                val pkg = (item as? PackageItem) ?: item.containingPackage()
                 if (pkg != null && !packageFilter.matches(pkg)) {
                     return false
                 }
             }
         }
 
-        val baseline = getBaseline()
-        if (item != null && baseline != null && baseline.mark(item.location(), message, id)) {
-            return false
-        } else if (
-            location.path != null && baseline != null && baseline.mark(location, message, id)
-        ) {
-            return false
+        if (baseline != null) {
+            // When selecting a location to use for in checking the baseline the item is used in
+            // preference to the location because the item is more stable. e.g. the location may be
+            // for a specific line within a method which would change over time while the method
+            // signature would stay the same.
+            val baselineLocation =
+                when {
+                    reportable != null -> reportable.issueLocation
+                    location.path != null -> location
+                    else -> null
+                }
+
+            if (baselineLocation != null && baseline.mark(baselineLocation, message, id))
+                return false
         }
 
         return dispatch(this::doReport)
     }
 
-    override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean {
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
             return true
         }
 
-        item ?: return false
+        reportable ?: return false
 
-        for (annotation in item.modifiers.annotations()) {
-            val annotationName = annotation.qualifiedName
-            if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
-                for (attribute in annotation.attributes) {
-                    // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                    // one attribute such as value/names that is varargs of String
-                    val value = attribute.value
-                    if (value is AnnotationArrayAttributeValue) {
-                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                        for (innerValue in value.values) {
-                            val string = innerValue.value()?.toString() ?: continue
-                            if (suppressMatches(string, id.name, message)) {
-                                return true
-                            }
-                        }
-                    } else {
-                        // Example: @SuppressLint("RequiresFeature")
-                        val string = value.value()?.toString()
-                        if (string != null && (suppressMatches(string, id.name, message))) {
-                            return true
-                        }
-                    }
-                }
-            }
-        }
-
-        return false
+        // Suppress the issue if requested for the item.
+        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
     }
 
     private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
@@ -175,7 +170,7 @@ internal class DefaultReporter(
     }
 
     /**
-     * Relativize the [absolutePath] against the [rootFolder] if specified.
+     * Relativize the [absolutePath] against the [ReporterEnvironment.rootFolder] if specified.
      *
      * Tests will set [rootFolder] to the temporary directory so that this can remove that from any
      * paths that are reported to avoid the test having to be aware of the temporary directory.
@@ -183,16 +178,17 @@ internal class DefaultReporter(
     private fun relativizeLocationPath(absolutePath: Path): String {
         // b/255575766: Note that [relativize] requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = rootFolder?.toPath()?.relativize(absolutePath) ?: absolutePath
+        val path = environment.rootFolder.toPath().relativize(absolutePath) ?: absolutePath
         return path.toString()
     }
 
     /**
-     * Convert the [Location] to an optional string representation suitable for use in a report.
+     * Convert the [IssueLocation] to an optional string representation suitable for use in a
+     * report.
      *
      * See [relativizeLocationPath].
      */
-    private fun Location.forReport(): String? {
+    private fun IssueLocation.forReport(): String? {
         val pathString = path?.let { relativizeLocationPath(it) } ?: return null
         return if (line > 0) "$pathString:$line" else pathString
     }
@@ -217,15 +213,14 @@ internal class DefaultReporter(
             }
 
         val terminal: Terminal = options.terminal
-        val formattedMessage =
-            format(effectiveSeverity, location, message, id, terminal, options.omitLocations)
+        val formattedMessage = format(effectiveSeverity, location, message, id, terminal)
         if (effectiveSeverity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
             warningCount++
         }
 
-        reportPrinter(formattedMessage, effectiveSeverity)
+        environment.printReport(formattedMessage, effectiveSeverity)
         return true
     }
 
@@ -235,14 +230,11 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
         terminal: Terminal,
-        omitLocations: Boolean
     ): String {
         val sb = StringBuilder(100)
 
         sb.append(terminal.attributes(bold = true))
-        if (!omitLocations) {
-            location?.let { sb.append(it).append(": ") }
-        }
+        location?.let { sb.append(it).append(": ") }
         when (severity) {
             LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
@@ -267,7 +259,7 @@ internal class DefaultReporter(
         id: Issues.Issue
     ): Boolean {
         options.reportEvenIfSuppressedWriter?.println(
-            format(severity, location, message, id, terminal = plainTerminal, omitLocations = false)
+            format(severity, location, message, id, terminal = plainTerminal)
         )
         return true
     }
@@ -293,32 +285,38 @@ internal class DefaultReporter(
     }
 
     fun getBaselineDescription(): String {
-        val file = getBaseline()?.file
+        val file = baseline?.file
         return if (file != null) {
             "baseline ${file.path}"
         } else {
             "no baseline"
         }
     }
-
-    companion object {
-        /** root folder, which needs to be changed for unit tests. */
-        @VisibleForTesting internal var rootFolder: File? = File("").absoluteFile
-
-        /** Injection point for unit tests. */
-        internal var reportPrinter: (String, Severity) -> Unit = { message, severity ->
-            val output =
-                if (severity == ERROR) {
-                    options.stderr
-                } else {
-                    options.stdout
-                }
-            output.println()
-            output.print(message.trim())
-            output.flush()
-        }
-    }
 }
 
-private val SUPPRESS_ANNOTATIONS =
-    listOf(ANDROID_SUPPRESS_LINT, JAVA_LANG_SUPPRESS_WARNINGS, KOTLIN_SUPPRESS)
+/**
+ * Provides access to information about the environment within which the [Reporter] will be being
+ * used.
+ */
+interface ReporterEnvironment {
+
+    /** Root folder, against which location paths will be relativized to simplify the output. */
+    val rootFolder: File
+
+    /** Print the report. */
+    fun printReport(message: String, severity: Severity)
+}
+
+class DefaultReporterEnvironment(
+    val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+) : ReporterEnvironment {
+
+    override val rootFolder = File("").absoluteFile
+
+    override fun printReport(message: String, severity: Severity) {
+        val output = if (severity == ERROR) stderr else stdout
+        output.println(message.trim())
+        output.flush()
+    }
+}

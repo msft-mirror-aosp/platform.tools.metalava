@@ -137,19 +137,20 @@ class ExtractAnnotations(
                         writer.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>")
 
                         var open = false
-                        var prev: Item? = null
+                        var previousSignature: String? = null
                         for ((item, annotation) in pairs) {
-                            if (item != prev) {
+                            val signature = item.getExternalAnnotationSignature()
+                            if (signature != previousSignature) {
                                 if (open) {
                                     writer.print("  </item>")
                                     writer.println()
                                 }
                                 writer.print("  <item name=\"")
-                                writer.print(item.getExternalAnnotationSignature())
+                                writer.print(signature)
                                 writer.println("\">")
                                 open = true
                             }
-                            prev = item
+                            previousSignature = signature
 
                             writeAnnotation(writer, item, annotation)
                         }
@@ -543,9 +544,9 @@ class ExtractAnnotations(
                 name = ANNOTATION_ATTR_VALUE // default name
             }
 
-            // Platform typedef annotations now declare a prefix attribute for
-            // documentation generation purposes; this should not be part of the
-            // extracted metadata.
+            // Platform typedef annotations declare prefix/suffix attributes for historical reasons
+            // and they are no longer necessary; they should also not be part of the extracted
+            // metadata.
             if (("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()) {
                 reporter.report(
                     Issues.SUPERFLUOUS_PREFIX,

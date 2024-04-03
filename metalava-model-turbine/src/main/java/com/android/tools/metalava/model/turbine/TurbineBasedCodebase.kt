@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -25,21 +26,23 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.source.SourceCodebase
+import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 
-const val CLASS_ESTIMATE = 15000
+const val PACKAGE_ESTIMATE = 500
 
-open class TurbineBasedCodebase(
+internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
+    val allowReadingComments: Boolean
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
 
     /**
      * Map from class name to class item. Classes are added via [registerClass] while initialising
      * the codebase
      */
-    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
+    private lateinit var classMap: MutableMap<String, TurbineClassItem>
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
@@ -50,6 +53,8 @@ open class TurbineBasedCodebase(
      */
     private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
 
+    private lateinit var initializer: TurbineCodebaseInitialiser
+
     override fun createAnnotation(
         source: String,
         context: Item?,
@@ -57,8 +62,14 @@ open class TurbineBasedCodebase(
         return DefaultAnnotationItem.create(this, source)
     }
 
-    override fun findClass(className: String): ClassItem? {
+    override fun findClass(className: String): TurbineClassItem? {
         return classMap[className]
+    }
+
+    override fun resolveClass(className: String) = findOrCreateClass(className)
+
+    fun findOrCreateClass(className: String): TurbineClassItem? {
+        return initializer.findOrCreateClass(className)
     }
 
     override fun findPackage(pkgName: String): PackageItem? {
@@ -76,9 +87,37 @@ open class TurbineBasedCodebase(
         return packageMap.size
     }
 
-    override fun supportsDocumentation(): Boolean = false
+    override fun supportsDocumentation(): Boolean = true
 
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
+    }
+
+    fun registerClass(classItem: TurbineClassItem, isTopClass: Boolean) {
+        val qualifiedName = classItem.qualifiedName()
+        val existing = classMap.put(qualifiedName, classItem)
+        if (existing != null) {
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+            )
+        }
+
+        if (isTopClass) {
+            topLevelClassesFromSource.add(classItem)
+        }
+
+        addClass(classItem)
+    }
+
+    fun addPackage(packageItem: TurbinePackageItem) {
+        packageMap.put(packageItem.qualifiedName(), packageItem)
+    }
+
+    fun initialize(units: List<CompUnit>, classpath: List<File>) {
+        topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
+        classMap = HashMap(CLASS_ESTIMATE)
+        packageMap = HashMap(PACKAGE_ESTIMATE)
+        initializer = TurbineCodebaseInitialiser(units, this, classpath)
+        initializer.initialize()
     }
 }
