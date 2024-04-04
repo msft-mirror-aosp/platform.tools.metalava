@@ -987,4 +987,105 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test interface fields behave correctly when flagged`() {
+        val expectedStubPaths =
+            arrayOf(
+                "test/pkg/Foo.java",
+            )
+
+        val stubsWithFlaggedApi =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public interface Foo {
+                        public static final int CONSTANT = 1; // 0x1
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    public interface Foo {
+                        @FlaggedApi("foo/bar")
+                        int CONSTANT = 1;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public interface Foo {
+                        }
+                    }
+                """,
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public interface Foo {
+                                    field @FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
+                                  }
+                                }
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubs = stubsWithFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        // This should not include CONSTANT.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public interface Foo {
+                                    field public static final int CONSTANT = 1; // 0x1
+                                  }
+                                }
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        // This should not be the same as with flagged API.
+                        expectedStubs = stubsWithFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubs = stubsWithFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        // This should not be the same as with flagged API.
+                        expectedStubs = stubsWithFlaggedApi,
+                    ),
+                ),
+        )
+    }
 }
