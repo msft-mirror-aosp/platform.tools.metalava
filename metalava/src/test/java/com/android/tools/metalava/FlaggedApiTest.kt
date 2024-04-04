@@ -1008,6 +1008,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ),
             )
 
+        val stubsWithoutFlaggedApi =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public interface Foo {
+                        }
+                    """
+                ),
+            )
+
         checkFlaggedApis(
             java(
                 """
@@ -1050,19 +1062,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.WITHOUT,
-                        // This should not include CONSTANT.
                         expectedApi =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public interface Foo {
-                                    field public static final int CONSTANT = 1; // 0x1
                                   }
                                 }
                             """,
                         expectedStubPaths = expectedStubPaths,
-                        // This should not be the same as with flagged API.
-                        expectedStubs = stubsWithFlaggedApi,
+                        expectedStubs = stubsWithoutFlaggedApi,
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -1082,8 +1091,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                             """,
                         expectedStubPaths = expectedStubPaths,
-                        // This should not be the same as with flagged API.
-                        expectedStubs = stubsWithFlaggedApi,
+                        expectedStubs = stubsWithoutFlaggedApi,
                     ),
                 ),
         )
