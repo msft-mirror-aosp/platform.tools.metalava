@@ -119,6 +119,7 @@ fun run(
 
 @Suppress("DEPRECATION")
 internal fun processFlags(
+    executionEnvironment: ExecutionEnvironment,
     environmentManager: EnvironmentManager,
     progressTracker: ProgressTracker
 ) {
@@ -128,9 +129,18 @@ internal fun processFlags(
     val reporterApiLint = options.reporterApiLint
     val annotationManager = options.annotationManager
     val modelOptions =
-        ModelOptions.build("from command line") {
-            this[PsiModelOptions.useK2Uast] = options.useK2Uast
+        // If the option was specified on the command line then use [ModelOptions] created from
+        // that.
+        options.useK2Uast?.let { useK2Uast ->
+            ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
         }
+        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+                // Make sure that the [options.useK2Uast] matches the test environment.
+                options.useK2Uast = this[PsiModelOptions.useK2Uast]
+            }
+            // Otherwise, use the default
+            ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
@@ -138,6 +148,7 @@ internal fun processFlags(
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
+            allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
         )
 
