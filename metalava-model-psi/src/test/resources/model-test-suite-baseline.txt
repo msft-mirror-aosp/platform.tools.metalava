@@ -6,9 +6,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
-com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
-  Test property delegate to Kotlin object[kotlin,k2]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]
@@ -19,7 +16,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations[kotlin,k1]
-  Test type parameter with annotations[kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[java,k1,null annotated parameterized inner type - annotated]

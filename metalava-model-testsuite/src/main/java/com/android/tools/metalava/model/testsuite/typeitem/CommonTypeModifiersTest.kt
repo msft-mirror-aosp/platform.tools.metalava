@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability
 import com.android.tools.metalava.model.testsuite.assertHasUndefinedNullability
 import com.android.tools.metalava.model.testsuite.runNullabilityTest
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -1559,15 +1560,18 @@ class CommonTypeModifiersTest : BaseModelTest() {
     fun `Test resetting nullability`() {
         // Mutating modifiers isn't supported for a text codebase due to type caching.
         val javaSource =
-            java(
-                """
-                    package test.pkg;
-                    import libcore.util.Nullable;
-                    public class Foo {
-                        public java.lang.@Nullable String foo() {}
-                    }
-                """
-                    .trimIndent()
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import libcore.util.Nullable;
+                        public class Foo {
+                            public java.lang.@Nullable String foo() {}
+                        }
+                    """
+                        .trimIndent()
+                ),
+                KnownSourceFiles.libcoreNullableSource
             )
         val kotlinSource =
             kotlin(
@@ -1955,7 +1959,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inherited nullability of Kotlin type variables`() {
+    fun `Test inherited nullability of unbounded Kotlin type variables - usage is not null`() {
         runCodebaseTest(
             kotlin(
                 """
@@ -1968,8 +1972,72 @@ class CommonTypeModifiersTest : BaseModelTest() {
             )
         ) {
             // T is unbounded, so it has an implicit `Any?` bound, making it possibly nullable, but
-            // not necessarily. That means the usage of the variable doesn't have a nullability on
-            // its own, it depends on what type is used as the parameter.
+            // not necessarily. That means the usage of the variable without any nullable suffix
+            // doesn't have a nullability on its own, it depends on what type is used as the
+            // parameter.
+            val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            tVar.assertHasUndefinedNullability()
+        }
+    }
+
+    @Test
+    fun `Test inherited nullability of unbounded Kotlin type variables - usage is nullable`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        fun foo(): T? {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            // T is unbounded, so it has an implicit `Any?` bound, making it possibly nullable, but
+            // not necessarily. That means the usage of the variable without any nullable suffix
+            // doesn't have a nullability on its own, it depends on what type is used as the
+            // parameter. However, when it has a nullable suffix then it is nullable.
+            val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            tVar.assertHasNullableNullability()
+        }
+    }
+
+    @Test
+    fun `Test inherited nullability of bounded Kotlin type variables - bound is not nullable`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T : Any> {
+                        fun foo(): T {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            // T is bounded by `Any` so it cannot be nullable which means that the variable on its
+            // own is not nullable.
+            val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            tVar.assertHasNonNullNullability()
+        }
+    }
+
+    @Test
+    fun `Test inherited nullability of bounded Kotlin type variables - bound is nullable`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T : Number?> {
+                        fun foo(): T {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            // T is bounded by `Number?`, making it possibly nullable, but not necessarily. That
+            // means the usage of the variable without any nullable suffix doesn't have a
+            // nullability on its own, it depends on what type is used as the parameter.
             val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             tVar.assertHasUndefinedNullability()
         }
