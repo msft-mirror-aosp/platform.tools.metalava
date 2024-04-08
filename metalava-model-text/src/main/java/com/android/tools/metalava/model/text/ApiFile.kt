@@ -89,20 +89,6 @@ private constructor(
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
-    /**
-     * The set of super class types needed for later resolution.
-     *
-     * TODO(b/323516595): Find a better way.
-     */
-    private val superClassTypesForResolution = mutableSetOf<ClassTypeItem>()
-
-    /**
-     * The set of interface types needed for later resolution.
-     *
-     * TODO(b/323516595): Find a better way.
-     */
-    private val interfaceTypesForResolution = mutableSetOf<ClassTypeItem>()
-
     companion object {
         /**
          * Same as `parseApi(List<File>, ...)`, but takes a single file for convenience.
@@ -278,18 +264,7 @@ private constructor(
      * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
      */
     private fun postProcess() {
-        // Resolve all super class types that were found in the signature file.
-        // TODO(b/323516595): Find a better way.
-        for (superClassType in superClassTypesForResolution) {
-            superClassType.asClass()
-        }
-
-        // Resolve all interface types that were found in the signature file.
-        // TODO(b/323516595): Find a better way.
-        for (interfaceType in interfaceTypesForResolution) {
-            // Resolve the interface type to a class.
-            interfaceType.asClass()
-        }
+        codebase.resolveSuperTypes()
     }
 
     private fun parseApiSingleFile(
@@ -414,7 +389,7 @@ private constructor(
                 classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
-                superClassType = typeParser.superEnumType
+                superClassType = globalTypeItemFactory.superEnumType
                 token = tokenizer.requireToken()
             }
             else -> {
@@ -464,7 +439,7 @@ private constructor(
                 }
             }
         }
-        if (superClassType == typeParser.superEnumType) {
+        if (superClassType == globalTypeItemFactory.superEnumType) {
             // This can be taken either for an enum class, or a normal class that extends
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
@@ -472,8 +447,8 @@ private constructor(
         } else if (classKind == ClassKind.ANNOTATION_TYPE) {
             // If the annotation was defined using @interface then add the implicit
             // "implements java.lang.annotation.Annotation".
-            interfaceTypes.add(typeParser.superAnnotationType)
-        } else if (typeParser.superAnnotationType in interfaceTypes) {
+            interfaceTypes.add(globalTypeItemFactory.superAnnotationType)
+        } else if (globalTypeItemFactory.superAnnotationType in interfaceTypes) {
             // A normal class that implements java.lang.annotation.Annotation which was the old way
             // of representing an annotation in the API signature files. So, update the class kind
             // to match.
@@ -524,18 +499,11 @@ private constructor(
         // Default the superClassType() to java.lang.Object for any class that is not an interface,
         // annotation, or enum and which is not itself java.lang.Object.
         if (classKind == ClassKind.CLASS && superClassType == null && !cl.isJavaLangObject()) {
-            superClassType = typeParser.superObjectType
+            superClassType = globalTypeItemFactory.superObjectType
         }
         cl.setSuperClassType(superClassType)
 
         cl.setInterfaceTypes(interfaceTypes.toList())
-
-        // Save the super class and interface types to later when they will be resolved. That is
-        // needed to avoid later changes to the model which would/could cause concurrent
-        // modification issues.
-        // TODO(b/323516595): Find a better way.
-        superClassType?.let { superClassTypesForResolution.add(it) }
-        interfaceTypesForResolution.addAll(interfaceTypes)
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -585,6 +553,13 @@ private constructor(
                 "Incompatible $existingClass definitions",
                 newClassCharacteristics.fileLocation
             )
+        }
+
+        // Add new annotations to the existing class
+        val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
+        val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
+        for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
+            existingClass.addAnnotation(annotation)
         }
 
         // Use the latest super class.
@@ -1229,10 +1204,14 @@ private constructor(
         return modifiers
     }
 
-    private fun parseValue(type: TypeItem, value: String?, tokenizer: Tokenizer): Any? {
+    private fun parseValue(
+        type: TypeItem,
+        value: String?,
+        fileLocationTracker: FileLocationTracker,
+    ): Any? {
         return if (value != null) {
             if (type is PrimitiveTypeItem) {
-                parsePrimitiveValue(type, value, tokenizer)
+                parsePrimitiveValue(type, value, fileLocationTracker)
             } else if (type.isString()) {
                 if ("null" == value) {
                     null
@@ -1248,7 +1227,7 @@ private constructor(
     private fun parsePrimitiveValue(
         type: PrimitiveTypeItem,
         value: String,
-        tokenizer: Tokenizer
+        fileLocationTracker: FileLocationTracker,
     ): Any {
         return when (type.kind) {
             Primitive.BOOLEAN ->
@@ -1279,7 +1258,10 @@ private constructor(
                 }
             Primitive.CHAR -> value.toInt().toChar()
             Primitive.VOID ->
-                throw ApiParseException("Found value $value assigned to void type", tokenizer)
+                throw ApiParseException(
+                    "Found value $value assigned to void type",
+                    fileLocationTracker
+                )
         }
     }
 
@@ -1346,9 +1328,9 @@ private constructor(
         return if (typeParameterListString.isEmpty()) {
             Pair(TypeParameterList.NONE, enclosingTypeItemFactory)
         } else {
-            // Use the line number as a part of the description of the scope as at this point there
-            // is no other information available.
-            val scopeDescription = "line ${tokenizer.line}"
+            // Use the file location as a part of the description of the scope as at this point
+            // there is no other information available.
+            val scopeDescription = "${tokenizer.fileLocation()}"
             createTypeParameterList(
                 enclosingTypeItemFactory,
                 scopeDescription,

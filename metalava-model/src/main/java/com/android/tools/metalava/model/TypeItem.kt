@@ -920,6 +920,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
  * has been updated to handle lambdas specifically it will need to remain a [ClassTypeItem].
  */
 interface LambdaTypeItem : ClassTypeItem {
+    /** True if the lambda is a suspend function, false otherwise. */
+    val isSuspend: Boolean
+
     /** The type of the optional receiver. */
     val receiverType: TypeItem?
 
@@ -957,7 +960,24 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     }
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
-        return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
+        val nullability = modifiers.nullability()
+        return (typeParameterBindings[asTypeParameter] ?: this).duplicate().apply {
+            // If this use of the type parameter is marked as nullable, then it overrides the
+            // nullability of the substituted type.
+            if (nullability == TypeNullability.NULLABLE) {
+                modifiers.setNullability(nullability)
+            } else {
+                // If the type that is replacing the type parameter has platform nullability, i.e.
+                // carries no information one way or another about whether it is nullable, then
+                // use the nullability of the use of the type parameter as while at worst it may
+                // also have no nullability information, it could have some, e.g. from a declaration
+                // nullability annotation.
+                val typeParameterNullability = modifiers.nullability()
+                if (typeParameterNullability == TypeNullability.PLATFORM) {
+                    modifiers.setNullability(nullability)
+                }
+            }
+        }
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
@@ -1019,17 +1039,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     }
 }
 
-/** Different uses to which a [TypeItem] might be used that might affect its construction. */
-enum class TypeUse {
-    /** General type use; no special behavior. */
-    GENERAL,
-
-    /**
-     * Super type, e.g. in an `extends` or `implements` list; is always [TypeNullability.NONNULL].
-     */
-    SUPER_TYPE,
-}
-
 /**
  * Attempt to get the full name from the qualified name.
  *
@@ -1059,31 +1068,5 @@ fun bestGuessAtFullName(qualifiedName: String): String {
         qualifiedName
     } else {
         qualifiedName.substring(lastDotIndex + 1)
-    }
-}
-
-/**
- * Determine if this item implies that its associated type is a non-null array with non-null
- * components.
- */
-private fun Item.impliesNonNullArrayComponents(): Boolean {
-    return (this is MemberItem) && containingClass().isAnnotationType() && !modifiers.isStatic()
-}
-
-/**
- * Finishes initialization of a type by correcting its nullability based on the owning item, which
- * was not constructed yet when the type was created.
- */
-fun TypeItem.fixUpTypeNullability(owner: Item) {
-    val implicitNullness = owner.implicitNullness()
-    if (implicitNullness == TypeNullability.NULLABLE || owner.modifiers.isNullable()) {
-        modifiers.setNullability(TypeNullability.NULLABLE)
-    } else if (implicitNullness == TypeNullability.NONNULL || owner.modifiers.isNonNull()) {
-        modifiers.setNullability(TypeNullability.NONNULL)
-    }
-
-    // Also set component array types that should be non-null.
-    if (this is ArrayTypeItem && owner.impliesNonNullArrayComponents()) {
-        componentType.modifiers.setNullability(TypeNullability.NONNULL)
     }
 }
