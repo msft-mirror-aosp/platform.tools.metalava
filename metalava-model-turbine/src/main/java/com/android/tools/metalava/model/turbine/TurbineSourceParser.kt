@@ -25,8 +25,10 @@ import com.google.turbine.diag.SourceFile
 import com.google.turbine.parse.Parser
 import java.io.File
 
-internal class TurbineSourceParser(private val annotationManager: AnnotationManager) :
-    SourceParser {
+internal class TurbineSourceParser(
+    private val annotationManager: AnnotationManager,
+    private val allowReadingComments: Boolean
+) : SourceParser {
 
     override fun getClassResolver(classPath: List<File>): ClassResolver {
         TODO("implement it")
@@ -42,7 +44,8 @@ internal class TurbineSourceParser(private val annotationManager: AnnotationMana
         classPath: List<File>,
     ): TurbineBasedCodebase {
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
-        val codebase = TurbineBasedCodebase(rootDir, description, annotationManager)
+        val codebase =
+            TurbineBasedCodebase(rootDir, description, annotationManager, allowReadingComments)
 
         val sourceFiles = getSourceFiles(sourceSet.sources)
         val units = sourceFiles.map { Parser.parse(it) }
@@ -52,7 +55,9 @@ internal class TurbineSourceParser(private val annotationManager: AnnotationMana
     }
 
     private fun getSourceFiles(sources: List<File>): List<SourceFile> {
-        return sources.map { SourceFile(it.path, it.readText()) }
+        return sources
+            .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
+            .map { SourceFile(it.path, it.readText()) }
     }
 
     override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {

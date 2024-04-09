@@ -62,7 +62,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -75,9 +74,9 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
-import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
 import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
@@ -172,6 +171,7 @@ import com.android.tools.metalava.reporter.Issues.USER_HANDLE_NAME
 import com.android.tools.metalava.reporter.Issues.USE_ICU
 import com.android.tools.metalava.reporter.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
@@ -216,8 +216,14 @@ private constructor(
 
     /** [Reporter] that filters out items that are not relevant for the current API surface. */
     inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
-        override fun report(id: Issue, item: Item?, message: String, location: Location): Boolean {
+        override fun report(
+            id: Issue,
+            reportable: Reportable?,
+            message: String,
+            location: IssueLocation
+        ): Boolean {
 
+            val item = reportable as? Item
             if (item != null) {
                 // Don't flag api warnings on deprecated APIs; these are obviously already known to
                 // be problematic.
@@ -233,7 +239,7 @@ private constructor(
                 }
             }
 
-            return delegate.report(id, item, message, location)
+            return delegate.report(id, reportable, message, location)
         }
     }
 
@@ -243,7 +249,7 @@ private constructor(
         id: Issue,
         item: Item,
         message: String,
-        location: Location = Location.unknownLocationAndBaselineKey
+        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey
     ) {
         reporter.report(id, item, message, location)
     }
@@ -1000,7 +1006,7 @@ private constructor(
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiLocationProvider.elementToLocation(psi)
+            val location = PsiLocationProvider.elementToIssueLocation(psi)
             report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
@@ -1205,19 +1211,9 @@ private constructor(
                 name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")
             ) {
                 val returnType = method.returnType()
-                val returnsClassType =
-                    if (returnType is PsiTypeItem && clsType is PsiTypeItem) {
-                        clsType.isAssignableFromWithoutUnboxing(returnType)
-                    } else {
-                        // fallback to a limited text based check
-                        val returnTypeBounds =
-                            (returnType as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map {
-                                it.toTypeString()
-                            }
-                                ?: emptyList()
-                        returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
-                    }
-                if (!returnsClassType) {
+                val methodReturnsBuilderClassType =
+                    clsType.isAssignableFromWithoutUnboxing(returnType)
+                if (!methodReturnsBuilderClassType) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1516,7 +1512,7 @@ private constructor(
 
             // TODO(b/278505954): remove the flag once fully switched to K2 UAST
             val skipConstructorParameter =
-                @Suppress("DEPRECATION") !options.useK2Uast &&
+                @Suppress("DEPRECATION") options.useK2Uast != true &&
                     propertyItem.constructorParameter != null
             if (getter.name() != propertyItem.name() && !skipConstructorParameter) {
                 // Only properties beginning with "is" have the correct autogenerated getter name.
@@ -1706,14 +1702,13 @@ private constructor(
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (throwableType in method.filteredThrowsTypes(filterReference)) {
-            if (method.isEnumSyntheticMethod()) continue
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
-            val throwableClass = throwableType.throwableClass ?: continue
+            val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
                 report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
-            } else if (throwableType.isTypeParameter) {
+            } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without
                 // any package or containing class could never match a qualified exception name.
@@ -1865,7 +1860,7 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
+        if (!item.hasNullnessInfo() && item.type()?.modifiers?.nullability()?.isKnown != true) {
             val type = item.type()
             val inherited =
                 when (item) {
@@ -1877,7 +1872,7 @@ private constructor(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type is VariableTypeItem || item.hasInheritedGenericType()) {
+            if (type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.

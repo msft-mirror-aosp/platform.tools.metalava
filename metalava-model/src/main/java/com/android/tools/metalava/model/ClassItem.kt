@@ -231,9 +231,13 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     var artifact: String?
 
+    override fun baselineElementId() = qualifiedName()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem() = "class ${qualifiedName()}"
 
     companion object {
         /** Looks up the retention policy for the given class */
@@ -750,7 +754,7 @@ interface ClassItem : Item, TypeParameterListOwner {
                 // https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
                 as ReferenceTypeItem
             }
-        return declaringClass.typeParameterList().typeParameters().zip(classTypeArguments).toMap()
+        return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }
 
     /** Creates a constructor in this class */
