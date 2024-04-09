@@ -116,8 +116,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      */
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
-        previouslyReleasedApi: String,
-        previouslyReleasedRemovedApi: String = "",
+        previouslyReleasedApi: Map<Surface, String> = emptyMap(),
+        previouslyReleasedRemovedApi: Map<Surface, String> = emptyMap(),
         expectationsList: List<Expectations>,
     ) {
         val transformedExpectationsList =
@@ -154,15 +154,23 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         }
         val expectations = filterExpectations.singleOrNull() ?: return
 
+        // Get the surface for which this test is currently being run.
+        val surface = config.surface
+
+        // Get the previously released API surface specific to the surface being tested.
+        val specificPreviouslyReleasedApi = previouslyReleasedApi[surface] ?: ""
+        val specificPreviouslyReleasedRemovedApi = previouslyReleasedRemovedApi[surface] ?: ""
+
         check(
             // Enable API linting against the previous API; only report issues in changes to that
-            // API.
-            apiLint = previouslyReleasedApi,
+            // API. Only pass in the API for the surface whose test is currently run as API lint
+            // does not support passing in a list.
+            apiLint = specificPreviouslyReleasedApi,
             // Pass the previously released API as the API against which compatibility checks are
             // performed as that is what will determine the previous API to which a flagged API will
             // be reverted.
-            checkCompatibilityApiReleased = previouslyReleasedApi,
-            checkCompatibilityRemovedApiReleased = previouslyReleasedRemovedApi,
+            checkCompatibilityApiReleased = specificPreviouslyReleasedApi,
+            checkCompatibilityRemovedApiReleased = specificPreviouslyReleasedRemovedApi,
             format = FileFormat.V2,
             sourceFiles =
                 buildList {
@@ -225,14 +233,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -318,14 +329,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        ctor public Bar();
-                      }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar {
+                                ctor public Bar();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -422,17 +436,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        ctor public Bar();
-                      }
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar extends test.pkg.Foo {
+                                ctor public Bar();
+                              }
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -580,9 +597,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -713,22 +733,35 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                      }
-                    }
-                """,
+                mapOf(
+                    // Use the same previously released API for each surface on which this test is
+                    // being run. That is needed because this test verifies what happens when an API
+                    // that was previously released in one API surface, is moved from that surface
+                    // to public while adding some new members. If the class was previously
+                    // released in the public API surface this tests what happens when a class is
+                    // annotated with @FlaggedApi because it contains new members.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                              }
+                            }
+                        """,
+                ),
             previouslyReleasedRemovedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                        method public void removedMethod();
-                      }
-                    }
-                """,
+                mapOf(
+                    // See above for an explanation as to why this uses config.surface.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                                method public void removedMethod();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     // The following public expectations verify what happens with a class that was
@@ -894,22 +927,35 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                      }
-                    }
-                """,
+                mapOf(
+                    // Use the same previously released API for each surface on which this test is
+                    // being run. That is needed because this test verifies what happens when an API
+                    // that was previously released in one API surface, is moved from that surface
+                    // to system while adding some new members. If the class was previously
+                    // released in the system API surface this tests what happens when a class is
+                    // annotated with @FlaggedApi because it contains new members.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                              }
+                            }
+                        """,
+                ),
             previouslyReleasedRemovedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                        method public void removedMethod();
-                      }
-                    }
-                """,
+                mapOf(
+                    // See above for an explanation as to why this uses config.surface.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                                method public void removedMethod();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     // The following system expectations verify what happens with a class that was
@@ -1035,13 +1081,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public interface Foo {
-                        }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public interface Foo {
+                                }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
