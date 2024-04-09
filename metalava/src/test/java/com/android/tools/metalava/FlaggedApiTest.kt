@@ -493,7 +493,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 "test/pkg/Bar.java",
                                 "test/pkg/Foo.java",
                             ),
-                        // Make sure that no flagged API appears in the stubs.
+                        // Make sure that no FlaggedApi annotation appears in the stubs.
                         expectedStubs =
                             arrayOf(
                                 java(
@@ -618,7 +618,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             arrayOf(
                                 "test/pkg/Foo.java",
                             ),
-                        // Make sure that no flagged API appears in the stubs.
+                        // Make sure that no FlaggedApi annotation appears in the stubs.
                         expectedStubs =
                             arrayOf(
                                 java(
