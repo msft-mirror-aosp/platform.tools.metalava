@@ -159,7 +159,11 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
         // Get the previously released API surface specific to the surface being tested.
         val specificPreviouslyReleasedApi = previouslyReleasedApi[surface] ?: ""
-        val specificPreviouslyReleasedRemovedApi = previouslyReleasedRemovedApi[surface] ?: ""
+
+        // Get the lists of API (and removed API) from the narrowest API surface (i.e. public) to
+        // the widest (i.e. module-lib).
+        val previouslyReleasedApiList = contributingSurfaces(previouslyReleasedApi)
+        val previouslyReleasedRemovedApiList = contributingSurfaces(previouslyReleasedRemovedApi)
 
         check(
             // Enable API linting against the previous API; only report issues in changes to that
@@ -169,8 +173,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             // Pass the previously released API as the API against which compatibility checks are
             // performed as that is what will determine the previous API to which a flagged API will
             // be reverted.
-            checkCompatibilityApiReleased = specificPreviouslyReleasedApi,
-            checkCompatibilityRemovedApiReleased = specificPreviouslyReleasedRemovedApi,
+            checkCompatibilityApiReleasedList = previouslyReleasedApiList,
+            checkCompatibilityRemovedApiReleasedList = previouslyReleasedRemovedApiList,
             format = FileFormat.V2,
             sourceFiles =
                 buildList {
@@ -196,6 +200,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ) + config.extraArguments,
         )
     }
+
+    /**
+     * Get the list of all surfaces in [apiSurfaces] that contribute to the [Surface] that is
+     * currently under test; from the narrowest to the widest.
+     *
+     * e.g. When the surface under test is [Surface.PUBLIC] then this will return just the public
+     * API surface, but when it is [Surface.SYSTEM] then this will return the public and system API
+     * surfaces in that order.
+     */
+    private fun contributingSurfaces(apiSurfaces: Map<Surface, String>) =
+        Surface.values().filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
 
     @Test
     fun `Basic test that FlaggedApi annotated items can be hidden`() {
