@@ -35,9 +35,14 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
+    fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     override var documentation: String,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     @Suppress(
         "LeakingThis"
@@ -60,9 +65,6 @@ internal constructor(
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
-
-    override val fileLocation: FileLocation
-        get() = PsiLocationProvider.elementToFileLocation(psi())
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false

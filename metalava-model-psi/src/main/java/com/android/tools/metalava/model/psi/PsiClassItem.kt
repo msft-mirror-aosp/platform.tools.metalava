@@ -210,21 +210,6 @@ internal constructor(
         return PsiSourceFile(codebase, containingFile, uFile)
     }
 
-    /** Finish initialization of the class */
-    fun finishInitialization() {
-        // Force the super class and interfaces to be resolved. Otherwise, they are not added to the
-        // list of classes to be scanned in [PsiPackageItem] which causes problems for operations
-        // that expect that to be done.
-        superClass()
-        for (interfaceType in interfaceTypes) {
-            interfaceType.asClass()
-        }
-
-        for (inner in innerClasses) {
-            inner.finishInitialization()
-        }
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true

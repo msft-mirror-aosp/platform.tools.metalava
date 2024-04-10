@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
@@ -47,6 +48,7 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 open class PsiMethodItem(
     codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
     // TextClassItem.
     containingClass: ClassItem,
@@ -63,6 +65,7 @@ open class PsiMethodItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod,
+        fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
     ),

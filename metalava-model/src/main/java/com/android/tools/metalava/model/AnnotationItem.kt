@@ -22,13 +22,18 @@ fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName.endsWith("Nullable") || qualifiedName.endsWith("NullableType")
+    return qualifiedName == "Nullable" ||
+        qualifiedName.endsWith(".RecentlyNullable") ||
+        qualifiedName.endsWith(".Nullable") ||
+        qualifiedName.endsWith(".NullableType")
 }
 
 fun isNonNullAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName.endsWith("NonNull") ||
-        qualifiedName.endsWith("NotNull") ||
-        qualifiedName.endsWith("Nonnull")
+    return qualifiedName == "NonNull" ||
+        qualifiedName.endsWith(".RecentlyNonNull") ||
+        qualifiedName.endsWith(".NonNull") ||
+        qualifiedName.endsWith(".NotNull") ||
+        qualifiedName.endsWith(".Nonnull")
 }
 
 fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
@@ -661,7 +666,7 @@ class DefaultAnnotationAttribute(
             val valueBegin: Int
             val valueEnd: Int
             if (split == -1) {
-                valueBegin = 0
+                valueBegin = from
                 valueEnd = to
                 name = "value"
             } else {
@@ -670,7 +675,9 @@ class DefaultAnnotationAttribute(
                 valueEnd = to
             }
             value = source.substring(valueBegin, valueEnd).trim()
-            list.add(create(name, value))
+            if (!value.isEmpty()) {
+                list.add(create(name, value))
+            }
         }
     }
 

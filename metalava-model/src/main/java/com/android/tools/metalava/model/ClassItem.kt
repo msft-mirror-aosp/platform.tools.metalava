@@ -512,6 +512,12 @@ interface ClassItem : Item, TypeParameterListOwner {
         val fields = LinkedHashSet<FieldItem>()
         if (showUnannotated) {
             for (clazz in allInterfaces()) {
+                // If this class is an interface then it will be included in allInterfaces(). If it
+                // is a class then it will not be included. Either way, this class' fields will be
+                // handled below so there is no point in processing the fields here.
+                if (clazz == this) {
+                    continue
+                }
                 if (!clazz.isInterface()) {
                     continue
                 }

@@ -231,13 +231,7 @@ internal open class TurbineCodebaseInitialiser(
             createTopLevelClassAndContents(classSymbol)
         }
 
-        // Iterate over all the classes resolving their super class and interface types.
-        codebase.iterateAllClasses { classItem ->
-            classItem.superClass()
-            for (interfaceType in classItem.interfaceTypes()) {
-                interfaceType.asClass()
-            }
-        }
+        codebase.resolveSuperTypes()
     }
 
     val ClassSymbol.isTopClass
@@ -376,7 +370,7 @@ internal open class TurbineCodebaseInitialiser(
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
 
         // Add to the codebase
-        codebase.addClass(classItem, isTopClass)
+        codebase.registerClass(classItem, isTopClass)
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
