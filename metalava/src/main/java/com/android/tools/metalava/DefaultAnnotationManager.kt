@@ -40,8 +40,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
-import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
@@ -67,8 +67,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
-        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
-        val previouslyReleasedRemovedCodebaseProvider: () -> Codebase? = { null },
+        /**
+         * Provider of a [List] of [Codebase] objects that will be used when reverting flagged APIs.
+         */
+        val previouslyReleasedCodebasesProvider: () -> List<Codebase> = { emptyList() },
     )
 
     /**
@@ -503,7 +505,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        if (config.hideAnnotations.isEmpty()) {
+        // If there are no hide annotations or revert annotations registered then this can never
+        // return true. Revert annotations are checked because they can behave like hide if they end
+        // up reverting a newly added API.
+        if (config.hideAnnotations.isEmpty() && config.revertAnnotations.isEmpty()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
@@ -592,13 +597,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      * removed API (if present).
      */
     private fun findRevertItem(item: Item): Item? {
-        config.previouslyReleasedCodebaseProvider()?.let { oldCodebase ->
-            item.findCorrespondingItemIn(oldCodebase)?.let {
-                return it
-            }
-        }
-
-        config.previouslyReleasedRemovedCodebaseProvider()?.let { oldCodebase ->
+        for (oldCodebase in config.previouslyReleasedCodebasesProvider()) {
             item.findCorrespondingItemIn(oldCodebase)?.let {
                 return it
             }

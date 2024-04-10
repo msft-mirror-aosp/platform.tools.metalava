@@ -18,15 +18,14 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -40,12 +39,10 @@ import java.io.PrintWriter
 import java.io.Writer
 
 internal class StubWriter(
-    private val codebase: Codebase,
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
-    private val annotationTarget: AnnotationTarget,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
 ) :
@@ -53,7 +50,6 @@ internal class StubWriter(
         visitConstructorsAsMethods = false,
         nestInnerClasses = true,
         inlineInheritedFields = true,
-        fieldComparator = FieldItem.comparator,
         // Methods are by default sorted in source order in stubs, to encourage methods
         // that are near each other in the source to show up near each other in the documentation
         methodComparator = MethodItem.sourceOrderComparator,
@@ -113,15 +109,14 @@ internal class StubWriter(
             appendDocumentation(pkg, packageInfoWriter, config)
 
             if (annotations.isNotEmpty()) {
-                ModifierList.writeAnnotations(
-                    list = pkg.modifiers,
-                    separateLines = true,
-                    // Some bug in UAST triggers duplicate nullability annotations
-                    // here; make sure they are filtered out
-                    filterDuplicates = true,
-                    target = annotationTarget,
-                    writer = packageInfoWriter
-                )
+                // Write the modifier list even though the package info does not actually have
+                // modifiers as that will write the annotations which it does have and ignore the
+                // modifiers.
+                ModifierListWriter.forStubs(
+                        writer = packageInfoWriter,
+                        docStubs = docStubs,
+                    )
+                    .write(pkg)
             }
             packageInfoWriter.println("package ${pkg.qualifiedName()};")
 
@@ -201,24 +196,33 @@ internal class StubWriter(
                     errorTextWriter
                 }
 
+            val kotlin = config.kotlinStubs && cls.isKotlin()
+            val language = if (kotlin) Language.KOTLIN else Language.JAVA
+
+            val modifierListWriter =
+                ModifierListWriter.forStubs(
+                    writer = textWriter,
+                    docStubs = docStubs,
+                    runtimeAnnotationsOnly = !generateAnnotations,
+                    language = language,
+                )
+
             stubWriter =
-                if (config.kotlinStubs && cls.isKotlin()) {
+                if (kotlin) {
                     KotlinStubWriter(
                         textWriter,
+                        modifierListWriter,
                         filterReference,
-                        generateAnnotations,
                         preFiltered,
-                        annotationTarget,
                         config,
                     )
                 } else {
                     JavaStubWriter(
                         textWriter,
+                        modifierListWriter,
                         filterEmit,
                         filterReference,
-                        generateAnnotations,
                         preFiltered,
-                        annotationTarget,
                         config,
                     )
                 }

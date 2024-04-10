@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -51,6 +53,7 @@ class DefaultReporterTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test suppression annotations`() {
         check(
@@ -144,7 +147,7 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
+                        public void foo1(String a) {}
                     }
                 """
                     ),
@@ -184,11 +187,11 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
-                        public void foo2(String a) {} 
-                        public void foo3(String a) {} 
-                        public void foo4(String a) {} 
-                        public void foo5(String a) {} 
+                        public void foo1(String a) {}
+                        public void foo2(String a) {}
+                        public void foo3(String a) {}
+                        public void foo4(String a) {}
+                        public void foo5(String a) {}
                     }
                 """
                     ),
@@ -230,12 +233,12 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
-                        public void foo2(String a) {} 
-                        public void foo3(String a) {} 
-                        public void foo4(String a) {} 
-                        public void foo5(String a) {} 
-                        public void foo6(String a) {} 
+                        public void foo1(String a) {}
+                        public void foo2(String a) {}
+                        public void foo3(String a) {}
+                        public void foo4(String a) {}
+                        public void foo5(String a) {}
+                        public void foo6(String a) {}
                     }
                 """
                     ),
