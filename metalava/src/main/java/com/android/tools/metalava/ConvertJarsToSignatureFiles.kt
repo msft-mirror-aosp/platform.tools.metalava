@@ -109,7 +109,10 @@ class ConvertJarsToSignatureFiles(
                 // may be @RecentlyNullable/@RecentlyNonNull. Translate these back into
                 // normal @Nullable/@NonNull
                 jarCodebase.accept(
-                    object : ApiVisitor() {
+                    object :
+                        ApiVisitor(
+                            config = ApiVisitor.Config(),
+                        ) {
                         override fun visitItem(item: Item) {
                             unmarkRecent(item)
                             super.visitItem(item)
