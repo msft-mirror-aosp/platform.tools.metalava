@@ -731,7 +731,6 @@ private class ClassResolverProvider(
 @Suppress("DEPRECATION")
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    preFiltered: Boolean = false,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
     codebaseValidator: (Codebase) -> Unit = { codebase ->
         options.nullabilityAnnotationsValidator?.validateAllFrom(
@@ -744,7 +743,7 @@ fun ActionContext.loadFromJarFile(
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
-    val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
+    val codebase = sourceParser.loadFromJar(apiJar)
     val apiEmit =
         ApiPredicate(
             config = apiPredicateConfig.copy(ignoreShown = true),

@@ -93,9 +93,6 @@ class ConvertJarsToSignatureFiles(
             val jarCodebase =
                 actionContext.loadFromJarFile(
                     apiJar,
-                    // Treat android.jar file as not filtered since they contain misc stuff that
-                    // shouldn't be there: package private super classes etc.
-                    preFiltered = false,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
                     codebaseValidator = {},
                     apiPredicateConfig = ApiPredicate.Config(),
