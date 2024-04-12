@@ -89,8 +89,6 @@ internal constructor(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun isDefined(): Boolean = codebase.unsupported()
-
     override fun psi() = psiClass
 
     override fun isFromClassPath(): Boolean = fromClassPath

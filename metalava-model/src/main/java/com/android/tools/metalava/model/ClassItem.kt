@@ -40,9 +40,6 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     @MetalavaApi fun qualifiedName(): String
 
-    /** Is the class explicitly defined in the source file? */
-    fun isDefined(): Boolean
-
     /** Is this an innerclass? */
     @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
 
