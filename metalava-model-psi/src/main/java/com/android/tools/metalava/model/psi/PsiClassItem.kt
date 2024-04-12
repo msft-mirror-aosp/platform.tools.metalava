@@ -74,7 +74,9 @@ internal constructor(
     ),
     ClassItem {
 
-    override var emit: Boolean = !modifiers.isExpect()
+    init {
+        emit = !modifiers.isExpect()
+    }
 
     lateinit var containingPackage: PsiPackageItem
 
