@@ -15,34 +15,30 @@
  */
 package com.android.tools.metalava.model.text
 
-class ApiParseException : Exception {
-    private var file: String? = null
-    private var line = 0
+import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.reporter.FileLocation
 
-    internal constructor(message: String) : super(message)
+@MetalavaApi
+class ApiParseException(
+    message: String,
+    private val location: FileLocation? = null,
+    cause: Exception? = null,
+) : Exception(message, cause) {
 
-    internal constructor(message: String, file: String, cause: Exception?) : super(message, cause) {
-        this.file = file
-    }
-
-    internal constructor(message: String, tokenizer: ApiFile.Tokenizer) : super(message) {
-        file = tokenizer.fileName
-        line = tokenizer.line
-    }
+    internal constructor(
+        message: String,
+        fileLocationTracker: FileLocationTracker,
+        cause: Exception? = null,
+    ) : this(message, fileLocationTracker.fileLocation(), cause = cause)
 
     override val message: String
         get() {
-            val sb = StringBuilder()
-            if (file != null) {
-                sb.append(file).append(':')
+            return buildString {
+                location?.appendTo(this)
+                if (isNotEmpty()) {
+                    append(": ")
+                }
+                append(super.message)
             }
-            if (line > 0) {
-                sb.append(line).append(':')
-            }
-            if (sb.isNotEmpty()) {
-                sb.append(' ')
-            }
-            sb.append(super.message)
-            return sb.toString()
         }
 }

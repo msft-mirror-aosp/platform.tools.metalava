@@ -18,28 +18,29 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
-open class TextMethodItem(
+internal open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
     containingClass: ClassItem,
     modifiers: DefaultModifierList,
-    private val returnType: TextTypeItem,
-    position: SourcePositionInfo
+    private val returnType: TypeItem,
+    private val parameters: List<TextParameterItem>,
+    fileLocation: FileLocation,
 ) :
-    TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers),
-    MethodItem,
-    TypeParameterListOwner {
+    TextMemberItem(codebase, name, containingClass, fileLocation, modifiers = modifiers),
+    MethodItem {
     init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
+        parameters.forEach { it.containingMethod = this }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -68,6 +69,21 @@ open class TextMethodItem(
                 return false
             }
         }
+
+        val typeParameters1 = typeParameterList
+        val typeParameters2 = other.typeParameterList
+
+        if (typeParameters1.size != typeParameters2.size) {
+            return false
+        }
+
+        for (i in typeParameters1.indices) {
+            val typeParameter1 = typeParameters1[i]
+            val typeParameter2 = typeParameters2[i]
+            if (typeParameter1.typeBounds() != typeParameter2.typeBounds()) {
+                return false
+            }
+        }
         return true
     }
 
@@ -80,68 +96,27 @@ open class TextMethodItem(
     override fun returnType(): TypeItem = returnType
 
     override fun superMethods(): List<MethodItem> {
-        if (isConstructor()) {
-            return emptyList()
-        }
-
-        val list = mutableListOf<MethodItem>()
-
-        var curr = containingClass().superClass()
-        while (curr != null) {
-            val superMethod = curr.findMethod(this)
-            if (superMethod != null) {
-                list.add(superMethod)
-                break
-            }
-            curr = curr.superClass()
-        }
-
-        // Interfaces
-        for (itf in containingClass().allInterfaces()) {
-            val interfaceMethod = itf.findMethod(this)
-            if (interfaceMethod != null) {
-                list.add(interfaceMethod)
-            }
-        }
-
-        return list
+        return computeSuperMethods()
     }
 
     override fun findMainDocumentation(): String = documentation
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    private var typeParameterList: TypeParameterList = TypeParameterList.NONE
-
-    fun setTypeParameterList(typeParameterList: TypeParameterList) {
-        this.typeParameterList = typeParameterList
-    }
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
-
-    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass() as TextClassItem?
-    }
-
-    override fun resolveParameter(variable: String): TypeParameterItem? {
-        for (t in typeParameterList.typeParameters()) {
-            if (t.simpleName() == variable) {
-                return t
-            }
-        }
-
-        return (containingClass() as TextClassItem).resolveParameter(variable)
-    }
+    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
+        internal set
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
+        val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
             TextMethodItem(
                 codebase,
                 name(),
                 targetContainingClass,
                 modifiers.duplicate(),
-                returnType,
-                position
+                returnType.convertType(typeVariableMap),
+                parameters.map { it.duplicate(typeVariableMap) },
+                fileLocation
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -155,69 +130,31 @@ open class TextMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
-        if (targetContainingClass.deprecated) {
-            duplicated.deprecated = true
-        }
 
-        duplicated.varargs = varargs
         duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
-        duplicated.throwsTypes.addAll(throwsTypes)
-        duplicated.throwsClasses = throwsClasses
+        duplicated.throwsTypes = this.throwsTypes
         duplicated.typeParameterList = typeParameterList
-        // Consider cloning these: they have back references to the parent method (though it's
-        // unlikely anyone will care about the difference in parent methods)
-        duplicated.parameters.addAll(parameters)
 
         return duplicated
     }
 
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
+    private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 
-    private val throwsTypes = mutableListOf<String>()
-    private val parameters = mutableListOf<TextParameterItem>()
-    private var throwsClasses: List<ClassItem>? = null
+    override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
 
-    fun throwsTypeNames(): List<String> {
-        return throwsTypes
-    }
-
-    override fun throwsTypes(): List<ClassItem> =
-        if (throwsClasses == null) emptyList() else throwsClasses!!
-
-    fun setThrowsList(throwsClasses: List<ClassItem>) {
-        this.throwsClasses = throwsClasses
+    fun setThrowsTypes(throwsClasses: List<ExceptionTypeItem>) {
+        this.throwsTypes = throwsClasses
     }
 
     override fun parameters(): List<ParameterItem> = parameters
 
-    fun addException(throwsType: String) {
-        throwsTypes += throwsType
-    }
-
-    fun addParameter(parameter: TextParameterItem) {
-        parameters += parameter
-    }
-
-    private var varargs: Boolean = false
-
-    fun setVarargs(varargs: Boolean) {
-        this.varargs = varargs
-    }
-
-    fun isVarArg(): Boolean = varargs
-
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
-
-    fun toSignatureString(): String =
-        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+    @Deprecated("This property should not be accessed directly.")
+    override var _requiresOverride: Boolean? = null
 
     private var annotationDefault = ""
 
@@ -227,15 +164,5 @@ open class TextMethodItem(
 
     override fun defaultValue(): String {
         return annotationDefault
-    }
-
-    override fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean {
-        if (typeString1[0].isUpperCase() && typeString1.length == 1) {
-            return true
-        }
-        if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit()) {
-            return true
-        }
-        return false
     }
 }
