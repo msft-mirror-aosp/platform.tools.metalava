@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.compatibility
 
+import com.android.SdkConstants
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
@@ -141,6 +142,20 @@ class CompatibilityCheckOptions :
             /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
                 if (files.isEmpty()) null else CheckRequest(files, apiType)
+        }
+
+        /** Load the previously released API [files] in as a list of [Codebase]s. */
+        fun loadPreviouslyReleasedApi(
+            jarLoader: (File) -> Codebase,
+            signatureLoader: (File) -> Codebase,
+        ): List<Codebase> {
+            return files.map { file ->
+                if (file.path.endsWith(SdkConstants.DOT_JAR)) {
+                    jarLoader(file)
+                } else {
+                    signatureLoader(file)
+                }
+            }
         }
 
         override fun toString(): String {

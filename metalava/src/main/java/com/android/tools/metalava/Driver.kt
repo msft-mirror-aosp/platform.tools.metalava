@@ -514,13 +514,12 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebases =
-        check.files.map { signatureFile ->
-            if (signatureFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(signatureFile)
-            } else {
+        check.loadPreviouslyReleasedApi(
+            jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+            signatureLoader = { signatureFile ->
                 signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
             }
-        }
+        )
 
     var baseApi: Codebase? = null
 
