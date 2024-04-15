@@ -119,10 +119,23 @@ class CompatibilityCheckOptions :
             .allowStructuredOptionName()
 
     /**
-     * Request for compatibility checks. [files] represents the signature files to be checked.
-     * [apiType] represents which part of the API should be checked.
+     * Encapsulates information needed to perform a compatibility check of the current API being
+     * generated against a previously released API.
      */
-    data class CheckRequest(val files: List<File>, val apiType: ApiType) {
+    data class CheckRequest(
+        /**
+         * The previously released API with which the API being generated must be compatible.
+         *
+         * Each file is either a jar file (i.e. has an extension of `.jar`), or otherwise is a
+         * signature file. The latter's extension is not checked because while it usually has an
+         * extension of `.txt`, for legacy reasons Metalava will treat any file without a `,jar`
+         * extension as if it was a signature file.
+         */
+        val files: List<File>,
+
+        /** The part of the API to be checked. */
+        val apiType: ApiType,
+    ) {
 
         companion object {
             /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
