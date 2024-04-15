@@ -51,6 +51,20 @@ import java.nio.file.Path
 import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
+/** Encapsulates information needed to process a signature file. */
+data class SignatureFile(
+    /** The underlying signature [File]. */
+    val file: File,
+) {
+    companion object {
+        /** Create a [SignatureFile] from a [File]. */
+        fun fromFile(file: File) = SignatureFile(file)
+
+        /** Create a list of [SignatureFile]s from a list of [File]s. */
+        fun fromFiles(files: List<File>): List<SignatureFile> = files.map { SignatureFile(it) }
+    }
+}
+
 @MetalavaApi
 class ApiFile
 private constructor(
@@ -91,17 +105,27 @@ private constructor(
 
     companion object {
         /**
-         * Same as `parseApi(List<File>, ...)`, but takes a single file for convenience.
+         * Parse API signature files.
          *
-         * @param file input signature file
+         * Used by non-Metalava Kotlin code.
+         */
+        @MetalavaApi
+        fun parseApi(
+            files: List<File>,
+        ) = parseApi(SignatureFile.fromFiles(files))
+
+        /**
+         * Same as `parseApi(List<SignatureFile>, ...)`, but takes a single file for convenience.
+         *
+         * @param signatureFile input signature file
          */
         fun parseApi(
-            file: File,
+            signatureFile: SignatureFile,
             annotationManager: AnnotationManager,
             description: String? = null,
         ) =
             parseApi(
-                files = listOf(file),
+                signatureFiles = listOf(signatureFile),
                 annotationManager = annotationManager,
                 description = description,
             )
@@ -113,10 +137,10 @@ private constructor(
          * first file specified. each [com.android.tools.metalava.model.text.TextItem.fileLocation]
          * would correctly point out the source file of each item.
          *
-         * @param files input signature files
+         * @param signatureFiles input signature files
          */
         fun parseApi(
-            files: List<File>,
+            signatureFiles: List<SignatureFile>,
             annotationManager: AnnotationManager = noOpAnnotationManager,
             description: String? = null,
             classResolver: ClassResolver? = null,
@@ -124,10 +148,10 @@ private constructor(
             // Provides the called with access to the ApiFile.
             apiStatsConsumer: (Stats) -> Unit = {},
         ): Codebase {
-            require(files.isNotEmpty()) { "files must not be empty" }
+            require(signatureFiles.isNotEmpty()) { "files must not be empty" }
             val api =
                 TextCodebase(
-                    location = files[0],
+                    location = signatureFiles[0].file,
                     annotationManager = annotationManager,
                     classResolver = classResolver,
                 )
@@ -135,11 +159,12 @@ private constructor(
                 description
                     ?: buildString {
                         append("Codebase loaded from ")
-                        files.joinTo(this)
+                        signatureFiles.joinTo(this)
                     }
             val parser = ApiFile(api, formatForLegacyFiles)
             var first = true
-            for (file in files) {
+            for (signatureFile in signatureFiles) {
+                val file = signatureFile.file
                 val apiText: String =
                     try {
                         file.readText(UTF_8)
