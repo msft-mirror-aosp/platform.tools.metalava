@@ -216,7 +216,21 @@ class CompatibilityCheckOptions :
     val compatibilityChecks by
         lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
-    /** The list of [Codebase]s corresponding to [compatibilityChecks]. */
+    /**
+     * The list of [Codebase]s corresponding to [compatibilityChecks].
+     *
+     * This is used to provide the previously released API needed for `--revert-annotation`. It does
+     * not support jar files.
+     */
     fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.flatMap { it.files.map { signatureFileCache.load(it) } }
+        compatibilityChecks.flatMap {
+            it.previouslyReleasedApi.load(
+                {
+                    throw IllegalStateException(
+                        "Unexpected file $it: jar files do not work with --revert-annotation"
+                    )
+                },
+                { signatureFileCache.load(it) }
+            )
+        }
 }

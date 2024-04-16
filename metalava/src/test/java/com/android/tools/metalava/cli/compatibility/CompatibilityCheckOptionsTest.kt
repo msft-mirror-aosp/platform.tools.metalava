@@ -17,9 +17,11 @@
 package com.android.tools.metalava.cli.compatibility
 
 import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.JarBasedApi
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.SignatureBasedApi
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -177,5 +179,31 @@ class CompatibilityCheckOptionsTest :
             .isEqualTo(
                 "--check-compatibility:api:released: Cannot mix jar files (e.g. $jarFile) and signature files (e.g. $signatureFile)"
             )
+    }
+
+    @Test
+    fun `check compatibility api released jar is not supported for --revert-annotation`() {
+        val jarFile = fakeJar()
+        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
+            assertThat(options.compatibilityChecks)
+                .isEqualTo(
+                    listOf(
+                        CompatibilityCheckOptions.CheckRequest(
+                            previouslyReleasedApi = JarBasedApi(listOf(jarFile)),
+                            apiType = ApiType.PUBLIC_API,
+                        ),
+                    )
+                )
+
+            val exception =
+                assertThrows(IllegalStateException::class.java) {
+                    options.previouslyReleasedCodebases(SignatureFileCache(noOpAnnotationManager))
+                }
+
+            assertThat(exception.message)
+                .isEqualTo(
+                    "Unexpected file $jarFile: jar files do not work with --revert-annotation"
+                )
+        }
     }
 }
