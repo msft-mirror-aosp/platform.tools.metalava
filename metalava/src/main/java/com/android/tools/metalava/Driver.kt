@@ -514,12 +514,15 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebases =
-        check.loadPreviouslyReleasedApi(
-            jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-            signatureLoader = { signatureFile ->
-                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
-            }
-        )
+        check
+            .loadPreviouslyReleasedApi(
+                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+                signatureLoader = { signatureFile ->
+                    signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+                }
+            )
+            // Only use the last codebase to replicate previous behavior of only reporting
+            .takeLast(1)
 
     var baseApi: Codebase? = null
 

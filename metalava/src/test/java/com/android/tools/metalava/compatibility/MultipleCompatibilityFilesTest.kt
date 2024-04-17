@@ -111,13 +111,10 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             checkCompatibilityApiReleasedList =
                 listOf(previouslyReleasedPublicApi, previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
-            expectedIssues =
-                // This issue should not be reported because that will end up causing all issues
-                // in an API surface to also be reported for every API surface that extends it.
-                // TODO(b/333394978): Fix this.
-                """
-                    load-api.txt:4: error: Field test.pkg.Bar.field has changed 'volatile' qualifier [ChangedVolatile]
-                """,
+            // Although there is an issue in the public API that is not reported here because it
+            // only reports issues found when comparing against `previouslyReleasedSystemApiDelta`.
+            // That is to avoid reporting an issue in one API surface against any API surface that
+            // extends it.
         )
     }
 
