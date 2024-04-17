@@ -111,43 +111,39 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             checkCompatibilityApiReleasedList =
                 listOf(previouslyReleasedPublicApi, previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
-            // This should report an issue with the public API but does not because when
-            // `checkCompatibilityApiReleasedList` is given multiple signature contents it
-            // mistakenly writes them all to the same file which means that only the last one is
-            // used. The file is actually passed twice but that has no effect.
-            // TODO(b/333394978): Fix this.
+            expectedIssues =
+                // This issue should not be reported because that will end up causing all issues
+                // in an API surface to also be reported for every API surface that extends it.
+                // TODO(b/333394978): Fix this.
+                """
+                    load-api.txt:4: error: Field test.pkg.Bar.field has changed 'volatile' qualifier [ChangedVolatile]
+                """,
         )
     }
 
     @Test
     fun `Test current system vs multiple released compatibility files (invalid first)`() {
-        // This should fail as the signature file is invalid, but it does not because the first
-        // file is ignored because when `checkCompatibilityApiReleasedList` is given multiple
-        // signature contents it mistakenly writes them all to the same file which means that only
-        // the last one is used.
-        // TODO(b/333394978): Fix this.
         check(
             checkCompatibilityApiReleasedList =
                 listOf("Invalid Signature File", previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
+            expectedFail =
+                """
+                    Aborting: Unable to parse signature file: TESTROOT/project/released-api.txt:2: expected package got Invalid
+                """
         )
     }
 
     @Test
     fun `Test current public vs multiple removed compatibility files (invalid first)`() {
-        // This should fail as the signature file is invalid, but it does not because the first
-        // file is ignored because when `checkCompatibilityApiReleasedList` is given multiple
-        // signature contents it mistakenly writes them all to the same file which means that only
-        // the last one is used.
-        // TODO(b/333394978): Fix this.
         check(
             checkCompatibilityRemovedApiReleasedList =
                 listOf("Invalid Signature File", previouslyReleasedPublicApi),
             signatureSource = currentCompletePublicApi,
             // This reports a real issue that exists in the public API.
-            expectedIssues =
+            expectedFail =
                 """
-                    load-api.txt:4: error: Field test.pkg.Bar.field has changed 'volatile' qualifier [ChangedVolatile]
+                    Aborting: Unable to parse signature file: TESTROOT/project/removed-released-api.txt:2: expected package got Invalid
                 """,
         )
     }
