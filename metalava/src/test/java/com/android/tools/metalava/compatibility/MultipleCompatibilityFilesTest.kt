@@ -26,6 +26,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             // Signature format: 2.0
             package test.pkg {
               public class Bar extends IllegalStateException {
+                field public int field;
               }
               public class Foo {
                 method public void foo() throws test.pkg.Bar;
@@ -46,6 +47,23 @@ class MultipleCompatibilityFilesTest : DriverTest() {
         """
 
     /**
+     * The current and complete public api which will be tested for compatibility against the public
+     * API.
+     */
+    private val currentCompletePublicApi =
+        """
+            // Signature format: 2.0
+            package test.pkg {
+              public class Bar extends IllegalStateException {
+                field public volatile int field;
+              }
+              public class Foo {
+                method public void foo() throws test.pkg.Bar;
+              }
+            }
+        """
+
+    /**
      * The current and complete system api which will be tested for compatibility against some
      * combination of the above previously released APIs.
      */
@@ -53,6 +71,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
         """
             package test.pkg {
               public class Bar extends IllegalStateException {
+                field public volatile int field;
               }
               public class Baz extends test.pkg.Bar {
               }
@@ -63,48 +82,72 @@ class MultipleCompatibilityFilesTest : DriverTest() {
         """
 
     @Test
-    fun `Test public only`() {
+    fun `Test current public vs released public only`() {
         check(
             checkCompatibilityApiReleasedList = listOf(previouslyReleasedPublicApi),
-            signatureSource = currentCompleteSystemApi,
-            // This fails because the previous system API is not provided.
+            signatureSource = currentCompletePublicApi,
+            // This reports a real issue that exists in the public API.
             expectedIssues =
                 """
-                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception test.pkg.Baz [ChangedThrows]
+                    load-api.txt:4: error: Field test.pkg.Bar.field has changed 'volatile' qualifier [ChangedVolatile]
                 """,
         )
     }
 
     @Test
-    fun `Test system only`() {
+    fun `Test current system vs released system only`() {
         check(
             checkCompatibilityApiReleasedList = listOf(previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
+            // This does not report the `ChangedVolatile` issue with test.pkg.Bar.field because it
+            // is not given `previouslyReleasedPublicApi` and so does not know that the field was
+            // previously declared without the `volatile` keyword.
         )
     }
 
     @Test
-    fun `Test multiple compatibility files (public first)`() {
+    fun `Test current system vs multiple released compatibility files`() {
         check(
             checkCompatibilityApiReleasedList =
                 listOf(previouslyReleasedPublicApi, previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
+            // This should report an issue with the public API but does not because when
+            // `checkCompatibilityApiReleasedList` is given multiple signature contents it
+            // mistakenly writes them all to the same file which means that only the last one is
+            // used. The file is actually passed twice but that has no effect.
+            // TODO(b/333394978): Fix this.
         )
     }
 
     @Test
-    fun `Test multiple compatibility files (system first)`() {
+    fun `Test current system vs multiple released compatibility files (invalid first)`() {
+        // This should fail as the signature file is invalid, but it does not because the first
+        // file is ignored because when `checkCompatibilityApiReleasedList` is given multiple
+        // signature contents it mistakenly writes them all to the same file which means that only
+        // the last one is used.
+        // TODO(b/333394978): Fix this.
         check(
             checkCompatibilityApiReleasedList =
-                listOf(previouslyReleasedSystemApiDelta, previouslyReleasedPublicApi),
+                listOf("Invalid Signature File", previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
-            // This fails because the previous system API is provided first and the
-            // CompatibilityCheck assumes that the second one should override the first, so it is
-            // using the public definition of the `foo()` method and the public `throws` list which
-            // is why it is getting the same errors as when public only is provided.
+        )
+    }
+
+    @Test
+    fun `Test current public vs multiple removed compatibility files (invalid first)`() {
+        // This should fail as the signature file is invalid, but it does not because the first
+        // file is ignored because when `checkCompatibilityApiReleasedList` is given multiple
+        // signature contents it mistakenly writes them all to the same file which means that only
+        // the last one is used.
+        // TODO(b/333394978): Fix this.
+        check(
+            checkCompatibilityRemovedApiReleasedList =
+                listOf("Invalid Signature File", previouslyReleasedPublicApi),
+            signatureSource = currentCompletePublicApi,
+            // This reports a real issue that exists in the public API.
             expectedIssues =
                 """
-                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception test.pkg.Baz [ChangedThrows]
+                    load-api.txt:4: error: Field test.pkg.Bar.field has changed 'volatile' qualifier [ChangedVolatile]
                 """,
         )
     }
