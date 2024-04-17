@@ -43,6 +43,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
+import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -117,6 +119,7 @@ fun run(
 
 @Suppress("DEPRECATION")
 internal fun processFlags(
+    executionEnvironment: ExecutionEnvironment,
     environmentManager: EnvironmentManager,
     progressTracker: ProgressTracker
 ) {
@@ -125,13 +128,27 @@ internal fun processFlags(
     val reporter = options.reporter
     val reporterApiLint = options.reporterApiLint
     val annotationManager = options.annotationManager
+    val modelOptions =
+        // If the option was specified on the command line then use [ModelOptions] created from
+        // that.
+        options.useK2Uast?.let { useK2Uast ->
+            ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
+        }
+        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+                // Make sure that the [options.useK2Uast] matches the test environment.
+                options.useK2Uast = this[PsiModelOptions.useK2Uast]
+            }
+            // Otherwise, use the default
+            ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
             annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
-            useK2Uast = options.useK2Uast,
+            modelOptions = modelOptions,
+            allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
         )
 
@@ -497,13 +514,12 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebases =
-        check.files.map { signatureFile ->
-            if (signatureFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(signatureFile)
-            } else {
+        check.loadPreviouslyReleasedApi(
+            jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+            signatureLoader = { signatureFile ->
                 signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
             }
-        }
+        )
 
     var baseApi: Codebase? = null
 
@@ -714,7 +730,6 @@ private class ClassResolverProvider(
 @Suppress("DEPRECATION")
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    preFiltered: Boolean = false,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
     codebaseValidator: (Codebase) -> Unit = { codebase ->
         options.nullabilityAnnotationsValidator?.validateAllFrom(
@@ -727,7 +742,7 @@ fun ActionContext.loadFromJarFile(
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
-    val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
+    val codebase = sourceParser.loadFromJar(apiJar)
     val apiEmit =
         ApiPredicate(
             config = apiPredicateConfig.copy(ignoreShown = true),

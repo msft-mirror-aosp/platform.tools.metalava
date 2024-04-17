@@ -19,12 +19,14 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiJvmMember
 
 abstract class PsiMemberItem
 internal constructor(
     codebase: PsiBasedCodebase,
     element: PsiJvmMember,
+    fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     documentation: String,
     internal val containingClass: ClassItem,
@@ -35,8 +37,13 @@ internal constructor(
         modifiers = modifiers,
         documentation = documentation,
         element = element,
+        fileLocation = fileLocation,
     ),
     MemberItem {
+
+    init {
+        emit = !modifiers.isExpect()
+    }
 
     final override fun name() = name
 

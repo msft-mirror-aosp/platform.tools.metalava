@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
@@ -33,7 +32,6 @@ private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
 
 @Suppress("JavadocDeclaration")
-@RunWith(Parameterized::class)
 class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
     /** The configuration of the test. */
@@ -177,17 +175,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             stubPaths = expectations.expectedStubPaths,
             expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
+            // Do not include flags in the output but do not mark them as hide or removed.
+            // This is needed to verify that the code to always inline the values of
+            // FlaggedApi annotations even when not hidden or removed is working correctly.
+            skipEmitPackages = listOf("test.pkg.flags"),
             extraArguments =
                 arrayOf(
                     ARG_HIDE_PACKAGE,
                     "android.annotation",
                     "--warning",
                     "UnflaggedApi",
-                    // Do not include flags in the output but do not mark them as hide or removed.
-                    // This is needed to verify that the code to always inline the values of
-                    // FlaggedApi annotations even when not hidden or removed is working correctly.
-                    "--skip-emit-packages",
-                    "test.pkg.flags",
                 ) + config.extraArguments,
         )
     }
@@ -986,6 +983,115 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         // exclude the new methods because the class was present in the previously
                         // released module lib API but the methods were not.
                         expectedStubs = stubsWithoutNewMembers,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test interface fields behave correctly when flagged`() {
+        val expectedStubPaths =
+            arrayOf(
+                "test/pkg/Foo.java",
+            )
+
+        val stubsWithFlaggedApi =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public interface Foo {
+                        public static final int CONSTANT = 1; // 0x1
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApi =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public interface Foo {
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    public interface Foo {
+                        @FlaggedApi("foo/bar")
+                        int CONSTANT = 1;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public interface Foo {
+                        }
+                    }
+                """,
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public interface Foo {
+                                    field @FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
+                                  }
+                                }
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubs = stubsWithFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public interface Foo {
+                                  }
+                                }
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubs = stubsWithoutFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubs = stubsWithFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubs = stubsWithoutFlaggedApi,
                     ),
                 ),
         )
