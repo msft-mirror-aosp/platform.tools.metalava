@@ -734,10 +734,10 @@ private class ClassResolverProvider(
 fun ActionContext.loadFromJarFile(
     apiJar: File,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
-    apiPredicateConfig: ApiPredicate.Config = options.apiPredicateConfig,
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
+    val apiPredicateConfig = apiAnalyzerConfig.apiPredicateConfig
     val codebase = sourceParser.loadFromJar(apiJar)
     val apiEmit =
         ApiPredicate(
