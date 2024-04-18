@@ -734,13 +734,6 @@ private class ClassResolverProvider(
 fun ActionContext.loadFromJarFile(
     apiJar: File,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
-    codebaseValidator: (Codebase) -> Unit = { codebase ->
-        options.nullabilityAnnotationsValidator?.validateAllFrom(
-            codebase,
-            options.validateNullabilityFromList
-        )
-        options.nullabilityAnnotationsValidator?.report()
-    },
     apiPredicateConfig: ApiPredicate.Config = options.apiPredicateConfig,
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
@@ -755,7 +748,6 @@ fun ActionContext.loadFromJarFile(
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
-    codebaseValidator(codebase)
     analyzer.generateInheritedStubs(apiEmit, apiReference)
     return codebase
 }
