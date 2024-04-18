@@ -241,6 +241,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
     @Test
     fun `Basic test that FlaggedApi annotated items can be hidden`() {
+
         checkFlaggedApis(
             java(
                 """
@@ -301,6 +302,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    @android.annotation.FlaggedApi("foo/bar")
+                                    public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
                     ),
                     Expectations(
                         Surface.PUBLIC,
@@ -314,6 +329,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -327,6 +354,23 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        @android.annotation.FlaggedApi("foo/bar")
+                                        public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
+                                        /** @hide */
+                                        @android.annotation.FlaggedApi("foo/bar")
+                                        public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -335,6 +379,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
                     ),
                 ),
         )
