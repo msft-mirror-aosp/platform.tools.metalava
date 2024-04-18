@@ -94,7 +94,6 @@ class ConvertJarsToSignatureFiles(
                 actionContext.loadFromJarFile(
                     apiJar,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
-                    codebaseValidator = {},
                     apiPredicateConfig = ApiPredicate.Config(),
                 )
             val apiPredicateConfig = ApiPredicate.Config()
