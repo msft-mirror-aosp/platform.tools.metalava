@@ -730,26 +730,17 @@ private class ClassResolverProvider(
     }
 }
 
-@Suppress("DEPRECATION")
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
+    apiAnalyzerConfig: ApiAnalyzer.Config = @Suppress("DEPRECATION") options.apiAnalyzerConfig,
 ): Codebase {
-    progressTracker.progress("Processing jar file: ")
-
-    val apiPredicateConfig = apiAnalyzerConfig.apiPredicateConfig
-    val codebase = sourceParser.loadFromJar(apiJar)
-    val apiEmit =
-        ApiPredicate(
-            config = apiPredicateConfig.copy(ignoreShown = true),
+    val jarCodebaseLoader =
+        JarCodebaseLoader.createForSourceParser(
+            progressTracker,
+            reporterApiLint,
+            sourceParser,
         )
-    val apiReference = apiEmit
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, apiAnalyzerConfig)
-    analyzer.mergeExternalInclusionAnnotations()
-    analyzer.computeApi()
-    analyzer.mergeExternalQualifierAnnotations()
-    analyzer.generateInheritedStubs(apiEmit, apiReference)
-    return codebase
+    return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
 internal fun disableStderrDumping(): Boolean {
