@@ -1262,14 +1262,13 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ),
             )
 
-        // TODO(b/316873097): Fix the test. The Foo class should be abstract.
         val stubsWithoutFlaggedApis =
             arrayOf(
                 java(
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public class Foo {
+                        public abstract class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
                         }
                     """
@@ -1321,12 +1320,11 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.WITHOUT,
-                        // TODO(b/316873097): Fix the test. This should be abstract.
                         expectedApi =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  public class Foo {
+                                  public abstract class Foo {
                                     ctor public Foo();
                                   }
                                 }

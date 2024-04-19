@@ -771,3 +771,7 @@ private class LazyAnnotationInfo(
                 checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
         }
 }
+
+/** Get the actual item to use, this takes into account whether the item has been reverted. */
+val Item.actualItem
+    get() = showability.revertItem ?: this
