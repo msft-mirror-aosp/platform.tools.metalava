@@ -157,7 +157,18 @@ class CompatibilityCheckOptions :
         ) = signatureFiles.map { signatureLoader(it) }
 
         companion object {
-            fun fromFiles(files: List<File>) = SignatureBasedApi(SignatureFile.fromFiles(files))
+            fun fromFiles(files: List<File>): SignatureBasedApi {
+                val lastIndex = files.size - 1
+                return SignatureBasedApi(
+                    files.mapIndexed { index, file ->
+                        SignatureFile(
+                            file,
+                            // The last file is assumed to be for the current API surface.
+                            forCurrentApiSurface = index == lastIndex,
+                        )
+                    }
+                )
+            }
         }
     }
 
@@ -232,23 +243,13 @@ class CompatibilityCheckOptions :
      */
     fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
         compatibilityChecks.flatMap {
-            it.previouslyReleasedApi
-                .load(
-                    {
-                        throw IllegalStateException(
-                            "Unexpected file $it: jar files do not work with --revert-annotation"
-                        )
-                    },
-                    { signatureFileCache.load(it) }
-                )
-                // Only use the last codebase as the current handling of `--revert-annotation`
-                // assumes that if it can find an `Item` in a `Codebase` that it belongs to the API
-                // surface being generated. That was true when the only `Codebase` in the list was
-                // the previously released API for that surface. However, if the list includes
-                // `Codebase`s for API surfaces that the one being generated extends then it is no
-                // longer true, so it will do the wrong thing. i.e. it will treat the reverted item
-                // as belonging to the API being generated and include it in the generated API and
-                // signature file.
-                .takeLast(1)
+            it.previouslyReleasedApi.load(
+                {
+                    throw IllegalStateException(
+                        "Unexpected file $it: jar files do not work with --revert-annotation"
+                    )
+                },
+                { signatureFileCache.load(it) }
+            )
         }
 }

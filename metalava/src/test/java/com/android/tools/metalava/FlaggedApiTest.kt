@@ -1349,8 +1349,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
-                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
-                        expectedStubPaths = emptyArray(),
+                        expectedStubs = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
@@ -1368,8 +1367,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
-                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
-                        expectedStubPaths = emptyArray(),
+                        expectedStubs = stubsWithoutFlaggedApis,
                     ),
                 ),
         )
