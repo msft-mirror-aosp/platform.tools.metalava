@@ -361,13 +361,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             ANDROID_FLAGGED_API ->
                 // If FlaggedApi annotations are being reverted in general then do not output them
                 // at all. This means that if some FlaggedApi annotations with specific flags are
-                // not reverted then the annotations will not be written out to the signature files.
-                // That is expected as those APIs are intended to be released and should look like
-                // any other API.
+                // not reverted then the annotations will not be written out to the signature or
+                // stub files. That is the correct behavior as those APIs are intended to be
+                // released and should look like any other released API and released APIs do not
+                // include FlaggedApi annotations.
                 if (config.revertAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
                     return NO_ANNOTATION_TARGETS
                 } else {
-                    return ANNOTATION_SIGNATURE_ONLY
+                    return ANNOTATION_IN_ALL_STUBS
                 }
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
@@ -591,13 +592,20 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     /**
+     * Local cache of the previously released codebases to avoid calling the provider for every
+     * affected item.
+     */
+    private val previouslyReleasedCodebases by
+        lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebasesProvider() }
+
+    /**
      * Find the item to which [item] will be reverted.
      *
      * Searches first the previously released API (if present) and then the previously released
      * removed API (if present).
      */
     private fun findRevertItem(item: Item): Item? {
-        for (oldCodebase in config.previouslyReleasedCodebasesProvider()) {
+        for (oldCodebase in previouslyReleasedCodebases) {
             item.findCorrespondingItemIn(oldCodebase)?.let {
                 return it
             }
