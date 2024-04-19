@@ -25,11 +25,16 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 
+/** Generates a JDiff XML file from a jar. */
 class JarToJDiffCommand :
     MetalavaSubCommand(
         help =
             """
                 Convert a jar file into a file in the JDiff XML format.
+
+                This is intended for use by the coverage team to extract information needed to
+                determine test coverage of the API from the stubs jars. Any other use is
+                unsupported.
             """
                 .trimIndent()
     ) {
@@ -65,22 +70,19 @@ class JarToJDiffCommand :
             jarCodebaseLoader ->
             val codebase = jarCodebaseLoader.loadFromJarFile(jarFile)
 
-            val apiType = ApiType.ALL
+            val apiType = ApiType.PUBLIC_API
             val apiPredicateConfig = ApiPredicate.Config()
             val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
             val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
 
-            // See JDiff's XMLToAPI#nameAPI
-            val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
             createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
                 JDiffXmlWriter(
-                    printWriter,
-                    apiEmit,
-                    apiReference,
-                    false,
-                    apiName,
+                    writer = printWriter,
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = false,
                     showUnannotated = false,
-                    ApiVisitor.Config(),
+                    config = ApiVisitor.Config(),
                 )
             }
         }
