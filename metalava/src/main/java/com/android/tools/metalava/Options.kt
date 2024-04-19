@@ -149,7 +149,6 @@ const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-f
 const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
-const val ARG_INPUT_API_JAR = "--input-api-jar"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
@@ -604,14 +603,6 @@ class Options(
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
-    /**
-     * An optional <b>jar</b> file to load classes from instead of from source. This is similar to
-     * the [classpath] attribute except we're explicitly saying that this is the complete set of
-     * classes and that we <b>should</b> generate signatures/stubs from them or use them to diff
-     * APIs with (whereas [classpath] is only used to resolve types.)
-     */
-    var apiJar: File? = null
-
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
@@ -983,7 +974,6 @@ class Options(
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
-                ARG_INPUT_API_JAR -> apiJar = stringToExistingFile(getValue(args, ++index))
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
                 ARG_MIGRATE_NULLNESS -> {
@@ -1235,7 +1225,6 @@ class Options(
                 .map { it as DefaultReporter }
 
         updateClassPath()
-        checkFlagConsistency()
     }
 
     fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
@@ -1382,15 +1371,6 @@ class Options(
             .firstOrNull { it.isFile }
     }
 
-    /** Makes sure that the flag combinations make sense */
-    private fun checkFlagConsistency() {
-        if (apiJar != null && sources.isNotEmpty()) {
-            throw MetalavaCliException(
-                stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both"
-            )
-        }
-    }
-
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
             throw MetalavaCliException("Missing argument for ${args[index - 1]}")
@@ -1534,8 +1514,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_INPUT_API_JAR <file>",
-                "A .jar file to read APIs from directly",
                 "$ARG_HIDE_PACKAGE <package>",
                 "Remove the given packages from the API even if they have not been " +
                     "marked with @hide",
