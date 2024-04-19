@@ -140,7 +140,6 @@ const val ARG_CLASS_PATH = "--classpath"
 const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
-const val ARG_XML_API = "--api-xml"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
@@ -885,7 +884,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
                 ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
@@ -1634,10 +1632,6 @@ object OptionsHelp {
                     "to include.",
                 "$ARG_ERROR_MESSAGE_API_LINT <message>",
                 "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
-                "",
-                "JDiff:",
-                "$ARG_XML_API <file>",
-                "Like $ARG_API, but emits the API in the JDiff XML format instead",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

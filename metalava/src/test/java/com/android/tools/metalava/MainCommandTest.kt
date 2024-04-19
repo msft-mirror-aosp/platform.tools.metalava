@@ -261,11 +261,6 @@ Diffs and Checks:
                                              If set, metalava shows it when errors are detected in --api-lint.
 
 
-JDiff:
---api-xml <file>
-                                             Like --api, but emits the API in the JDiff XML format instead
-
-
 Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the

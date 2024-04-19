@@ -314,23 +314,6 @@ internal fun processFlags(
         }
     }
 
-    options.apiXmlFile?.let { apiFile ->
-        val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
-
-        createReportFile(progressTracker, codebase, apiFile, "XML API") { printWriter ->
-            JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                codebase.preFiltered,
-                showUnannotated = @Suppress("DEPRECATION") options.showUnannotated,
-                config = options.apiVisitorConfig,
-            )
-        }
-    }
-
     options.removedApiFile?.let { apiFile ->
         val unfiltered = codebase.original ?: codebase
 
