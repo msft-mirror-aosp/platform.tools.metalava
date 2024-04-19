@@ -35,6 +35,9 @@ Aborting: Usage: metalava jar-to-jdiff [options] <jar-file> <xml-file>
 
   Convert a jar file into a file in the JDiff XML format.
 
+  This is intended for use by the coverage team to extract information needed to determine test coverage of the API from
+  the stubs jars. Any other use is unsupported.
+
 Options:
   -h, -?, --help                             Show this message and exit
 
@@ -57,7 +60,7 @@ Arguments:
 
         val expectedXml =
             """
-<api name="api" xmlns:metalava="http://www.android.com/metalava/">
+<api xmlns:metalava="http://www.android.com/metalava/">
 <package name="android.test"
 >
 <class name="ClassAddedInApi30"
@@ -68,14 +71,6 @@ Arguments:
  deprecated="not deprecated"
  visibility="public"
 >
-<constructor name="ClassAddedInApi30"
- type="android.test.ClassAddedInApi30"
- static="false"
- final="false"
- deprecated="not deprecated"
- visibility="private"
->
-</constructor>
 <method name="methodAddedInApi30"
  return="void"
  abstract="false"
