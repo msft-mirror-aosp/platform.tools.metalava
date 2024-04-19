@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.internalName
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import java.util.function.Predicate
 
 /**
@@ -44,7 +44,8 @@ fun addApisFromCodebase(
                 visitConstructorsAsMethods = true,
                 nestInnerClasses = false,
                 filterEmit = providedFilterEmit,
-                filterReference = providedFilterReference
+                filterReference = providedFilterReference,
+                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
             ) {
 
             var currentClass: ApiClass? = null
@@ -182,7 +183,7 @@ fun addApisFromCodebase(
                         internalDesc(voidConstructorTypes = true)
                 } else {
                     val paramString = parameters().joinToString(",") { it.type().toTypeString() }
-                    name() + typeParameterList() + "(" + paramString + ")"
+                    name() + typeParameterList + "(" + paramString + ")"
                 }
             }
 
@@ -234,7 +235,7 @@ fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
             containingClass().containingClass() != null &&
             !containingClass().modifiers.isStatic()
     ) {
-        sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
+        sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
     }
 
     for (parameter in parameters()) {

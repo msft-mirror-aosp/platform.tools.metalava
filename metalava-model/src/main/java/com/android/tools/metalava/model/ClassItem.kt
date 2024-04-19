@@ -27,7 +27,7 @@ import java.util.function.Predicate
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : Item {
+interface ClassItem : Item, TypeParameterListOwner {
     /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
     fun simpleName(): String
 
@@ -39,9 +39,6 @@ interface ClassItem : Item {
      * thing.
      */
     @MetalavaApi fun qualifiedName(): String
-
-    /** Is the class explicitly defined in the source file? */
-    fun isDefined(): Boolean
 
     /** Is this an innerclass? */
     @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
@@ -90,15 +87,16 @@ interface ClassItem : Item {
             fullName().replace('.', '$')
     }
 
-    /** The super class of this class, if any */
+    /**
+     * The super class of this class, if any.
+     *
+     * Interfaces always return `null` for this.
+     */
     @MetalavaApi fun superClass(): ClassItem?
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
-        return superClass()?.let { cls ->
-            return generateSequence(cls) { it.superClass() }
-        }
-            ?: return emptySequence()
+        return generateSequence(superClass()) { it.superClass() }
     }
 
     /**
@@ -107,7 +105,7 @@ interface ClassItem : Item {
      * List<String>" the super class is java.util.List and the super class type is
      * java.util.List<java.lang.String>.
      */
-    fun superClassType(): TypeItem?
+    fun superClassType(): ClassTypeItem?
 
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
@@ -150,7 +148,7 @@ interface ClassItem : Item {
         extends(qualifiedName) || implements(qualifiedName)
 
     /** Any interfaces implemented by this class */
-    @MetalavaApi fun interfaceTypes(): List<TypeItem>
+    @MetalavaApi fun interfaceTypes(): List<ClassTypeItem>
 
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
@@ -181,17 +179,19 @@ interface ClassItem : Item {
         return fields().asSequence().plus(constructors().asSequence()).plus(methods().asSequence())
     }
 
+    val classKind: ClassKind
+
     /** Whether this class is an interface */
-    fun isInterface(): Boolean
+    fun isInterface() = classKind == ClassKind.INTERFACE
 
     /** Whether this class is an annotation type */
-    fun isAnnotationType(): Boolean
+    fun isAnnotationType() = classKind == ClassKind.ANNOTATION_TYPE
 
     /** Whether this class is an enum */
-    fun isEnum(): Boolean
+    fun isEnum() = classKind == ClassKind.ENUM
 
     /** Whether this class is a regular class (not an interface, not an enum, etc) */
-    fun isClass(): Boolean = !isInterface() && !isAnnotationType() && !isEnum()
+    fun isClass() = classKind == ClassKind.CLASS
 
     /** The containing class, for inner classes */
     @MetalavaApi override fun containingClass(): ClassItem?
@@ -200,41 +200,21 @@ interface ClassItem : Item {
     override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
-    fun toType(): TypeItem
+    override fun type(): ClassTypeItem
 
-    override fun type(): TypeItem? = null
+    override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findClass(qualifiedName())
 
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
-
-    /**
-     * Any type parameters for the class, if any, as a source string (with fully qualified class
-     * names)
-     */
-    @MetalavaApi fun typeParameterList(): TypeParameterList
-
-    /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
     fun isJavaLangObject(): Boolean {
         return qualifiedName() == JAVA_LANG_OBJECT
     }
 
-    fun isAbstractClass(): Boolean {
-        return modifiers.isAbstract()
-    }
-
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
-    // This replaces the "real" super class
-    fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem? = superClass?.toType())
-
     // This replaces the interface types implemented by this class
-    fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
-
-    // Whether this class is a generic type parameter, such as T, rather than a non-generic type,
-    // like String
-    val isTypeParameter: Boolean
+    fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
     var hasPrivateConstructor: Boolean
 
@@ -248,43 +228,13 @@ interface ClassItem : Item {
      */
     var artifact: String?
 
+    override fun baselineElementId() = qualifiedName()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = toType()
-        visitor.visitType(type, this)
-
-        // TODO: Visit type parameter list (at least the bounds types, e.g. View in <T extends View>
-        superClass()?.let { visitor.visitType(it.toType(), it) }
-
-        if (visitor.includeInterfaces) {
-            for (itf in interfaceTypes()) {
-                val owner = itf.asClass()
-                owner?.let { visitor.visitType(itf, it) }
-            }
-        }
-
-        for (constructor in constructors()) {
-            constructor.acceptTypes(visitor)
-        }
-        for (field in fields()) {
-            field.acceptTypes(visitor)
-        }
-        for (method in methods()) {
-            method.acceptTypes(visitor)
-        }
-        for (cls in innerClasses()) {
-            cls.acceptTypes(visitor)
-        }
-
-        visitor.afterVisitType(type, this)
-    }
+    override fun toStringForItem() = "class ${qualifiedName()}"
 
     companion object {
         /** Looks up the retention policy for the given class */
@@ -313,17 +263,19 @@ interface ClassItem : Item {
             }
         }
 
-        val nameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.simpleName().compareTo(b.simpleName())
-        }
+        /** A partial ordering over [ClassItem] comparing [ClassItem.fullName]. */
+        val fullNameComparator: Comparator<ClassItem> = Comparator.comparing { it.fullName() }
 
-        val fullNameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.fullName().compareTo(b.fullName())
-        }
+        /** A total ordering over [ClassItem] comparing [ClassItem.qualifiedName]. */
+        private val qualifiedComparator: Comparator<ClassItem> =
+            Comparator.comparing { it.qualifiedName() }
 
-        val qualifiedComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.qualifiedName().compareTo(b.qualifiedName())
-        }
+        /**
+         * A total ordering over [ClassItem] comparing [ClassItem.fullName] first and then
+         * [ClassItem.qualifiedName].
+         */
+        val fullNameThenQualifierComparator: Comparator<ClassItem> =
+            fullNameComparator.thenComparing(qualifiedComparator)
 
         fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
     }
@@ -466,7 +418,7 @@ interface ClassItem : Item {
             if (index != -1) {
                 parameterString = parameterString.substring(0, index)
             }
-            val parameter = parameters[i].type().toErasedTypeString(method)
+            val parameter = parameters[i].type().toErasedTypeString()
             if (parameter != parameterString) {
                 return false
             }
@@ -476,7 +428,7 @@ interface ClassItem : Item {
     }
 
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFileItem? = null
+    fun getSourceFile(): SourceFile? = null
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention
@@ -495,7 +447,7 @@ interface ClassItem : Item {
     }
 
     fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
-        var superClassType: TypeItem? = superClassType() ?: return null
+        var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
             val superClass = superClassType.asClass() ?: return null
@@ -557,6 +509,12 @@ interface ClassItem : Item {
         val fields = LinkedHashSet<FieldItem>()
         if (showUnannotated) {
             for (clazz in allInterfaces()) {
+                // If this class is an interface then it will be included in allInterfaces(). If it
+                // is a class then it will not be included. Either way, this class' fields will be
+                // handled below so there is no point in processing the fields here.
+                if (clazz == this) {
+                    continue
+                }
                 if (!clazz.isInterface()) {
                     continue
                 }
@@ -586,7 +544,6 @@ interface ClassItem : Item {
                     if (!field.originallyHidden) {
                         val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
-                            duplicated.inheritedField = true
                             fields.remove(duplicated)
                             fields.add(duplicated)
                         }
@@ -724,22 +681,98 @@ interface ClassItem : Item {
     var stubConstructor: ConstructorItem?
 
     /**
-     * Creates a map of type variables from this class to the given target class. If class A<X,Y>
-     * extends B<X,Y>, and B is declared as class B<M,N>, this returns the map {"X"->"M", "Y"->"N"}.
-     * There could be multiple intermediate classes between this class and the target class, and in
-     * some cases we could be substituting in a concrete class, e.g. class MyClass extends
-     * B<String,Number> would return the map {"java.lang.String"->"M", "java.lang.Number"->"N"}.
+     * Creates a map of type parameters of the target class to the type variables substituted for
+     * those parameters by this class.
      *
-     * If [reverse] is true, compute the reverse map: keys are the variables in the target and the
-     * values are the variables in the source.
+     * If this class is declared as `class A<X,Y> extends B<X,Y>`, and target class `B` is declared
+     * as `class B<M,N>`, this method returns the map `{M->X, N->Y}`.
+     *
+     * There could be multiple intermediate classes between this class and the target class, and in
+     * some cases we could be substituting in a concrete class, e.g. if this class is declared as
+     * `class MyClass extends Parent<String,Number>` and target class `Parent` is declared as `class
+     * Parent<M,N>` would return the map `{M->java.lang.String, N>java.lang.Number}`.
+     *
+     * The target class can be an interface. If the interface can be found through multiple paths in
+     * the class hierarchy, this method returns the mapping from the first path found in terms of
+     * declaration order. For instance, given declarations `class C<X, Y> implements I1<X>, I2<Y>`,
+     * `interface I1<T1> implements Root<T1>`, `interface I2<T2> implements Root<T2>`, and
+     * `interface Root<T>`, this method will return `{T->X}` as the mapping from `C` to `Root`, not
+     * `{T->Y}`.
      */
-    fun mapTypeVariables(target: ClassItem): Map<String, String> = codebase.unsupported()
+    fun mapTypeVariables(target: ClassItem): TypeParameterBindings {
+        // Gather the supertypes to check for [target]. It is only possible for [target] to be found
+        // in the class hierarchy through this class's interfaces if [target] is an interface.
+        val candidates =
+            if (target.isInterface()) {
+                interfaceTypes() + superClassType()
+            } else {
+                listOf(superClassType())
+            }
+
+        for (superClassType in candidates.filterNotNull()) {
+            superClassType as? ClassTypeItem ?: continue
+            // Get the class from the class type so that its type parameters can be accessed.
+            val declaringClass = superClassType.asClass() ?: continue
+
+            if (declaringClass.qualifiedName() == target.qualifiedName()) {
+                // The target has been found, return the map directly.
+                return mapTypeVariables(declaringClass, superClassType)
+            } else {
+                // This superClassType isn't target, but maybe it has target as a superclass.
+                val nextLevelMap = declaringClass.mapTypeVariables(target)
+                if (nextLevelMap.isNotEmpty()) {
+                    val thisLevelMap = mapTypeVariables(declaringClass, superClassType)
+                    // Link the two maps by removing intermediate type variables.
+                    return nextLevelMap.mapValues { (_, value) ->
+                        (value as? VariableTypeItem?)?.let { thisLevelMap[it.asTypeParameter] }
+                            ?: value
+                    }
+                }
+            }
+        }
+        return emptyMap()
+    }
+
+    /**
+     * Creates a map between the type parameters of [declaringClass] and the arguments of
+     * [classTypeItem].
+     */
+    private fun mapTypeVariables(
+        declaringClass: ClassItem,
+        classTypeItem: ClassTypeItem
+    ): TypeParameterBindings {
+        // Don't include arguments of class types, for consistency with the old psi implementation.
+        // i.e. if the mapping is from `T -> List<String>` then just use `T -> List`.
+        // TODO (b/319300404): remove this section
+        val classTypeArguments =
+            classTypeItem.arguments.map {
+                if (it is ClassTypeItem && it.arguments.isNotEmpty()) {
+                    it.duplicate(it.outerClassType, arguments = emptyList())
+                } else {
+                    it
+                }
+                // Although a `ClassTypeItem`'s arguments can be `WildcardTypeItem`s as well as
+                // `ReferenceTypeItem`s, a `ClassTypeItem` used in an extends or implements list
+                // cannot have a `WildcardTypeItem` as an argument so this cast is safe. See
+                // https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
+                as ReferenceTypeItem
+            }
+        return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
+    }
 
     /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
 
-    /** Creates a method corresponding to the given method signature in this class */
-    fun createMethod(template: MethodItem): MethodItem = codebase.unsupported()
+    /**
+     * Creates a method corresponding to the given method signature in this class.
+     *
+     * This is used to inherit a [MethodItem] from a super class that will not be part of the API
+     * into a class that will be part of the API.
+     *
+     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
+     * [MethodItem.containingClass] of the [template].
+     */
+    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 

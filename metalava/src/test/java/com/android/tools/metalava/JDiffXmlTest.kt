@@ -171,8 +171,6 @@ class JDiffXmlTest : DriverTest() {
               public final class Foo extends java.lang.Enum {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(java.lang.String);
-                method public static final test.pkg.Foo[] values();
               }
               public abstract interface MyBaseInterface {
               }
@@ -239,30 +237,6 @@ class JDiffXmlTest : DriverTest() {
             <parameter name="null" type="int">
             </parameter>
             </constructor>
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
             </class>
             <interface name="MyBaseInterface"
              abstract="true"
@@ -357,8 +331,6 @@ class JDiffXmlTest : DriverTest() {
               public final class Foo extends java.lang.Enum {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(java.lang.String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }
@@ -401,30 +373,6 @@ class JDiffXmlTest : DriverTest() {
             <parameter name="null" type="int">
             </parameter>
             </constructor>
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
             <field name="A"
              type="test.pkg.Foo"
              transient="false"
@@ -529,7 +477,7 @@ class JDiffXmlTest : DriverTest() {
             signatureSource =
                 """
                     package android.accounts {
-                      public class ArgbEvaluator implements android.animation.DefaultEvaluator<D> implements android.animation.TypeEvaluator<V> {
+                      public class ArgbEvaluator<D, V> implements android.animation.DefaultEvaluator<D> implements android.animation.TypeEvaluator<V> {
                       }
                     }
                     """,
@@ -565,9 +513,9 @@ class JDiffXmlTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  public interface AbstractList<D,E,F> extends test.pkg.List<A,B,C> {
+                  public interface AbstractList<D,E,F> extends test.pkg.List<D,E,F> {
                   }
-                  public interface ConcreteList<G,H,I> extends test.pkg.AbstractList<D,E,F> {
+                  public interface ConcreteList<G,H,I> extends test.pkg.AbstractList<G,H,I> {
                   }
                   public interface List<A,B,C> {
                   }
@@ -579,22 +527,24 @@ class JDiffXmlTest : DriverTest() {
             <package name="test.pkg"
             >
             <interface name="AbstractList"
-             extends="test.pkg.List&lt;A, B, C>"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
+            <implements name="test.pkg.List&lt;D, E, F>">
+            </implements>
             </interface>
             <interface name="ConcreteList"
-             extends="test.pkg.AbstractList&lt;D, E, F>"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
+            <implements name="test.pkg.AbstractList&lt;G, H, I>">
+            </implements>
             </interface>
             <interface name="List"
              abstract="true"
@@ -732,13 +682,14 @@ class JDiffXmlTest : DriverTest() {
             <package name="android.companion"
             >
             <interface name="DeviceFilter"
-             extends="android.os.Parcelable"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
+            <implements name="android.os.Parcelable">
+            </implements>
             </interface>
             </package>
             </api>
@@ -891,8 +842,8 @@ class JDiffXmlTest : DriverTest() {
               }
             }
             package test.pkg {
-              public abstract class MyClass extends HashMap<String,String> implements Map<String,String>  {
-                field public Map<String,String> map;
+              public abstract class MyClass extends java.util.HashMap<java.lang.String,java.lang.String> implements java.util.Map<java.lang.String,java.lang.String>  {
+                field public java.util.Map<java.lang.String,java.lang.String> map;
               }
             }
             """,
@@ -934,17 +885,17 @@ class JDiffXmlTest : DriverTest() {
             <package name="test.pkg"
             >
             <class name="MyClass"
-             extends="java.lang.HashMap&lt;String, String>"
+             extends="java.util.HashMap&lt;java.lang.String, java.lang.String>"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
-            <implements name="java.lang.Map&lt;String, String>">
+            <implements name="java.util.Map&lt;java.lang.String, java.lang.String>">
             </implements>
             <field name="map"
-             type="java.lang.Map&lt;String, String>"
+             type="java.util.Map&lt;java.lang.String, java.lang.String>"
              transient="false"
              volatile="false"
              static="false"

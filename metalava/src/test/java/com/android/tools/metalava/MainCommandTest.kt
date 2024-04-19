@@ -16,15 +16,19 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.reporter.Issues
+import java.io.File
 import java.util.Locale
 import kotlin.test.assertEquals
+import org.junit.Assert
 import org.junit.Test
 
 class MainCommandTest :
@@ -70,6 +74,8 @@ Options:
 
 $ISSUE_REPORTING_OPTIONS_HELP
 
+$COMPATIBILITY_CHECK_OPTIONS_HELP
+
 Signature File Output:
 
   Options controlling the signature file output. The format of the generated file is determined by the options in the
@@ -97,6 +103,10 @@ API sources:
 --source-path <paths>
                                              One or more directories (separated by `:`) containing source files (within
                                              a package hierarchy).
+--common-source-path <paths>
+                                             One or more directories (separated by `:`) containing common source files
+                                             (within a package hierarchy) where platform-agnostic `expect` declarations
+                                             as well as common business logic are defined.
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
@@ -167,6 +177,8 @@ API sources:
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
+--ignore-comments
+                                             Ignore any comments in source files.
 
 
 Extracting Signature Files:
@@ -204,32 +216,12 @@ Generating Stubs:
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
                                              Documentation stubs (--doc-stubs) are not affected.)
---write-stubs-source-list <file>
-                                             Write the list of generated stub files into the given source list file. If
-                                             generating documentation stubs and you haven't also specified
-                                             --write-doc-stubs-source-list, this list will refer to the documentation
-                                             stubs; otherwise it's the non-documentation stubs.
---write-doc-stubs-source-list <file>
-                                             Write the list of generated doc stub files into the given source list file
 
 
 Diffs and Checks:
---check-compatibility:type:released <file>
-                                             Check compatibility. Type is one of 'api' and 'removed', which checks
-                                             either the public api or the removed api.
---check-compatibility:base <file>
-                                             When performing a compat check, use the provided signature file as a base
-                                             api, which is treated as part of the API being checked. This allows us to
-                                             compute the full API surface from a partial API surface (e.g. the current
-                                             @SystemApi txt file), which allows us to recognize when an API is moved
-                                             from the partial API to the base API and avoid incorrectly flagging this as
-                                             an API removal.
 --api-lint [api file]
                                              Check API for Android API best practices. If a signature file is provided,
                                              only the APIs that are new since the API will be checked.
---api-lint-ignore-prefix [prefix]
-                                             A list of package prefixes to ignore API issues in when running with
-                                             --api-lint.
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
@@ -266,10 +258,6 @@ Diffs and Checks:
                                              to include.
 --error-message:api-lint <message>
                                              If set, metalava shows it when errors are detected in --api-lint.
---error-message:compatibility:released <message>
-                                             If set, metalava shows it when errors are detected in
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
 
 
 JDiff:
@@ -413,6 +401,36 @@ error: Case-insensitive issue matching is deprecated, use --hide AddedFinal inst
                     .trimIndent()
 
             verify { assertEquals(-1, exitCode, message = "exitCode") }
+        }
+    }
+
+    @Test
+    fun `Test for @file`() {
+        val dir = temporaryFolder.newFolder()
+        val files = (1..4).map { TestFiles.source("File$it.java", "File$it").createFile(dir) }
+        val fileList =
+            TestFiles.source(
+                "files.lst",
+                """
+            ${files[0]}
+            ${files[1]} ${files[2]}
+            ${files[3]}
+        """
+                    .trimIndent()
+            )
+
+        val file = fileList.createFile(dir)
+
+        commandTest {
+            args += listOf("main", "@$file")
+
+            verify {
+                fun normalize(f: File): String = f.relativeTo(dir).path
+                Assert.assertEquals(
+                    files.map { normalize(it) },
+                    command.optionGroup.sources.map { normalize(it) }
+                )
+            }
         }
     }
 }

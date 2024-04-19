@@ -22,13 +22,18 @@ fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName.endsWith("Nullable")
+    return qualifiedName == "Nullable" ||
+        qualifiedName.endsWith(".RecentlyNullable") ||
+        qualifiedName.endsWith(".Nullable") ||
+        qualifiedName.endsWith(".NullableType")
 }
 
 fun isNonNullAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName.endsWith("NonNull") ||
-        qualifiedName.endsWith("NotNull") ||
-        qualifiedName.endsWith("Nonnull")
+    return qualifiedName == "NonNull" ||
+        qualifiedName.endsWith(".RecentlyNonNull") ||
+        qualifiedName.endsWith(".NonNull") ||
+        qualifiedName.endsWith(".NotNull") ||
+        qualifiedName.endsWith(".Nonnull")
 }
 
 fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
@@ -58,6 +63,11 @@ interface AnnotationItem {
 
     /** Attributes of the annotation; may be empty. */
     val attributes: List<AnnotationAttribute>
+
+    /**
+     * The [TypeNullability] associated with this or `null` if this is not a nullability annotation.
+     */
+    val typeNullability: TypeNullability?
 
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
     fun isNullnessAnnotation(): Boolean
@@ -159,6 +169,12 @@ interface AnnotationItem {
 
     fun isSuppressCompatibilityAnnotation(): Boolean
 
+    /**
+     * Returns true iff this annotation is a showability annotation, i.e. one that will affect
+     * [showability].
+     */
+    fun isShowabilityAnnotation(): Boolean
+
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
@@ -208,13 +224,14 @@ interface AnnotationItem {
         fun unshortenAnnotation(source: String): String {
             return when {
                 source == "@Deprecated" -> "@java.lang.Deprecated"
-                // The first 3 annotations are in the android.annotation. package, not
+                // The first 4 annotations are in the android.annotation. package, not
                 // androidx.annotation
                 // Nullability annotations are written as @NonNull and @Nullable in API text files,
                 // and these should be linked no android.annotation package when generating stubs.
                 source.startsWith("@SystemService") ||
                     source.startsWith("@TargetApi") ||
                     source.startsWith("@SuppressLint") ||
+                    source.startsWith("@FlaggedApi") ||
                     source.startsWith("@Nullable") ||
                     source.startsWith("@NonNull") -> "@android.annotation." + source.substring(1)
                 // If the first character of the name (after "@") is lower-case, then
@@ -227,6 +244,10 @@ interface AnnotationItem {
         }
     }
 }
+
+/** Get the [TypeNullability] from a list of [AnnotationItem]s. */
+val List<AnnotationItem>.typeNullability
+    get() = mapNotNull { it.typeNullability }.firstOrNull()
 
 /**
  * Get the value of the named attribute as an object of the specified type or null if the attribute
@@ -250,18 +271,16 @@ interface AnnotationItem {
  * Any other types will result in a [ClassCastException].
  */
 inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? {
-    @Suppress("DEPRECATION") val value = nonInlineGetAttributeValue(T::class, name) ?: return null
+    val value = nonInlineGetAttributeValue(T::class, name) ?: return null
     return value as T
 }
 
 /**
  * Non-inline portion of functionality needed by [getAttributeValue]; separated to reduce the cost
  * of inlining [getAttributeValue].
- *
- * Deprecated to discourage direct calls.
  */
-@Deprecated(message = "use getAttributeValue() instead")
-fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
+@PublishedApi
+internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
     val attributeValue = findAttribute(name)?.value ?: return null
     val value =
         when (attributeValue) {
@@ -284,17 +303,15 @@ fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): 
  * items in the array).
  */
 inline fun <reified T : Any> AnnotationItem.getAttributeValues(name: String): List<T>? {
-    @Suppress("DEPRECATION") return nonInlineGetAttributeValues(T::class, name) { it as T }
+    return nonInlineGetAttributeValues(T::class, name) { it as T }
 }
 
 /**
  * Non-inline portion of functionality needed by [getAttributeValues]; separated to reduce the cost
  * of inlining [getAttributeValues].
- *
- * Deprecated to discourage direct calls.
  */
-@Deprecated(message = "use getAttributeValues() instead")
-fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
+@PublishedApi
+internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
     kClass: KClass<*>,
     name: String,
     caster: (Any) -> T
@@ -389,16 +406,19 @@ private constructor(
     /** Information that metalava has gathered about this annotation item. */
     val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
 
+    override val typeNullability: TypeNullability?
+        get() = info.typeNullability
+
     override fun isNullnessAnnotation(): Boolean {
-        return info.nullability != null
+        return info.typeNullability != null
     }
 
     override fun isNullable(): Boolean {
-        return info.nullability == Nullability.NULLABLE
+        return info.typeNullability == TypeNullability.NULLABLE
     }
 
     override fun isNonNull(): Boolean {
-        return info.nullability == Nullability.NON_NULL
+        return info.typeNullability == TypeNullability.NONNULL
     }
 
     override val showability: Showability
@@ -421,9 +441,11 @@ private constructor(
 
     override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
 
-    override fun isHideAnnotation(): Boolean = info.hide
+    override fun isHideAnnotation(): Boolean = info.showability.hide()
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
+
+    override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
@@ -490,6 +512,16 @@ private constructor(
                 }
 
             return DefaultAnnotationItem(codebase, originalName, ::attributes)
+        }
+
+        fun create(
+            codebase: Codebase,
+            originalName: String,
+            attributes: List<AnnotationAttribute> = emptyList(),
+            context: Item? = null
+        ): AnnotationItem {
+            val source = formatAnnotationItem(originalName, attributes)
+            return codebase.createAnnotation(source, context)
         }
     }
 }
@@ -566,7 +598,7 @@ interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
     override fun value() = values.mapNotNull { it.value() }.toTypedArray()
 }
 
-open class DefaultAnnotationAttribute(
+class DefaultAnnotationAttribute(
     override val name: String,
     override val value: AnnotationAttributeValue
 ) : AnnotationAttribute {
@@ -634,7 +666,7 @@ open class DefaultAnnotationAttribute(
             val valueBegin: Int
             val valueEnd: Int
             if (split == -1) {
-                valueBegin = 0
+                valueBegin = from
                 valueEnd = to
                 name = "value"
             } else {
@@ -643,7 +675,9 @@ open class DefaultAnnotationAttribute(
                 valueEnd = to
             }
             value = source.substring(valueBegin, valueEnd).trim()
-            list.add(create(name, value))
+            if (!value.isEmpty()) {
+                list.add(create(name, value))
+            }
         }
     }
 
@@ -733,7 +767,7 @@ open class DefaultAnnotationSingleAttributeValue(
     }
 }
 
-open class DefaultAnnotationArrayAttributeValue(
+class DefaultAnnotationArrayAttributeValue(
     sourceGetter: () -> String,
     valuesGetter: () -> List<AnnotationAttributeValue>
 ) : DefaultAnnotationValue(sourceGetter), AnnotationArrayAttributeValue {

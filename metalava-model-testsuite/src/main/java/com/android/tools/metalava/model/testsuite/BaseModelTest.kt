@@ -18,70 +18,70 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.SourceCodebase
-import java.util.ServiceLoader
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.fail
-import org.junit.AssumptionViolatedException
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import org.junit.rules.TestRule
-import org.junit.runner.Description
+import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.runners.model.Statement
+import org.junit.runners.Parameterized.Parameter
 
 /**
  * Base class for tests that verify the behavior of model implementations.
  *
- * This is parameterized by [TestParameters] as even though the tests are run in different projects
- * the test results are collated and reported together. Having the parameters in the test name makes
- * it easier to differentiate them.
+ * This is parameterized by [CodebaseCreatorConfig] as even though the tests are run in different
+ * projects the test results are collated and reported together. Having the parameters in the test
+ * name makes it easier to differentiate them.
  *
  * Note: In the top-level test report produced by Gradle it appears to just display whichever test
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
  */
-abstract class BaseModelTest(parameters: TestParameters) {
+@RunWith(ModelTestSuiteRunner::class)
+abstract class BaseModelTest() :
+    CodebaseCreatorConfigAware<ModelSuiteRunner>, TemporaryFolderOwner, Assertions {
+
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * The basic process is that each test class gets given a list of parameters. There are two ways
+     * to do that, through field injection or via constructor. If any fields in the test class
+     * hierarchy are annotated with the [Parameter] annotation then field injection is used,
+     * otherwise they are passed via constructor.
+     *
+     * The [Parameter] specifies the index within the list of parameters of the parameter that
+     * should be inserted into the field. The number of [Parameter] annotated fields must be the
+     * same as the number of parameters in the list and each index within the list must be specified
+     * by exactly one [Parameter].
+     *
+     * The life-cycle of a parameterized test class is as follows:
+     * 1. The test class instance is created.
+     * 2. The parameters are injected into the [Parameter] annotated fields.
+     * 3. Follows the normal test class life-cycle.
+     */
+    final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<ModelSuiteRunner>
 
     /** The [ModelSuiteRunner] that this test must use. */
-    private val runner = parameters.runner
+    private val runner
+        get() = codebaseCreatorConfig.creator
 
     /**
      * The [InputFormat] of the test files that should be processed by this test. It must ignore all
      * other [InputFormat]s.
      */
-    private val inputFormat = parameters.inputFormat
+    protected val inputFormat
+        get() = codebaseCreatorConfig.inputFormat
 
-    @get:Rule val temporaryFolder = TemporaryFolder()
-
-    @get:Rule val baselineTestRule: TestRule = BaselineTestRule(runner)
-
-    companion object {
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun testParameters(): Iterable<TestParameters> {
-            val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
-            val runners = loader.toList()
-            if (runners.isEmpty()) {
-                fail("No runners found")
-            }
-            val list =
-                runners.flatMap { runner ->
-                    runner.supportedInputFormats
-                        .map { inputFormat -> TestParameters(runner, inputFormat) }
-                        .toList()
-                }
-            return list
-        }
-    }
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * Set of inputs for a test.
@@ -96,37 +96,47 @@ abstract class BaseModelTest(parameters: TestParameters) {
         val testFiles: List<TestFile>,
     )
 
+    /** Create an [InputSet] from a list of [TestFile]s. */
+    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
+
     /**
      * Create an [InputSet].
      *
-     * It is an error if [testFiles] is empty or if [testFiles] have different [InputFormat]. That
-     * means that it is not currently possible to mix Kotlin and Java files.
+     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
+     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
+     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
      */
     fun inputSet(vararg testFiles: TestFile): InputSet {
         if (testFiles.isEmpty()) {
             throw IllegalStateException("Must provide at least one source file")
         }
 
-        // Make sure that all the test files are the same InputFormat.
-        val byInputFormat = testFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
-        val inputFormatCount = byInputFormat.size
-        if (inputFormatCount != 1) {
-            throw IllegalStateException(
-                buildString {
-                    append(
-                        "All files in the list must be the same input format, but found $inputFormatCount different input formats:\n"
-                    )
-                    byInputFormat.forEach { (format, files) ->
-                        append("    $format\n")
-                        files.forEach { append("        $it") }
-                    }
-                }
-            )
-        }
+        val inputFormat =
+            testFiles
+                .asSequence()
+                // Map to path.
+                .map { it.targetRelativePath }
+                // Ignore HTML files.
+                .filter { !it.endsWith(".html") }
+                // Map to InputFormat.
+                .map { InputFormat.fromFilename(it) }
+                // Combine InputFormats to produce a single one, may throw an exception if they
+                // are incompatible.
+                .reduce { if1, if2 -> if1.combineWith(if2) }
 
-        val (inputFormat, files) = byInputFormat.entries.single()
-        return InputSet(inputFormat, files)
+        return InputSet(inputFormat, testFiles.toList())
     }
+
+    /**
+     * Context within which the main body of tests that check the state of the [Codebase] will run.
+     */
+    interface CodebaseContext<C : Codebase> {
+        /** The newly created [Codebase]. */
+        val codebase: C
+    }
+
+    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) :
+        CodebaseContext<C>
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -136,16 +146,36 @@ abstract class BaseModelTest(parameters: TestParameters) {
      * current [inputFormat]. There can be at most one of those.
      */
     private fun createCodebaseFromInputSetAndRun(
-        vararg inputSets: InputSet,
+        inputSets: Array<out InputSet>,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
         test: (Codebase) -> Unit,
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
             .singleOrNull { it.inputFormat == inputFormat }
-            ?.let {
-                val tempDir = temporaryFolder.newFolder()
-                runner.createCodebaseAndRun(tempDir, it.testFiles, test)
+            ?.let { inputSet ->
+                val mainSourceDir = sourceDir(inputSet)
+
+                val commonSourceDir =
+                    commonSourcesByInputFormat[inputFormat]?.let { commonInputSet ->
+                        sourceDir(commonInputSet)
+                    }
+
+                val inputs =
+                    ModelSuiteRunner.TestInputs(
+                        inputFormat = inputSet.inputFormat,
+                        modelOptions = codebaseCreatorConfig.modelOptions,
+                        mainSourceDir = mainSourceDir,
+                        commonSourceDir = commonSourceDir,
+                    )
+                runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
             }
+    }
+
+    private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
+        val tempDir = temporaryFolder.newFolder()
+        val mainSourceDir = ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
+        return mainSourceDir
     }
 
     private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
@@ -161,10 +191,12 @@ abstract class BaseModelTest(parameters: TestParameters) {
      */
     fun runCodebaseTest(
         vararg sources: TestFile,
-        test: (Codebase) -> Unit,
+        commonSources: Array<TestFile> = emptyArray(),
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
+            commonSources = testFilesToInputSets(commonSources),
             test = test,
         )
     }
@@ -177,12 +209,34 @@ abstract class BaseModelTest(parameters: TestParameters) {
      */
     fun runCodebaseTest(
         vararg sources: InputSet,
-        test: (Codebase) -> Unit,
+        commonSources: Array<InputSet> = emptyArray(),
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
-        createCodebaseFromInputSetAndRun(
-            *sources,
+        runCodebaseTest(
+            sources = sources,
+            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
             test = test,
         )
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
+     * that [Codebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    private fun runCodebaseTest(
+        vararg sources: InputSet,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
+        test: CodebaseContext<Codebase>.() -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            sources,
+            commonSourcesByInputFormat = commonSourcesByInputFormat,
+        ) { codebase ->
+            val context = DefaultCodebaseContext(codebase)
+            context.test()
+        }
     }
 
     /**
@@ -194,10 +248,13 @@ abstract class BaseModelTest(parameters: TestParameters) {
      */
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
-        test: (SourceCodebase) -> Unit,
+        commonSources: Array<TestFile> = emptyArray(),
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
+            commonSourcesByInputFormat =
+                testFilesToInputSets(commonSources).associateBy { it.inputFormat },
             test = test,
         )
     }
@@ -210,101 +267,44 @@ abstract class BaseModelTest(parameters: TestParameters) {
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
-        test: (SourceCodebase) -> Unit,
+        commonSources: Array<InputSet> = emptyArray(),
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
-        createCodebaseFromInputSetAndRun(
-            *sources,
-        ) {
-            test(it as SourceCodebase)
-        }
+        runSourceCodebaseTest(
+            sources = sources,
+            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            test = test,
+        )
     }
-
-    /** Create a signature [TestFile] with the supplied [contents]. */
-    fun signature(contents: String): TestFile {
-        return TestFiles.source("api.txt", contents.trimIndent())
-    }
-
-    /** Get the class from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertClass(qualifiedName: String): ClassItem {
-        val classItem = findClass(qualifiedName)
-        assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
-        return classItem
-    }
-
-    /** Get the package from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertPackage(pkgName: String): PackageItem {
-        val packageItem = findPackage(pkgName)
-        assertNotNull(packageItem) { "Expected $pkgName to be defined" }
-        return packageItem
-    }
-
-    /** Get the field from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertField(fieldName: String): FieldItem {
-        val fieldItem = findField(fieldName)
-        assertNotNull(fieldItem) { "Expected $fieldName to be defined" }
-        return fieldItem
-    }
-
-    /** Get the method from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
-        val methodItem = findMethod(methodName, parameters)
-        assertNotNull(methodItem) { "Expected $methodName($parameters) to be defined" }
-        return methodItem
-    }
-
-    /** Get the constructor from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
-        val methodItem = findMethod(simpleName(), parameters)
-        assertNotNull(methodItem) { "Expected ${simpleName()}($parameters) to be defined" }
-        return assertIs(methodItem)
-    }
-}
-
-private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
-    "`scripts/refresh-testsuite-baselines.sh` to update the baseline"
-
-/** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
-private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
 
     /**
-     * The [ModelTestSuiteBaseline] that indicates whether the tests are expected to fail or not.
+     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
+     * [test] on that [SourceCodebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
      */
-    private val baseline = ModelTestSuiteBaseline.fromResource
-
-    override fun apply(base: Statement, description: Description): Statement {
-        return object : Statement() {
-            override fun evaluate() {
-                val expectedFailure =
-                    baseline.isExpectedFailure(description.className, description.methodName)
-                try {
-                    // Run the test even if it is expected to fail as a change that fixes one test
-                    // may fix more. Instead, this will just discard any failure.
-                    base.evaluate()
-                    if (expectedFailure) {
-                        // If a test that was expected to fail passes then updating the baseline
-                        // will remove that test from the expected test failures.
-                        System.err.println(
-                            "Test was expected to fail but passed, please run $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
-                        )
-                    }
-                } catch (e: Throwable) {
-                    if (expectedFailure) {
-                        // If this was expected to fail then throw an AssumptionViolatedException
-                        // so it is not treated as either a pass or fail.
-                        throw AssumptionViolatedException(
-                            "Test skipped since it is listed in the baseline file for $runner"
-                        )
-                    } else {
-                        // Inform the developer on how to ignore this failing test.
-                        System.err.println(
-                            "Failing tests can be ignored by running $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
-                        )
-
-                        // Rethrow the error
-                        throw e
-                    }
-                }
-            }
+    private fun runSourceCodebaseTest(
+        vararg sources: InputSet,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet>,
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            inputSets = sources,
+            commonSourcesByInputFormat = commonSourcesByInputFormat,
+        ) { codebase ->
+            codebase as SourceCodebase
+            val context = DefaultCodebaseContext(codebase)
+            context.test()
         }
     }
+
+    /**
+     * Create a signature [TestFile] with the supplied [contents] in a file with a path of
+     * `api.txt`.
+     */
+    fun signature(contents: String): TestFile = signature("api.txt", contents)
+
+    /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
+    fun signature(to: String, contents: String): TestFile =
+        TestFiles.source(to, contents.trimIndent())
 }
