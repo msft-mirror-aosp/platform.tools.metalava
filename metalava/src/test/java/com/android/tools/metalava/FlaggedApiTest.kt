@@ -17,7 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import org.junit.Test
@@ -132,6 +134,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      */
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
+        extraArguments: Array<String> = emptyArray(),
         previouslyReleasedApi: Map<Surface, String> = emptyMap(),
         previouslyReleasedRemovedApi: Map<Surface, String> = emptyMap(),
         expectationsList: List<Expectations>,
@@ -224,7 +227,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     "android.annotation",
                     "--warning",
                     "UnflaggedApi",
-                ) + config.extraArguments,
+                ) + config.extraArguments + extraArguments,
         )
     }
 
@@ -1257,6 +1260,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         @android.annotation.FlaggedApi("foo/bar")
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** @deprecated */
+                        @Deprecated public static int field;
                         }
                     """
                 ),
@@ -1269,7 +1275,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public abstract class Foo {
-                        public Foo() { throw new RuntimeException("Stub!"); }
+                        protected Foo() { throw new RuntimeException("Stub!"); }
+                        public final void method(java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** @deprecated */
+                        public static int field;
                         }
                     """
                 ),
@@ -1285,9 +1294,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     @FlaggedApi("foo/bar")
                     public class Foo {
+                        public Foo() {}
+                        public void method(@Nullable String p) {}
+                        /** @deprecated */
+                        public @Deprecated static int field;
                     }
                 """
             ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    Issues.REMOVED_FINAL_STRICT.name,
+                ),
             // The previously released public api.
             previouslyReleasedApi =
                 mapOf(
@@ -1296,7 +1314,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             // Signature format: 2.0
                             package test.pkg {
                               public abstract class Foo {
-                                ctor public Foo();
+                                ctor protected Foo();
+                                method public final void method(String);
+                                field public static int field;
                               }
                             }
                         """,
@@ -1312,6 +1332,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 package test.pkg {
                                   @FlaggedApi("foo/bar") public class Foo {
                                     ctor public Foo();
+                                    method public void method(@Nullable String);
+                                    field @Deprecated public static int field;
                                   }
                                 }
                             """,
@@ -1325,7 +1347,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public abstract class Foo {
-                                    ctor public Foo();
+                                    ctor protected Foo();
+                                    method public final void method(String);
+                                    field public static int field;
                                   }
                                 }
                             """,
