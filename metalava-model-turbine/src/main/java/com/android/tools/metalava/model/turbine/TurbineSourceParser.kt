@@ -55,10 +55,12 @@ internal class TurbineSourceParser(
     }
 
     private fun getSourceFiles(sources: List<File>): List<SourceFile> {
-        return sources.map { SourceFile(it.path, it.readText()) }
+        return sources
+            .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
+            .map { SourceFile(it.path, it.readText()) }
     }
 
-    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
+    override fun loadFromJar(apiJar: File): SourceCodebase {
         TODO("b/299044569 handle this")
     }
 }
