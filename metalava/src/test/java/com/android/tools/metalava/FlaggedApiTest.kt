@@ -97,6 +97,22 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     )
                 }
             }
+
+        /**
+         * Regular expression that matches a FlaggedApi annotation in a signature file. It is not
+         * fully qualified as the annotation is shortened in signature files. It includes the
+         * following white space as this is used to remove the annotation by replacing the matched
+         * text with an empty string.
+         */
+        val flaggedApiInSignatureRegex = """@FlaggedApi\([^)]+\) """.toRegex()
+
+        /**
+         * Regular expression that matches a FlaggedApi annotation in a stubs file. It is fully
+         * qualified as annotations are fully qualified in stub files. It includes the following
+         * newline or space as this is used to remove the annotation by replacing the matched text
+         * with an empty string.
+         */
+        val flaggedApiInStubsRegex = """@android\.annotation\.FlaggedApi\([^)]+\)[\n ]""".toRegex()
     }
 
     @Suppress("ArrayInDataClass")
@@ -116,8 +132,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      */
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
-        previouslyReleasedApi: String,
-        previouslyReleasedRemovedApi: String = "",
+        previouslyReleasedApi: Map<Surface, String> = emptyMap(),
+        previouslyReleasedRemovedApi: Map<Surface, String> = emptyMap(),
         expectationsList: List<Expectations>,
     ) {
         val transformedExpectationsList =
@@ -132,8 +148,19 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         it,
                         it.copy(
                             flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
-                            expectedApi =
-                                it.expectedApi.replace("""@FlaggedApi\([^)]+\) """.toRegex(), "")
+                            // Remove any FlaggedApi annotations from the signature files
+                            expectedApi = it.expectedApi.replace(flaggedApiInSignatureRegex, ""),
+                            // Remove any FlaggedApi annotations from the stubs files
+                            expectedStubs =
+                                it.expectedStubs
+                                    .map {
+                                        val copy = TestFile()
+                                        copy.contents =
+                                            it.contents.replace(flaggedApiInStubsRegex, "")
+                                        copy.targetRelativePath = it.targetRelativePath
+                                        copy
+                                    }
+                                    .toTypedArray()
                         ),
                     )
                 } else {
@@ -154,15 +181,27 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         }
         val expectations = filterExpectations.singleOrNull() ?: return
 
+        // Get the surface for which this test is currently being run.
+        val surface = config.surface
+
+        // Get the previously released API surface specific to the surface being tested.
+        val specificPreviouslyReleasedApi = previouslyReleasedApi[surface] ?: ""
+
+        // Get the lists of API (and removed API) from the narrowest API surface (i.e. public) to
+        // the widest (i.e. module-lib).
+        val previouslyReleasedApiList = contributingSurfaces(previouslyReleasedApi)
+        val previouslyReleasedRemovedApiList = contributingSurfaces(previouslyReleasedRemovedApi)
+
         check(
             // Enable API linting against the previous API; only report issues in changes to that
-            // API.
-            apiLint = previouslyReleasedApi,
+            // API. Only pass in the API for the surface whose test is currently run as API lint
+            // does not support passing in a list.
+            apiLint = specificPreviouslyReleasedApi,
             // Pass the previously released API as the API against which compatibility checks are
             // performed as that is what will determine the previous API to which a flagged API will
             // be reverted.
-            checkCompatibilityApiReleased = previouslyReleasedApi,
-            checkCompatibilityRemovedApiReleased = previouslyReleasedRemovedApi,
+            checkCompatibilityApiReleasedList = previouslyReleasedApiList,
+            checkCompatibilityRemovedApiReleasedList = previouslyReleasedRemovedApiList,
             format = FileFormat.V2,
             sourceFiles =
                 buildList {
@@ -189,8 +228,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         )
     }
 
+    /**
+     * Get the list of all surfaces in [apiSurfaces] that contribute to the [Surface] that is
+     * currently under test; from the narrowest to the widest.
+     *
+     * e.g. When the surface under test is [Surface.PUBLIC] then this will return just the public
+     * API surface, but when it is [Surface.SYSTEM] then this will return the public and system API
+     * surfaces in that order.
+     */
+    private fun contributingSurfaces(apiSurfaces: Map<Surface, String>) =
+        Surface.values().filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
+
     @Test
     fun `Basic test that FlaggedApi annotated items can be hidden`() {
+
         checkFlaggedApis(
             java(
                 """
@@ -225,14 +276,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -248,6 +302,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    @android.annotation.FlaggedApi("foo/bar")
+                                    public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
                     ),
                     Expectations(
                         Surface.PUBLIC,
@@ -261,6 +329,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -274,6 +354,23 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        @android.annotation.FlaggedApi("foo/bar")
+                                        public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
+                                        /** @hide */
+                                        @android.annotation.FlaggedApi("foo/bar")
+                                        public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -282,6 +379,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
                     ),
                 ),
         )
@@ -318,14 +427,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        ctor public Bar();
-                      }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar {
+                                ctor public Bar();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -422,17 +534,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        ctor public Bar();
-                      }
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar extends test.pkg.Foo {
+                                ctor public Bar();
+                              }
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -493,7 +608,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 "test/pkg/Bar.java",
                                 "test/pkg/Foo.java",
                             ),
-                        // Make sure that no flagged API appears in the stubs.
+                        // Make sure that no FlaggedApi annotation appears in the stubs.
                         expectedStubs =
                             arrayOf(
                                 java(
@@ -580,9 +695,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -618,7 +736,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             arrayOf(
                                 "test/pkg/Foo.java",
                             ),
-                        // Make sure that no flagged API appears in the stubs.
                         expectedStubs =
                             arrayOf(
                                 java(
@@ -628,6 +745,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                      * @hide
                                      */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    @android.annotation.FlaggedApi("foo/bar")
                                     public final class Foo {
                                     /**
                                      * @hide
@@ -675,6 +793,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @android.annotation.FlaggedApi("foo/bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -713,22 +832,35 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                      }
-                    }
-                """,
+                mapOf(
+                    // Use the same previously released API for each surface on which this test is
+                    // being run. That is needed because this test verifies what happens when an API
+                    // that was previously released in one API surface, is moved from that surface
+                    // to public while adding some new members. If the class was previously
+                    // released in the public API surface this tests what happens when a class is
+                    // annotated with @FlaggedApi because it contains new members.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                              }
+                            }
+                        """,
+                ),
             previouslyReleasedRemovedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                        method public void removedMethod();
-                      }
-                    }
-                """,
+                mapOf(
+                    // See above for an explanation as to why this uses config.surface.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                                method public void removedMethod();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     // The following public expectations verify what happens with a class that was
@@ -852,6 +984,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @android.annotation.FlaggedApi("foo/bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -894,22 +1027,35 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                      }
-                    }
-                """,
+                mapOf(
+                    // Use the same previously released API for each surface on which this test is
+                    // being run. That is needed because this test verifies what happens when an API
+                    // that was previously released in one API surface, is moved from that surface
+                    // to system while adding some new members. If the class was previously
+                    // released in the system API surface this tests what happens when a class is
+                    // annotated with @FlaggedApi because it contains new members.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                              }
+                            }
+                        """,
+                ),
             previouslyReleasedRemovedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public final class Foo {
-                        method public void removedMethod();
-                      }
-                    }
-                """,
+                mapOf(
+                    // See above for an explanation as to why this uses config.surface.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                                method public void removedMethod();
+                              }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     // The following system expectations verify what happens with a class that was
@@ -1002,7 +1148,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public interface Foo {
-                        public static final int CONSTANT = 1; // 0x1
+                        @android.annotation.FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
                         }
                     """
                 ),
@@ -1035,13 +1181,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public interface Foo {
-                        }
-                    }
-                """,
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public interface Foo {
+                                }
+                            }
+                        """,
+                ),
             expectationsList =
                 listOf(
                     Expectations(
@@ -1092,6 +1241,135 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """,
                         expectedStubPaths = expectedStubPaths,
                         expectedStubs = stubsWithoutFlaggedApi,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that changing modifiers of public class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @android.annotation.FlaggedApi("foo/bar")
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        // TODO(b/316873097): Fix the test. The Foo class should be abstract.
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    @FlaggedApi("foo/bar")
+                    public class Foo {
+                    }
+                """
+            ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public abstract class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("foo/bar") public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        // TODO(b/316873097): Fix the test. This should be abstract.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
+                        expectedStubPaths = emptyArray(),
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
+                        expectedStubPaths = emptyArray(),
                     ),
                 ),
         )
