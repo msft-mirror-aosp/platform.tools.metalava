@@ -514,13 +514,15 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebases =
-        check.files.map { signatureFile ->
-            if (signatureFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(signatureFile)
-            } else {
-                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
-            }
-        }
+        check
+            .loadPreviouslyReleasedApi(
+                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+                signatureLoader = { signatureFile ->
+                    signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+                }
+            )
+            // Only use the last codebase to replicate previous behavior of only reporting
+            .takeLast(1)
 
     var baseApi: Codebase? = null
 
@@ -728,35 +730,17 @@ private class ClassResolverProvider(
     }
 }
 
-@Suppress("DEPRECATION")
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    preFiltered: Boolean = false,
-    apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
-    codebaseValidator: (Codebase) -> Unit = { codebase ->
-        options.nullabilityAnnotationsValidator?.validateAllFrom(
-            codebase,
-            options.validateNullabilityFromList
-        )
-        options.nullabilityAnnotationsValidator?.report()
-    },
-    apiPredicateConfig: ApiPredicate.Config = options.apiPredicateConfig,
+    apiAnalyzerConfig: ApiAnalyzer.Config = @Suppress("DEPRECATION") options.apiAnalyzerConfig,
 ): Codebase {
-    progressTracker.progress("Processing jar file: ")
-
-    val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
-    val apiEmit =
-        ApiPredicate(
-            config = apiPredicateConfig.copy(ignoreShown = true),
+    val jarCodebaseLoader =
+        JarCodebaseLoader.createForSourceParser(
+            progressTracker,
+            reporterApiLint,
+            sourceParser,
         )
-    val apiReference = apiEmit
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, apiAnalyzerConfig)
-    analyzer.mergeExternalInclusionAnnotations()
-    analyzer.computeApi()
-    analyzer.mergeExternalQualifierAnnotations()
-    codebaseValidator(codebase)
-    analyzer.generateInheritedStubs(apiEmit, apiReference)
-    return codebase
+    return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
 internal fun disableStderrDumping(): Boolean {
@@ -885,6 +869,7 @@ private fun createMetalavaCommand(
         MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
+        JarToJDiffCommand(),
         MakeAnnotationsPackagePrivateCommand(),
         MergeSignaturesCommand(),
         SignatureToDexCommand(),
