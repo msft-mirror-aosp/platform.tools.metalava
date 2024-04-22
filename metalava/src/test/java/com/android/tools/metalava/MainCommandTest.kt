@@ -134,8 +134,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---input-api-jar <file>
-                                             A .jar file to read APIs from directly
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide

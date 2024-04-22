@@ -198,8 +198,6 @@ internal fun processFlags(
                 )
             }
             textCodebase
-        } else if (options.apiJar != null) {
-            actionContext.loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
