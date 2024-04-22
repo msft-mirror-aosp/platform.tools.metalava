@@ -1346,25 +1346,19 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         /**
                          * A Bar class.
                          *
-                         * @deprecated a multi-line, multi-sentence
-                         * deprecation message. Deprecated for
-                         * testing.
                          */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class Bar {
                         /**
                          * A Bar constructor.
-                         * @deprecated constructor
                          */
                         public Bar() { throw new RuntimeException("Stub!"); }
                         /**
                          * A method.
-                         * @deprecated method
                          */
                         public void method() { throw new RuntimeException("Stub!"); }
                         /**
                          * A field.
-                         * @deprecated field
                          */
                         public static int field;
                         }
@@ -1377,7 +1371,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         public abstract class Foo {
                         protected Foo() { throw new RuntimeException("Stub!"); }
                         public final void method(java.lang.String p) { throw new RuntimeException("Stub!"); }
-                        /** @deprecated */
                         public static int field;
                         }
                     """
