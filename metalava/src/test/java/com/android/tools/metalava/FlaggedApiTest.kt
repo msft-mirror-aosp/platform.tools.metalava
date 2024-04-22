@@ -1563,15 +1563,13 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """,
                         expectedStubs = stubsWithoutFlaggedApis,
                         expectedApiVersions =
-                            // TODO(b/319874764): Fix this, `Bar` and `Foo` and their members should
-                            //  not be tagged as deprecated.
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
                                 <api version="3" min="30">
-                                  <class name="test/pkg/Bar" since="33" deprecated="33">
-                                    <method name="&lt;init>()V" deprecated="33"/>
-                                    <method name="method()V" deprecated="33"/>
-                                    <field name="field" deprecated="33"/>
+                                  <class name="test/pkg/Bar" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method()V"/>
+                                    <field name="field"/>
                                   </class>
                                   <class name="test/pkg/Baz" since="33" deprecated="33">
                                     <method name="&lt;init>()V" deprecated="33"/>
@@ -1581,7 +1579,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   <class name="test/pkg/Foo" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
-                                    <field name="field" deprecated="33"/>
+                                    <field name="field"/>
                                   </class>
                                 </api>
                             """,
