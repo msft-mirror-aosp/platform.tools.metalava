@@ -681,7 +681,7 @@ private fun ActionContext.loadFromSources(
         progressTracker.progress("API Lint: ")
         val localTimer = Stopwatch.createStarted()
         // See if we should provide a previous codebase to provide a delta from?
-        val previousApiFile = options.checkApiBaselineApiFile
+        val previousApiFile = options.apiLintPreviousApi
         val previous =
             when {
                 previousApiFile == null -> null

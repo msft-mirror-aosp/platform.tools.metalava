@@ -41,6 +41,7 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
+import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.PsiModelOptions
@@ -731,7 +732,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 } else {
                     val file = File(project, "prev-api-lint.txt")
                     file.writeSignatureText(apiLint)
-                    arrayOf(ARG_API_LINT, file.path)
+                    arrayOf(ARG_API_LINT, ARG_API_LINT_PREVIOUS_API, file.path)
                 }
             } else {
                 emptyArray()

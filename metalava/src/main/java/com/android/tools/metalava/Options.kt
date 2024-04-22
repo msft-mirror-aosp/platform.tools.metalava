@@ -37,6 +37,7 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
+import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
@@ -215,6 +216,7 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
     private val issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
+    private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
@@ -403,7 +405,11 @@ class Options(
     var checkApi = false
 
     /** If non-null, an API file to use to hide for controlling what parts of the API are new */
-    var checkApiBaselineApiFile: File? = null
+    private var checkApiBaselineApiFile: File? = null
+
+    /** If non-null, an API file to use to hide for controlling what parts of the API are new */
+    val apiLintPreviousApi: File?
+        get() = checkApiBaselineApiFile ?: apiLintOptions.apiLintPreviousApi
 
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
