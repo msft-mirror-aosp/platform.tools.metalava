@@ -42,6 +42,7 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.psi.PsiModelOptions
@@ -50,7 +51,6 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
@@ -809,7 +809,7 @@ fun createReportFile(
     apiFile: File,
     description: String?,
     deleteEmptyFiles: Boolean = false,
-    createVisitor: (PrintWriter) -> ApiVisitor
+    createVisitor: (PrintWriter) -> ItemVisitor
 ) {
     if (description != null) {
         progressTracker.progress("Writing $description file: ")
