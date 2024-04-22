@@ -220,9 +220,8 @@ Generating Stubs:
 
 
 Diffs and Checks:
---api-lint [api file]
-                                             Check API for Android API best practices. If a signature file is provided,
-                                             only the APIs that are new since the API will be checked.
+--api-lint
+                                             Check API for Android API best practices.
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.

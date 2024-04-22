@@ -404,11 +404,8 @@ class Options(
     var checkApi = false
 
     /** If non-null, an API file to use to hide for controlling what parts of the API are new */
-    private var checkApiBaselineApiFile: File? = null
-
-    /** If non-null, an API file to use to hide for controlling what parts of the API are new */
     val apiLintPreviousApi: File?
-        get() = checkApiBaselineApiFile ?: apiLintOptions.apiLintPreviousApi
+        get() = apiLintOptions.apiLintPreviousApi
 
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
@@ -987,16 +984,6 @@ class Options(
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
                 ARG_API_LINT -> {
                     checkApi = true
-                    if (index < args.size - 1) {
-                        val nextArg = args[index + 1]
-                        if (!nextArg.startsWith("-")) {
-                            val file = stringToExistingFile(nextArg)
-                            if (file.isFile) {
-                                index++
-                                checkApiBaselineApiFile = file
-                            }
-                        }
-                    }
                 }
 
                 // Extracting API levels
@@ -1595,9 +1582,8 @@ object OptionsHelp {
                     "Documentation stubs (--doc-stubs) are not affected.)",
                 "",
                 "Diffs and Checks:",
-                "$ARG_API_LINT [api file]",
-                "Check API for Android API best practices. If a signature file is " +
-                    "provided, only the APIs that are new since the API will be checked.",
+                ARG_API_LINT,
+                "Check API for Android API best practices.",
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",
