@@ -1256,6 +1256,40 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 java(
                     """
                         package test.pkg;
+                        /**
+                         * A Bar class.
+                         *
+                         * @deprecated a multi-line, multi-sentence
+                         * deprecation message. Deprecated for
+                         * testing.
+                         */
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @Deprecated
+                        @android.annotation.FlaggedApi("foo/bar")
+                        public class Bar {
+                        /**
+                         * A Bar constructor.
+                         * @deprecated constructor
+                         */
+                        @Deprecated
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A method.
+                         * @deprecated method
+                         */
+                        @Deprecated
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A field.
+                         * @deprecated field
+                         */
+                        @Deprecated public static int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         @android.annotation.FlaggedApi("foo/bar")
                         public class Foo {
@@ -1268,8 +1302,39 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ),
             )
 
+        // TODO(b/319874764): Fix this, @deprecated tags should be removed from the docs.
         val stubsWithoutFlaggedApis =
             arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * A Bar class.
+                         *
+                         * @deprecated a multi-line, multi-sentence
+                         * deprecation message. Deprecated for
+                         * testing.
+                         */
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        /**
+                         * A Bar constructor.
+                         * @deprecated constructor
+                         */
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A method.
+                         * @deprecated method
+                         */
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A field.
+                         * @deprecated field
+                         */
+                        public static int field;
+                        }
+                    """
+                ),
                 java(
                     """
                         package test.pkg;
@@ -1290,7 +1355,64 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
-                    import android.annotation.SystemApi;
+
+                    /**
+                     * A Bar class.
+                     *
+                     * @deprecated a multi-line, multi-sentence
+                     * deprecation message. Deprecated for
+                     * testing.
+                     */
+                    @FlaggedApi("foo/bar")
+                    public class Bar {
+                        /**
+                         * A Bar constructor.
+                         * @deprecated constructor
+                         */
+                        @Deprecated
+                        public Bar() {}
+                        /**
+                         * A method.
+                         * @deprecated method
+                         */
+                        @Deprecated
+                        public void method() {}
+                        /**
+                         * A field.
+                         * @deprecated field
+                         */
+                        public @Deprecated static int field;
+                    }
+                """
+            ),
+            // This makes sure that existing deprecation annotations and tags are not discarded even
+            // if annotated with @FlaggedApi.
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+
+                    /** @deprecated */
+                    @FlaggedApi("foo/bar")
+                    @Deprecated
+                    public class Baz {
+                        /** @deprecated */
+                        @Deprecated
+                        public Baz() {}
+                        /** @deprecated */
+                        @Deprecated
+                        public void method() {}
+                        /** @deprecated */
+                        public @Deprecated static int field;
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
 
                     @FlaggedApi("foo/bar")
                     public class Foo {
@@ -1318,6 +1440,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 method public final void method(String);
                                 field public static int field;
                               }
+                              public class Bar {
+                                ctor public Bar();
+                                method public void method();
+                                field public static int field;
+                              }
+                              @Deprecated public class Baz {
+                                ctor @Deprecated public Baz();
+                                method @Deprecated public void method();
+                                field @Deprecated public static int field;
+                              }
                             }
                         """,
                 ),
@@ -1330,6 +1462,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
+                                  @Deprecated @FlaggedApi("foo/bar") public class Bar {
+                                    ctor @Deprecated public Bar();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
+                                  @Deprecated @FlaggedApi("foo/bar") public class Baz {
+                                    ctor @Deprecated public Baz();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
                                   @FlaggedApi("foo/bar") public class Foo {
                                     ctor public Foo();
                                     method public void method(@Nullable String);
@@ -1346,6 +1488,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                    method public void method();
+                                    field public static int field;
+                                  }
+                                  @Deprecated public class Baz {
+                                    ctor @Deprecated public Baz();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
                                   public abstract class Foo {
                                     ctor protected Foo();
                                     method public final void method(String);
