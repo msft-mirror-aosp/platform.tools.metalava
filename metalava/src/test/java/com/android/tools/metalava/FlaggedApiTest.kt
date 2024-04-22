@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import java.util.Locale
+import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -126,6 +127,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val expectedIssues: String = "",
         val expectedStubs: Array<TestFile> = emptyArray(),
         val expectedStubPaths: Array<String>? = null,
+        val expectedApiVersions: String = "",
     )
 
     /**
@@ -195,6 +197,38 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val previouslyReleasedApiList = contributingSurfaces(previouslyReleasedApi)
         val previouslyReleasedRemovedApiList = contributingSurfaces(previouslyReleasedRemovedApi)
 
+        val (apiVersionsArgs, apiVersionsFile) =
+            if (expectations.expectedApiVersions != "") {
+                val apiVersionsXmlFile = temporaryFolder.newFile("api-versions.xml")
+                Pair(
+                    arrayOf(
+                        ARG_GENERATE_API_LEVELS,
+                        apiVersionsXmlFile.path,
+                        ARG_FIRST_VERSION,
+                        "30",
+                        ARG_CURRENT_VERSION,
+                        "32",
+                        ARG_CURRENT_CODENAME,
+                        "Current",
+                        ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
+                    ),
+                    apiVersionsXmlFile,
+                )
+            } else {
+                Pair(emptyArray(), null)
+            }
+
+        val args =
+            arrayOf(
+                ARG_HIDE_PACKAGE,
+                "android.annotation",
+                "--warning",
+                "UnflaggedApi",
+                *apiVersionsArgs,
+                *config.extraArguments.toTypedArray(),
+                *extraArguments,
+            )
+
         check(
             // Enable API linting against the previous API; only report issues in changes to that
             // API. Only pass in the API for the surface whose test is currently run as API lint
@@ -221,14 +255,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             // This is needed to verify that the code to always inline the values of
             // FlaggedApi annotations even when not hidden or removed is working correctly.
             skipEmitPackages = listOf("test.pkg.flags"),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                    "--warning",
-                    "UnflaggedApi",
-                ) + config.extraArguments + extraArguments,
+            extraArguments = args,
         )
+
+        if (apiVersionsFile != null) {
+            val expected = expectations.expectedApiVersions
+            // Replace tabs with two spaces.
+            val actual = apiVersionsFile.readText().replace("\t", "  ")
+            assertEquals(expected.trimIndent(), actual.trimIndent())
+        }
     }
 
     /**
@@ -1480,6 +1515,27 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 }
                             """,
                         expectedStubs = stubsWithFlaggedApis,
+                        expectedApiVersions =
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="30">
+                                  <class name="test/pkg/Bar" since="33" deprecated="33">
+                                    <method name="&lt;init>()V" deprecated="33"/>
+                                    <method name="method()V" deprecated="33"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                    <method name="&lt;init>()V" deprecated="33"/>
+                                    <method name="method()V" deprecated="33"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                </api>
+                            """,
                     ),
                     Expectations(
                         Surface.PUBLIC,
@@ -1506,6 +1562,29 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 }
                             """,
                         expectedStubs = stubsWithoutFlaggedApis,
+                        expectedApiVersions =
+                            // TODO(b/319874764): Fix this, `Bar` and `Foo` and their members should
+                            //  not be tagged as deprecated.
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="30">
+                                  <class name="test/pkg/Bar" since="33" deprecated="33">
+                                    <method name="&lt;init>()V" deprecated="33"/>
+                                    <method name="method()V" deprecated="33"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                    <method name="&lt;init>()V" deprecated="33"/>
+                                    <method name="method()V" deprecated="33"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                </api>
+                            """,
                     ),
                     Expectations(
                         Surface.SYSTEM,
