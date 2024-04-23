@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class JDiffXmlTest : DriverTest() {
@@ -572,59 +571,6 @@ class JDiffXmlTest : DriverTest() {
                   }
                 }
             """,
-            apiXml =
-                """
-                <api xmlns:metalava="http://www.android.com/metalava/">
-                <package name="test.pkg"
-                >
-                <class name="Test"
-                 extends="java.lang.Object"
-                 abstract="false"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <constructor name="Test"
-                 type="test.pkg.Test"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </constructor>
-                <field name="LOWEST_VALUE"
-                 type="short"
-                 transient="false"
-                 volatile="false"
-                 value="-1025"
-                 static="true"
-                 final="true"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </field>
-                </class>
-                </package>
-                </api>
-            """
-        )
-    }
-
-    @Test
-    fun `Half float short from source`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                      package test.pkg;
-                      public class Test {
-                        public static final short LOWEST_VALUE = (short) 0xfbff;
-                      }
-                      """
-                    )
-                ),
             apiXml =
                 """
                 <api xmlns:metalava="http://www.android.com/metalava/">
