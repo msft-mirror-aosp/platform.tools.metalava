@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.File
 import java.io.IOException
@@ -124,7 +125,7 @@ class ConvertJarsToSignatureFiles(
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
                 try {
-                    val oldCodebase = signatureFileLoader.load(oldApiFile)
+                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFile(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compare(old: Item, new: Item) {
