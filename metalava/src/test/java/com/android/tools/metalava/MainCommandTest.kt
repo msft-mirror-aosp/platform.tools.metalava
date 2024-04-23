@@ -21,6 +21,7 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
+import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
@@ -73,6 +74,8 @@ Options:
   -h, --help                                 Show this message and exit
 
 $ISSUE_REPORTING_OPTIONS_HELP
+
+$API_LINT_OPTIONS_HELP
 
 $COMPATIBILITY_CHECK_OPTIONS_HELP
 
@@ -134,8 +137,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---input-api-jar <file>
-                                             A .jar file to read APIs from directly
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
