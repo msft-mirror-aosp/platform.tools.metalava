@@ -140,7 +140,6 @@ const val ARG_CLASS_PATH = "--classpath"
 const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
-const val ARG_XML_API = "--api-xml"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
@@ -405,11 +404,8 @@ class Options(
     var checkApi = false
 
     /** If non-null, an API file to use to hide for controlling what parts of the API are new */
-    private var checkApiBaselineApiFile: File? = null
-
-    /** If non-null, an API file to use to hide for controlling what parts of the API are new */
     val apiLintPreviousApi: File?
-        get() = checkApiBaselineApiFile ?: apiLintOptions.apiLintPreviousApi
+        get() = apiLintOptions.apiLintPreviousApi
 
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
@@ -885,7 +881,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
                 ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
@@ -989,16 +984,6 @@ class Options(
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
                 ARG_API_LINT -> {
                     checkApi = true
-                    if (index < args.size - 1) {
-                        val nextArg = args[index + 1]
-                        if (!nextArg.startsWith("-")) {
-                            val file = stringToExistingFile(nextArg)
-                            if (file.isFile) {
-                                index++
-                                checkApiBaselineApiFile = file
-                            }
-                        }
-                    }
                 }
 
                 // Extracting API levels
@@ -1597,9 +1582,8 @@ object OptionsHelp {
                     "Documentation stubs (--doc-stubs) are not affected.)",
                 "",
                 "Diffs and Checks:",
-                "$ARG_API_LINT [api file]",
-                "Check API for Android API best practices. If a signature file is " +
-                    "provided, only the APIs that are new since the API will be checked.",
+                ARG_API_LINT,
+                "Check API for Android API best practices.",
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",
@@ -1634,10 +1618,6 @@ object OptionsHelp {
                     "to include.",
                 "$ARG_ERROR_MESSAGE_API_LINT <message>",
                 "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
-                "",
-                "JDiff:",
-                "$ARG_XML_API <file>",
-                "Like $ARG_API, but emits the API in the JDiff XML format instead",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
