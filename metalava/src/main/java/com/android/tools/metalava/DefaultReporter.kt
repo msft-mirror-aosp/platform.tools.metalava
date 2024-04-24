@@ -19,13 +19,13 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.plainTerminal
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.IssueConfiguration
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.Severity.ERROR
@@ -68,9 +68,9 @@ internal class DefaultReporter(
 
     override fun report(
         id: Issues.Issue,
-        item: Item?,
+        reportable: Reportable?,
         message: String,
-        location: Location
+        location: IssueLocation
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
@@ -82,22 +82,30 @@ internal class DefaultReporter(
                 (
                     severity: Severity, location: String?, message: String, id: Issues.Issue
                 ) -> Boolean
-        ) =
-            when {
-                location.path != null -> which(severity, location.forReport(), message, id)
-                item != null -> which(severity, item.location().forReport(), message, id)
-                else -> which(severity, null as String?, message, id)
-            }
+        ): Boolean {
+            // When selecting a location to use for reporting the issue the location is used in
+            // preference to the item because the location is more specific. e.g. if the item is a
+            // method then the location may be a line within the body of the method.
+            val reportLocation =
+                when {
+                    location.path != null -> location.forReport()
+                    reportable != null -> reportable.issueLocation.forReport()
+                    else -> null
+                }
+
+            return which(severity, reportLocation, message, id)
+        }
 
         // Optionally write to the --report-even-if-suppressed file.
         dispatch(this::reportEvenIfSuppressed)
 
-        if (isSuppressed(id, item, message)) {
+        if (isSuppressed(id, reportable, message)) {
             return false
         }
 
         // If we are only emitting some packages (--stub-packages), don't report
         // issues from other packages
+        val item = reportable as? Item
         if (item != null) {
             if (packageFilter != null) {
                 val pkg = (item as? PackageItem) ?: item.containingPackage()
@@ -107,52 +115,39 @@ internal class DefaultReporter(
             }
         }
 
-        if (item != null && baseline != null && baseline.mark(item.location(), message, id)) {
-            return false
-        } else if (
-            location.path != null && baseline != null && baseline.mark(location, message, id)
-        ) {
-            return false
+        if (baseline != null) {
+            // When selecting a location to use for in checking the baseline the item is used in
+            // preference to the location because the item is more stable. e.g. the location may be
+            // for a specific line within a method which would change over time while the method
+            // signature would stay the same.
+            val baselineLocation =
+                when {
+                    reportable != null -> reportable.issueLocation
+                    location.path != null -> location
+                    else -> null
+                }
+
+            if (baselineLocation != null && baseline.mark(baselineLocation, message, id))
+                return false
         }
 
         return dispatch(this::doReport)
     }
 
-    override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean {
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
             return true
         }
 
-        item ?: return false
+        reportable ?: return false
 
-        for (annotation in item.modifiers.annotations()) {
-            val annotationName = annotation.qualifiedName
-            if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
-                for (attribute in annotation.attributes) {
-                    // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                    // one attribute such as value/names that is varargs of String
-                    val value = attribute.value
-                    if (value is AnnotationArrayAttributeValue) {
-                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                        for (innerValue in value.values) {
-                            val string = innerValue.value()?.toString() ?: continue
-                            if (suppressMatches(string, id.name, message)) {
-                                return true
-                            }
-                        }
-                    } else {
-                        // Example: @SuppressLint("RequiresFeature")
-                        val string = value.value()?.toString()
-                        if (string != null && (suppressMatches(string, id.name, message))) {
-                            return true
-                        }
-                    }
-                }
-            }
-        }
-
-        return false
+        // Suppress the issue if requested for the item.
+        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
     }
 
     private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
@@ -188,11 +183,12 @@ internal class DefaultReporter(
     }
 
     /**
-     * Convert the [Location] to an optional string representation suitable for use in a report.
+     * Convert the [IssueLocation] to an optional string representation suitable for use in a
+     * report.
      *
      * See [relativizeLocationPath].
      */
-    private fun Location.forReport(): String? {
+    private fun IssueLocation.forReport(): String? {
         val pathString = path?.let { relativizeLocationPath(it) } ?: return null
         return if (line > 0) "$pathString:$line" else pathString
     }
@@ -298,9 +294,6 @@ internal class DefaultReporter(
     }
 }
 
-private val SUPPRESS_ANNOTATIONS =
-    listOf(ANDROID_SUPPRESS_LINT, JAVA_LANG_SUPPRESS_WARNINGS, KOTLIN_SUPPRESS)
-
 /**
  * Provides access to information about the environment within which the [Reporter] will be being
  * used.
@@ -323,8 +316,7 @@ class DefaultReporterEnvironment(
 
     override fun printReport(message: String, severity: Severity) {
         val output = if (severity == ERROR) stderr else stdout
-        output.println()
-        output.print(message.trim())
+        output.println(message.trim())
         output.flush()
     }
 }

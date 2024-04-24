@@ -17,37 +17,38 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.intellij.psi.PsiCallExpression
-import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
-import org.jetbrains.kotlin.psi.KtObjectDeclaration
-import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UElement
 
 class PsiFieldItem(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiField: PsiField,
-    private val containingClass: PsiClassItem,
-    private val name: String,
-    modifiers: PsiModifierItem,
+    containingClass: PsiClassItem,
+    name: String,
+    modifiers: DefaultModifierList,
     documentation: String,
-    private val fieldType: PsiTypeItem,
+    private val fieldType: TypeItem,
     private val isEnumConstant: Boolean,
-    private val initialValue: Any?
+    private val fieldValue: PsiFieldValue?,
 ) :
-    PsiItem(
+    PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiField
+        element = psiField,
+        containingClass = containingClass,
+        name = name,
     ),
     FieldItem {
 
@@ -56,55 +57,22 @@ class PsiFieldItem(
     override fun type(): TypeItem = fieldType
 
     override fun initialValue(requireConstant: Boolean): Any? {
-        if (initialValue != null) {
-            return initialValue
-        }
-        val constant = psiField.computeConstantValue()
-        // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
-        // Those fields hold [Class] object, but the constant value should not be of [PsiType].
-        if (
-            constant is PsiPrimitiveType &&
-                "TYPE" == name &&
-                (fieldType as? PsiClassTypeItem)?.qualifiedName == "java.lang.Class"
-        ) {
-            return null
-        }
-        if (constant != null) {
-            return constant
-        }
-
-        return if (!requireConstant) {
-            val initializer = psiField.initializer ?: return null
-            JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)
-        } else {
-            null
-        }
+        return fieldValue?.initialValue(requireConstant)
     }
 
     override fun isEnumConstant(): Boolean = isEnumConstant
 
-    override fun name(): String = name
-
-    override fun containingClass(): PsiClassItem = containingClass
-
     override fun psi(): PsiField = psiField
 
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = containingClass().psi()
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiField.containingClass != psiClass
-    }
-
     override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
-        val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiField)
+        val duplicated =
+            create(
+                codebase,
+                targetContainingClass as PsiClassItem,
+                psiField,
+                codebase.globalTypeItemFactory.from(targetContainingClass),
+            )
         duplicated.inheritedFrom = containingClass
-        duplicated.inheritedField = inheritedField
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -121,7 +89,6 @@ class PsiFieldItem(
     }
 
     override var inheritedFrom: ClassItem? = null
-    override var inheritedField: Boolean = false
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -136,79 +103,105 @@ class PsiFieldItem(
         return name.hashCode()
     }
 
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
-
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
-            psiField: PsiField
+            psiField: PsiField,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val commentText = javadoc(psiField)
+            val commentText = javadoc(psiField, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = codebase.getType(psiField.type)
             val isEnumConstant = psiField is PsiEnumConstant
-            val initialValue = null // compute lazily
 
-            val field =
-                PsiFieldItem(
-                    codebase = codebase,
-                    psiField = psiField,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = commentText,
-                    modifiers = modifiers,
-                    fieldType = fieldType,
+            // Wrap the PsiField in a PsiFieldValue that can provide the field's initial value.
+            val fieldValue = PsiFieldValue(psiField)
+
+            // Create a type for the field, taking into account the modifiers, whether it is an
+            // enum constant and whether the field's initial value is non-null.
+            val fieldType =
+                enclosingClassTypeItemFactory.getFieldType(
+                    underlyingType = PsiTypeInfo(psiField.type, psiField),
+                    itemAnnotations = modifiers.annotations(),
                     isEnumConstant = isEnumConstant,
-                    initialValue = initialValue
+                    isFinal = modifiers.isFinal(),
+                    isInitialValueNonNull = {
+                        // The initial value is non-null if the field initializer is a method that
+                        // is annotated as being non-null so would produce a non-null value, or the
+                        // value is a literal which is not null.
+                        psiField.isFieldInitializerNonNull() ||
+                            fieldValue.initialValue(false) != null
+                    },
                 )
-            field.modifiers.setOwner(field)
-            return field
+
+            return PsiFieldItem(
+                codebase = codebase,
+                psiField = psiField,
+                containingClass = containingClass,
+                name = name,
+                documentation = commentText,
+                modifiers = modifiers,
+                fieldType = fieldType,
+                isEnumConstant = isEnumConstant,
+                fieldValue = fieldValue
+            )
         }
     }
+}
 
-    override fun implicitNullness(): Boolean? {
-        // Is this a Kotlin object declaration (such as a companion object) ?
-        // If so, it is always non-null.
-        if (psiField is UElement && psiField.sourcePsi is KtObjectDeclaration) {
-            return false
-        }
-
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super<FieldItem>.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        if (modifiers.isFinal()) {
-            // If we're looking at a final field, look on the right hand side of the field to the
-            // field initialization. If that right hand side for example represents a method call,
-            // and the method we're calling is annotated with @NonNull, then the field (since it is
-            // final) will always be @NonNull as well.
-            when (val initializer = psiField.initializer) {
-                is PsiReference -> {
-                    val resolved = initializer.resolve()
-                    if (
-                        resolved is PsiModifierListOwner &&
-                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
-                    ) {
-                        return false
-                    }
-                }
-                is PsiCallExpression -> {
-                    val resolved = initializer.resolveMethod()
-                    if (
-                        resolved != null &&
-                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
-                    ) {
-                        return false
-                    }
-                }
+/**
+ * Check to see whether the [PsiField] on which this is called has an initializer whose
+ * [TypeNullability] is known to be [TypeNullability.NONNULL].
+ */
+private fun PsiField.isFieldInitializerNonNull(): Boolean {
+    // If we're looking at a final field, look on the right hand side of the field to the
+    // field initialization. If that right hand side for example represents a method call,
+    // and the method we're calling is annotated with @NonNull, then the field (since it is
+    // final) will always be @NonNull as well.
+    val resolved =
+        when (val initializer = initializer) {
+            is PsiReference -> {
+                initializer.resolve()
             }
+            is PsiCallExpression -> {
+                initializer.resolveMethod()
+            }
+            else -> null
+        }
+            ?: return false
+
+    return resolved is PsiModifierListOwner &&
+        resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
+}
+
+/**
+ * Wrapper around a [PsiField] that will provide access to the initial value of the field, if
+ * available, or `null` otherwise.
+ */
+class PsiFieldValue(private val psiField: PsiField) {
+
+    fun initialValue(requireConstant: Boolean): Any? {
+        val constant = psiField.computeConstantValue()
+        // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
+        // Those fields hold [Class] object, but the constant value should not be of [PsiType].
+        if (
+            constant is PsiPrimitiveType &&
+                psiField.name == "TYPE" &&
+                (psiField.type as? PsiClassType)?.computeQualifiedName() == "java.lang.Class"
+        ) {
+            return null
+        }
+        if (constant != null) {
+            return constant
         }
 
-        return null
+        return if (!requireConstant) {
+            val initializer = psiField.initializer ?: return null
+            JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)
+        } else {
+            null
+        }
     }
 }
