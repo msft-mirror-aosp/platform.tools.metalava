@@ -17,9 +17,12 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import java.util.Locale
+import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -124,6 +127,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val expectedIssues: String = "",
         val expectedStubs: Array<TestFile> = emptyArray(),
         val expectedStubPaths: Array<String>? = null,
+        val expectedApiVersions: String = "",
     )
 
     /**
@@ -132,6 +136,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      */
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
+        extraArguments: Array<String> = emptyArray(),
         previouslyReleasedApi: Map<Surface, String> = emptyMap(),
         previouslyReleasedRemovedApi: Map<Surface, String> = emptyMap(),
         expectationsList: List<Expectations>,
@@ -192,6 +197,38 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val previouslyReleasedApiList = contributingSurfaces(previouslyReleasedApi)
         val previouslyReleasedRemovedApiList = contributingSurfaces(previouslyReleasedRemovedApi)
 
+        val (apiVersionsArgs, apiVersionsFile) =
+            if (expectations.expectedApiVersions != "") {
+                val apiVersionsXmlFile = temporaryFolder.newFile("api-versions.xml")
+                Pair(
+                    arrayOf(
+                        ARG_GENERATE_API_LEVELS,
+                        apiVersionsXmlFile.path,
+                        ARG_FIRST_VERSION,
+                        "30",
+                        ARG_CURRENT_VERSION,
+                        "32",
+                        ARG_CURRENT_CODENAME,
+                        "Current",
+                        ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
+                    ),
+                    apiVersionsXmlFile,
+                )
+            } else {
+                Pair(emptyArray(), null)
+            }
+
+        val args =
+            arrayOf(
+                ARG_HIDE_PACKAGE,
+                "android.annotation",
+                "--warning",
+                "UnflaggedApi",
+                *apiVersionsArgs,
+                *config.extraArguments.toTypedArray(),
+                *extraArguments,
+            )
+
         check(
             // Enable API linting against the previous API; only report issues in changes to that
             // API. Only pass in the API for the surface whose test is currently run as API lint
@@ -218,14 +255,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             // This is needed to verify that the code to always inline the values of
             // FlaggedApi annotations even when not hidden or removed is working correctly.
             skipEmitPackages = listOf("test.pkg.flags"),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                    "--warning",
-                    "UnflaggedApi",
-                ) + config.extraArguments,
+            extraArguments = args,
         )
+
+        if (apiVersionsFile != null) {
+            val expected = expectations.expectedApiVersions
+            // Replace tabs with two spaces.
+            val actual = apiVersionsFile.readText().replace("\t", "  ")
+            assertEquals(expected.trimIndent(), actual.trimIndent())
+        }
     }
 
     /**
@@ -1253,24 +1291,87 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 java(
                     """
                         package test.pkg;
+                        /**
+                         * A Bar class.
+                         *
+                         * @deprecated a multi-line, multi-sentence
+                         * deprecation message. Deprecated for
+                         * testing.
+                         */
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @Deprecated
+                        @android.annotation.FlaggedApi("foo/bar")
+                        public class Bar {
+                        /**
+                         * A Bar constructor.
+                         * @deprecated constructor
+                         */
+                        @Deprecated
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A method.
+                         * @deprecated method
+                         */
+                        @Deprecated
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A field.
+                         * @deprecated field
+                         */
+                        @Deprecated public static int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         @android.annotation.FlaggedApi("foo/bar")
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** @deprecated */
+                        @Deprecated public static int field;
                         }
                     """
                 ),
             )
 
-        // TODO(b/316873097): Fix the test. The Foo class should be abstract.
+        // TODO(b/319874764): Fix this, @deprecated tags should be removed from the docs.
         val stubsWithoutFlaggedApis =
             arrayOf(
                 java(
                     """
                         package test.pkg;
+                        /**
+                         * A Bar class.
+                         *
+                         */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public class Foo {
-                        public Foo() { throw new RuntimeException("Stub!"); }
+                        public class Bar {
+                        /**
+                         * A Bar constructor.
+                         */
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A method.
+                         */
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A field.
+                         */
+                        public static int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public abstract class Foo {
+                        protected Foo() { throw new RuntimeException("Stub!"); }
+                        public final void method(java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public static int field;
                         }
                     """
                 ),
@@ -1282,13 +1383,79 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
-                    import android.annotation.SystemApi;
 
+                    /**
+                     * A Bar class.
+                     *
+                     * @deprecated a multi-line, multi-sentence
+                     * deprecation message. Deprecated for
+                     * testing.
+                     */
                     @FlaggedApi("foo/bar")
-                    public class Foo {
+                    public class Bar {
+                        /**
+                         * A Bar constructor.
+                         * @deprecated constructor
+                         */
+                        @Deprecated
+                        public Bar() {}
+                        /**
+                         * A method.
+                         * @deprecated method
+                         */
+                        @Deprecated
+                        public void method() {}
+                        /**
+                         * A field.
+                         * @deprecated field
+                         */
+                        public @Deprecated static int field;
                     }
                 """
             ),
+            // This makes sure that existing deprecation annotations and tags are not discarded even
+            // if annotated with @FlaggedApi.
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+
+                    /** @deprecated */
+                    @FlaggedApi("foo/bar")
+                    @Deprecated
+                    public class Baz {
+                        /** @deprecated */
+                        @Deprecated
+                        public Baz() {}
+                        /** @deprecated */
+                        @Deprecated
+                        public void method() {}
+                        /** @deprecated */
+                        public @Deprecated static int field;
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+
+                    @FlaggedApi("foo/bar")
+                    public class Foo {
+                        public Foo() {}
+                        public void method(@Nullable String p) {}
+                        /** @deprecated */
+                        public @Deprecated static int field;
+                    }
+                """
+            ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    Issues.REMOVED_FINAL_STRICT.name,
+                ),
             // The previously released public api.
             previouslyReleasedApi =
                 mapOf(
@@ -1297,7 +1464,19 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             // Signature format: 2.0
                             package test.pkg {
                               public abstract class Foo {
-                                ctor public Foo();
+                                ctor protected Foo();
+                                method public final void method(String);
+                                field public static int field;
+                              }
+                              public class Bar {
+                                ctor public Bar();
+                                method public void method();
+                                field public static int field;
+                              }
+                              @Deprecated public class Baz {
+                                ctor @Deprecated public Baz();
+                                method @Deprecated public void method();
+                                field @Deprecated public static int field;
                               }
                             }
                         """,
@@ -1311,27 +1490,92 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
+                                  @Deprecated @FlaggedApi("foo/bar") public class Bar {
+                                    ctor @Deprecated public Bar();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
+                                  @Deprecated @FlaggedApi("foo/bar") public class Baz {
+                                    ctor @Deprecated public Baz();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
                                   @FlaggedApi("foo/bar") public class Foo {
                                     ctor public Foo();
+                                    method public void method(@Nullable String);
+                                    field @Deprecated public static int field;
                                   }
                                 }
                             """,
                         expectedStubs = stubsWithFlaggedApis,
+                        expectedApiVersions =
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="30">
+                                  <class name="test/pkg/Bar" since="33" deprecated="33">
+                                    <method name="&lt;init>()V" deprecated="33"/>
+                                    <method name="method()V" deprecated="33"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                    <method name="&lt;init>()V" deprecated="33"/>
+                                    <method name="method()V" deprecated="33"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                </api>
+                            """,
                     ),
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.WITHOUT,
-                        // TODO(b/316873097): Fix the test. This should be abstract.
                         expectedApi =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  public class Foo {
-                                    ctor public Foo();
+                                  public class Bar {
+                                    ctor public Bar();
+                                    method public void method();
+                                    field public static int field;
+                                  }
+                                  @Deprecated public class Baz {
+                                    ctor @Deprecated public Baz();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
+                                  public abstract class Foo {
+                                    ctor protected Foo();
+                                    method public final void method(String);
+                                    field public static int field;
                                   }
                                 }
                             """,
                         expectedStubs = stubsWithoutFlaggedApis,
+                        expectedApiVersions =
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="30">
+                                  <class name="test/pkg/Bar" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method()V"/>
+                                    <field name="field"/>
+                                  </class>
+                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                    <method name="&lt;init>()V" deprecated="33"/>
+                                    <method name="method()V" deprecated="33"/>
+                                    <field name="field" deprecated="33"/>
+                                  </class>
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <field name="field"/>
+                                  </class>
+                                </api>
+                            """,
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -1349,8 +1593,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
-                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
-                        expectedStubPaths = emptyArray(),
+                        expectedStubs = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
@@ -1368,8 +1611,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
-                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
-                        expectedStubPaths = emptyArray(),
+                        expectedStubs = stubsWithoutFlaggedApis,
                     ),
                 ),
         )
