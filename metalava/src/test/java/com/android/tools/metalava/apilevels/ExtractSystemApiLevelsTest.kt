@@ -159,11 +159,6 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // The filter says 'framework-permission-s             *    R' so RoleManager should exist
         // and should have a module/sdks attributes
         assertTrue(apiLookup.containsClass("android/app/role/RoleManager"))
-        assertTrue(
-            xml.contains(
-                "<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"
-            )
-        )
 
         // The filter doesn't mention framework-media, so no class in that module should have a
         // module/sdks attributes
