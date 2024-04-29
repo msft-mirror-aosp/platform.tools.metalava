@@ -389,5 +389,48 @@ class ApiToExtensionsMapTest {
             "30:4,31:4,1000000:4,1000001:4,0:33",
             filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO", "BAR"), 4)
         )
+
+        // Make sure that if it was released in dessert released R (30) that it is reported as being
+        // in both the extension SDK included in R (30:4) and in R itself (0:30) but not in S or T.
+        // TODO: Fix this as it indicates that it was also released in S (31) and T (33).
+        Assert.assertEquals(
+            "30:4,31:4,33:4,0:30",
+            filter.calculateSdksAttr(30, 34, listOf("R", "S", "T"), 4)
+        )
+
+        // Make sure that if it was released in dessert released S (31) that it is reported as being
+        // in both the extension SDK included in R (30:4), S (31:4) and in S itself (0:30) but not
+        // in T.
+        // TODO: Fix this as it indicates that it was also released in T (33).
+        Assert.assertEquals(
+            "30:4,31:4,33:4,0:31",
+            filter.calculateSdksAttr(31, 34, listOf("R", "S", "T"), 4)
+        )
+
+        // Make sure that if it was released in dessert released S+ (32) that it is reported as
+        // being in both the extension SDK included in R (30:4), S (31:4) and in S itself (0:30) but
+        // not in T.
+        // TODO: Fix this as it indicates that it was also released in T (33).
+        Assert.assertEquals(
+            "30:4,31:4,33:4,0:32",
+            filter.calculateSdksAttr(32, 34, listOf("R", "S", "T"), 4)
+        )
+
+        // Make sure that if it was released in dessert released T (33) that it is reported as being
+        // in both the extension SDK included in R (30:4), S (31:4), T (33:4) and T itself.
+        Assert.assertEquals(
+            "30:4,31:4,33:4,0:33",
+            filter.calculateSdksAttr(33, 34, listOf("R", "S", "T"), 4)
+        )
+
+        // Make sure that if it was released in dessert release before R (21) that it is not
+        // reported as being in any sdks; it will just have `since="21"`.
+        // TODO: Fix this as it indicates that it was released in R (30), S (31), T (33) and dessert
+        //  release 21. That breaks Android lint as it seems to ignore the dessert release and
+        //  just check the sdk extensions.
+        Assert.assertEquals(
+            "30:4,31:4,33:4,0:21",
+            filter.calculateSdksAttr(21, 34, listOf("R", "S", "T"), 4)
+        )
     }
 }
