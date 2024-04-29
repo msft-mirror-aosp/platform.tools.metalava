@@ -365,8 +365,8 @@ class ApiToExtensionsMapTest {
                 <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
                 <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
                 <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
-                <sdk shortname="FOO" name="FOO Extensions" id="1000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
-                <sdk shortname="BAR" name="BAR Extensions" id="1001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
+                <sdk shortname="FOO" name="FOO Extensions" id="1000000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
+                <sdk shortname="BAR" name="BAR Extensions" id="1000001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
             </sdk-extensions-info>
         """
                 .trimIndent()
@@ -381,12 +381,12 @@ class ApiToExtensionsMapTest {
         Assert.assertEquals("30:4,31:4,0:33", filter.calculateSdksAttr(33, 34, listOf("R", "S"), 4))
 
         Assert.assertEquals(
-            "30:4,31:4,1000:4,0:33",
+            "30:4,31:4,1000000:4,0:33",
             filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO"), 4)
         )
 
         Assert.assertEquals(
-            "30:4,31:4,1000:4,1001:4,0:33",
+            "30:4,31:4,1000000:4,1000001:4,0:33",
             filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO", "BAR"), 4)
         )
     }
