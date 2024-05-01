@@ -1137,7 +1137,7 @@ private constructor(
         cl: TextClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String,
-        isEnum: Boolean
+        isEnumConstant: Boolean,
     ) {
         var token = startingToken
         val annotations = getAnnotations(tokenizer, token)
@@ -1197,7 +1197,7 @@ private constructor(
         val field =
             TextFieldItem(codebase, name, cl, modifiers, type, value, tokenizer.fileLocation())
         field.markForCurrentApiSurface()
-        if (isEnum) {
+        if (isEnumConstant) {
             cl.addEnumConstant(field)
         } else {
             cl.addField(field)
