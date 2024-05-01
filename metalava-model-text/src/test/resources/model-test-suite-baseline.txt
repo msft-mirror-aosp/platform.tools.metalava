@@ -15,7 +15,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[obj to string]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test implicit nullability of annotation members
   Test implicit nullability of equals parameter
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
