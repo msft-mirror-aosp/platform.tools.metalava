@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
@@ -1044,7 +1045,7 @@ private constructor(
 
         tokenizer.assertIdent(token)
 
-        val returnType: TypeItem
+        val returnTypeString: String
         val parameters: List<TextParameterItem>
         val name: String
         if (format.kotlinNameTypeOrder) {
@@ -1060,17 +1061,26 @@ private constructor(
             }
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            returnType = parseType(tokenizer, token, typeItemFactory, modifiers)
+            returnTypeString = scanForTypeString(tokenizer, token)
             token = tokenizer.current
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
-            returnType = parseType(tokenizer, token, typeItemFactory, modifiers)
+            returnTypeString = scanForTypeString(tokenizer, token)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
             parameters = parseParameterList(tokenizer, typeItemFactory)
             token = tokenizer.requireToken()
         }
+
+        val returnType =
+            typeItemFactory.getMethodReturnType(
+                returnTypeString,
+                annotations,
+                MethodFingerprint(name, parameters.size),
+                cl.isAnnotationType()
+            )
+        synchronizeNullability(returnType, modifiers)
 
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
