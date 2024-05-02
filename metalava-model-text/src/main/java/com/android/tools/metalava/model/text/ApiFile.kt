@@ -43,7 +43,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.io.IOException
@@ -1390,23 +1389,25 @@ private constructor(
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        val type: TypeItem
+        val typeString: String
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type = parseType(tokenizer, token, classTypeItemFactory, modifiers)
+            typeString = scanForTypeString(tokenizer, token)
             token = tokenizer.current
         } else {
             // Java style: parse the type, then the name.
-            type = parseType(tokenizer, token, classTypeItemFactory, modifiers)
+            typeString = scanForTypeString(tokenizer, token)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
             token = tokenizer.requireToken()
         }
+        val type = classTypeItemFactory.getGeneralType(typeString)
+        synchronizeNullability(type, modifiers)
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1764,36 +1765,15 @@ private constructor(
     }
 
     /**
-     * Scans for a type string using [scanForTypeString] and parses the result using
-     * [TextTypeItemFactory.getGeneralType].
-     */
-    private fun parseType(
-        tokenizer: Tokenizer,
-        startingToken: String,
-        typeItemFactory: TextTypeItemFactory,
-        modifiers: DefaultModifierList,
-    ): TypeItem {
-        val typeString = scanForTypeString(tokenizer, startingToken)
-
-        val parsedType = typeItemFactory.getGeneralType(typeString)
-        return synchronizeNullability(parsedType, modifiers)
-    }
-
-    /**
      * Synchronize nullability annotations on the API item and [TypeNullability].
      *
      * If the type string uses a Kotlin nullability suffix, this adds an annotation representing
-     * that nullability to [modifiers]. Otherwise, if the [TypeNullability] of the [typeItem] is
-     * [TypeNullability.PLATFORM] then it will update that if there is a relevant nullability
-     * annotation in [modifiers].
+     * that nullability to [modifiers].
      *
      * @param typeItem the type of the API item.
      * @param modifiers the API item's modifiers.
      */
-    private fun synchronizeNullability(
-        typeItem: TypeItem,
-        modifiers: DefaultModifierList,
-    ): TypeItem {
+    private fun synchronizeNullability(typeItem: TypeItem, modifiers: DefaultModifierList) {
         if (typeParser.kotlinStyleNulls) {
             // Add an annotation to the context item for the type's nullability if applicable.
             val annotationToAdd =
@@ -1808,18 +1788,11 @@ private constructor(
                         ANDROIDX_NULLABLE
                     } else {
                         // No annotation to add, return.
-                        return typeItem
+                        return
                     }
                 }
             modifiers.addAnnotation(codebase.createAnnotation("@$annotationToAdd"))
-        } else if (typeItem.modifiers.nullability() == TypeNullability.PLATFORM) {
-            // See if the type has nullability from the context item annotations.
-            val nullabilityFromContext = modifiers.annotations().typeNullability
-            if (nullabilityFromContext != null) {
-                return typeItem.duplicate(nullabilityFromContext)
-            }
         }
-        return typeItem
     }
 
     /**
