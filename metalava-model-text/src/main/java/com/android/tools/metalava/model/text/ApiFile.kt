@@ -971,7 +971,7 @@ private constructor(
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
-        val parameters = parseParameterList(tokenizer, typeItemFactory)
+        val parameters = parseParameterList(tokenizer, typeItemFactory, name)
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()
         if ("throws" == token) {
@@ -1051,7 +1051,7 @@ private constructor(
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
-            parameters = parseParameterList(tokenizer, typeItemFactory)
+            parameters = parseParameterList(tokenizer, typeItemFactory, name)
             token = tokenizer.requireToken()
             if (token != ":") {
                 throw ApiParseException(
@@ -1069,7 +1069,7 @@ private constructor(
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
-            parameters = parseParameterList(tokenizer, typeItemFactory)
+            parameters = parseParameterList(tokenizer, typeItemFactory, name)
             token = tokenizer.requireToken()
         }
 
@@ -1497,8 +1497,9 @@ private constructor(
     private fun parseParameterList(
         tokenizer: Tokenizer,
         typeItemFactory: TextTypeItemFactory,
+        methodName: String,
     ): List<TextParameterItem> {
-        val parameters = mutableListOf<TextParameterItem>()
+        val parameters = mutableListOf<ParameterInfo>()
         var token: String = tokenizer.requireToken()
         if ("(" != token) {
             throw ApiParseException("expected (, was $token", tokenizer)
@@ -1507,7 +1508,9 @@ private constructor(
         var index = 0
         while (true) {
             if (")" == token) {
-                return parameters
+                // All parameters are parsed, create the actual TextParameterItems
+                val methodFingerprint = MethodFingerprint(methodName, parameters.size)
+                return parameters.map { it.create(codebase, typeItemFactory, methodFingerprint) }
             }
 
             // Each item can be
@@ -1527,7 +1530,7 @@ private constructor(
             val modifiers = parseModifiers(tokenizer, token, annotations)
             token = tokenizer.current
 
-            val type: TypeItem
+            val typeString: String
             val name: String
             val publicName: String?
             if (format.kotlinNameTypeOrder) {
@@ -1542,11 +1545,11 @@ private constructor(
                     }
                 token = tokenizer.requireToken()
                 // Token should now represent the type
-                type = parseType(tokenizer, token, typeItemFactory, modifiers)
+                typeString = scanForTypeString(tokenizer, token)
                 token = tokenizer.current
             } else {
                 // Java style: parse the type, then the public name if it has one.
-                type = parseType(tokenizer, token, typeItemFactory, modifiers)
+                typeString = scanForTypeString(tokenizer, token)
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token) && token != "=") {
                     name = token
@@ -1556,9 +1559,6 @@ private constructor(
                     name = "arg" + (index + 1)
                     publicName = null
                 }
-            }
-            if (type is ArrayTypeItem && type.isVarargs) {
-                modifiers.setVarArg(true)
             }
 
             var defaultValue = UNKNOWN_DEFAULT_VALUE
@@ -1615,6 +1615,54 @@ private constructor(
                     throw ApiParseException("expected , or ), found $token", tokenizer)
                 }
             }
+            parameters.add(
+                ParameterInfo(
+                    name,
+                    publicName,
+                    hasDefaultValue,
+                    defaultValue,
+                    typeString,
+                    modifiers,
+                    tokenizer.fileLocation(),
+                    index
+                )
+            )
+            index++
+        }
+    }
+
+    /**
+     * Container for parsed information on a parameter. This is an intermediate step before a
+     * [TextParameterItem] is created, which is needed because
+     * [TextTypeItemFactory.getMethodParameterType] requires a [MethodFingerprint] with the total
+     * number of method parameters.
+     */
+    private inner class ParameterInfo(
+        val name: String,
+        val publicName: String?,
+        val hasDefaultValue: Boolean,
+        val defaultValue: String?,
+        val typeString: String,
+        val modifiers: DefaultModifierList,
+        val location: FileLocation,
+        val index: Int
+    ) {
+        /** Turn this [ParameterInfo] into a [TextParameterItem] by parsing the [typeString]. */
+        fun create(
+            codebase: TextCodebase,
+            typeItemFactory: TextTypeItemFactory,
+            methodFingerprint: MethodFingerprint
+        ): TextParameterItem {
+            val type =
+                typeItemFactory.getMethodParameterType(
+                    typeString,
+                    modifiers.annotations(),
+                    methodFingerprint,
+                    index,
+                    modifiers.isVarArg()
+                )
+            synchronizeNullability(type, modifiers)
+
             val parameter =
                 TextParameterItem(
                     codebase,
@@ -1625,11 +1673,15 @@ private constructor(
                     index,
                     type,
                     modifiers,
-                    tokenizer.fileLocation()
+                    location
                 )
+
             parameter.markForCurrentApiSurface()
-            parameters.add(parameter)
-            index++
+            if (type is ArrayTypeItem && type.isVarargs) {
+                modifiers.setVarArg(true)
+            }
+
+            return parameter
         }
     }
 
