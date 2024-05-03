@@ -19,7 +19,6 @@ package com.android.tools.metalava.cli.common
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.DefaultReporterEnvironment
 import com.android.tools.metalava.ENV_VAR_METALAVA_DUMP_ARGV
-import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
 import com.android.tools.metalava.ReporterEnvironment
 import com.android.tools.metalava.model.source.SourceModelProvider
 import java.io.OutputStreamWriter
@@ -50,7 +49,7 @@ data class ExecutionEnvironment(
     }
 
     /** Whether metalava is running unit tests */
-    fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+    fun isUnderTest() = testEnvironment != null
 
     companion object {
         /** Get an [ExecutionEnvironment] suitable for use by tests. */

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
 import com.android.SdkConstants.DOT_TXT
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.LoggedProcessOutputHandler
@@ -105,7 +104,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
     @Before
     fun setup() {
-        System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
         Disposer.setDebugMode(true)
     }
 
