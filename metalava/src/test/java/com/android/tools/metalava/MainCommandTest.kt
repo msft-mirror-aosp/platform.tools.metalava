@@ -225,10 +225,6 @@ Diffs and Checks:
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
---warnings-as-errors
-                                             Promote all warnings to errors
---lints-as-errors
-                                             Promote all API lint warnings to errors
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
                                              baseline) but not if hidden (by '--hide' or '--hide-category')

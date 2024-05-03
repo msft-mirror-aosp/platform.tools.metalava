@@ -161,8 +161,6 @@ const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
-const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
@@ -333,12 +331,6 @@ class Options(
      * Metalava output
      */
     var allowReadingComments = true
-
-    /** If true, treat all warnings as errors */
-    var warningsAreErrors: Boolean = false
-
-    /** If true, treat all API lint warnings as errors */
-    var lintsAreErrors: Boolean = false
 
     /** Ths list of source roots in the common module */
     val commonSourcePath: List<File> = mutableCommonSourcePath
@@ -981,8 +973,6 @@ class Options(
                 ARG_MIGRATE_NULLNESS -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
                 }
-                ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
-                ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
                 ARG_API_LINT -> {
                     checkApi = true
                 }
@@ -1182,6 +1172,7 @@ class Options(
                 issueConfiguration = issueConfiguration,
                 baseline = baseline,
                 packageFilter = stubPackages,
+                config = issueReportingOptions.reporterConfig,
             )
         reporterApiLint =
             DefaultReporter(
@@ -1190,6 +1181,7 @@ class Options(
                 baseline = baselineApiLint ?: baseline,
                 errorMessage = errorMessageApiLint,
                 packageFilter = stubPackages,
+                config = issueReportingOptions.reporterConfig,
             )
         reporterCompatibilityReleased =
             DefaultReporter(
@@ -1198,6 +1190,7 @@ class Options(
                 baseline = baselineCompatibilityReleased ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
                 packageFilter = stubPackages,
+                config = issueReportingOptions.reporterConfig,
             )
 
         // Build "all baselines" and "all reporters"
@@ -1588,10 +1581,6 @@ object OptionsHelp {
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",
-                ARG_WARNINGS_AS_ERRORS,
-                "Promote all warnings to errors",
-                ARG_LINTS_AS_ERRORS,
-                "Promote all API lint warnings to errors",
                 "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>",
                 "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY')",
                 "$ARG_BASELINE <file>",

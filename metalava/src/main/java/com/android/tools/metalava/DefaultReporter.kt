@@ -55,9 +55,26 @@ internal class DefaultReporter(
 
     /** Filter to hide issues reported in packages which are not part of the API. */
     private val packageFilter: PackageFilter? = null,
+
+    /** Additional config properties. */
+    private val config: Config = Config(),
 ) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
+
+    /**
+     * Configuration properties for the reporter.
+     *
+     * This contains properties that are shared across all instances of [DefaultReporter], except
+     * for the bootstrapping reporter. That receives a default instance of this.
+     */
+    class Config(
+        /** If true, treat all API lint warnings as errors */
+        val lintsAsErrors: Boolean = false,
+
+        /** If true, treat all warnings as errors */
+        val warningsAsErrors: Boolean = false,
+    )
 
     /** The number of errors. */
     val errorCount
@@ -78,8 +95,8 @@ internal class DefaultReporter(
         }
 
         val effectiveSeverity =
-            if (severity == LINT && options.lintsAreErrors) ERROR
-            else if (severity == WARNING && options.warningsAreErrors) {
+            if (severity == LINT && config.lintsAsErrors) ERROR
+            else if (severity == WARNING && config.warningsAsErrors) {
                 ERROR
             } else {
                 severity
