@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.cli.lint
 
+import com.android.tools.metalava.cli.common.BaselineOptionsMixin
+import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
@@ -25,10 +28,16 @@ import java.io.File
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_PREVIOUS_API = "--api-lint-previous-api"
 
+const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
+const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
+
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_LINT_GROUP = "Api Lint"
 
-class ApiLintOptions :
+class ApiLintOptions(
+    executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+    commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
+) :
     OptionGroup(
         name = API_LINT_GROUP,
         help =
@@ -60,4 +69,17 @@ class ApiLintOptions :
                         .trimIndent(),
             )
             .existingFile()
+
+    private val baselineOptionsMixin =
+        BaselineOptionsMixin(
+            containingGroup = this,
+            executionEnvironment,
+            baselineOptionName = ARG_BASELINE_API_LINT,
+            updateBaselineOptionName = ARG_UPDATE_BASELINE_API_LINT,
+            issueType = "API lint",
+            description = "api-lint",
+            commonBaselineOptions = commonBaselineOptions,
+        )
+
+    internal val baseline by baselineOptionsMixin::baseline
 }

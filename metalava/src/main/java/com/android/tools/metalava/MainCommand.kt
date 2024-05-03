@@ -94,7 +94,11 @@ class MainCommand(
         )
 
     /** API lint options. */
-    private val apiLintOptions by ApiLintOptions()
+    private val apiLintOptions by
+        ApiLintOptions(
+            executionEnvironment = executionEnvironment,
+            commonBaselineOptions = commonBaselineOptions,
+        )
 
     /** Compatibility check options. */
     private val compatibilityCheckOptions by

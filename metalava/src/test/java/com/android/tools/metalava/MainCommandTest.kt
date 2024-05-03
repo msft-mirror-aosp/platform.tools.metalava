@@ -230,9 +230,6 @@ Diffs and Checks:
                                              some warnings have been fixed, this will delete them from the baseline
                                              files. If a file is provided, the updated baseline is written to the given
                                              file; otherwise the original source baseline file is updated.
---baseline:api-lint <file> --update-baseline:api-lint [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API lint issues performed by --api-lint.
 --error-message:api-lint <message>
                                              If set, metalava shows it when errors are detected in --api-lint.
 
