@@ -16,9 +16,12 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.DefaultReporterEnvironment
+import com.android.tools.metalava.ENV_VAR_METALAVA_DUMP_ARGV
 import com.android.tools.metalava.ReporterEnvironment
 import com.android.tools.metalava.isUnderTest
+import com.android.tools.metalava.model.source.SourceModelProvider
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -38,6 +41,13 @@ data class ExecutionEnvironment(
 ) {
     /** Whether metalava is being invoked as part of an Android platform build */
     fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
+
+    /** Whether to suppress dumping of information to stderr by a [SourceModelProvider]. */
+    fun disableStderrDumping(): Boolean {
+        return !assertionsEnabled() &&
+            System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
+            !isUnderTest()
+    }
 
     companion object {
         /** Get an [ExecutionEnvironment] suitable for use by tests. */

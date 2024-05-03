@@ -19,7 +19,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
-import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.EarlyOptions
@@ -729,12 +728,6 @@ fun ActionContext.loadFromJarFile(
             sourceParser,
         )
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
-}
-
-internal fun disableStderrDumping(): Boolean {
-    return !assertionsEnabled() &&
-        System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
-        !isUnderTest()
 }
 
 @Suppress("DEPRECATION")

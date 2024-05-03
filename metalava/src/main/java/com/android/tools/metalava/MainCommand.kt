@@ -151,9 +151,9 @@ class MainCommand(
             executionEnvironment.testEnvironment?.sourceModelProvider
             // Otherwise, use the one specified on the command line, or the default.
             ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
-        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
-            processFlags(executionEnvironment, it, progressTracker)
-        }
+        sourceModelProvider
+            .createEnvironmentManager(executionEnvironment.disableStderrDumping())
+            .use { processFlags(executionEnvironment, it, progressTracker) }
 
         if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
