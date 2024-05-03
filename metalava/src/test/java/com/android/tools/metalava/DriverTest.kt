@@ -36,6 +36,8 @@ import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.TestEnvironment
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED

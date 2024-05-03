@@ -23,6 +23,7 @@ import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.EarlyOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader

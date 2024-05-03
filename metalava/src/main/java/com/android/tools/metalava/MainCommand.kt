@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException

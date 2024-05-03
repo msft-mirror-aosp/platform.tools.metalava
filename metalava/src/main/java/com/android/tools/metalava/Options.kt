@@ -22,6 +22,7 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.Terminal
