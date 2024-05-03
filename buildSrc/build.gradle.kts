@@ -16,13 +16,36 @@
 
 plugins {
     alias(libs.plugins.kotlinJvm)
+    `java-gradle-plugin`
 }
 
 repositories {
     mavenCentral()
+    google()
 }
 
 dependencies {
     implementation(gradleApi())
-    implementation("com.google.code.gson:gson:2.8.6")
+    implementation(gradleKotlinDsl())
+    implementation(libs.kotlinGradlePlugin)
+    implementation(libs.androidGradlePlugin)
+    implementation(libs.gson)
+}
+
+gradlePlugin {
+    plugins {
+        create("metalava-build-plugin") {
+            id = "metalava-build-plugin"
+            implementationClass = "com.android.tools.metalava.MetalavaBuildPlugin"
+        }
+    }
+}
+
+gradlePlugin {
+    plugins {
+        create("metalava-model-provider-plugin") {
+            id = "metalava-model-provider-plugin"
+            implementationClass = "com.android.tools.metalava.MetalavaModelProviderPlugin"
+        }
+    }
 }
