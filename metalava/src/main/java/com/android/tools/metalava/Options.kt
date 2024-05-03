@@ -37,6 +37,7 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
+import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
@@ -179,7 +180,6 @@ const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
-const val ARG_API_LINT = "--api-lint"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -393,7 +393,7 @@ class Options(
     var showUnannotated = false
 
     /** Whether to validate the API for best practices */
-    var checkApi = false
+    val apiLintEnabled by apiLintOptions::apiLintEnabled
 
     /** If non-null, an API file to use to hide for controlling what parts of the API are new */
     val apiLintPreviousApi: File?
@@ -952,9 +952,6 @@ class Options(
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
                 ARG_MIGRATE_NULLNESS -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_API_LINT -> {
-                    checkApi = true
                 }
 
                 // Extracting API levels
@@ -1541,8 +1538,6 @@ object OptionsHelp {
                     "Documentation stubs (--doc-stubs) are not affected.)",
                 "",
                 "Diffs and Checks:",
-                ARG_API_LINT,
-                "Check API for Android API best practices.",
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",
