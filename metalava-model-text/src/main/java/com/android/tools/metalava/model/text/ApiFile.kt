@@ -405,8 +405,7 @@ private constructor(
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
-        val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC, null)
-        modifiers.addAnnotations(annotations)
+        val modifiers = createModifiers(DefaultModifierList.PUBLIC, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
@@ -1030,7 +1029,7 @@ private constructor(
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, null)
+        val modifiers = parseModifiers(tokenizer, token, annotations)
         token = tokenizer.current
 
         // Get a TypeParameterList and accompanying TypeParameterScope
@@ -1061,14 +1060,11 @@ private constructor(
             }
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            returnType = parseType(tokenizer, token, typeItemFactory, annotations)
-            // TODO(b/300081840): update nullability handling
-            modifiers.addAnnotations(annotations)
+            returnType = parseType(tokenizer, token, typeItemFactory, modifiers)
             token = tokenizer.current
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
-            returnType = parseType(tokenizer, token, typeItemFactory, annotations)
-            modifiers.addAnnotations(annotations)
+            returnType = parseType(tokenizer, token, typeItemFactory, modifiers)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
@@ -1120,18 +1116,6 @@ private constructor(
         }
     }
 
-    private fun mergeAnnotations(
-        annotations: MutableList<AnnotationItem>,
-        annotationQualifiedName: String
-    ) {
-        // Reverse effect of TypeItem.shortenTypes(...)
-        val annotationSource =
-            if (annotationQualifiedName.indexOf('.') == -1)
-                "@androidx.annotation$annotationQualifiedName"
-            else "@$annotationQualifiedName"
-        annotations.add(codebase.createAnnotation(annotationSource))
-    }
-
     private fun parseField(
         tokenizer: Tokenizer,
         cl: TextClassItem,
@@ -1142,7 +1126,7 @@ private constructor(
         var token = startingToken
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, null)
+        val modifiers = parseModifiers(tokenizer, token, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1154,13 +1138,10 @@ private constructor(
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
             typeString = scanForTypeString(tokenizer, token)
-            // TODO(b/300081840): update nullability handling
-            modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the name, then the type.
             typeString = scanForTypeString(tokenizer, token)
-            modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
@@ -1176,7 +1157,7 @@ private constructor(
 
         // Parse the type string and then snychronize with the annotations.
         val parsedType = classTypeItemFactory.getGeneralType(typeString)
-        var type = synchronizeNullability(parsedType, annotations)
+        var type = synchronizeNullability(parsedType, modifiers)
 
         // Parse the value string.
         val value = valueString?.let { parseValue(type, valueString, tokenizer) }
@@ -1207,10 +1188,11 @@ private constructor(
     private fun parseModifiers(
         tokenizer: Tokenizer,
         startingToken: String?,
-        annotations: List<AnnotationItem>?
+        annotations: MutableList<AnnotationItem>
     ): DefaultModifierList {
         var token = startingToken
-        val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+        val modifiers = createModifiers(DefaultModifierList.PACKAGE_PRIVATE, annotations)
+
         processModifiers@ while (true) {
             token =
                 when (token) {
@@ -1309,8 +1291,18 @@ private constructor(
                     else -> break@processModifiers
                 }
         }
-        if (annotations != null) {
-            modifiers.addAnnotations(annotations)
+        return modifiers
+    }
+
+    /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
+    private fun createModifiers(
+        visibility: Int,
+        annotations: MutableList<AnnotationItem>
+    ): DefaultModifierList {
+        val modifiers = DefaultModifierList(codebase, visibility, annotations)
+        // @Deprecated is also treated as a "modifier"
+        if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
+            modifiers.setDeprecated(true)
         }
         return modifiers
     }
@@ -1387,7 +1379,7 @@ private constructor(
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, null)
+        val modifiers = parseModifiers(tokenizer, token, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1398,14 +1390,11 @@ private constructor(
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
-            // TODO(b/300081840): update nullability handling
-            modifiers.addAnnotations(annotations)
+            type = parseType(tokenizer, token, classTypeItemFactory, modifiers)
             token = tokenizer.current
         } else {
             // Java style: parse the type, then the name.
-            type = parseType(tokenizer, token, classTypeItemFactory, annotations)
-            modifiers.addAnnotations(annotations)
+            type = parseType(tokenizer, token, classTypeItemFactory, modifiers)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
@@ -1528,7 +1517,7 @@ private constructor(
             // Metalava: including annotations in file now
             val annotations = getAnnotations(tokenizer, token)
             token = tokenizer.current
-            val modifiers = parseModifiers(tokenizer, token, null)
+            val modifiers = parseModifiers(tokenizer, token, annotations)
             token = tokenizer.current
 
             val type: TypeItem
@@ -1546,14 +1535,11 @@ private constructor(
                     }
                 token = tokenizer.requireToken()
                 // Token should now represent the type
-                type = parseType(tokenizer, token, typeItemFactory, annotations)
-                // TODO(b/300081840): update nullability handling
-                modifiers.addAnnotations(annotations)
+                type = parseType(tokenizer, token, typeItemFactory, modifiers)
                 token = tokenizer.current
             } else {
                 // Java style: parse the type, then the public name if it has one.
-                type = parseType(tokenizer, token, typeItemFactory, annotations)
-                modifiers.addAnnotations(annotations)
+                type = parseType(tokenizer, token, typeItemFactory, modifiers)
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token) && token != "=") {
                     name = token
@@ -1726,45 +1712,50 @@ private constructor(
         tokenizer: Tokenizer,
         startingToken: String,
         typeItemFactory: TextTypeItemFactory,
-        annotations: MutableList<AnnotationItem>
+        modifiers: DefaultModifierList,
     ): TypeItem {
         val typeString = scanForTypeString(tokenizer, startingToken)
 
         val parsedType = typeItemFactory.getGeneralType(typeString)
-        return synchronizeNullability(parsedType, annotations)
+        return synchronizeNullability(parsedType, modifiers)
     }
 
     /**
      * Synchronize nullability annotations on the API item and [TypeNullability].
      *
      * If the type string uses a Kotlin nullability suffix, this adds an annotation representing
-     * that nullability to [itemAnnotations]. Otherwise, if the [TypeNullability] of the [typeItem]
-     * is [TypeNullability.PLATFORM] then it will update that if there is a relevant nullability
-     * annotation in [itemAnnotations].
+     * that nullability to [modifiers]. Otherwise, if the [TypeNullability] of the [typeItem] is
+     * [TypeNullability.PLATFORM] then it will update that if there is a relevant nullability
+     * annotation in [modifiers].
      *
      * @param typeItem the type of the API item.
-     * @param itemAnnotations the API item's annotations.
+     * @param modifiers the API item's modifiers.
      */
     private fun synchronizeNullability(
         typeItem: TypeItem,
-        itemAnnotations: MutableList<AnnotationItem>
+        modifiers: DefaultModifierList,
     ): TypeItem {
         if (typeParser.kotlinStyleNulls) {
-            // Treat varargs as non-null for consistency with the psi model.
-            if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
-                mergeAnnotations(itemAnnotations, ANDROIDX_NONNULL)
-            } else {
-                // Add an annotation to the context item for the type's nullability if applicable.
-                val nullability = typeItem.modifiers.nullability()
-                if (typeItem !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
-                    mergeAnnotations(itemAnnotations, ANDROIDX_NONNULL)
-                } else if (nullability == TypeNullability.NULLABLE) {
-                    mergeAnnotations(itemAnnotations, ANDROIDX_NULLABLE)
+            // Add an annotation to the context item for the type's nullability if applicable.
+            val annotationToAdd =
+                // Treat varargs as non-null for consistency with the psi model.
+                if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
+                    ANDROIDX_NONNULL
+                } else {
+                    val nullability = typeItem.modifiers.nullability()
+                    if (typeItem !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
+                        ANDROIDX_NONNULL
+                    } else if (nullability == TypeNullability.NULLABLE) {
+                        ANDROIDX_NULLABLE
+                    } else {
+                        // No annotation to add, return.
+                        return typeItem
+                    }
                 }
-            }
+            modifiers.addAnnotation(codebase.createAnnotation("@$annotationToAdd"))
         } else if (typeItem.modifiers.nullability() == TypeNullability.PLATFORM) {
             // See if the type has nullability from the context item annotations.
-            val nullabilityFromContext = itemAnnotations.typeNullability
+            val nullabilityFromContext = modifiers.annotations().typeNullability
             if (nullabilityFromContext != null) {
                 return typeItem.duplicate(nullabilityFromContext)
             }
@@ -1823,19 +1814,4 @@ private constructor(
         val typeCacheHit: Int,
         val typeCacheSize: Int,
     )
-}
-
-private fun DefaultModifierList.addAnnotations(items: List<AnnotationItem>) {
-    if (items.isEmpty()) {
-        return
-    }
-
-    for (item in items) {
-        // @Deprecated is also treated as a "modifier"
-        if (item.qualifiedName == JAVA_LANG_DEPRECATED) {
-            setDeprecated(true)
-        }
-
-        addAnnotation(item)
-    }
 }
