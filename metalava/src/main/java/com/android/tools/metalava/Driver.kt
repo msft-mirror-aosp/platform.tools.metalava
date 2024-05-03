@@ -89,7 +89,7 @@ fun run(
 
     // Preprocess the arguments by adding any additional arguments specified in environment
     // variables.
-    val modifiedArgs = preprocessArgv(originalArgs)
+    val modifiedArgs = preprocessArgv(executionEnvironment, originalArgs)
 
     // Process the early options. This does not consume any arguments, they will be parsed again
     // later. A little inefficient but produces cleaner code.
@@ -100,7 +100,7 @@ fun run(
     progressTracker.progress("$PROGRAM_NAME started\n")
 
     // Dump the arguments, and maybe generate a rerun-script.
-    maybeDumpArgv(stdout, originalArgs, modifiedArgs)
+    maybeDumpArgv(executionEnvironment, originalArgs, modifiedArgs)
 
     // Actual work begins here.
     val command =
@@ -253,7 +253,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, reporterApiLint)
+        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporterApiLint)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -829,9 +829,6 @@ fun createReportFile(
         )
     }
 }
-
-/** Whether metalava is running unit tests */
-fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 
 private fun createMetalavaCommand(
     executionEnvironment: ExecutionEnvironment,
