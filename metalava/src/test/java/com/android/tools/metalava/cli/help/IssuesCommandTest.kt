@@ -106,6 +106,7 @@ Available Issues                             |  Category                |   Defa
   GenericException                           |  api_lint                |   error
   GetterOnBuilder                            |  api_lint                |   warning
   GetterSetterNames                          |  api_lint                |   error
+  GetterSetterNullability                    |  api_lint                |   warning_error_when_new
   HeavyBitSet                                |  api_lint                |   error
   HiddenAbstractMethod                       |  unknown                 |   error
   HiddenSuperclass                           |  documentation           |   warning

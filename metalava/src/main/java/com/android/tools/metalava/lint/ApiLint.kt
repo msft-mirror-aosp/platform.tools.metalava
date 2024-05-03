@@ -68,6 +68,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
@@ -75,6 +76,7 @@ import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.IssueLocation
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
 import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
@@ -430,6 +432,7 @@ private constructor(
         checkTypedef(cls)
         checkHasFlaggedApi(cls)
         checkFlaggedApiLiteral(cls)
+        checkAccessorNullabilityMatches(methods)
     }
 
     private fun checkField(field: FieldItem) {
@@ -3155,6 +3158,97 @@ private constructor(
                         "lambda parameter)"
                 )
             }
+        }
+    }
+
+    /**
+     * Check that the nullability of [getterType] (from the return type of [getter]) and
+     * [setterType] (from the parameter type of [setter]) match, and recur on subtypes. [getterType]
+     * and [setterType] are assumed to be the same type.
+     */
+    private fun compareAccessorNullability(
+        getterType: TypeItem?,
+        setterType: TypeItem?,
+        getter: MethodItem,
+        setter: MethodItem
+    ) {
+        getterType ?: return
+        setterType ?: return
+        if (getterType.modifiers.nullability() != setterType.modifiers.nullability()) {
+            val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
+            val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
+            report(
+                Issues.GETTER_SETTER_NULLABILITY,
+                getter,
+                "Nullability of $getterTypeString in getter ${getter.describe()} does not match $setterTypeString in corresponding setter ${setter.describe()}"
+            )
+            // No need to continue reporting mismatches on the same method.
+            return
+        }
+
+        when (getterType) {
+            is ArrayTypeItem -> {
+                setterType as ArrayTypeItem
+                compareAccessorNullability(
+                    getterType.componentType,
+                    setterType.componentType,
+                    getter,
+                    setter
+                )
+            }
+            is ClassTypeItem -> {
+                setterType as ClassTypeItem
+                compareAccessorNullability(
+                    getterType.outerClassType,
+                    setterType.outerClassType,
+                    getter,
+                    setter
+                )
+                getterType.arguments.zip(setterType.arguments).forEach { (getterArg, setterArg) ->
+                    compareAccessorNullability(getterArg, setterArg, getter, setter)
+                }
+            }
+            is WildcardTypeItem -> {
+                setterType as WildcardTypeItem
+                compareAccessorNullability(
+                    getterType.superBound,
+                    setterType.superBound,
+                    getter,
+                    setter
+                )
+                compareAccessorNullability(
+                    getterType.extendsBound,
+                    setterType.extendsBound,
+                    getter,
+                    setter
+                )
+            }
+        }
+    }
+
+    /** Check that the nullability of each getter/setter pair matches. */
+    private fun checkAccessorNullabilityMatches(methods: Sequence<MethodItem>) {
+        val getters = methods.filter { it.name().startsWith("get") && it.parameters().isEmpty() }
+
+        for (getter in getters) {
+            // Don't bother checking accessors generated from Kotlin properties, the nullness is
+            // guaranteed to match.
+            if (getter.property != null) continue
+
+            val expectedSetterName = getter.name().replaceFirst("get", "set")
+            val setter =
+                methods.singleOrNull {
+                    it.name() == expectedSetterName && it.parameters().size == 1
+                }
+                    ?: continue
+
+            val getterReturnType = getter.returnType()
+            val setterParamType = setter.parameters().single().type()
+            // Don't check nullness if the methods don't use the same type (this type equality check
+            // doesn't consider modifiers).
+            if (getterReturnType != setterParamType) return
+
+            compareAccessorNullability(getterReturnType, setterParamType, getter, setter)
         }
     }
 
