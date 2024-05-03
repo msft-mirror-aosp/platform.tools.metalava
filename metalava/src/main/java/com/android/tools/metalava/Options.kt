@@ -1142,7 +1142,7 @@ class Options(
         // Fix up [Baseline] files and [Reporter]s.
 
         val baselineHeaderComment =
-            if (isBuildingAndroid())
+            if (executionEnvironment.isBuildingAndroid())
                 "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
             else ""
         baselineBuilder.headerComment = baselineHeaderComment

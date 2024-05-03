@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.DefaultReporterEnvironment
 import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.isUnderTest
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -35,6 +36,8 @@ data class ExecutionEnvironment(
     val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
     val testEnvironment: TestEnvironment? = null,
 ) {
+    /** Whether metalava is being invoked as part of an Android platform build */
+    fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
     companion object {
         /** Get an [ExecutionEnvironment] suitable for use by tests. */

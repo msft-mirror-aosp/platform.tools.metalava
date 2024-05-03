@@ -840,9 +840,6 @@ fun createReportFile(
 /** Whether metalava is running unit tests */
 fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 
-/** Whether metalava is being invoked as part of an Android platform build */
-fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
-
 private fun createMetalavaCommand(
     executionEnvironment: ExecutionEnvironment,
     progressTracker: ProgressTracker
