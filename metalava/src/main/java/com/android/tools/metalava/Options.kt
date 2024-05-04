@@ -190,11 +190,8 @@ const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
-const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
-const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
-    "--update-baseline:compatibility:released"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
@@ -769,8 +766,6 @@ class Options(
 
         val baselineBuilder = Baseline.Builder().apply { description = "base" }
         val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
-        val baselineCompatibilityReleasedBuilder =
-            Baseline.Builder().apply { description = "compatibility:released" }
 
         fun getBaselineBuilderForArg(flag: String): Baseline.Builder =
             when (flag) {
@@ -778,9 +773,6 @@ class Options(
                 ARG_UPDATE_BASELINE -> baselineBuilder
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT -> baselineApiLintBuilder
-                ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
-                ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED ->
-                    baselineCompatibilityReleasedBuilder
                 else -> error("Internal error: Invalid flag: $flag")
             }
 
@@ -891,15 +883,13 @@ class Options(
                     allowClassesFromClasspath = false
                 }
                 ARG_BASELINE,
-                ARG_BASELINE_API_LINT,
-                ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
+                ARG_BASELINE_API_LINT -> {
                     val nextArg = getValue(args, ++index)
                     val builder = getBaselineBuilderForArg(arg)
                     builder.file = stringToExistingFile(nextArg)
                 }
                 ARG_UPDATE_BASELINE,
-                ARG_UPDATE_BASELINE_API_LINT,
-                ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
+                ARG_UPDATE_BASELINE_API_LINT -> {
                     val builder = getBaselineBuilderForArg(arg)
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
@@ -1077,7 +1067,6 @@ class Options(
             else ""
         baselineBuilder.headerComment = baselineHeaderComment
         baselineApiLintBuilder.headerComment = baselineHeaderComment
-        baselineCompatibilityReleasedBuilder.headerComment = baselineHeaderComment
 
         if (baselineBuilder.file == null) {
             // If default baseline is a file, use it.
@@ -1094,11 +1083,6 @@ class Options(
 
         // A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT])
         val baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
-
-        // A baseline to check against, specifically used for "check-compatibility:*:released" (i.e.
-        // [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
-        val baselineCompatibilityReleased =
-            baselineCompatibilityReleasedBuilder.build(baselineConfig)
 
         // Initialize the reporters.
         reporter =
@@ -1122,7 +1106,7 @@ class Options(
             DefaultReporter(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
-                baseline = baselineCompatibilityReleased ?: baseline,
+                baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
                 packageFilter = stubPackages,
                 config = issueReportingOptions.reporterConfig,
@@ -1131,7 +1115,7 @@ class Options(
         // Build "all baselines" and "all reporters"
 
         // Baselines are nullable, so selectively add to the list.
-        allBaselines = listOfNotNull(baseline, baselineApiLint, baselineCompatibilityReleased)
+        allBaselines = listOfNotNull(baseline, baselineApiLint, compatibilityCheckOptions.baseline)
 
         // Reporters are non-null.
         // Downcast to DefaultReporter to gain access to some implementation specific functionality.
@@ -1491,10 +1475,6 @@ object OptionsHelp {
                 "Same as $ARG_BASELINE and " +
                     "$ARG_UPDATE_BASELINE respectively, but used specifically for API lint issues performed by " +
                     "$ARG_API_LINT.",
-                "$ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED <file> $ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED [file]",
-                "Same as $ARG_BASELINE and " +
-                    "$ARG_UPDATE_BASELINE respectively, but used specifically for API compatibility issues performed by " +
-                    "$ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
                 "$ARG_ERROR_MESSAGE_API_LINT <message>",
                 "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
                 "",

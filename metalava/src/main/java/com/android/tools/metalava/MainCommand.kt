@@ -97,7 +97,11 @@ class MainCommand(
     private val apiLintOptions by ApiLintOptions()
 
     /** Compatibility check options. */
-    private val compatibilityCheckOptions by CompatibilityCheckOptions()
+    private val compatibilityCheckOptions by
+        CompatibilityCheckOptions(
+            executionEnvironment = executionEnvironment,
+            commonBaselineOptions = commonBaselineOptions,
+        )
 
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()

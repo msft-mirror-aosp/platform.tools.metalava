@@ -233,11 +233,6 @@ Diffs and Checks:
 --baseline:api-lint <file> --update-baseline:api-lint [file]
                                              Same as --baseline and --update-baseline respectively, but used
                                              specifically for API lint issues performed by --api-lint.
---baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API compatibility issues performed by
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
 --error-message:api-lint <message>
                                              If set, metalava shows it when errors are detected in --api-lint.
 
