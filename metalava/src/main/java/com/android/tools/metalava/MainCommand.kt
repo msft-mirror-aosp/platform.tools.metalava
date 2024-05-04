@@ -130,7 +130,7 @@ class MainCommand(
                 }
             }
 
-            optionGroup.reportEvenIfSuppressedWriter?.close()
+            issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
 
             // Show failure messages, if any.
             optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }

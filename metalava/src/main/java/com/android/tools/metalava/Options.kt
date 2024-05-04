@@ -19,8 +19,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
@@ -194,7 +192,6 @@ const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
 const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
-const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
 const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
@@ -711,10 +708,6 @@ class Options(
     /** Whether the baseline should only contain errors */
     private var baselineErrorsOnly = false
 
-    /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
-    private var reportEvenIfSuppressed: File? = null
-    var reportEvenIfSuppressedWriter: PrintWriter? = null
-
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
 
@@ -940,16 +933,6 @@ class Options(
                     val nextArg = getValue(args, ++index)
                     val builder = getBaselineBuilderForArg(arg)
                     builder.file = stringToExistingFile(nextArg)
-                }
-                ARG_REPORT_EVEN_IF_SUPPRESSED -> {
-                    val relative = getValue(args, ++index)
-                    if (reportEvenIfSuppressed != null) {
-                        throw MetalavaCliException(
-                            "Only one $ARG_REPORT_EVEN_IF_SUPPRESSED is allowed; found both $reportEvenIfSuppressed and $relative"
-                        )
-                    }
-                    reportEvenIfSuppressed = stringToNewOrExistingFile(relative)
-                    reportEvenIfSuppressedWriter = reportEvenIfSuppressed?.printWriter()
                 }
                 ARG_UPDATE_BASELINE,
                 ARG_UPDATE_BASELINE_API_LINT,
@@ -1566,8 +1549,6 @@ object OptionsHelp {
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",
-                "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>",
-                "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY')",
                 "$ARG_BASELINE <file>",
                 "Filter out any errors already reported in the given baseline file, or " +
                     "create if it does not already exist",

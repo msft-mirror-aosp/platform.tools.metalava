@@ -39,7 +39,6 @@ import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
 
-@Suppress("DEPRECATION")
 internal class DefaultReporter(
     private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
@@ -77,6 +76,12 @@ internal class DefaultReporter(
 
         /** Whether output should be colorized */
         val terminal: Terminal = plainTerminal,
+
+        /**
+         * Optional writer to which, if present, all errors, even if they were suppressed in
+         * baseline or via annotation, will be written.
+         */
+        val reportEvenIfSuppressedWriter: PrintWriter? = null,
     )
 
     /** The number of errors. */
@@ -274,7 +279,7 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue
     ): Boolean {
-        options.reportEvenIfSuppressedWriter?.println(
+        config.reportEvenIfSuppressedWriter?.println(
             format(severity, location, message, id, terminal = plainTerminal)
         )
         return true
