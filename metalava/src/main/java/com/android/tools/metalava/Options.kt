@@ -213,7 +213,8 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
-    private val issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
+    private val issueReportingOptions: IssueReportingOptions =
+        IssueReportingOptions(commonOptions = commonOptions),
     private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
@@ -575,9 +576,6 @@ class Options(
      * Created lazily to make sure that the [reporter] has been initialized.
      */
     val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
-
-    /** Whether output should be colorized */
-    val terminal by commonOptions::terminal
 
     /** The set of annotation classes that should be passed through unchanged */
     private var passThroughAnnotations = mutablePassThroughAnnotations

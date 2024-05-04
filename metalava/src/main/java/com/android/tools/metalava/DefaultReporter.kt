@@ -74,6 +74,9 @@ internal class DefaultReporter(
 
         /** If true, treat all warnings as errors */
         val warningsAsErrors: Boolean = false,
+
+        /** Whether output should be colorized */
+        val terminal: Terminal = plainTerminal,
     )
 
     /** The number of errors. */
@@ -225,7 +228,7 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
     ): Boolean {
-        val terminal: Terminal = options.terminal
+        val terminal: Terminal = config.terminal
         val formattedMessage = format(severity, location, message, id, terminal)
         if (severity == ERROR) {
             errors.add(formattedMessage)

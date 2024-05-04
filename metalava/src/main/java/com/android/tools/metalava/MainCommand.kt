@@ -81,7 +81,7 @@ class MainCommand(
 
     /** Issue reporter configuration. */
     private val issueReportingOptions by
-        IssueReportingOptions(executionEnvironment.reporterEnvironment)
+        IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
 
     /** API lint options. */
     private val apiLintOptions by ApiLintOptions()

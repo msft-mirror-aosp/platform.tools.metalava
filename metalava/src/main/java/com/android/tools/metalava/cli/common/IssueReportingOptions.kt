@@ -47,7 +47,8 @@ const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
 class IssueReportingOptions(
-    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()
+    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
+    commonOptions: CommonOptions = CommonOptions(),
 ) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
@@ -166,6 +167,7 @@ class IssueReportingOptions(
             DefaultReporter.Config(
                 lintsAsErrors = lintsAsErrors,
                 warningsAsErrors = warningsAsErrors,
+                terminal = commonOptions.terminal
             )
         }
 }
