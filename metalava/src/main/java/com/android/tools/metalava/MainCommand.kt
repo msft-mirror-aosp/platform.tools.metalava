@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaLocalization
+import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
@@ -79,6 +80,8 @@ class MainCommand(
             )
             .multiple()
 
+    private val sourceOptions by SourceOptions()
+
     /** Issue reporter configuration. */
     private val issueReportingOptions by
         IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
@@ -105,6 +108,7 @@ class MainCommand(
     internal val optionGroup by
         Options(
             commonOptions = commonOptions,
+            sourceOptions = sourceOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
             issueReportingOptions = issueReportingOptions,

@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
@@ -138,8 +139,6 @@ var options by OptionsDelegate
 private const val INDENT_WIDTH = 45
 
 const val ARG_CLASS_PATH = "--classpath"
-const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
-const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_DEX_API = "--dex-api"
@@ -211,6 +210,7 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
+    private val sourceOptions: SourceOptions = SourceOptions(),
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
     private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
@@ -231,10 +231,6 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
-    /** Internal list backing [commonSourcePath] */
-    private val mutableCommonSourcePath: MutableList<File> = mutableListOf()
-    /** Internal list backing [sourcePath] */
-    private val mutableSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
     /** Internal builder backing [allShowAnnotations] */
@@ -332,10 +328,10 @@ class Options(
     var allowReadingComments = true
 
     /** Ths list of source roots in the common module */
-    val commonSourcePath: List<File> = mutableCommonSourcePath
+    val commonSourcePath: List<File> by sourceOptions::commonSourcePath
 
     /** The list of source roots */
-    val sourcePath: List<File> = mutableSourcePath
+    val sourcePath: List<File> by sourceOptions::sourcePath
 
     /** The list of dependency jars */
     val classpath: List<File> = mutableClassPath
@@ -796,21 +792,6 @@ class Options(
                 else -> error("Internal error: Invalid flag: $flag")
             }
 
-        fun getSourcePath(path: String, arg: String, sourcePathToStore: MutableList<File>) {
-            if (path.isBlank()) {
-                // Don't compute absolute path; we want to skip this file later on.
-                // For current directory one should use ".", not "".
-                sourcePathToStore.add(File(""))
-            } else {
-                if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                    throw MetalavaCliException(
-                        "$arg should point to a source root directory, not a source file ($path)"
-                    )
-                }
-                sourcePathToStore.addAll(stringToExistingDirs(path))
-            }
-        }
-
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -818,14 +799,6 @@ class Options(
                 ARG_CLASS_PATH -> {
                     val path = getValue(args, ++index)
                     mutableClassPath.addAll(stringToExistingDirsOrJars(path))
-                }
-                ARG_COMMON_SOURCE_PATH -> {
-                    val path = getValue(args, ++index)
-                    getSourcePath(path, arg, mutableCommonSourcePath)
-                }
-                ARG_SOURCE_PATH -> {
-                    val path = getValue(args, ++index)
-                    getSourcePath(path, arg, mutableSourcePath)
                 }
                 ARG_SOURCE_FILES -> {
                     val listString = getValue(args, ++index)
@@ -1340,18 +1313,6 @@ class Options(
         return args[index]
     }
 
-    private fun stringToExistingDirs(value: String): List<File> {
-        val files = mutableListOf<File>()
-        for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPathInner(path)
-            if (!file.isDirectory) {
-                throw MetalavaCliException("$file is not a directory")
-            }
-            files.add(file)
-        }
-        return files
-    }
-
     private fun stringToExistingDirsOrJars(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
@@ -1425,14 +1386,6 @@ object OptionsHelp {
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
-                "$ARG_SOURCE_PATH <paths>",
-                "One or more directories (separated by `${File.pathSeparator}`) " +
-                    "containing source files (within a package hierarchy).",
-                "$ARG_COMMON_SOURCE_PATH <paths>",
-                "One or more directories (separated by `${File.pathSeparator}`) " +
-                    "containing common source files (within a package hierarchy) " +
-                    "where platform-agnostic `expect` declarations as well as " +
-                    "common business logic are defined.",
                 "$ARG_CLASS_PATH <paths>",
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
