@@ -807,7 +807,7 @@ class Options(
                         "$arg should point to a source root directory, not a source file ($path)"
                     )
                 }
-                sourcePathToStore.addAll(stringToExistingDirsOrJars(path))
+                sourcePathToStore.addAll(stringToExistingDirs(path))
             }
         }
 
@@ -1343,7 +1343,6 @@ class Options(
         return args[index]
     }
 
-    @Suppress("unused")
     private fun stringToExistingDirs(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
