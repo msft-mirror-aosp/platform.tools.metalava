@@ -34,6 +34,7 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
+import com.android.tools.metalava.cli.common.stringToNewOrExistingFile
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
@@ -1428,20 +1429,6 @@ class Options(
             }
         }
         return dir
-    }
-
-    private fun stringToNewOrExistingFile(value: String): File {
-        val file = fileForPathInner(value)
-        if (!file.exists()) {
-            val parentFile = file.parentFile
-            if (parentFile != null && !parentFile.isDirectory) {
-                val ok = parentFile.mkdirs()
-                if (!ok) {
-                    throw MetalavaCliException("Could not create $parentFile")
-                }
-            }
-        }
-        return file
     }
 }
 
