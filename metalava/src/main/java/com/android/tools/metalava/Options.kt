@@ -823,9 +823,7 @@ class Options(
                     val path = getValue(args, ++index)
                     getSourcePath(path, arg, mutableCommonSourcePath)
                 }
-                ARG_SOURCE_PATH,
-                "--sources",
-                "--sourcepath" -> {
+                ARG_SOURCE_PATH -> {
                     val path = getValue(args, ++index)
                     getSourcePath(path, arg, mutableSourcePath)
                 }
