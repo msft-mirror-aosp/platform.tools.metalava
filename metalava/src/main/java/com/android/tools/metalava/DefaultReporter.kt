@@ -77,6 +77,14 @@ internal class DefaultReporter(
             return false
         }
 
+        val effectiveSeverity =
+            if (severity == LINT && options.lintsAreErrors) ERROR
+            else if (severity == WARNING && options.warningsAreErrors) {
+                ERROR
+            } else {
+                severity
+            }
+
         fun dispatch(
             which:
                 (
@@ -93,7 +101,7 @@ internal class DefaultReporter(
                     else -> null
                 }
 
-            return which(severity, reportLocation, message, id)
+            return which(effectiveSeverity, reportLocation, message, id)
         }
 
         // Optionally write to the --report-even-if-suppressed file.
@@ -200,27 +208,15 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
     ): Boolean {
-        if (severity == HIDDEN) {
-            return false
-        }
-
-        val effectiveSeverity =
-            if (severity == LINT && options.lintsAreErrors) ERROR
-            else if (severity == WARNING && options.warningsAreErrors) {
-                ERROR
-            } else {
-                severity
-            }
-
         val terminal: Terminal = options.terminal
-        val formattedMessage = format(effectiveSeverity, location, message, id, terminal)
-        if (effectiveSeverity == ERROR) {
+        val formattedMessage = format(severity, location, message, id, terminal)
+        if (severity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
             warningCount++
         }
 
-        environment.printReport(formattedMessage, effectiveSeverity)
+        environment.printReport(formattedMessage, severity)
         return true
     }
 
