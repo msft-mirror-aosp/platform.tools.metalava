@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
@@ -86,6 +87,12 @@ class MainCommand(
     private val issueReportingOptions by
         IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
 
+    private val commonBaselineOptions by
+        CommonBaselineOptions(
+            sourceOptions = sourceOptions,
+            issueReportingOptions = issueReportingOptions,
+        )
+
     /** API lint options. */
     private val apiLintOptions by ApiLintOptions()
 
@@ -109,9 +116,10 @@ class MainCommand(
         Options(
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
+            issueReportingOptions = issueReportingOptions,
+            commonBaselineOptions = commonBaselineOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
-            issueReportingOptions = issueReportingOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
             stubGenerationOptions = stubGenerationOptions,

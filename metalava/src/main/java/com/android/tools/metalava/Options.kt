@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
+import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
@@ -197,7 +198,6 @@ const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
     "--update-baseline:compatibility:released"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
-const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -213,6 +213,8 @@ class Options(
     private val sourceOptions: SourceOptions = SourceOptions(),
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
+    private val commonBaselineOptions: CommonBaselineOptions =
+        CommonBaselineOptions(sourceOptions, issueReportingOptions),
     private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
@@ -695,9 +697,6 @@ class Options(
     /** If updating baselines, don't fail the build */
     var passBaselineUpdates = false
 
-    /** If updating baselines and the baseline is empty, delete the file */
-    private var deleteEmptyBaselines = false
-
     /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
@@ -916,7 +915,6 @@ class Options(
                 }
                 ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
-                ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
@@ -1094,12 +1092,8 @@ class Options(
             }
         }
 
-        val baselineConfig =
-            Baseline.Config(
-                issueConfiguration = issueConfiguration,
-                deleteEmptyBaselines = deleteEmptyBaselines,
-                sourcePath = sourcePath,
-            )
+        val baselineConfig = commonBaselineOptions.baselineConfig
+
         // A baseline to check against
         val baseline = baselineBuilder.build(baselineConfig)
 
@@ -1510,9 +1504,6 @@ object OptionsHelp {
                 "Normally, encountering error will fail the build, even when updating " +
                     "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +
                     "all the baselines in the source tree can be updated in one go.",
-                ARG_DELETE_EMPTY_BASELINES,
-                "Whether to delete baseline files if they are updated and there is nothing " +
-                    "to include.",
                 "$ARG_ERROR_MESSAGE_API_LINT <message>",
                 "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
                 "",
