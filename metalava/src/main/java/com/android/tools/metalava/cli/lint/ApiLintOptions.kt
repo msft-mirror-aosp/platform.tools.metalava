@@ -19,14 +19,18 @@ package com.android.tools.metalava.cli.lint
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_PREVIOUS_API = "--api-lint-previous-api"
+const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
 const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
@@ -69,6 +73,22 @@ class ApiLintOptions(
                         .trimIndent(),
             )
             .existingFile()
+
+    /**
+     * If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails.
+     */
+    internal val errorMessage: String? by
+        option(
+                ARG_ERROR_MESSAGE_API_LINT,
+                help =
+                    """
+                    If set, this is output when errors are detected in $ARG_API_LINT.
+                """
+                        .trimIndent(),
+                metavar = "<message>",
+            )
+            .default(DefaultLintErrorMessage, defaultForHelp = "")
+            .allowStructuredOptionName()
 
     private val baselineOptionsMixin =
         BaselineOptionsMixin(

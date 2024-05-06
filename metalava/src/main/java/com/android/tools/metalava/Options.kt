@@ -39,10 +39,8 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
-import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -196,7 +194,6 @@ const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatur
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -660,11 +657,6 @@ class Options(
 
     var allBaselines: List<Baseline> = emptyList()
 
-    /**
-     * If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails.
-     */
-    private var errorMessageApiLint: String = DefaultLintErrorMessage
-
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
@@ -892,7 +884,6 @@ class Options(
                         }
                     }
                 }
-                ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
@@ -1087,7 +1078,7 @@ class Options(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
                 baseline = apiLintOptions.baseline ?: baseline,
-                errorMessage = errorMessageApiLint,
+                errorMessage = apiLintOptions.errorMessage,
                 packageFilter = stubPackages,
                 config = issueReportingOptions.reporterConfig,
             )
@@ -1461,8 +1452,6 @@ object OptionsHelp {
                     "If some warnings have been fixed, this will delete them from the baseline files. If a file " +
                     "is provided, the updated baseline is written to the given file; otherwise the original source " +
                     "baseline file is updated.",
-                "$ARG_ERROR_MESSAGE_API_LINT <message>",
-                "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

@@ -230,8 +230,6 @@ Diffs and Checks:
                                              some warnings have been fixed, this will delete them from the baseline
                                              files. If a file is provided, the updated baseline is written to the given
                                              file; otherwise the original source baseline file is updated.
---error-message:api-lint <message>
-                                             If set, metalava shows it when errors are detected in --api-lint.
 
 
 Extracting Annotations:

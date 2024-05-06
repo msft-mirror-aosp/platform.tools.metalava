@@ -48,6 +48,7 @@ import com.android.tools.metalava.cli.compatibility.ARG_UPDATE_BASELINE_CHECK_CO
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
+import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.provider.Capability

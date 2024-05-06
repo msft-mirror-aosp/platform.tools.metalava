@@ -30,6 +30,7 @@ Api Lint:
   --api-lint                                 Check API for Android API best practices.
   --api-lint-previous-api <file>             An API signature file that defines a previously released API. API Lint
                                              issues found in that API will be ignored.
+  --error-message:api-lint <message>         If set, this is output when errors are detected in --api-lint.
   --baseline:api-lint <file>                 An optional baseline file that contains a list of known API lint issues
                                              which should be ignored. If this does not exist and
                                              --update-baseline:api-lint is not specified then it will be created and
