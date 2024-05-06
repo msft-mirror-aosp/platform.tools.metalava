@@ -701,9 +701,6 @@ class Options(
     /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
-    /** Whether the baseline should only contain errors */
-    private var baselineErrorsOnly = false
-
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
 
@@ -1100,7 +1097,6 @@ class Options(
         val baselineConfig =
             Baseline.Config(
                 issueConfiguration = issueConfiguration,
-                baselineErrorsOnly = baselineErrorsOnly,
                 deleteEmptyBaselines = deleteEmptyBaselines,
                 sourcePath = sourcePath,
             )
