@@ -22,6 +22,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
+const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val BASELINE_OPTIONS_GROUP = "Baseline Files"
@@ -57,4 +58,19 @@ class CommonBaselineOptions(
                 sourcePath = sourceOptions.sourcePath,
             )
         }
+
+    /** If updating baselines, don't fail the build */
+    internal val passBaselineUpdates by
+        option(
+                ARG_PASS_BASELINE_UPDATES,
+                help =
+                    """
+                        Normally, encountering errors will fail the build, even when updating
+                        baselines. This flag will record issues in baseline files but otherwise
+                        ignore them so that all the baselines in the source tree can be updated in 
+                        one go.
+                    """
+                        .trimIndent()
+            )
+            .flag()
 }

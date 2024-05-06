@@ -188,7 +188,6 @@ const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
 const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
@@ -694,9 +693,6 @@ class Options(
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
-    /** If updating baselines, don't fail the build */
-    var passBaselineUpdates = false
-
     /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
@@ -914,7 +910,6 @@ class Options(
                     }
                 }
                 ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
-                ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
@@ -1500,10 +1495,6 @@ object OptionsHelp {
                 "Same as $ARG_BASELINE and " +
                     "$ARG_UPDATE_BASELINE respectively, but used specifically for API compatibility issues performed by " +
                     "$ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
-                ARG_PASS_BASELINE_UPDATES,
-                "Normally, encountering error will fail the build, even when updating " +
-                    "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +
-                    "all the baselines in the source tree can be updated in one go.",
                 "$ARG_ERROR_MESSAGE_API_LINT <message>",
                 "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
                 "",

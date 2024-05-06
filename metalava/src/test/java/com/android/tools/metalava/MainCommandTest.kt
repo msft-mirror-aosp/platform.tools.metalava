@@ -238,11 +238,6 @@ Diffs and Checks:
                                              specifically for API compatibility issues performed by
                                              --check-compatibility:api:released and
                                              --check-compatibility:removed:released.
---pass-baseline-updates
-                                             Normally, encountering error will fail the build, even when updating
-                                             baselines. This flag allows you to tell metalava to continue without
-                                             errors, such that all the baselines in the source tree can be updated in
-                                             one go.
 --error-message:api-lint <message>
                                              If set, metalava shows it when errors are detected in --api-lint.
 

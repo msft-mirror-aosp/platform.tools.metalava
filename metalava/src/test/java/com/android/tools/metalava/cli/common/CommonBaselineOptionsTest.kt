@@ -24,6 +24,10 @@ Baseline Files:
 
   --delete-empty-baselines                   If true, if after updating a baseline file is empty then it will be
                                              deleted.
+  --pass-baseline-updates                    Normally, encountering errors will fail the build, even when updating
+                                             baselines. This flag will record issues in baseline files but otherwise
+                                             ignore them so that all the baselines in the source tree can be updated in
+                                             one go.
     """
         .trimIndent()
 
