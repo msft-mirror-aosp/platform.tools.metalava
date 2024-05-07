@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
@@ -34,7 +33,6 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
-import com.android.tools.metalava.cli.common.stringToNewOrExistingFile
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
@@ -50,7 +48,6 @@ import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
-import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
@@ -68,7 +65,6 @@ import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.util.Locale
 import java.util.Optional
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -183,8 +179,6 @@ const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_BASELINE = "--baseline"
-const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
@@ -201,8 +195,7 @@ class Options(
     private val sourceOptions: SourceOptions = SourceOptions(),
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
-    private val commonBaselineOptions: CommonBaselineOptions =
-        CommonBaselineOptions(sourceOptions, issueReportingOptions),
+    private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
     private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
@@ -716,15 +709,6 @@ class Options(
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
 
-        val baselineBuilder = Baseline.Builder().apply { description = "base" }
-
-        fun getBaselineBuilderForArg(flag: String): Baseline.Builder =
-            when (flag) {
-                ARG_BASELINE,
-                ARG_UPDATE_BASELINE -> baselineBuilder
-                else -> error("Internal error: Invalid flag: $flag")
-            }
-
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -812,21 +796,6 @@ class Options(
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
-                }
-                ARG_BASELINE -> {
-                    val nextArg = getValue(args, ++index)
-                    val builder = getBaselineBuilderForArg(arg)
-                    builder.file = stringToExistingFile(nextArg)
-                }
-                ARG_UPDATE_BASELINE -> {
-                    val builder = getBaselineBuilderForArg(arg)
-                    if (index < args.size - 1) {
-                        val nextArg = args[index + 1]
-                        if (!nextArg.startsWith("-")) {
-                            index++
-                            builder.updateFile = stringToNewOrExistingFile(nextArg)
-                        }
-                    }
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
@@ -987,28 +956,8 @@ class Options(
             showUnannotated = true
         }
 
-        // Fix up [Baseline] files and [Reporter]s.
-
-        val baselineHeaderComment =
-            if (executionEnvironment.isBuildingAndroid())
-                "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
-            else ""
-        baselineBuilder.headerComment = baselineHeaderComment
-
-        if (baselineBuilder.file == null) {
-            // If default baseline is a file, use it.
-            val defaultBaselineFile = getDefaultBaselineFile()
-            if (defaultBaselineFile != null && defaultBaselineFile.isFile) {
-                baselineBuilder.file = defaultBaselineFile
-            }
-        }
-
-        val baselineConfig = commonBaselineOptions.baselineConfig
-
-        // A baseline to check against
-        val baseline = baselineBuilder.build(baselineConfig)
-
         // Initialize the reporters.
+        val baseline = generalReportingOptions.baseline
         reporter =
             DefaultReporter(
                 environment = executionEnvironment.reporterEnvironment,
@@ -1087,40 +1036,6 @@ class Options(
             val isJre = !isJdkFolder(jdkHome)
             val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
-        }
-    }
-
-    /**
-     * Produce a default file name for the baseline. It's normally "baseline.txt", but can be
-     * prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi ->
-     * system-baseline.txt, etc.
-     *
-     * Note because the default baseline file is not explicitly set in the command line, this file
-     * would trigger a --strict-input-files violation. To avoid that, always explicitly pass a
-     * baseline file.
-     */
-    private fun getDefaultBaselineFile(): File? {
-        if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
-            fun annotationToPrefix(qualifiedName: String): String {
-                val name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-                return name.lowercase(Locale.US).removeSuffix("api") + "-"
-            }
-            val sb = StringBuilder()
-            allShowAnnotations.getIncludedAnnotationNames().forEach {
-                sb.append(annotationToPrefix(it))
-            }
-            sb.append(DEFAULT_BASELINE_NAME)
-            var base = sourcePath[0]
-            // Convention: in AOSP, signature files are often in sourcepath/api: let's place
-            // baseline
-            // files there too
-            val api = File(base, "api")
-            if (api.isDirectory) {
-                base = api
-            }
-            return File(base, sb.toString())
-        } else {
-            return null
         }
     }
 
@@ -1379,14 +1294,6 @@ object OptionsHelp {
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",
-                "$ARG_BASELINE <file>",
-                "Filter out any errors already reported in the given baseline file, or " +
-                    "create if it does not already exist",
-                "$ARG_UPDATE_BASELINE [file]",
-                "Rewrite the existing baseline file with the current set of warnings. " +
-                    "If some warnings have been fixed, this will delete them from the baseline files. If a file " +
-                    "is provided, the updated baseline is written to the given file; otherwise the original source " +
-                    "baseline file is updated.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

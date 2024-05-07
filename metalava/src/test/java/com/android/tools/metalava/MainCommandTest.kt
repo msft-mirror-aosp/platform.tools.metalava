@@ -81,6 +81,8 @@ $ISSUE_REPORTING_OPTIONS_HELP
 
 $COMMON_BASELINE_OPTIONS_HELP
 
+$GENERAL_REPORTING_OPTIONS_HELP
+
 $API_SELECTION_OPTIONS_HELP
 
 $API_LINT_OPTIONS_HELP
@@ -213,14 +215,6 @@ Diffs and Checks:
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
---baseline <file>
-                                             Filter out any errors already reported in the given baseline file, or
-                                             create if it does not already exist
---update-baseline [file]
-                                             Rewrite the existing baseline file with the current set of warnings. If
-                                             some warnings have been fixed, this will delete them from the baseline
-                                             files. If a file is provided, the updated baseline is written to the given
-                                             file; otherwise the original source baseline file is updated.
 
 
 Extracting Annotations:
