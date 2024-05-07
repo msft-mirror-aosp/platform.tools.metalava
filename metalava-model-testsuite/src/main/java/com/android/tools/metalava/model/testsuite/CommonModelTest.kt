@@ -201,6 +201,34 @@ class CommonModelTest : BaseModelTest() {
     }
 
     @Test
+    fun `test findCorrespondingItemIn does find super methods`() {
+        val pairs = pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests
+        runCodebaseTest(*pairs.map { it.first }.toTypedArray()) {
+            val previouslyReleased = codebase
+            val previouslyReleasedFooFoo =
+                previouslyReleased.assertClass("test.pkg.Foo").assertMethod("foo", "int")
+            val previouslyReleasedFooFooParameter = previouslyReleasedFooFoo.parameters().first()
+            runCodebaseTest(*pairs.map { it.second }.toTypedArray()) {
+                val latest = codebase
+                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", "int")
+
+                // Make sure that super methods are found when requested
+                assertSame(
+                    previouslyReleasedFooFoo,
+                    barFoo.findCorrespondingItemIn(previouslyReleased, superMethods = true)
+                )
+
+                // Ditto for the parameter.
+                val barFooParameter = barFoo.parameters().first()
+                assertSame(
+                    previouslyReleasedFooFooParameter,
+                    barFooParameter.findCorrespondingItemIn(previouslyReleased, superMethods = true)
+                )
+            }
+        }
+    }
+
+    @Test
     fun `Test iterate and resolve unknown super classes`() {
         // TODO(b/323516595): Find a better way.
         runCodebaseTest(
