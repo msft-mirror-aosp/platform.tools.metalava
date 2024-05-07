@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
+import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
@@ -38,10 +39,8 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
-import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -187,22 +186,14 @@ const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_BASELINE = "--baseline"
-const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
-const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
-const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
-const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
-    "--update-baseline:compatibility:released"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
-const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -213,6 +204,8 @@ class Options(
     private val sourceOptions: SourceOptions = SourceOptions(),
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
+    private val commonBaselineOptions: CommonBaselineOptions =
+        CommonBaselineOptions(sourceOptions, issueReportingOptions),
     private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
@@ -664,11 +657,6 @@ class Options(
 
     var allBaselines: List<Baseline> = emptyList()
 
-    /**
-     * If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails.
-     */
-    private var errorMessageApiLint: String = DefaultLintErrorMessage
-
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
@@ -692,17 +680,8 @@ class Options(
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
-    /** If updating baselines, don't fail the build */
-    var passBaselineUpdates = false
-
-    /** If updating baselines and the baseline is empty, delete the file */
-    private var deleteEmptyBaselines = false
-
     /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
-
-    /** Whether the baseline should only contain errors */
-    private var baselineErrorsOnly = false
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
@@ -776,19 +755,11 @@ class Options(
         var currentJar: File? = null
 
         val baselineBuilder = Baseline.Builder().apply { description = "base" }
-        val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
-        val baselineCompatibilityReleasedBuilder =
-            Baseline.Builder().apply { description = "compatibility:released" }
 
         fun getBaselineBuilderForArg(flag: String): Baseline.Builder =
             when (flag) {
                 ARG_BASELINE,
                 ARG_UPDATE_BASELINE -> baselineBuilder
-                ARG_BASELINE_API_LINT,
-                ARG_UPDATE_BASELINE_API_LINT -> baselineApiLintBuilder
-                ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
-                ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED ->
-                    baselineCompatibilityReleasedBuilder
                 else -> error("Internal error: Invalid flag: $flag")
             }
 
@@ -898,16 +869,12 @@ class Options(
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
-                ARG_BASELINE,
-                ARG_BASELINE_API_LINT,
-                ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
+                ARG_BASELINE -> {
                     val nextArg = getValue(args, ++index)
                     val builder = getBaselineBuilderForArg(arg)
                     builder.file = stringToExistingFile(nextArg)
                 }
-                ARG_UPDATE_BASELINE,
-                ARG_UPDATE_BASELINE_API_LINT,
-                ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
+                ARG_UPDATE_BASELINE -> {
                     val builder = getBaselineBuilderForArg(arg)
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
@@ -917,9 +884,6 @@ class Options(
                         }
                     }
                 }
-                ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
-                ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
-                ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
@@ -1086,8 +1050,6 @@ class Options(
                 "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
             else ""
         baselineBuilder.headerComment = baselineHeaderComment
-        baselineApiLintBuilder.headerComment = baselineHeaderComment
-        baselineCompatibilityReleasedBuilder.headerComment = baselineHeaderComment
 
         if (baselineBuilder.file == null) {
             // If default baseline is a file, use it.
@@ -1097,23 +1059,10 @@ class Options(
             }
         }
 
-        val baselineConfig =
-            Baseline.Config(
-                issueConfiguration = issueConfiguration,
-                baselineErrorsOnly = baselineErrorsOnly,
-                deleteEmptyBaselines = deleteEmptyBaselines,
-                sourcePath = sourcePath,
-            )
+        val baselineConfig = commonBaselineOptions.baselineConfig
+
         // A baseline to check against
         val baseline = baselineBuilder.build(baselineConfig)
-
-        // A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT])
-        val baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
-
-        // A baseline to check against, specifically used for "check-compatibility:*:released" (i.e.
-        // [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
-        val baselineCompatibilityReleased =
-            baselineCompatibilityReleasedBuilder.build(baselineConfig)
 
         // Initialize the reporters.
         reporter =
@@ -1128,8 +1077,8 @@ class Options(
             DefaultReporter(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
-                baseline = baselineApiLint ?: baseline,
-                errorMessage = errorMessageApiLint,
+                baseline = apiLintOptions.baseline ?: baseline,
+                errorMessage = apiLintOptions.errorMessage,
                 packageFilter = stubPackages,
                 config = issueReportingOptions.reporterConfig,
             )
@@ -1137,7 +1086,7 @@ class Options(
             DefaultReporter(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
-                baseline = baselineCompatibilityReleased ?: baseline,
+                baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
                 packageFilter = stubPackages,
                 config = issueReportingOptions.reporterConfig,
@@ -1146,7 +1095,8 @@ class Options(
         // Build "all baselines" and "all reporters"
 
         // Baselines are nullable, so selectively add to the list.
-        allBaselines = listOfNotNull(baseline, baselineApiLint, baselineCompatibilityReleased)
+        allBaselines =
+            listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
 
         // Reporters are non-null.
         // Downcast to DefaultReporter to gain access to some implementation specific functionality.
@@ -1502,23 +1452,6 @@ object OptionsHelp {
                     "If some warnings have been fixed, this will delete them from the baseline files. If a file " +
                     "is provided, the updated baseline is written to the given file; otherwise the original source " +
                     "baseline file is updated.",
-                "$ARG_BASELINE_API_LINT <file> $ARG_UPDATE_BASELINE_API_LINT [file]",
-                "Same as $ARG_BASELINE and " +
-                    "$ARG_UPDATE_BASELINE respectively, but used specifically for API lint issues performed by " +
-                    "$ARG_API_LINT.",
-                "$ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED <file> $ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED [file]",
-                "Same as $ARG_BASELINE and " +
-                    "$ARG_UPDATE_BASELINE respectively, but used specifically for API compatibility issues performed by " +
-                    "$ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
-                ARG_PASS_BASELINE_UPDATES,
-                "Normally, encountering error will fail the build, even when updating " +
-                    "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +
-                    "all the baselines in the source tree can be updated in one go.",
-                ARG_DELETE_EMPTY_BASELINES,
-                "Whether to delete baseline files if they are updated and there is nothing " +
-                    "to include.",
-                "$ARG_ERROR_MESSAGE_API_LINT <message>",
-                "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

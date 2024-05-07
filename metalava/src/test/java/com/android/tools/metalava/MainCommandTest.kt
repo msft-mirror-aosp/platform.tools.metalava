@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.common.COMMON_BASELINE_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
@@ -77,6 +78,8 @@ Options:
 $SOURCE_OPTIONS_HELP
 
 $ISSUE_REPORTING_OPTIONS_HELP
+
+$COMMON_BASELINE_OPTIONS_HELP
 
 $API_LINT_OPTIONS_HELP
 
@@ -227,24 +230,6 @@ Diffs and Checks:
                                              some warnings have been fixed, this will delete them from the baseline
                                              files. If a file is provided, the updated baseline is written to the given
                                              file; otherwise the original source baseline file is updated.
---baseline:api-lint <file> --update-baseline:api-lint [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API lint issues performed by --api-lint.
---baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API compatibility issues performed by
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
---pass-baseline-updates
-                                             Normally, encountering error will fail the build, even when updating
-                                             baselines. This flag allows you to tell metalava to continue without
-                                             errors, such that all the baselines in the source tree can be updated in
-                                             one go.
---delete-empty-baselines
-                                             Whether to delete baseline files if they are updated and there is nothing
-                                             to include.
---error-message:api-lint <message>
-                                             If set, metalava shows it when errors are detected in --api-lint.
 
 
 Extracting Annotations:

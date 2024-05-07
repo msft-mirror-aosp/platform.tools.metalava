@@ -436,7 +436,7 @@ class CompatibilityCheckTest : DriverTest() {
                     method public test.pkg.FacetProvider? getFacetProvider(int);
                   }
                   public class FacetProviderAdapterImpl.FacetProviderImpl implements test.pkg.FacetProvider {
-                    method public Object? getFacet(Class<?>?);
+                    method public Object? getFacet(Class<? extends Object!>?);
                   }
                 }
                 """,
