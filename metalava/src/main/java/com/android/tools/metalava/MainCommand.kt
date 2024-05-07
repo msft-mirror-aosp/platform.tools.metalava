@@ -93,6 +93,8 @@ class MainCommand(
             issueReportingOptions = issueReportingOptions,
         )
 
+    private val apiSelectionOptions by ApiSelectionOptions()
+
     /** API lint options. */
     private val apiLintOptions by
         ApiLintOptions(
@@ -126,6 +128,7 @@ class MainCommand(
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
             commonBaselineOptions = commonBaselineOptions,
+            apiSelectionOptions = apiSelectionOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
             signatureFileOptions = signatureFileOptions,

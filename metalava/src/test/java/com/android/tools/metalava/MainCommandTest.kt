@@ -81,6 +81,8 @@ $ISSUE_REPORTING_OPTIONS_HELP
 
 $COMMON_BASELINE_OPTIONS_HELP
 
+$API_SELECTION_OPTIONS_HELP
+
 $API_LINT_OPTIONS_HELP
 
 $COMPATIBILITY_CHECK_OPTIONS_HELP
@@ -139,17 +141,6 @@ API sources:
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
---show-annotation <annotation class>
-                                             Unhide any hidden elements that are also annotated with the given
-                                             annotation
---show-single-annotation <annotation>
-                                             Like --show-annotation, but does not apply to members; these must also be
-                                             explicitly annotated
---show-for-stub-purposes-annotation <annotation class>
-                                             Like --show-annotation, but elements annotated with it are assumed to be
-                                             "implicitly" included in the API surface, and they'll be included in
-                                             certain kinds of output such as stubs, but not in others, such as the
-                                             signature file and API lint
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
 --show-unannotated

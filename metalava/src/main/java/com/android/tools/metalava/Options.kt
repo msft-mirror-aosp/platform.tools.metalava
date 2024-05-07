@@ -159,12 +159,9 @@ const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_SHOW_ANNOTATION = "--show-annotation"
-const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
@@ -206,6 +203,7 @@ class Options(
         IssueReportingOptions(commonOptions = commonOptions),
     private val commonBaselineOptions: CommonBaselineOptions =
         CommonBaselineOptions(sourceOptions, issueReportingOptions),
+    private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
@@ -226,14 +224,6 @@ class Options(
     private val mutableSources: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /** Internal builder backing [allShowAnnotations] */
-    private val allShowAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal builder backing [showAnnotations] */
-    private val showAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal builder backing [showSingleAnnotations] */
-    private val showSingleAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal builder backing [showForStubPurposesAnnotations] */
-    private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [hideAnnotations] */
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [revertAnnotations] */
@@ -345,35 +335,7 @@ class Options(
             key = { it.optionValue },
         )
 
-    /**
-     * Whether to include APIs with annotations (intended for documentation purposes). This includes
-     * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
-     */
-    val allShowAnnotations by lazy(allShowAnnotationsBuilder::build)
-
-    /**
-     * A filter that will match annotations which will cause an annotated item (and its enclosed
-     * items unless overridden by a closer annotation) to be included in the API surface.
-     *
-     * @see [allShowAnnotations]
-     */
-    val showAnnotations by lazy(showAnnotationsBuilder::build)
-
-    /**
-     * Like [showAnnotations], but does not work recursively.
-     *
-     * @see [allShowAnnotations]
-     */
-    private val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
-
-    /**
-     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
-     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
-     * API signature file) ignore them.
-     *
-     * @see [allShowAnnotations]
-     */
-    private val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
+    val allShowAnnotations by apiSelectionOptions::allShowAnnotations
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
@@ -412,9 +374,9 @@ class Options(
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
                 allShowAnnotations = allShowAnnotations,
-                showAnnotations = showAnnotations,
-                showSingleAnnotations = showSingleAnnotations,
-                showForStubPurposesAnnotations = showForStubPurposesAnnotations,
+                showAnnotations = apiSelectionOptions.showAnnotations,
+                showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
+                showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
                 revertAnnotations = revertAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
@@ -809,24 +771,6 @@ class Options(
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_SHOW_ANNOTATION -> {
-                    val annotation = getValue(args, ++index)
-                    showAnnotationsBuilder.add(annotation)
-                    // These should also be counted as allShowAnnotations
-                    allShowAnnotationsBuilder.add(annotation)
-                }
-                ARG_SHOW_SINGLE_ANNOTATION -> {
-                    val annotation = getValue(args, ++index)
-                    showSingleAnnotationsBuilder.add(annotation)
-                    // These should also be counted as allShowAnnotations
-                    allShowAnnotationsBuilder.add(annotation)
-                }
-                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION -> {
-                    val annotation = getValue(args, ++index)
-                    showForStubPurposesAnnotationBuilder.add(annotation)
-                    // These should also be counted as allShowAnnotations
-                    allShowAnnotationsBuilder.add(annotation)
-                }
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
@@ -1367,15 +1311,6 @@ object OptionsHelp {
                 "$ARG_HIDE_PACKAGE <package>",
                 "Remove the given packages from the API even if they have not been " +
                     "marked with @hide",
-                "$ARG_SHOW_ANNOTATION <annotation class>",
-                "Unhide any hidden elements that are also annotated " + "with the given annotation",
-                "$ARG_SHOW_SINGLE_ANNOTATION <annotation>",
-                "Like $ARG_SHOW_ANNOTATION, but does not apply " +
-                    "to members; these must also be explicitly annotated",
-                "$ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION <annotation class>",
-                "Like $ARG_SHOW_ANNOTATION, but elements annotated " +
-                    "with it are assumed to be \"implicitly\" included in the API surface, and they'll be included " +
-                    "in certain kinds of output such as stubs, but not in others, such as the signature file and API lint",
                 "$ARG_HIDE_ANNOTATION <annotation class>",
                 "Treat any elements annotated with the given annotation " + "as hidden",
                 ARG_SHOW_UNANNOTATED,
