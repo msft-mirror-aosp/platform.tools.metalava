@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
@@ -86,11 +87,25 @@ class MainCommand(
     private val issueReportingOptions by
         IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
 
+    private val commonBaselineOptions by
+        CommonBaselineOptions(
+            sourceOptions = sourceOptions,
+            issueReportingOptions = issueReportingOptions,
+        )
+
     /** API lint options. */
-    private val apiLintOptions by ApiLintOptions()
+    private val apiLintOptions by
+        ApiLintOptions(
+            executionEnvironment = executionEnvironment,
+            commonBaselineOptions = commonBaselineOptions,
+        )
 
     /** Compatibility check options. */
-    private val compatibilityCheckOptions by CompatibilityCheckOptions()
+    private val compatibilityCheckOptions by
+        CompatibilityCheckOptions(
+            executionEnvironment = executionEnvironment,
+            commonBaselineOptions = commonBaselineOptions,
+        )
 
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()
@@ -109,9 +124,10 @@ class MainCommand(
         Options(
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
+            issueReportingOptions = issueReportingOptions,
+            commonBaselineOptions = commonBaselineOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
-            issueReportingOptions = issueReportingOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
             stubGenerationOptions = stubGenerationOptions,
@@ -159,7 +175,10 @@ class MainCommand(
             .createEnvironmentManager(executionEnvironment.disableStderrDumping())
             .use { processFlags(executionEnvironment, it, progressTracker) }
 
-        if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {
+        if (
+            optionGroup.allReporters.any { it.hasErrors() } &&
+                !commonBaselineOptions.passBaselineUpdates
+        ) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (issueReportingOptions.repeatErrorsMax > 0) {
                 repeatErrors(
