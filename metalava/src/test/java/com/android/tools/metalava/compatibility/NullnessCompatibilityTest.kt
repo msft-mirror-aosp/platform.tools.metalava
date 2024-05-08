@@ -17,9 +17,12 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -190,6 +193,54 @@ class NullnessCompatibilityTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Field nullness changes are not allowed`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        field public String changeNonNullToNullable;
+                        field public String changeNonNullToPlatform;
+                        field public String? changeNullableToNonNull;
+                        field public String? changeNullableToPlatform;
+                        field public String! changePlatformToNonNull;
+                        field public String! changePlatformToNullable;
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.NonNull;
+                            import androidx.annotation.Nullable;
+                            public class Foo {
+                                public @Nullable String changeNonNullToNullable;
+                                public String changeNonNullToPlatform;
+                                public @NonNull String changeNullableToNonNull;
+                                public String changeNullableToPlatform;
+                                public @NonNull String changePlatformToNonNull;
+                                public @Nullable String changePlatformToNullable;
+                            }
+                        """,
+                    ),
+                    androidxNonNullSource,
+                    androidxNullableSource,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in field test.pkg.Foo.changeNonNullToNullable [InvalidNullConversion]
+                    src/test/pkg/Foo.java:6: error: Attempted to remove nullability from java.lang.String (was NONNULL) in field test.pkg.Foo.changeNonNullToPlatform [InvalidNullConversion]
+                    src/test/pkg/Foo.java:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in field test.pkg.Foo.changeNullableToNonNull [InvalidNullConversion]
+                    src/test/pkg/Foo.java:8: error: Attempted to remove nullability from java.lang.String (was NULLABLE) in field test.pkg.Foo.changeNullableToPlatform [InvalidNullConversion]
+                """,
         )
     }
 }

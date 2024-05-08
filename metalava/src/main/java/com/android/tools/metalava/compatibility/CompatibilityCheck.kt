@@ -117,25 +117,20 @@ class CompatibilityCheck(
             // You can change a method return from nullable to nonnull
             // You cannot change a parameter from nullable to nonnull
             // You cannot change a method return from nonnull to nullable
+            val allowNonNullToNullable = context is ParameterItem
+            val allowNullableToNonNull = context is MethodItem
             if (
-                oldNullability == TypeNullability.NULLABLE &&
+                (oldNullability == TypeNullability.NULLABLE &&
                     newNullability == TypeNullability.NONNULL &&
-                    context is ParameterItem
+                    !allowNullableToNonNull) ||
+                    (oldNullability == TypeNullability.NONNULL &&
+                        newNullability == TypeNullability.NULLABLE &&
+                        !allowNonNullToNullable)
             ) {
                 report(
                     Issues.INVALID_NULL_CONVERSION,
                     context,
-                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context as Item)}"
-                )
-            } else if (
-                oldNullability == TypeNullability.NONNULL &&
-                    newNullability == TypeNullability.NULLABLE &&
-                    context is MethodItem
-            ) {
-                report(
-                    Issues.INVALID_NULL_CONVERSION,
-                    context,
-                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context as Item)}"
+                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context)}"
                 )
             }
         }
