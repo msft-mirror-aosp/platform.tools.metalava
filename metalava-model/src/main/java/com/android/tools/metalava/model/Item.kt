@@ -88,16 +88,6 @@ interface Item : Reportable {
      */
     val effectivelyDeprecated: Boolean
 
-    /**
-     * True if this item has been marked deprecated.
-     *
-     * The meaning of this property changes over time. Initially, when reading sources it indicates
-     * whether the item has been marked as deprecated (either using `@deprecated` javadoc tag or
-     * `@Deprecated` annotation). However, during processing it is updated to `true` if any of its
-     * non-package ancestors have set this to `true`.
-     */
-    var deprecated: Boolean
-
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
 
@@ -441,8 +431,6 @@ abstract class DefaultItem(
         // Delegate to the [ModifierList.isDeprecated] method so that changes to that will affect
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
-
-    final override var deprecated = originallyDeprecated
 
     final override fun mutableModifiers(): MutableModifierList = modifiers
 
