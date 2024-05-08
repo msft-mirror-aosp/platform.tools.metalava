@@ -19,8 +19,16 @@ package com.android.tools.metalava
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.IssueConfiguration
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reportable
+import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertThat
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import org.junit.Test
 
 class DefaultReporterTest : DriverTest() {
@@ -245,5 +253,63 @@ class DefaultReporterTest : DriverTest() {
                     suppressLintSource
                 )
         )
+    }
+
+    @Test
+    fun `test maximum severity`() {
+        val stringWriter = StringWriter()
+        val nullReportable: Reportable? = null
+        val nullFile: File? = null
+        PrintWriter(stringWriter).use { writer ->
+            val reporterEnvironment =
+                DefaultReporterEnvironment(
+                    stdout = writer,
+                    stderr = writer,
+                )
+            val issueConfiguration = IssueConfiguration()
+            val reporter =
+                DefaultReporter(
+                    environment = reporterEnvironment,
+                    issueConfiguration = issueConfiguration,
+                    config = DefaultReporter.Config(),
+                )
+
+            fun checkReportableMethod(maximum: Severity) {
+                reporter.report(
+                    Issues.MISSING_NULLABILITY,
+                    nullReportable,
+                    "reportable/maximum=$maximum",
+                    maximumSeverity = maximum
+                )
+            }
+
+            checkReportableMethod(Severity.ERROR)
+            checkReportableMethod(Severity.WARNING)
+            checkReportableMethod(Severity.HIDDEN)
+
+            fun checkFileMethod(maximum: Severity) {
+                reporter.report(
+                    Issues.MISSING_NULLABILITY,
+                    nullFile,
+                    "reportable/maximum=$maximum",
+                    maximumSeverity = maximum
+                )
+            }
+
+            checkFileMethod(Severity.ERROR)
+            checkFileMethod(Severity.WARNING)
+            checkFileMethod(Severity.HIDDEN)
+        }
+
+        assertThat(stringWriter.toString().trimEnd())
+            .isEqualTo(
+                """
+                    error: reportable/maximum=error [MissingNullability]
+                    warning: reportable/maximum=warning [MissingNullability]
+                    error: reportable/maximum=error [MissingNullability]
+                    warning: reportable/maximum=warning [MissingNullability]
+                """
+                    .trimIndent()
+            )
     }
 }
