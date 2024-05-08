@@ -74,7 +74,8 @@ interface Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey
+        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
+        maximumSeverity: Severity = Severity.ERROR,
     ): Boolean
 
     /**
@@ -101,7 +102,8 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation
+        location: IssueLocation,
+        maximumSeverity: Severity,
     ): Boolean {
         stderr.println(
             buildString {
