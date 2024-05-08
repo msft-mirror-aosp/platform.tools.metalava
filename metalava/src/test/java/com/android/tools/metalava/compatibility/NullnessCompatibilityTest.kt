@@ -29,8 +29,8 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:5: error: Attempted to remove @NonNull annotation from parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
+                    load-api.txt:5: error: Attempted to remove nullability from java.lang.String (was NONNULL) in parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
+                    load-api.txt:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
                 """,
             format = FileFormat.V3,
             checkCompatibilityApiReleased =
@@ -68,7 +68,7 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/test.kt:2: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
+                    src/test/pkg/test.kt:2: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
                 """,
             format = FileFormat.V3,
             checkCompatibilityApiReleased =
@@ -97,12 +97,12 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:6: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
-                    load-api.txt:6: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
-                    load-api.txt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
-                    load-api.txt:9: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
+                    load-api.txt:6: error: Attempted to remove nullability from java.lang.Double (was NULLABLE) in method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
+                    load-api.txt:6: error: Attempted to remove nullability from java.lang.Float (was NULLABLE) in parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
+                    load-api.txt:7: error: Attempted to remove nullability from java.lang.Double (was NONNULL) in method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
+                    load-api.txt:7: error: Attempted to remove nullability from java.lang.Float (was NONNULL) in parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
+                    load-api.txt:8: error: Attempted to change nullability of java.lang.Float (from NULLABLE to NONNULL) in parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
+                    load-api.txt:9: error: Attempted to change nullability of java.lang.Double (from NONNULL to NULLABLE) in method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
                 """,
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
@@ -147,12 +147,12 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/Outer.kt:5: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:5: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:6: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:9: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:5: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:6: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:8: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:8: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:9: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
                 """,
             format = FileFormat.V2,
             checkCompatibilityApiReleased =

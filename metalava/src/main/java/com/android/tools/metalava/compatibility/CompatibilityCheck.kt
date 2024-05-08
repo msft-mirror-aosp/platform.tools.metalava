@@ -22,10 +22,7 @@ import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
-import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
-import com.android.tools.metalava.NullnessMigration.Companion.isNullable
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -36,7 +33,6 @@ import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -75,7 +71,7 @@ class CompatibilityCheck(
         return null
     }
 
-    private fun compareNullability(old: Item, new: Item) {
+    private fun compareItemNullability(old: Item, new: Item) {
         val oldMethod = containingMethod(old)
         val newMethod = containingMethod(new)
 
@@ -94,52 +90,53 @@ class CompatibilityCheck(
                 return
             }
         }
+
+        compareTypeNullability(old.type(), new.type(), new)
+    }
+
+    private fun compareTypeNullability(old: TypeItem?, new: TypeItem?, context: Item) {
+        old ?: return
+        new ?: return
+
         // Should not remove nullness information
         // Can't change information incompatibly
-        val oldNullnessAnnotation = findNullnessAnnotation(old)
-        if (oldNullnessAnnotation != null) {
-            val newNullnessAnnotation = findNullnessAnnotation(new)
-            if (newNullnessAnnotation == null) {
-                val typeNullability = new.type()?.modifiers?.nullability()
-                if (typeNullability == TypeNullability.NULLABLE && isNullable(old)) {
-                    return
-                }
-                if (typeNullability == TypeNullability.NONNULL && !isNullable(old)) {
-                    return
-                }
-                val name = AnnotationItem.simpleName(oldNullnessAnnotation)
-                if (old.type() is PrimitiveTypeItem) {
-                    return
-                }
+        val oldNullability = old.modifiers.nullability()
+        val newNullability = new.modifiers.nullability()
+        if (
+            (oldNullability == TypeNullability.NONNULL ||
+                oldNullability == TypeNullability.NULLABLE) &&
+                newNullability == TypeNullability.PLATFORM
+        ) {
+            report(
+                Issues.INVALID_NULL_CONVERSION,
+                context,
+                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
+            )
+        } else if (oldNullability != newNullability) {
+            // You can change a parameter from nonnull to nullable
+            // You can change a method return from nullable to nonnull
+            // You cannot change a parameter from nullable to nonnull
+            // You cannot change a method return from nonnull to nullable
+            if (
+                oldNullability == TypeNullability.NULLABLE &&
+                    newNullability == TypeNullability.NONNULL &&
+                    context is ParameterItem
+            ) {
                 report(
                     Issues.INVALID_NULL_CONVERSION,
-                    new,
-                    "Attempted to remove $name annotation from ${describe(new)}"
+                    context,
+                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context as Item)}"
                 )
-            } else {
-                val oldNullable = isNullable(old)
-                val newNullable = isNullable(new)
-                if (oldNullable != newNullable) {
-                    // You can change a parameter from nonnull to nullable
-                    // You can change a method from nullable to nonnull
-                    // You cannot change a parameter from nullable to nonnull
-                    // You cannot change a method from nonnull to nullable
-                    if (oldNullable && old is ParameterItem) {
-                        report(
-                            Issues.INVALID_NULL_CONVERSION,
-                            new,
-                            "Attempted to change parameter from @Nullable to @NonNull: " +
-                                "incompatible change for ${describe(new)}"
-                        )
-                    } else if (!oldNullable && old is MethodItem) {
-                        report(
-                            Issues.INVALID_NULL_CONVERSION,
-                            new,
-                            "Attempted to change method return from @NonNull to @Nullable: " +
-                                "incompatible change for ${describe(new)}"
-                        )
-                    }
-                }
+            } else if (
+                oldNullability == TypeNullability.NONNULL &&
+                    newNullability == TypeNullability.NULLABLE &&
+                    context is MethodItem
+            ) {
+                report(
+                    Issues.INVALID_NULL_CONVERSION,
+                    context,
+                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context as Item)}"
+                )
             }
         }
     }
@@ -171,7 +168,7 @@ class CompatibilityCheck(
             )
         }
 
-        compareNullability(old, new)
+        compareItemNullability(old, new)
     }
 
     override fun compare(old: ParameterItem, new: ParameterItem) {
