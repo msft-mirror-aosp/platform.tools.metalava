@@ -96,7 +96,7 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
     }
 
     @Test
-    fun `test checkClass produced errors are ignored on new members of previously released classes`() {
+    fun `test checkClass produced errors are treated as warnings on new members of previously released classes`() {
         // The `EqualsAndHashCode` check is performed by `checkEquals()` which is called by
         // `checkClass()` and so was previously only called for new classes. This test checks that
         // behavior is maintained.
@@ -130,8 +130,9 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
                     }
                 """,
             expectedIssuesWithPreviouslyReleasedApi =
-                // Notice that the `EqualsAndHashCode` issue is not reported.
+                // Notice that the `EqualsAndHashCode` issue is reported as a warning, not an error.
                 """
+                    src/test/pkg/Foo.java:5: warning: Must override both equals and hashCode; missing one in test.pkg.Foo [EqualsAndHashCode]
                     src/test/pkg/Foo.java:3: error: Missing nullability on parameter `s` in method `method` [MissingNullability]
                     src/test/pkg/Foo.java:4: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg/Foo.java:4: error: Missing nullability on field `field` in class `class test.pkg.Foo` [MissingNullability]
