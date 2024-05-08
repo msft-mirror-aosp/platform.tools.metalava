@@ -95,20 +95,23 @@ internal class DefaultReporter(
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation
+        location: IssueLocation,
+        maximumSeverity: Severity,
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
-        if (severity == HIDDEN) {
-            return false
-        }
-
-        val effectiveSeverity =
+        val upgradedSeverity =
             if (severity == LINT && config.lintsAsErrors) ERROR
             else if (severity == WARNING && config.warningsAsErrors) {
                 ERROR
             } else {
                 severity
             }
+
+        // Limit the Severity to the maximum allowed.
+        val effectiveSeverity = minOf(upgradedSeverity, maximumSeverity)
+        if (effectiveSeverity == HIDDEN) {
+            return false
+        }
 
         fun dispatch(
             which:
