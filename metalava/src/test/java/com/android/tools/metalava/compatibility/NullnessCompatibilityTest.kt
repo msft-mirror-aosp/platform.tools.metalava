@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.signature
 import org.junit.Test
 
 class NullnessCompatibilityTest : DriverTest() {
@@ -96,7 +97,7 @@ class NullnessCompatibilityTest : DriverTest() {
     }
 
     @Test
-    fun `Flag invalid nullness changes`() {
+    fun `Flag invalid nullness changes in final class`() {
         check(
             expectedIssues =
                 """
@@ -111,7 +112,7 @@ class NullnessCompatibilityTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                     package test.pkg {
-                      public class MyTest {
+                      public final class MyTest {
                         method public Double convert1(Float);
                         method public Double convert2(Float);
                         method @Nullable public Double convert3(@Nullable Float);
@@ -130,7 +131,7 @@ class NullnessCompatibilityTest : DriverTest() {
             signatureSource =
                 """
                     package test.pkg {
-                      public class MyTest {
+                      public final class MyTest {
                         method @Nullable public Double convert1(@Nullable Float);
                         method @NonNull public Double convert2(@NonNull Float);
                         method public Double convert3(Float);
@@ -241,6 +242,122 @@ class NullnessCompatibilityTest : DriverTest() {
                     src/test/pkg/Foo.java:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in field test.pkg.Foo.changeNullableToNonNull [InvalidNullConversion]
                     src/test/pkg/Foo.java:8: error: Attempted to remove nullability from java.lang.String (was NULLABLE) in field test.pkg.Foo.changeNullableToPlatform [InvalidNullConversion]
                 """,
+        )
+    }
+
+    @Test
+    fun `Nullable to non-null method return in non-final method is not allowed`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class FinalClass {
+                        ctor public FinalClass();
+                        method public String? methodInFinalClass();
+                      }
+                      public class NonFinalClass {
+                        ctor public NonFinalClass();
+                        method public final String? finalMethod();
+                        method public String? nonFinalMethod();
+                      }
+                      public final class NoPublicCtorClass {
+                        method public String? methodInNoPublicCtorClass();
+                      }
+                      public abstract sealed class SealedClass {
+                        ctor public SealedClass();
+                        method public final String? methodInSealedClass();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public final class FinalClass {
+                                ctor public FinalClass();
+                                method public String methodInFinalClass();
+                              }
+                              public class NonFinalClass {
+                                ctor public NonFinalClass();
+                                method public final String finalMethod();
+                                method public String nonFinalMethod();
+                              }
+                              public final class NoPublicCtorClass {
+                                method public String methodInNoPublicCtorClass();
+                              }
+                              public abstract sealed class SealedClass {
+                                ctor public SealedClass();
+                                method public final String methodInSealedClass();
+                              }
+                            }
+                        """,
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:10: warning: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in method test.pkg.NonFinalClass.nonFinalMethod() (ErrorWhenNew) [InvalidNullConversion]
+                """
+        )
+    }
+
+    @Test
+    fun `Non-null to nullable parameter in non-final method is not allowed`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class FinalClass {
+                        ctor public FinalClass();
+                        method public void methodInFinalClass(String);
+                      }
+                      public class NonFinalClass {
+                        ctor public NonFinalClass();
+                        method public final void finalMethod(String);
+                        method public void nonFinalMethod(String);
+                      }
+                      public final class NoPublicCtorClass {
+                        method public void methodInNoPublicCtorClass(String);
+                      }
+                      public abstract sealed class SealedClass {
+                        ctor public SealedClass();
+                        method public final void methodInSealedClass(String);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public final class FinalClass {
+                                ctor public FinalClass();
+                                method public void methodInFinalClass(String?);
+                              }
+                              public class NonFinalClass {
+                                ctor public NonFinalClass();
+                                method public final void finalMethod(String?);
+                                method public void nonFinalMethod(String?);
+                              }
+                              public final class NoPublicCtorClass {
+                                method public void methodInNoPublicCtorClass(String?);
+                              }
+                              public abstract sealed class SealedClass {
+                                ctor public SealedClass();
+                                method public final void methodInSealedClass(String?);
+                              }
+                            }
+                        """,
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:10: warning: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in parameter arg1 in test.pkg.NonFinalClass.nonFinalMethod(String arg1) (ErrorWhenNew) [InvalidNullConversion]
+                """
         )
     }
 }

@@ -43,6 +43,14 @@ interface MemberItem : Item {
             containingClass().modifiers.isSealed()
     }
 
+    /**
+     * Returns whether the item can be overridden outside the API surface, which is true is it is
+     * not final and its containing class can be extended.
+     */
+    fun canBeExternallyOverridden(): Boolean {
+        return !modifiers.isFinal() && containingClass().isExtensible()
+    }
+
     /** True if this member was inherited from an ancestor class or interface. */
     val inheritedFromAncestor
         get() = inheritedFrom != null

@@ -49,8 +49,6 @@ import java.util.function.Predicate
 /**
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
- *
- * TODO: Only allow nullness changes on final classes!
  */
 class CompatibilityCheck(
     val filterReference: Predicate<Item>,
@@ -82,11 +80,9 @@ class CompatibilityCheck(
                     ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))
             ) {
                 // If the old method and new method are defined on different classes, then it's
-                // possible
-                // that the old method was previously overridden and we omitted it.
+                // possible that the old method was previously overridden and we omitted it.
                 // So, if the old method and new methods are defined on different classes, then we
-                // skip
-                // nullability checks
+                // skip nullability checks
                 return
             }
         }
@@ -113,12 +109,12 @@ class CompatibilityCheck(
                 "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
             )
         } else if (oldNullability != newNullability) {
-            // You can change a parameter from nonnull to nullable
-            // You can change a method return from nullable to nonnull
-            // You cannot change a parameter from nullable to nonnull
-            // You cannot change a method return from nonnull to nullable
-            val allowNonNullToNullable = context is ParameterItem
-            val allowNullableToNonNull = context is MethodItem
+            // In a final method, you can change a parameter from nonnull to nullable
+            val allowNonNullToNullable =
+                context is ParameterItem && !context.containingMethod().canBeExternallyOverridden()
+            // In a final method, you can change a method return from nullable to nonnull
+            val allowNullableToNonNull =
+                context is MethodItem && !context.canBeExternallyOverridden()
             if (
                 (oldNullability == TypeNullability.NULLABLE &&
                     newNullability == TypeNullability.NONNULL &&
@@ -127,10 +123,22 @@ class CompatibilityCheck(
                         newNullability == TypeNullability.NULLABLE &&
                         !allowNonNullToNullable)
             ) {
+                // This check used to be more permissive. To transition to a stronger check, use
+                // WARNING_ERROR_WHEN_NEW if the change used to be allowed.
+                val previouslyAllowed =
+                    (oldNullability == TypeNullability.NULLABLE && context is MethodItem) ||
+                        ((oldNullability == TypeNullability.NONNULL && context is ParameterItem))
+                val maximumSeverity =
+                    if (previouslyAllowed) {
+                        Severity.WARNING_ERROR_WHEN_NEW
+                    } else {
+                        Severity.ERROR
+                    }
                 report(
                     Issues.INVALID_NULL_CONVERSION,
                     context,
-                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context)}"
+                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context)}",
+                    maximumSeverity = maximumSeverity,
                 )
             }
         }
@@ -955,7 +963,12 @@ class CompatibilityCheck(
         }
     }
 
-    private fun report(issue: Issue, item: Item, message: String) {
+    private fun report(
+        issue: Issue,
+        item: Item,
+        message: String,
+        maximumSeverity: Severity = Severity.ERROR
+    ) {
         if (item.isCompatibilitySuppressed()) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll
@@ -963,7 +976,7 @@ class CompatibilityCheck(
             return
         }
         if (
-            reporter.report(issue, item, message) &&
+            reporter.report(issue, item, message, maximumSeverity = maximumSeverity) &&
                 issueConfiguration.getSeverity(issue) == Severity.ERROR
         ) {
             foundProblems = true
