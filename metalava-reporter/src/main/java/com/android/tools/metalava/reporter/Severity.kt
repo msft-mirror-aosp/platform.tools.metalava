@@ -36,12 +36,6 @@ enum class Severity(
     INFO("info"),
 
     /**
-     * Lint level means that we encountered inconsistent or broken documentation. These should be
-     * resolved, but don't impact API compatibility.
-     */
-    LINT("lint"),
-
-    /**
      * Warning level means that we encountered some incompatible or inconsistent API change. These
      * must be resolved to preserve API compatibility.
      */
