@@ -262,10 +262,11 @@ private constructor(
                 // If the issue is being reported on the context Item then use its maximum.
                 item === contextItem -> maximumSeverityForItem
                 // If its containing item was previously released (so issues are hidden) but the
-                // item itself is new then generate a warning. That at least gives developers some
-                // indication that there is a problem.
+                // item itself is new then generate a warning for existing code and an error in new
+                // code. That at least gives developers some indication that there is a problem with
+                // the existing code and prevents issues being added in new code.
                 maximumSeverityForItem == Severity.HIDDEN && !wasPreviouslyReleased(item) ->
-                    Severity.WARNING
+                    Severity.WARNING_ERROR_WHEN_NEW
                 // Otherwise, the use maximum for the context Item's contents.
                 else -> maximumSeverityForItemContents
             }
