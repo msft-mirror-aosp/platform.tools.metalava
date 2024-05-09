@@ -25,10 +25,10 @@ import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import com.google.common.truth.Truth.assertThat
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class DefaultReporterTest : DriverTest() {
@@ -284,6 +284,7 @@ class DefaultReporterTest : DriverTest() {
             }
 
             checkReportableMethod(Severity.ERROR)
+            checkReportableMethod(Severity.WARNING_ERROR_WHEN_NEW)
             checkReportableMethod(Severity.WARNING)
             checkReportableMethod(Severity.HIDDEN)
 
@@ -291,25 +292,28 @@ class DefaultReporterTest : DriverTest() {
                 reporter.report(
                     Issues.MISSING_NULLABILITY,
                     nullFile,
-                    "reportable/maximum=$maximum",
+                    "file/maximum=$maximum",
                     maximumSeverity = maximum
                 )
             }
 
             checkFileMethod(Severity.ERROR)
+            checkFileMethod(Severity.WARNING_ERROR_WHEN_NEW)
             checkFileMethod(Severity.WARNING)
             checkFileMethod(Severity.HIDDEN)
         }
 
-        assertThat(stringWriter.toString().trimEnd())
-            .isEqualTo(
-                """
-                    error: reportable/maximum=error [MissingNullability]
-                    warning: reportable/maximum=warning [MissingNullability]
-                    error: reportable/maximum=error [MissingNullability]
-                    warning: reportable/maximum=warning [MissingNullability]
-                """
-                    .trimIndent()
-            )
+        assertEquals(
+            """
+                error: reportable/maximum=error [MissingNullability]
+                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
+                warning: reportable/maximum=warning [MissingNullability]
+                error: file/maximum=error [MissingNullability]
+                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
+                warning: file/maximum=warning [MissingNullability]
+            """
+                .trimIndent(),
+            stringWriter.toString().trimEnd()
+        )
     }
 }

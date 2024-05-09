@@ -34,6 +34,7 @@ import com.android.tools.metalava.reporter.Severity.INFO
 import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
+import com.android.tools.metalava.reporter.Severity.WARNING_ERROR_WHEN_NEW
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
@@ -262,7 +263,8 @@ internal class DefaultReporter(
         when (severity) {
             LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
-            WARNING ->
+            WARNING,
+            WARNING_ERROR_WHEN_NEW ->
                 sb.append(terminal.attributes(foreground = TerminalColor.YELLOW))
                     .append("warning: ")
             ERROR ->
@@ -272,6 +274,7 @@ internal class DefaultReporter(
         }
         sb.append(terminal.reset())
         sb.append(message)
+        sb.append(severity.messageSuffix)
         id?.let { sb.append(" [").append(it.name).append("]") }
         return sb.toString()
     }

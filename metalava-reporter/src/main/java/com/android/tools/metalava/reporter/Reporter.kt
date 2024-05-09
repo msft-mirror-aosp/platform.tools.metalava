@@ -123,9 +123,11 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
                     append(usableLocation.line)
                 }
                 append(": ")
-                append(id.defaultLevel.name.lowercase())
+                val severity = id.defaultLevel
+                append(severity)
                 append(": ")
                 append(message)
+                append(severity.messageSuffix)
                 append(" [")
                 append(id.name)
                 append("]")
