@@ -1895,35 +1895,39 @@ private constructor(
                 it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
             }
         ) {
-            val elidedField =
-                if (item is FieldItem) {
-                    val inheritedFrom = item.inheritedFrom
-                    // The field gets elided if we're able to reference the original class, but not
-                    // emit it; this happens e.g. when inheriting from a public API interface into
-                    // an @SystemApi class.
-                    // The only edge-case we don't handle well here is if the inheritance itself is
-                    // new, because that can't be flagged.
-                    // TODO(b/299659989): adjust comment once flagging inheritance is possible.
-                    inheritedFrom != null && filterReference.test(inheritedFrom)
-                } else {
-                    false
-                }
-            if (!elidingFilterEmit.test(item) || elidedField) {
-                // This API wouldn't appear in the signature file, so we don't know here if the API
-                // is pre-existing.
-                // Since the base API is either new and subject to flagging rules, or preexisting
-                // and therefore stable, the elided API is not required to be flagged.
+            checkFlaggedApiOnNewApi(item)
+        }
+    }
+
+    /**
+     * Check whether an `@FlaggedApi` annotation is required on a new [Item], i.e. one that has not
+     * previously been released.
+     */
+    private fun checkFlaggedApiOnNewApi(item: Item) {
+        val elidedField =
+            if (item is FieldItem) {
+                val inheritedFrom = item.inheritedFrom
+                // The field gets elided if we're able to reference the original class, but not emit
+                // it; this happens e.g. when inheriting from a public API interface into an
+                // @SystemApi class.
                 // The only edge-case we don't handle well here is if the inheritance itself is new,
                 // because that can't be flagged.
                 // TODO(b/299659989): adjust comment once flagging inheritance is possible.
-                return
+                inheritedFrom != null && filterReference.test(inheritedFrom)
+            } else {
+                false
             }
-            report(
-                UNFLAGGED_API,
-                item,
-                "New API must be flagged with @FlaggedApi: ${item.describe()}"
-            )
+        if (!elidingFilterEmit.test(item) || elidedField) {
+            // This API wouldn't appear in the signature file, so we don't know here if the API is
+            // pre-existing.
+            // Since the base API is either new and subject to flagging rules, or preexisting and
+            // therefore stable, the elided API is not required to be flagged.
+            // The only edge-case we don't handle well here is if the inheritance itself is new,
+            // because that can't be flagged.
+            // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+            return
         }
+        report(UNFLAGGED_API, item, "New API must be flagged with @FlaggedApi: ${item.describe()}")
     }
 
     private fun checkHasNullability(item: Item) {
