@@ -42,7 +42,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments = surface.args + flagged.args
+        val extraArguments =
+            (surface.args + flagged.args) +
+                // TODO(b/339794405): Remove this temporary hiding of FlaggedApiLiteral issues.
+                listOf(ARG_HIDE, Issues.FLAGGED_API_LITERAL.name)
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
