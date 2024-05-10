@@ -128,7 +128,7 @@ Available Issues                             |  Category                |   Defa
   InvalidNullabilityOverride                 |  api_lint                |   error
   InvalidSyntax                              |  unknown                 |   error
   IoError                                    |  unknown                 |   error
-  KotlinDefaultParameterOrder                |  api_lint_androidx_misc  |   error
+  KotlinDefaultParameterOrder                |  api_lint                |   error
   KotlinKeyword                              |  api_lint                |   error
   KotlinOperator                             |  api_lint                |   info
   ListenerInterface                          |  api_lint                |   error
