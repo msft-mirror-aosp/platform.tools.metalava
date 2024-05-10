@@ -97,7 +97,7 @@ Available Issues                             |  Category                |   Defa
   ExpectedPlatformType                       |  unknown                 |   hidden
   ExtendsDeprecated                          |  unknown                 |   hidden
   ExtendsError                               |  api_lint                |   error
-  FlaggedApiLiteral                          |  api_lint                |   hidden
+  FlaggedApiLiteral                          |  api_lint                |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                |   error
   ForbiddenTag                               |  unknown                 |   error
   FractionFloat                              |  api_lint                |   error
