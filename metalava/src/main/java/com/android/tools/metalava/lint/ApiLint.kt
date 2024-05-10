@@ -277,7 +277,7 @@ private constructor(
         private var contextItem: Item? = null
 
         /** The maximum [Severity] that an issue can have if it is reported on the [contextItem]. */
-        private var maximumSeverityForItem: Severity = Severity.ERROR
+        private var maximumSeverityForItem: Severity = Severity.UNLIMITED
 
         /**
          * The maximum [Severity] that an issue can have if it is reported on an [Item] other than
@@ -286,7 +286,7 @@ private constructor(
          * reported on members of that [ClassItem]. Similarly, if [contextItem] is a [MethodItem]
          * then this will be the maximum [Severity] of issues reported on its [ParameterItem]s.
          */
-        private var maximumSeverityForItemContents: Severity = Severity.ERROR
+        private var maximumSeverityForItemContents: Severity = Severity.UNLIMITED
 
         /**
          * Run checks within the specific [contextItem].
@@ -302,7 +302,7 @@ private constructor(
                 this.contextItem = contextItem
                 val previouslyReleased = oldCodebase != null && wasPreviouslyReleased(contextItem)
                 this.maximumSeverityForItem =
-                    if (previouslyReleased) Severity.HIDDEN else Severity.ERROR
+                    if (previouslyReleased) Severity.HIDDEN else Severity.UNLIMITED
                 // Hide issues on a previously released Item's contents to replicate the behavior of
                 // the legacy CodebaseComparator based ApiLint.
                 this.maximumSeverityForItemContents = maximumSeverityForItem

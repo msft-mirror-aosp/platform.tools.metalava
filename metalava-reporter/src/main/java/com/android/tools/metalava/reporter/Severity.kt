@@ -62,5 +62,13 @@ enum class Severity(
      */
     ERROR("error");
 
+    companion object {
+        /**
+         * The default value for the `maximumSeverity` parameter in [Reporter.report] methods which
+         * is the highest [Severity], i.e. last defined.
+         */
+        val UNLIMITED = values().last()
+    }
+
     override fun toString(): String = displayName
 }
