@@ -261,6 +261,12 @@ private constructor(
             when {
                 // If the issue is being reported on the context Item then use its maximum.
                 item === contextItem -> maximumSeverityForItem
+                // If its containing item was previously released (so issues are hidden) but the
+                // item itself is new then generate a warning for existing code and an error in new
+                // code. That at least gives developers some indication that there is a problem with
+                // the existing code and prevents issues being added in new code.
+                maximumSeverityForItem == Severity.HIDDEN && !wasPreviouslyReleased(item) ->
+                    Severity.WARNING_ERROR_WHEN_NEW
                 // Otherwise, the use maximum for the context Item's contents.
                 else -> maximumSeverityForItemContents
             }
@@ -292,10 +298,7 @@ private constructor(
             val oldMaximumSeverityForItemContents = this.maximumSeverityForItemContents
             try {
                 this.contextItem = contextItem
-                val previouslyReleased =
-                    oldCodebase != null &&
-                        contextItem.findCorrespondingItemIn(oldCodebase, superMethods = true) !=
-                            null
+                val previouslyReleased = oldCodebase != null && wasPreviouslyReleased(contextItem)
                 this.maximumSeverityForItem =
                     if (previouslyReleased) Severity.HIDDEN else Severity.ERROR
                 // Hide issues on a previously released Item's contents to replicate the behavior of
@@ -310,6 +313,14 @@ private constructor(
             }
         }
     }
+
+    /** Find the corresponding item in the previously released API if available. */
+    private fun findPreviouslyReleased(item: Item?): Item? {
+        return oldCodebase?.let { item?.findCorrespondingItemIn(oldCodebase, superMethods = true) }
+    }
+
+    /** Check to see if [item] was previously released. */
+    private fun wasPreviouslyReleased(item: Item?) = findPreviouslyReleased(item) != null
 
     private val reporter = FilteringReporter(reporter)
 

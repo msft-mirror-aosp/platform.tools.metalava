@@ -21,6 +21,7 @@ import com.github.ajalt.clikt.core.GroupableOption
 import com.github.ajalt.clikt.core.ParameterHolder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
+import java.io.File
 
 /**
  * Manages options needed to create a [Baseline] object.
@@ -36,6 +37,7 @@ class BaselineOptionsMixin(
     executionEnvironment: ExecutionEnvironment,
     baselineOptionName: String,
     updateBaselineOptionName: String,
+    defaultBaselineFileProvider: () -> File? = { null },
     issueType: String,
     description: String,
     commonBaselineOptions: CommonBaselineOptions,
@@ -85,7 +87,7 @@ class BaselineOptionsMixin(
             Baseline.Builder()
                 .apply {
                     this.description = description
-                    file = baselineFile
+                    file = baselineFile ?: defaultBaselineFileProvider()
                     updateFile = updateBaselineFile
                     headerComment =
                         if (executionEnvironment.isBuildingAndroid())
