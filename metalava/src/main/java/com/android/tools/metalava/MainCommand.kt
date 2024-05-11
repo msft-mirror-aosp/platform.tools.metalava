@@ -34,12 +34,15 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
+import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import java.io.File
 import java.io.PrintWriter
+import java.util.Locale
 
 /**
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
@@ -93,6 +96,16 @@ class MainCommand(
             issueReportingOptions = issueReportingOptions,
         )
 
+    /** General reporter options. */
+    private val generalReportingOptions by
+        GeneralReportingOptions(
+            executionEnvironment = executionEnvironment,
+            commonBaselineOptions = commonBaselineOptions,
+            defaultBaselineFileProvider = { getDefaultBaselineFile() },
+        )
+
+    private val apiSelectionOptions by ApiSelectionOptions()
+
     /** API lint options. */
     private val apiLintOptions by
         ApiLintOptions(
@@ -125,7 +138,8 @@ class MainCommand(
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
-            commonBaselineOptions = commonBaselineOptions,
+            generalReportingOptions = generalReportingOptions,
+            apiSelectionOptions = apiSelectionOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
             signatureFileOptions = signatureFileOptions,
@@ -190,6 +204,40 @@ class MainCommand(
 
             // Make sure that the process exits with an error code.
             throw MetalavaCliException(exitCode = -1)
+        }
+    }
+
+    /**
+     * Produce a default file name for the baseline. It's normally "baseline.txt", but can be
+     * prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi ->
+     * system-baseline.txt, etc.
+     *
+     * Note because the default baseline file is not explicitly set in the command line, this file
+     * would trigger a --strict-input-files violation. To avoid that, always explicitly pass a
+     * baseline file.
+     */
+    private fun getDefaultBaselineFile(): File? {
+        val sourcePath = sourceOptions.sourcePath
+        if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
+            fun annotationToPrefix(qualifiedName: String): String {
+                val name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+                return name.lowercase(Locale.US).removeSuffix("api") + "-"
+            }
+            val sb = StringBuilder()
+            apiSelectionOptions.allShowAnnotations.getIncludedAnnotationNames().forEach {
+                sb.append(annotationToPrefix(it))
+            }
+            sb.append(DEFAULT_BASELINE_NAME)
+            var base = sourcePath[0]
+            // Convention: in AOSP, signature files are often in sourcepath/api: let's place
+            // baseline files there too
+            val api = File(base, "api")
+            if (api.isDirectory) {
+                base = api
+            }
+            return File(base, sb.toString())
+        } else {
+            return null
         }
     }
 }
