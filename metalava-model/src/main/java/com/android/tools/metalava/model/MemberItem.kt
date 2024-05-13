@@ -34,8 +34,8 @@ interface MemberItem : Item {
     override fun parent(): ClassItem? = containingClass()
 
     /**
-     * Returns true if this member is effectively final: it's either final itself, or implied to be
-     * final because its containing class is final
+     * Returns true if this member is effectively final based on modifiers: it's either final
+     * itself, or implied to be final because its containing class is final or sealed.
      */
     fun isEffectivelyFinal(): Boolean {
         return modifiers.isFinal() ||

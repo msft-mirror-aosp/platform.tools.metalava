@@ -384,15 +384,6 @@ class CompatibilityCheck(
     }
 
     /**
-     * Return true if a [ClassItem] loaded from a signature file could be subclassed, i.e. is not
-     * final, or sealed and has at least one accessible constructor.
-     */
-    private fun ClassItem.isExtensible() =
-        !modifiers.isFinal() &&
-            !modifiers.isSealed() &&
-            constructors().any { it.isPublic || it.isProtected }
-
-    /**
      * Check if the return types are compatible, which is true when:
      * - they're equal
      * - both are arrays, and the component types are compatible
