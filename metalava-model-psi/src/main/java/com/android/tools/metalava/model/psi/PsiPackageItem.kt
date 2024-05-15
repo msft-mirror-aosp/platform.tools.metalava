@@ -17,17 +17,19 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.intellij.psi.PsiPackage
 
 class PsiPackageItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
+    override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
@@ -48,6 +50,8 @@ internal constructor(
     lateinit var containingPackageField: PsiPackageItem
 
     override fun containingClass(): ClassItem? = null
+
+    override fun psi() = psiPackage
 
     override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
@@ -113,28 +117,6 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "package $qualifiedName"
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-        val initialClasses = ArrayList(classes)
-        var original =
-            initialClasses.size // classes added after this point will have indices >= original
-        for (cls in initialClasses) {
-            if (cls is PsiClassItem) cls.finishInitialization()
-        }
-
-        // Finish initialization of any additional classes that were registered during
-        // the above initialization (recursively)
-        while (original < classes.size) {
-            val added = ArrayList(classes.subList(original, classes.size))
-            original = classes.size
-            for (cls in added) {
-                if (cls is PsiClassItem) cls.finishInitialization()
-            }
-        }
-    }
-
     override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {
@@ -142,9 +124,12 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
             extraDocs: String?,
-            fromClassPath: Boolean
+            overviewHtml: String?,
+            fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
+            val commentText =
+                javadoc(psiPackage, codebase.allowReadingComments) +
+                    if (extraDocs != null) "\n$extraDocs" else ""
             val modifiers = modifiers(codebase, psiPackage, commentText)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
@@ -158,24 +143,10 @@ internal constructor(
                     psiPackage = psiPackage,
                     qualifiedName = qualifiedName,
                     documentation = commentText,
+                    overviewDocumentation = overviewHtml,
                     modifiers = modifiers,
                     fromClassPath = fromClassPath
                 )
-            pkg.modifiers.setOwner(pkg)
-            return pkg
-        }
-
-        fun create(codebase: PsiBasedCodebase, original: PsiPackageItem): PsiPackageItem {
-            val pkg =
-                PsiPackageItem(
-                    codebase = codebase,
-                    psiPackage = original.psiPackage,
-                    qualifiedName = original.qualifiedName,
-                    documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    fromClassPath = original.isFromClassPath()
-                )
-            pkg.modifiers.setOwner(pkg)
             return pkg
         }
     }

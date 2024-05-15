@@ -19,16 +19,14 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.reporter.FileLocation
 
-class TextPackageItem(
+internal class TextPackageItem(
     codebase: TextCodebase,
     private val name: String,
     modifiers: DefaultModifierList,
-    position: SourcePositionInfo
-) : TextItem(codebase, position, modifiers = modifiers), PackageItem {
-    init {
-        modifiers.setOwner(this)
-    }
+    fileLocation: FileLocation
+) : TextItem(codebase, fileLocation, modifiers = modifiers), PackageItem {
 
     private val classes = ArrayList<ClassItem>(100)
 
@@ -44,18 +42,6 @@ class TextPackageItem(
         classes.add(classInfo)
         classesNames.add(classFullName)
     }
-
-    internal fun pruneClassList() {
-        val iterator = classes.listIterator()
-        while (iterator.hasNext()) {
-            val cls = iterator.next()
-            if (cls.isInnerClass()) {
-                iterator.remove()
-            }
-        }
-    }
-
-    internal fun classList(): List<ClassItem> = classes
 
     override fun topLevelClasses(): Sequence<ClassItem> = classes.asSequence()
 
@@ -73,6 +59,4 @@ class TextPackageItem(
     override fun hashCode(): Int {
         return name.hashCode()
     }
-
-    override fun toString(): String = "package $name"
 }

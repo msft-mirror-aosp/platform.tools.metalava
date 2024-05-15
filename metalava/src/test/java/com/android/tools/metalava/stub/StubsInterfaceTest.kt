@@ -18,6 +18,8 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -305,10 +307,12 @@ class StubsInterfaceTest : AbstractStubsTest() {
 
                     @SuppressWarnings({"RedundantThrows", "WeakerAccess"})
                     public class Generics {
+                        @SuppressWarnings("HiddenSuperclass") // HiddenParent is not public
                         public class MyClass<X, Y extends Number> extends HiddenParent<X, Y> implements PublicInterface<X, Y> {
                         }
 
                         class HiddenParent<M, N extends Number> extends PublicParent<M, N> {
+                            @SuppressWarnings("ReferencesHidden") // MyThrowable is not public
                             public Map<M, Map<N, String>> createMap(List<M> list) throws MyThrowable {
                                 return null;
                             }
@@ -454,7 +458,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         """
                     package android.content.res;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser,  android.util.AttributeSet, java.lang.AutoCloseable {
+                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser, android.util.AttributeSet, java.lang.AutoCloseable {
                     public void close();
                     }
                     """
@@ -494,6 +498,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
         check(
@@ -518,7 +523,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         package test.pkg
                         @file:Suppress("ALL")
                         class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                        open fun MainClass(): test.pkg.MainClass! = error("Stub!")
+                        open fun MainClass(): test.pkg.MainClass = error("Stub!")
                         }
                     """
                     )
