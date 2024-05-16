@@ -21,6 +21,7 @@ import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.JarBasedApi
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
@@ -171,7 +172,18 @@ class CompatibilityCheckOptions(
                         checkCompatibilityOptionForApiType(apiType),
                         files
                     )
-                    ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
+                    ?.let { previouslyReleasedApi ->
+                        // It makes no sense to supply a jar file for the removed API because the
+                        // removed API is only a tiny fraction and incomplete part of an API
+                        // surface, so it could never be guaranteed to be able to compile into a jar
+                        // file.
+                        if (apiType == ApiType.REMOVED && previouslyReleasedApi is JarBasedApi) {
+                            throw IllegalStateException(
+                                "$ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED: Cannot specify jar files for removed API but found ${previouslyReleasedApi.file}"
+                            )
+                        }
+                        CheckRequest(previouslyReleasedApi, apiType)
+                    }
 
             private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
                 "--check-compatibility:${apiType.flagName}:released"

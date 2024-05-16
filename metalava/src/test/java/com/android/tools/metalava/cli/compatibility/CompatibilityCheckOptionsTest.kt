@@ -185,6 +185,22 @@ class CompatibilityCheckOptionsTest :
     }
 
     @Test
+    fun `check compatibility api removed does not support jar file`() {
+        val jarFile = fakeJar()
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, jarFile.path) {
+                    options.compatibilityChecks
+                }
+            }
+        assertThat(exception.message)
+            .isEqualTo(
+                "--check-compatibility:removed:released: Cannot specify jar files for removed API but found $jarFile"
+            )
+    }
+
+    @Test
     fun `check compatibility api released jar is not supported for --revert-annotation`() {
         val jarFile = fakeJar()
         runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
