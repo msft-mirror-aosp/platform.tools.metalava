@@ -660,11 +660,13 @@ private fun ActionContext.loadFromSources(
     // General API checks for Android APIs
     AndroidApiChecks(reporterApiLint).check(codebase)
 
-    if (options.apiLintEnabled) {
+    options.apiLintOptions.let { apiLintOptions ->
+        if (!apiLintOptions.apiLintEnabled) return@let
+
         progressTracker.progress("API Lint: ")
         val localTimer = Stopwatch.createStarted()
         // See if we should provide a previous codebase to provide a delta from?
-        val previousApiFile = options.apiLintPreviousApi
+        val previousApiFile = apiLintOptions.apiLintPreviousApi
         val previous =
             when {
                 previousApiFile == null -> null
