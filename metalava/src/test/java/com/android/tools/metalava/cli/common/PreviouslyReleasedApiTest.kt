@@ -73,12 +73,17 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
     fun `check multiple jar files`() {
         val jarFile1 = fakeJar("some.jar")
         val jarFile2 = fakeJar("another.jar")
-        val previouslyReleasedApi =
-            PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
-                OPTION_NAME,
-                listOf(jarFile1, jarFile2)
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                    OPTION_NAME,
+                    listOf(jarFile1, jarFile2)
+                )
+            }
+        assertThat(exception.message)
+            .isEqualTo(
+                "$OPTION_NAME: Cannot have more than one jar file, found: $jarFile1, $jarFile2"
             )
-        assertThat(previouslyReleasedApi).isEqualTo(JarBasedApi(listOf(jarFile1, jarFile2)))
     }
 
     @Test

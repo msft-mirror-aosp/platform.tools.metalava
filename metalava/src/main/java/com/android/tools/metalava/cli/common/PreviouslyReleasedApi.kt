@@ -51,7 +51,12 @@ sealed interface PreviouslyReleasedApi {
                     files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
                 when {
                     jarFiles.isEmpty() -> SignatureBasedApi.fromFiles(signatureFiles)
-                    signatureFiles.isEmpty() -> JarBasedApi(jarFiles)
+                    signatureFiles.isEmpty() ->
+                        if (jarFiles.size > 1)
+                            throw IllegalStateException(
+                                "$optionName: Cannot have more than one jar file, found: ${jarFiles.joinToString()}"
+                            )
+                        else JarBasedApi(jarFiles)
                     else ->
                         throw IllegalStateException(
                             "$optionName: Cannot mix jar files (e.g. ${jarFiles.first()}) and signature files (e.g. ${signatureFiles.first()})"
