@@ -19,8 +19,8 @@ package com.android.tools.metalava.cli.compatibility
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.JarBasedApi
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.SignatureBasedApi
+import com.android.tools.metalava.cli.common.JarBasedApi
+import com.android.tools.metalava.cli.common.SignatureBasedApi
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
