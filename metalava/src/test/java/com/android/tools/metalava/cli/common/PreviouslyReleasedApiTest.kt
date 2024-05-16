@@ -66,7 +66,7 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
         val jarFile = fakeJar("some.jar")
         val previouslyReleasedApi =
             PreviouslyReleasedApi.optionalPreviouslyReleasedApi(OPTION_NAME, listOf(jarFile))
-        assertThat(previouslyReleasedApi).isEqualTo(JarBasedApi(listOf(jarFile)))
+        assertThat(previouslyReleasedApi).isEqualTo(JarBasedApi(jarFile))
     }
 
     @Test

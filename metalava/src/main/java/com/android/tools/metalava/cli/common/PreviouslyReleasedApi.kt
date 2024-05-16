@@ -60,7 +60,7 @@ sealed interface PreviouslyReleasedApi {
                             throw IllegalStateException(
                                 "$optionName: Cannot have more than one jar file, found: ${jarFiles.joinToString()}"
                             )
-                        else JarBasedApi(jarFiles)
+                        else JarBasedApi(jarFiles[0])
                     else ->
                         throw IllegalStateException(
                             "$optionName: Cannot mix jar files (e.g. ${jarFiles.first()}) and signature files (e.g. ${signatureFiles.first()})"
@@ -71,7 +71,9 @@ sealed interface PreviouslyReleasedApi {
 }
 
 /** A previously released API defined by jar files. */
-data class JarBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
+data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
+
+    override val files: List<File> = listOf(file)
 
     /** This does not have any signature files, so it always returns `null`. */
     override val lastSignatureFile: File? = null
@@ -79,7 +81,7 @@ data class JarBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
     override fun load(
         jarLoader: (File) -> Codebase,
         signatureLoader: (SignatureFile) -> Codebase,
-    ) = files.map { jarLoader(it) }
+    ) = listOf(jarLoader(file))
 }
 
 /**

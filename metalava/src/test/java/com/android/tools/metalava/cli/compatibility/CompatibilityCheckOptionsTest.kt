@@ -152,7 +152,7 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(listOf(jarFile)),
+                            previouslyReleasedApi = JarBasedApi(jarFile),
                             apiType = ApiType.PUBLIC_API,
                         ),
                     )
@@ -192,7 +192,7 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(listOf(jarFile)),
+                            previouslyReleasedApi = JarBasedApi(jarFile),
                             apiType = ApiType.PUBLIC_API,
                         ),
                     )
