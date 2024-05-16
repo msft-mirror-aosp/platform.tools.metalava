@@ -23,8 +23,12 @@ import java.io.File
 
 /** A previously released API. */
 sealed interface PreviouslyReleasedApi {
+
     /** The set of files defining the previously released API. */
     val files: List<File>
+
+    /** The last signature file, if any, defining the previously released API. */
+    val lastSignatureFile: File?
 
     /** Load the files into a list of [Codebase]s. */
     fun load(
@@ -68,6 +72,10 @@ sealed interface PreviouslyReleasedApi {
 
 /** A previously released API defined by jar files. */
 data class JarBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
+
+    /** This does not have any signature files, so it always returns `null`. */
+    override val lastSignatureFile: File? = null
+
     override fun load(
         jarLoader: (File) -> Codebase,
         signatureLoader: (SignatureFile) -> Codebase,
@@ -84,6 +92,8 @@ data class JarBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
 data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : PreviouslyReleasedApi {
 
     override val files: List<File> = signatureFiles.map { it.file }
+
+    override val lastSignatureFile = signatureFiles.last().file
 
     override fun load(
         jarLoader: (File) -> Codebase,

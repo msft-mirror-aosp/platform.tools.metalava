@@ -484,16 +484,15 @@ private fun ActionContext.checkCompatibility(
     // Fast path: if we've already generated a signature file, and it's identical to the previously
     // released API then we're good.
     //
-    // Some things to watch out for:
-    // * There is no guarantee that the signature file is actually a txt file, it could also be
-    //   a `jar` file, so double check that first.
-    // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
-    //   check the lengths first and then compare contents byte for byte so that it exits
-    //   quickly if they're different and does not do all the UTF-8 conversions.
+    // Reading two files that may be a couple of MBs each isn't a particularly fast path so check
+    // the lengths first and then compare contents byte for byte so that it exits quickly if they're
+    // different and does not do all the UTF-8 conversions.
     generatedApiFile?.let { apiFile ->
-        val signatureFile = check.files.last()
         val compatibilityCheckCanBeSkipped =
-            signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
+            check.lastSignatureFile?.let { signatureFile ->
+                compareFileContents(apiFile, signatureFile)
+            }
+                ?: false
         // TODO(b/301282006): Remove global variable use when this can be tested properly
         fastPathCheckResult = compatibilityCheckCanBeSkipped
         if (compatibilityCheckCanBeSkipped) return

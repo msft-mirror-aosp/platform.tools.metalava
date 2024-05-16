@@ -164,6 +164,9 @@ class CompatibilityCheckOptions(
         /** The files defining the previously released API. */
         val files by previouslyReleasedApi::files
 
+        /** The last signature file, if any, defining the previously released API. */
+        val lastSignatureFile by previouslyReleasedApi::lastSignatureFile
+
         companion object {
             /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
