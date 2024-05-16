@@ -174,16 +174,7 @@ class CompatibilityCheckOptionsTest :
                     ARG_CHECK_COMPATIBILITY_API_RELEASED,
                     signatureFile.path,
                 ) {
-                    assertThat(options.compatibilityChecks)
-                        .isEqualTo(
-                            listOf(
-                                CompatibilityCheckOptions.CheckRequest(
-                                    previouslyReleasedApi =
-                                        JarBasedApi(listOf(jarFile, signatureFile)),
-                                    apiType = ApiType.PUBLIC_API,
-                                ),
-                            )
-                        )
+                    options.compatibilityChecks
                 }
             }
 
