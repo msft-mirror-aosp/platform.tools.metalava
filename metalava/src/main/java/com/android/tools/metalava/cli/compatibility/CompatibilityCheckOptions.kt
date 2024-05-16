@@ -153,6 +153,34 @@ class CompatibilityCheckOptions(
             jarLoader: (File) -> Codebase,
             signatureLoader: (SignatureFile) -> Codebase,
         ): List<Codebase>
+
+        companion object {
+            /**
+             * Create an optional [PreviouslyReleasedApi] instance from the list of [files] passed
+             * to the option [optionName].
+             *
+             * If [files] is empty then this returns `null`. If [files] contains a mixture of jar
+             * and non-jar files (assumed to be signature files) then it is an error. Otherwise,
+             * this will return a [JarBasedApi] or [SignatureBasedApi] for a list of jar files and a
+             * list of signature files respectively.
+             */
+            internal fun optionalPreviouslyReleasedApi(optionName: String, files: List<File>) =
+                if (files.isEmpty()) null
+                else {
+                    // Partition the files into jar and non-jar files, the latter are assumed to be
+                    // signature files.
+                    val (jarFiles, signatureFiles) =
+                        files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
+                    when {
+                        jarFiles.isEmpty() -> SignatureBasedApi.fromFiles(signatureFiles)
+                        signatureFiles.isEmpty() -> JarBasedApi(jarFiles)
+                        else ->
+                            throw IllegalStateException(
+                                "$optionName: Cannot mix jar files (e.g. ${jarFiles.first()}) and signature files (e.g. ${signatureFiles.first()})"
+                            )
+                    }
+                }
+        }
     }
 
     /** A previously released API defined by jar files. */
@@ -219,22 +247,11 @@ class CompatibilityCheckOptions(
         companion object {
             /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
-                if (files.isEmpty()) null
-                else {
-                    // Partition the files into jar and non-jar files, the latter are assumed to be
-                    // signature files.
-                    val (jarFiles, signatureFiles) =
-                        files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
-                    when {
-                        jarFiles.isEmpty() ->
-                            CheckRequest(SignatureBasedApi.fromFiles(signatureFiles), apiType)
-                        signatureFiles.isEmpty() -> CheckRequest(JarBasedApi(jarFiles), apiType)
-                        else ->
-                            throw IllegalStateException(
-                                "${checkCompatibilityOptionForApiType(apiType)}: Cannot mix jar files (e.g. ${jarFiles.first()}) and signature files (e.g. ${signatureFiles.first()})"
-                            )
-                    }
-                }
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                        checkCompatibilityOptionForApiType(apiType),
+                        files
+                    )
+                    ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
 
             private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
                 "--check-compatibility:${apiType.flagName}:released"
