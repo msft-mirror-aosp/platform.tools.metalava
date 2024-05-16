@@ -36,6 +36,8 @@ sealed interface PreviouslyReleasedApi {
         signatureLoader: (SignatureFile) -> Codebase,
     ): List<Codebase>
 
+    override fun toString(): String
+
     companion object {
         /**
          * Create an optional [PreviouslyReleasedApi] instance from the list of [files] passed to
@@ -82,6 +84,10 @@ data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
         jarLoader: (File) -> Codebase,
         signatureLoader: (SignatureFile) -> Codebase,
     ) = listOf(jarLoader(file))
+
+    override fun toString(): String {
+        return file.toString()
+    }
 }
 
 /**
@@ -101,6 +107,10 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
         jarLoader: (File) -> Codebase,
         signatureLoader: (SignatureFile) -> Codebase,
     ) = signatureFiles.map { signatureLoader(it) }
+
+    override fun toString(): String {
+        return signatureFiles.joinToString(",") { it.file.path }
+    }
 
     companion object {
         fun fromFiles(files: List<File>): SignatureBasedApi {

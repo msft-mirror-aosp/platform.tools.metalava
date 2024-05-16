@@ -161,9 +161,6 @@ class CompatibilityCheckOptions(
         /** The part of the API to be checked. */
         val apiType: ApiType,
     ) {
-        /** The files defining the previously released API. */
-        val files by previouslyReleasedApi::files
-
         /** The last signature file, if any, defining the previously released API. */
         val lastSignatureFile by previouslyReleasedApi::lastSignatureFile
 
@@ -180,7 +177,7 @@ class CompatibilityCheckOptions(
                 "--check-compatibility:${apiType.flagName}:released"
         }
 
-        /** Load the previously released API [files] in as a list of [Codebase]s. */
+        /** Load the previously released API files in as a list of [Codebase]s. */
         fun loadPreviouslyReleasedApi(
             jarLoader: (File) -> Codebase,
             signatureLoader: (SignatureFile) -> Codebase,
@@ -188,7 +185,7 @@ class CompatibilityCheckOptions(
 
         override fun toString(): String {
             // This is only used when reporting progress.
-            return checkCompatibilityOptionForApiType(apiType) + " ${files.joinToString(",")}"
+            return "${checkCompatibilityOptionForApiType(apiType)} $previouslyReleasedApi"
         }
     }
 
