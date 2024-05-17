@@ -201,7 +201,7 @@ internal fun processFlags(
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            actionContext.loadFromSources(signatureFileCache)
+            actionContext.loadFromSources(signatureFileCache, classResolverProvider)
         } else {
             return
         }
@@ -599,6 +599,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 @Suppress("DEPRECATION")
 private fun ActionContext.loadFromSources(
     signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
 ): Codebase {
     progressTracker.progress("Processing sources: ")
 
@@ -661,19 +662,24 @@ private fun ActionContext.loadFromSources(
 
         progressTracker.progress("API Lint: ")
         val localTimer = Stopwatch.createStarted()
+
         // See if we should provide a previous codebase to provide a delta from?
-        val previousApiFile = apiLintOptions.apiLintPreviousApi
-        val previous =
-            when {
-                previousApiFile == null -> null
-                previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
-                else ->
-                    signatureFileCache.load(signatureFile = SignatureFile.fromFile(previousApiFile))
-            }
+        val previouslyReleasedApi =
+            apiLintOptions.previouslyReleasedApi
+                ?.load(
+                    jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+                    signatureLoader = { signatureFiles ->
+                        signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+                    }
+                )
+                // Use the last Codebase to maintain behavior of only using a Codebase for the API
+                // being generated, even if that is an incomplete delta on another Codebase.
+                ?.lastOrNull()
+
         val apiLintReporter = reporterApiLint as DefaultReporter
         ApiLint.check(
             codebase,
-            previous,
+            previouslyReleasedApi,
             apiLintReporter,
             options.manifest,
             options.apiVisitorConfig,
