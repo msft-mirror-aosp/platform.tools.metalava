@@ -499,8 +499,8 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebases =
-        check
-            .loadPreviouslyReleasedApi(
+        check.previouslyReleasedApi
+            .load(
                 jarLoader = { jarFile -> loadFromJarFile(jarFile) },
                 signatureLoader = { signatureFile ->
                     signatureFileCache.load(signatureFile, classResolverProvider.classResolver)

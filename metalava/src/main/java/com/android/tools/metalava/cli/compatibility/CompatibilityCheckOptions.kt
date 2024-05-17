@@ -27,7 +27,6 @@ import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.text.SignatureFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -188,12 +187,6 @@ class CompatibilityCheckOptions(
             private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
                 "--check-compatibility:${apiType.flagName}:released"
         }
-
-        /** Load the previously released API files in as a list of [Codebase]s. */
-        fun loadPreviouslyReleasedApi(
-            jarLoader: (File) -> Codebase,
-            signatureLoader: (SignatureFile) -> Codebase,
-        ) = previouslyReleasedApi.load(jarLoader, signatureLoader)
 
         override fun toString(): String {
             // This is only used when reporting progress.
