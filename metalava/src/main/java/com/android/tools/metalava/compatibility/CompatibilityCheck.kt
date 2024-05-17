@@ -975,11 +975,13 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (
-            reporter.report(issue, item, message, maximumSeverity = maximumSeverity) &&
-                issueConfiguration.getSeverity(issue) == Severity.ERROR
-        ) {
-            foundProblems = true
+        if (reporter.report(issue, item, message, maximumSeverity = maximumSeverity)) {
+            // If the issue was reported and was an error then remember that this found some
+            // problems so that the process can be aborted after finishing the checks.
+            val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
+            if (severity == Severity.ERROR) {
+                foundProblems = true
+            }
         }
     }
 
