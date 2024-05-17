@@ -207,7 +207,7 @@ class CompatibilityCheckOptions(
      * not support jar files.
      */
     fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.flatMap {
+        compatibilityChecks.map {
             it.previouslyReleasedApi.load(
                 {
                     throw IllegalStateException(

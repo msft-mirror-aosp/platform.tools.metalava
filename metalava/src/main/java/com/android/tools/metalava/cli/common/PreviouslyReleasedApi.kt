@@ -33,8 +33,8 @@ sealed interface PreviouslyReleasedApi {
     /** Load the files into a list of [Codebase]s. */
     fun load(
         jarLoader: (File) -> Codebase,
-        signatureLoader: (SignatureFile) -> Codebase,
-    ): List<Codebase>
+        signatureFileLoader: (List<SignatureFile>) -> Codebase,
+    ): Codebase
 
     override fun toString(): String
 
@@ -82,8 +82,8 @@ data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
 
     override fun load(
         jarLoader: (File) -> Codebase,
-        signatureLoader: (SignatureFile) -> Codebase,
-    ) = listOf(jarLoader(file))
+        signatureFileLoader: (List<SignatureFile>) -> Codebase,
+    ) = jarLoader(file)
 
     override fun toString(): String {
         return file.toString()
@@ -105,8 +105,8 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
 
     override fun load(
         jarLoader: (File) -> Codebase,
-        signatureLoader: (SignatureFile) -> Codebase,
-    ) = signatureFiles.map { signatureLoader(it) }
+        signatureFileLoader: (List<SignatureFile>) -> Codebase,
+    ) = signatureFileLoader(signatureFiles)
 
     override fun toString(): String {
         return signatureFiles.joinToString(",") { it.file.path }

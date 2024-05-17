@@ -498,11 +498,11 @@ private fun ActionContext.checkCompatibility(
         if (compatibilityCheckCanBeSkipped) return
     }
 
-    val oldCodebases =
+    val oldCodebase =
         check.previouslyReleasedApi.load(
             jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-            signatureLoader = { signatureFile ->
-                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+            signatureFileLoader = { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
             }
         )
 
@@ -521,9 +521,8 @@ private fun ActionContext.checkCompatibility(
         )
     }
 
-    // The MergedCodebase assume that the codebases are in order from widest to narrowest which is
-    // the opposite of how they are supplied so this reverses them.
-    val mergedOldCodebases = MergedCodebase(oldCodebases.reversed())
+    // Wrap the old Codebase in a [MergedCodebase].
+    val mergedOldCodebases = MergedCodebase(listOf(oldCodebase))
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
@@ -665,16 +664,12 @@ private fun ActionContext.loadFromSources(
 
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedApi =
-            apiLintOptions.previouslyReleasedApi
-                ?.load(
-                    jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-                    signatureLoader = { signatureFiles ->
-                        signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-                    }
-                )
-                // Use the last Codebase to maintain behavior of only using a Codebase for the API
-                // being generated, even if that is an incomplete delta on another Codebase.
-                ?.lastOrNull()
+            apiLintOptions.previouslyReleasedApi?.load(
+                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+                signatureFileLoader = { signatureFiles ->
+                    signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+                }
+            )
 
         val apiLintReporter = reporterApiLint as DefaultReporter
         ApiLint.check(
