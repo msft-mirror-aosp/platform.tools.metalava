@@ -1378,7 +1378,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public abstract class Foo {
                         protected Foo() { throw new RuntimeException("Stub!"); }
-                        public final void method(java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         public static int field;
                         }
                     """
@@ -1476,7 +1476,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             package test.pkg {
                               public abstract class Foo {
                                 ctor protected Foo();
-                                method public final void method(String);
+                                method public final void method(@Nullable String);
                                 field public static int field;
                               }
                               public class Bar {
@@ -1560,7 +1560,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                   public abstract class Foo {
                                     ctor protected Foo();
-                                    method public final void method(String);
+                                    method public final void method(@Nullable String);
                                     field public static int field;
                                   }
                                 }
