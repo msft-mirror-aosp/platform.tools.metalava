@@ -1315,16 +1315,14 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val stubsWithoutFlaggedApis =
             arrayOf(
                 java(
-                    // TODO(b/341672035): Fix the generation of the `abstractMethod` (should not
-                    //  have a body) and `nativeMethod` (should have a body).
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public abstract class Foo {
                         protected Foo() { throw new RuntimeException("Stub!"); }
-                        public abstract void abstractMethod() { throw new RuntimeException("Stub!"); }
+                        public abstract void abstractMethod();
                         public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
-                        public void nativeMethod();
+                        public void nativeMethod() { throw new RuntimeException("Stub!"); }
                         public static final int field;
                         }
                     """
