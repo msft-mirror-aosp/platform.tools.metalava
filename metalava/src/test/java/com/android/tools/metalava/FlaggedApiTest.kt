@@ -1303,7 +1303,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
+                        public void abstractMethod() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public native void nativeMethod();
                         public static int field;
                         }
                     """
@@ -1313,12 +1315,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val stubsWithoutFlaggedApis =
             arrayOf(
                 java(
+                    // TODO(b/341672035): Fix the generation of the `abstractMethod` (should not
+                    //  have a body) and `nativeMethod` (should have a body).
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public abstract class Foo {
                         protected Foo() { throw new RuntimeException("Stub!"); }
+                        public abstract void abstractMethod() { throw new RuntimeException("Stub!"); }
                         public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public void nativeMethod();
                         public static final int field;
                         }
                     """
@@ -1336,7 +1342,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Foo {
                         public Foo() {}
+                        public void abstractMethod();
                         public void method(@Nullable String p) {}
+                        public native void nativeMethod();
                         public static int field;
                     }
                 """
@@ -1355,7 +1363,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             package test.pkg {
                               public abstract class Foo {
                                 ctor protected Foo();
+                                method public abstract void abstractMethod();
                                 method public final void method(@Nullable String);
+                                method public void nativeMethod();
                                 field public static final int field;
                               }
                             }
@@ -1372,7 +1382,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 package test.pkg {
                                   @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
                                     ctor public Foo();
+                                    method public void abstractMethod();
                                     method public void method(@Nullable String);
+                                    method public void nativeMethod();
                                     field public static int field;
                                   }
                                 }
@@ -1384,7 +1396,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 <api version="3" min="30">
                                   <class name="test/pkg/Foo" since="33">
                                     <method name="&lt;init>()V"/>
+                                    <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
+                                    <method name="nativeMethod()V"/>
                                     <field name="field"/>
                                   </class>
                                 </api>
@@ -1399,7 +1413,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 package test.pkg {
                                   public abstract class Foo {
                                     ctor protected Foo();
+                                    method public abstract void abstractMethod();
                                     method public final void method(@Nullable String);
+                                    method public void nativeMethod();
                                     field public static final int field;
                                   }
                                 }
@@ -1411,7 +1427,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 <api version="3" min="30">
                                   <class name="test/pkg/Foo" since="33">
                                     <method name="&lt;init>()V"/>
+                                    <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
+                                    <method name="nativeMethod()V"/>
                                     <field name="field"/>
                                   </class>
                                 </api>
