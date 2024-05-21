@@ -1510,14 +1510,37 @@ private constructor(
             boolean isWiFiRoamingSettingEnabled()
         */
 
+        fun isBooleanGetter(method: MethodItem): Boolean {
+            val returnType = method.returnType()
+            return method.parameters().isEmpty() &&
+                returnType is PrimitiveTypeItem &&
+                returnType.toTypeString() == "boolean"
+        }
+
+        fun isBooleanSetter(method: MethodItem): Boolean {
+            return method.parameters().size == 1 &&
+                method.parameters()[0].type().toTypeString() == "boolean"
+        }
+
+        /**
+         * Searches the [methods] for one named [actual] that is a boolean getter if
+         * [lookingForGetter] is true or a boolean setter if [lookingForGetter] is false. If one is
+         * found, reports an error that the method should have been named [expected] instead of
+         * [actual] to match the naming of [trigger].
+         */
         fun errorIfExists(
             methods: Sequence<MethodItem>,
             trigger: String,
             expected: String,
-            actual: String
+            actual: String,
+            lookingForGetter: Boolean,
         ) {
             for (method in methods) {
-                if (method.name() == actual) {
+                if (
+                    method.name() == actual &&
+                        ((lookingForGetter && isBooleanGetter(method)) ||
+                            (!lookingForGetter && isBooleanSetter(method)))
+                ) {
                     report(
                         GETTER_SETTER_NAMES,
                         method,
@@ -1591,21 +1614,9 @@ private constructor(
             }
         }
 
-        fun isGetter(method: MethodItem): Boolean {
-            val returnType = method.returnType()
-            return method.parameters().isEmpty() &&
-                returnType is PrimitiveTypeItem &&
-                returnType.toTypeString() == "boolean"
-        }
-
-        fun isSetter(method: MethodItem): Boolean {
-            return method.parameters().size == 1 &&
-                method.parameters()[0].type().toTypeString() == "boolean"
-        }
-
         for (method in methods) {
             val name = method.name()
-            if (isGetter(method)) {
+            if (isBooleanGetter(method)) {
                 // Checks for Java and Kotlin getters are handled separately
                 if (method.isKotlinProperty()) {
                     checkKotlinProperty(method)
@@ -1619,11 +1630,11 @@ private constructor(
                     badBooleanSetterPrefixes.forEach {
                         val actualSetter = "${it}$target"
                         if (actualSetter != expectedSetter) {
-                            errorIfExists(methods, name, expectedSetter, actualSetter)
+                            errorIfExists(methods, name, expectedSetter, actualSetter, false)
                         }
                     }
                 }
-            } else if (isSetter(method)) {
+            } else if (isBooleanSetter(method)) {
                 // Handled in the getter case (if the setter is part of the API, the getter also
                 // has to be: https://youtrack.jetbrains.com/issue/KT-3110)
                 if (method.isKotlinProperty()) continue
@@ -1637,7 +1648,7 @@ private constructor(
                 badBooleanGetterPrefixes.forEach {
                     val actualGetter = "${it}$target"
                     if (actualGetter != expectedGetter) {
-                        errorIfExists(methods, name, expectedGetter, actualGetter)
+                        errorIfExists(methods, name, expectedGetter, actualGetter, true)
                     }
                 }
             }

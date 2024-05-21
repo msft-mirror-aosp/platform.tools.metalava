@@ -1050,13 +1050,13 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                    src/android/pkg/MyClass.java:21: error: Symmetric method for `isVisibleBad` must be named `setVisibleBad`; was `setIsVisibleBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:24: error: Symmetric method for `hasTransientStateBad` must be named `setHasTransientStateBad`; was `setTransientStateBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:28: error: Symmetric method for `setHasTransientStateAlsoBad` must be named `hasTransientStateAlsoBad`; was `isHasTransientStateAlsoBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:31: error: Symmetric method for `setCanRecordBad` must be named `canRecordBad`; was `isCanRecordBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:34: error: Symmetric method for `setShouldFitWidthBad` must be named `shouldFitWidthBad`; was `isShouldFitWidthBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:37: error: Symmetric method for `setWiFiRoamingSettingEnabledBad` must be named `isWiFiRoamingSettingEnabledBad`; was `getWiFiRoamingSettingEnabledBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:40: error: Symmetric method for `setEnabledBad` must be named `isEnabledBad`; was `getEnabledBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:25: error: Symmetric method for `isVisibleBad` must be named `setVisibleBad`; was `setIsVisibleBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:28: error: Symmetric method for `hasTransientStateBad` must be named `setHasTransientStateBad`; was `setTransientStateBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:32: error: Symmetric method for `setHasTransientStateAlsoBad` must be named `hasTransientStateAlsoBad`; was `isHasTransientStateAlsoBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:35: error: Symmetric method for `setCanRecordBad` must be named `canRecordBad`; was `isCanRecordBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:38: error: Symmetric method for `setShouldFitWidthBad` must be named `shouldFitWidthBad`; was `isShouldFitWidthBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:41: error: Symmetric method for `setWiFiRoamingSettingEnabledBad` must be named `isWiFiRoamingSettingEnabledBad`; was `getWiFiRoamingSettingEnabledBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:44: error: Symmetric method for `setEnabledBad` must be named `isEnabledBad`; was `getEnabledBad` [GetterSetterNames]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -1064,7 +1064,7 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                     package android.pkg;
-
+                    import androidx.annotation.NonNull;
                     public class MyClass {
                         // Correct
                         public void setVisible(boolean visible) {}
@@ -1081,6 +1081,10 @@ class ApiLintTest : DriverTest() {
 
                         public void setWiFiRoamingSettingEnabled(boolean enabled) {}
                         public boolean isWiFiRoamingSettingEnabled() { return false; }
+
+                        public boolean hasRoute() { return false; }
+                        public @NonNull String getRoute() { return ""; }
+                        public void setRoute(@NonNull String route) {}
 
                         // Bad
                         public void setIsVisibleBad(boolean visible) {}
@@ -1105,7 +1109,8 @@ class ApiLintTest : DriverTest() {
                         public boolean getEnabledBad() { return false; }
                     }
                     """
-                    )
+                    ),
+                    androidxNonNullSource
                 )
         )
     }
