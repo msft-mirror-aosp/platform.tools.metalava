@@ -73,16 +73,16 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         val androidTxtFiles =
             listOf("public", "system", "module-lib").map { surface -> getAndroidTxt(34, surface) }
         ApiFile.parseApi(
-            androidTxtFiles,
+            SignatureFile.fromFiles(androidTxtFiles),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 7315,
-                            typeCacheRequests = 190871,
+                            typeCacheRequests = 190875,
                             typeCacheSkip = 0,
-                            typeCacheHit = 179508,
-                            typeCacheSize = 11363,
+                            typeCacheHit = 179355,
+                            typeCacheSize = 11520,
                         )
                     )
             }
@@ -99,7 +99,7 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         }
 
         ApiFile.parseApi(
-            listOf(testFile),
+            listOf(SignatureFile.fromFile(testFile)),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
