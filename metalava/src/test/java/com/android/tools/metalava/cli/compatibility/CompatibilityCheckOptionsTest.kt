@@ -19,8 +19,8 @@ package com.android.tools.metalava.cli.compatibility
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.JarBasedApi
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.SignatureBasedApi
+import com.android.tools.metalava.cli.common.JarBasedApi
+import com.android.tools.metalava.cli.common.SignatureBasedApi
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
@@ -56,6 +56,17 @@ Compatibility Checks:
                                              If set, this is output when errors are detected in
                                              --check-compatibility:api:released or
                                              --check-compatibility:removed:released.
+  --baseline:compatibility:released <file>   An optional baseline file that contains a list of known compatibility
+                                             issues which should be ignored. If this does not exist and
+                                             --update-baseline:compatibility:released is not specified then it will be
+                                             created and populated with all the known compatibility issues.
+  --update-baseline:compatibility:released <file>
+                                             An optional file into which a list of the latest compatibility issues found
+                                             will be written. If --baseline:compatibility:released is specified then any
+                                             issues listed in there will be copied into this file; that minimizes the
+                                             amount of churn in the baseline file when updating by not removing legacy
+                                             issues that have been fixed. If --delete-empty-baselines is specified and
+                                             this baseline is empty then the file will be deleted.
     """
         .trimIndent()
 
@@ -141,7 +152,7 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(listOf(jarFile)),
+                            previouslyReleasedApi = JarBasedApi(jarFile),
                             apiType = ApiType.PUBLIC_API,
                         ),
                     )
@@ -163,22 +174,29 @@ class CompatibilityCheckOptionsTest :
                     ARG_CHECK_COMPATIBILITY_API_RELEASED,
                     signatureFile.path,
                 ) {
-                    assertThat(options.compatibilityChecks)
-                        .isEqualTo(
-                            listOf(
-                                CompatibilityCheckOptions.CheckRequest(
-                                    previouslyReleasedApi =
-                                        JarBasedApi(listOf(jarFile, signatureFile)),
-                                    apiType = ApiType.PUBLIC_API,
-                                ),
-                            )
-                        )
+                    options.compatibilityChecks
                 }
             }
 
         assertThat(exception.message)
             .isEqualTo(
                 "--check-compatibility:api:released: Cannot mix jar files (e.g. $jarFile) and signature files (e.g. $signatureFile)"
+            )
+    }
+
+    @Test
+    fun `check compatibility api removed does not support jar file`() {
+        val jarFile = fakeJar()
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, jarFile.path) {
+                    options.compatibilityChecks
+                }
+            }
+        assertThat(exception.message)
+            .isEqualTo(
+                "--check-compatibility:removed:released: Cannot specify jar files for removed API but found $jarFile"
             )
     }
 
@@ -190,7 +208,7 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(listOf(jarFile)),
+                            previouslyReleasedApi = JarBasedApi(jarFile),
                             apiType = ApiType.PUBLIC_API,
                         ),
                     )

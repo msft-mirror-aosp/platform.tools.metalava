@@ -202,7 +202,8 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Gets the type for this class */
     override fun type(): ClassTypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findClass(qualifiedName())
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
+        codebase.findClass(qualifiedName())
 
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
@@ -777,4 +778,13 @@ interface ClassItem : Item, TypeParameterListOwner {
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 
     fun addInnerClass(cls: ClassItem): Unit = codebase.unsupported()
+
+    /**
+     * Return true if a [ClassItem] could be subclassed, i.e. is not final or sealed and has at
+     * least one accessible constructor.
+     */
+    fun isExtensible() =
+        !modifiers.isFinal() &&
+            !modifiers.isSealed() &&
+            constructors().any { it.isPublic || it.isProtected }
 }
