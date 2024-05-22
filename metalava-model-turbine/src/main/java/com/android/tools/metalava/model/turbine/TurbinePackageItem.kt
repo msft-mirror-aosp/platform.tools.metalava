@@ -60,6 +60,14 @@ internal class TurbinePackageItem(
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
+    fun updateOriginallyHiddenStatus(documentation: String) {
+        this.originallyHidden =
+            this.originallyHidden ||
+                documentation.contains("@hide") ||
+                documentation.contains("@pending") ||
+                hasHideAnnotation()
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
