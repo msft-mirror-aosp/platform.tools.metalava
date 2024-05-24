@@ -482,11 +482,46 @@ class NullabilityLintTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Invalid nullability override in function with generic parameter`() {
+        check(
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                "src/test/pkg/StringProperty.java:5: error: Invalid nullability on parameter `arg2` in method `foo`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public abstract class Property<V> {
+                                public abstract void foo(V arg1, @SuppressWarnings("MissingNullability") String arg2);
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.NonNull;
+                            public class StringProperty extends Property<String> {
+                                @Override
+                                public void foo(@NonNull String arg1, @NonNull String arg2) {}
+                            }
+                        """
+                    ),
+                    androidxNonNullSource,
+                )
+        )
+    }
+
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
         check(
             apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                "src/test/pkg/ArrayMap.java:11: error: Invalid nullability on parameter `key` in method `get`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]",
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -508,6 +543,7 @@ class NullabilityLintTest : DriverTest() {
                         import androidx.annotation.NonNull;
                         import androidx.annotation.Nullable;
 
+                        // The android version of [Map.get] has a @Nullable parameter
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
                             @Nullable
@@ -549,6 +585,7 @@ class NullabilityLintTest : DriverTest() {
                         import java.util.Map;
                         import androidx.annotation.Nullable;
 
+                        // The android version of [Map.get] has a @Nullable parameter
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
                             @Nullable

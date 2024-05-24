@@ -67,6 +67,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
@@ -1991,14 +1992,20 @@ private constructor(
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
                     if (item.containingMethod().isConstructor()) return
+                    val supers =
+                        item.containingMethod().superMethods().mapNotNull {
+                            it.parameters().find { param ->
+                                item.parameterIndex == param.parameterIndex
+                            }
+                        }
                     if (item.modifiers.isNonNull()) {
-                        if (anySuperParameterLacksNullnessInfo(item)) {
+                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
                                 "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated."
                             )
-                        } else if (anySuperParameterIsNullable(item)) {
+                        } else if (supers.anyItemHasNullability(TypeNullability.NULLABLE)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
@@ -2008,14 +2015,15 @@ private constructor(
                     }
                 }
                 is MethodItem -> {
+                    val supers = item.superMethods()
                     if (item.modifiers.isNullable()) {
-                        if (anySuperMethodLacksNullnessInfo(item)) {
+                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
                                 "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable."
                             )
-                        } else if (anySuperMethodIsNonNull(item)) {
+                        } else if (supers.anyItemHasNullability(TypeNullability.NONNULL)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
@@ -2028,50 +2036,14 @@ private constructor(
         }
     }
 
-    private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
-        return method.superMethods().any { superMethod ->
-            // Disable check for generics
-            superMethod.modifiers.isNonNull() && superMethod.returnType() !is VariableTypeItem
+    /** Checks if any of the [Item]s in the list have a type with [nullability]. */
+    private fun List<Item>.anyItemHasNullability(nullability: TypeNullability): Boolean {
+        return any { superItem ->
+            val type = superItem.type() ?: return@any false
+            // Variable types have been excluded from the check because of previous inconsistency
+            // in modeling their nullability.
+            type !is VariableTypeItem && type.modifiers.nullability() == nullability
         }
-    }
-
-    private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
-        val supers = parameter.containingMethod().superMethods()
-        return supers.all { superMethod ->
-            // Disable check for generics
-            superMethod.parameters().none { it.type() is VariableTypeItem }
-        } &&
-            supers.any { superMethod ->
-                superMethod
-                    .parameters()
-                    .firstOrNull { param -> parameter.parameterIndex == param.parameterIndex }
-                    ?.modifiers
-                    ?.isNullable()
-                    ?: false
-            }
-    }
-
-    private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
-        return method.superMethods().any { superMethod ->
-            // Disable check for generics
-            !superMethod.modifiers.hasNullnessInfo() &&
-                superMethod.returnType() !is VariableTypeItem
-        }
-    }
-
-    private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
-        val supers = parameter.containingMethod().superMethods()
-        return supers.all { superMethod ->
-            // Disable check for generics
-            superMethod.parameters().none { it.type() is VariableTypeItem }
-        } &&
-            supers.any { superMethod ->
-                !(superMethod
-                    .parameters()
-                    .firstOrNull { param -> parameter.parameterIndex == param.parameterIndex }
-                    ?.hasNullnessInfo()
-                    ?: true)
-            }
     }
 
     private fun checkBoxed(type: TypeItem, item: Item) {
