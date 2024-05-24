@@ -321,7 +321,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public interface OnFooBarListener {
+                    public interface OnFooBarListener1 {
                         void bar();
                     }
                     """
@@ -330,7 +330,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public interface OnFooBarListener {
+                    public interface OnFooBarListener2 {
                         void onFooBar(); // OK
                     }
                     """
@@ -3338,7 +3338,7 @@ class ApiLintTest : DriverTest() {
                         """
                         package test.pkg;
                         import androidx.annotation.NonNull;
-                        public class Foo() {
+                        public class Foo {
                             // Doesn't require nullability
                             public Foo(@NonNull String bar);
                             // Requires nullability
