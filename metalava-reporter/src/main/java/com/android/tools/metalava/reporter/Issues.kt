@@ -67,7 +67,7 @@ object Issues {
     val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by Issue(Severity.ERROR, Category.COMPATIBILITY)
 
     // Issues in javadoc generation
-    val UNRESOLVED_LINK by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val DEPRECATED by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
@@ -77,20 +77,20 @@ object Issues {
     val PRIVATE_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val NULLABLE by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val INT_DEF by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
-    val REQUIRES_PERMISSION by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val BROADCAST_BEHAVIOR by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val SDK_CONSTANT by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val TODO by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val REQUIRES_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val NO_ARTIFACT_DATA by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val BROKEN_ARTIFACT_FILE by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Metalava warnings (not from doclava)
 
-    val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
-    val MISSING_PERMISSION by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val UNRESOLVED_CLASS by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val MISSING_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val UNRESOLVED_CLASS by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val INVALID_NULL_CONVERSION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val PARAMETER_NAME_CHANGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
