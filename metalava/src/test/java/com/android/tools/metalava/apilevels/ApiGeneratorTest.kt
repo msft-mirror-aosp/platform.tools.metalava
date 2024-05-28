@@ -332,6 +332,7 @@ class ApiGeneratorTest : DriverTest() {
                         package test.pkg {
                           public class Foo {
                             method public <T extends java.lang.String> void methodV1(T);
+                            method @Deprecated public <T> void methodV2(String);
                             method @Deprecated public <T> void methodV2(String, int);
                             field public int fieldV1;
                             field public int fieldV2;
@@ -348,6 +349,7 @@ class ApiGeneratorTest : DriverTest() {
                         package test.pkg {
                           public class Foo {
                             method @Deprecated public <T extends java.lang.String> void methodV1(T);
+                            method public <T> void methodV2(String);
                             method public void methodV3();
                             field public int fieldV1;
                             field public int fieldV2;
@@ -412,6 +414,11 @@ class ApiGeneratorTest : DriverTest() {
                         "method": "methodV1<T extends java.lang.String>(T)",
                         "addedIn": "1.1.0",
                         "deprecatedIn": "1.3.0"
+                      },
+                      {
+                        "method": "methodV2<T>(java.lang.String)",
+                        "addedIn": "1.2.0",
+                        "deprecatedIn": "1.2.0"
                       },
                       {
                         "method": "methodV2<T>(java.lang.String,int)",
