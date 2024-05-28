@@ -168,12 +168,6 @@ interface Item : Reportable {
     fun requiresNullnessInfo(): Boolean = false
 
     /**
-     * Returns true if this item requires nullness information and supplies it (for all items, e.g.
-     * if a method is partially annotated this method would still return false)
-     */
-    fun hasNullnessInfo(): Boolean = false
-
-    /**
      * Get this element's *implicit* nullness, if any.
      *
      * This returns [TypeNullability.NULLABLE] for implicitly nullable elements, such as the

@@ -348,27 +348,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         }
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
-            if (!modifiers.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        @Suppress("LoopToCallChain") // The quickfix is wrong! (covered by AnnotationStatisticsTest)
-        for (parameter in parameters()) {
-            if (!parameter.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        return true
-    }
-
     fun isImplicitConstructor(): Boolean {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }

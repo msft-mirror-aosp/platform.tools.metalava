@@ -91,14 +91,6 @@ interface FieldItem : MemberItem {
         return false
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
     override fun requiresNullnessInfo(): Boolean {
         if (type() is PrimitiveTypeItem) {
             return false

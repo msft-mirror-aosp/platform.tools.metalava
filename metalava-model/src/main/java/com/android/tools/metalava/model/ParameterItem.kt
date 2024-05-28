@@ -97,14 +97,6 @@ interface ParameterItem : Item {
         return type() !is PrimitiveTypeItem
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
     override fun containingClass(): ClassItem? = containingMethod().containingClass()
 
     override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
