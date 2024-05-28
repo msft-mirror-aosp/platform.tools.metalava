@@ -1240,7 +1240,7 @@ private constructor(
         }
         for (constructor in constructors) {
             for (arg in constructor.parameters()) {
-                if (arg.modifiers.isNullable()) {
+                if (arg.type().modifiers.isNullable) {
                     report(
                         OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT,
                         arg,
@@ -1280,7 +1280,7 @@ private constructor(
                     )
                 }
 
-                if (method.modifiers.isNullable()) {
+                if (method.returnType().modifiers.isNullable) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1694,7 +1694,7 @@ private constructor(
 
     private fun checkNullableCollections(type: TypeItem, item: Item) {
         if (type is PrimitiveTypeItem) return
-        if (!item.modifiers.isNullable()) return
+        if (!type.modifiers.isNullable) return
         val typeAsClass = type.asClass() ?: return
 
         val superItem: Item? =
@@ -1709,7 +1709,7 @@ private constructor(
                 else -> null
             }
 
-        if (superItem?.modifiers?.isNullable() == true) {
+        if (superItem?.type()?.modifiers?.isNullable == true) {
             return
         }
 
@@ -1932,8 +1932,8 @@ private constructor(
     }
 
     private fun checkHasNullability(item: Item) {
-        if (item.type()?.modifiers?.nullability()?.isKnown != true) {
-            val type = item.type()
+        val type = item.type() ?: return
+        if (!type.modifiers.nullability().isKnown) {
             val inherited =
                 when (item) {
                     is ParameterItem -> item.containingMethod().inheritedFromAncestor
@@ -1974,15 +1974,7 @@ private constructor(
                         "field `${item.name()}` in class `${item.parent()}`"
                     }
                     is ConstructorItem -> "constructor `${item.name()}` return"
-                    is MethodItem -> {
-                        // For methods requiresNullnessInfo and hasNullnessInfo considers both
-                        // parameters and return,
-                        // only warn about non-annotated returns here as parameters will get visited
-                        // individually.
-                        if (item.isConstructor() || item.returnType() is PrimitiveTypeItem) return
-                        if (item.modifiers.hasNullnessInfo()) return
-                        "method `${item.name()}` return"
-                    }
+                    is MethodItem -> "method `${item.name()}` return"
                     else -> throw IllegalStateException("Unexpected item type: $item")
                 }
             report(MISSING_NULLABILITY, item, "Missing nullability on $where")
@@ -1997,7 +1989,7 @@ private constructor(
                                 item.parameterIndex == param.parameterIndex
                             }
                         }
-                    if (item.modifiers.isNonNull()) {
+                    if (type.modifiers.isNonNull) {
                         if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
@@ -2015,7 +2007,7 @@ private constructor(
                 }
                 is MethodItem -> {
                     val supers = item.superMethods()
-                    if (item.modifiers.isNullable()) {
+                    if (type.modifiers.isNullable) {
                         if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
