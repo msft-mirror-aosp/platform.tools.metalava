@@ -417,8 +417,7 @@ class ApiGeneratorTest : DriverTest() {
                       },
                       {
                         "method": "methodV2<T>(java.lang.String)",
-                        "addedIn": "1.2.0",
-                        "deprecatedIn": "1.2.0"
+                        "addedIn": "1.2.0"
                       },
                       {
                         "method": "methodV2<T>(java.lang.String,int)",
