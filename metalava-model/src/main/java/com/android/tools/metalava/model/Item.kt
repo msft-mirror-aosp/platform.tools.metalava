@@ -168,15 +168,6 @@ interface Item : Reportable {
     fun requiresNullnessInfo(): Boolean = false
 
     /**
-     * Get this element's *implicit* nullness, if any.
-     *
-     * This returns [TypeNullability.NULLABLE] for implicitly nullable elements, such as the
-     * parameter to the [Object.equals] method, [TypeNullability.NONNULL] for implicitly non-null
-     * elements (such as annotation type members), and `null` if there is no implicit nullness.
-     */
-    fun implicitNullness(): TypeNullability? = null
-
-    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
      * declared as source
      */
