@@ -44,14 +44,26 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     override fun type() = returnType()
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        containingClass()
-            .findCorrespondingItemIn(codebase)
-            ?.findMethod(
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ): MethodItem? {
+        val correspondingClassItem = containingClass().findCorrespondingItemIn(codebase)
+        val correspondingMethodItem =
+            correspondingClassItem?.findMethod(
                 this,
                 includeSuperClasses = superMethods,
                 includeInterfaces = superMethods,
             )
+        return if (
+            correspondingMethodItem != null &&
+                duplicate &&
+                correspondingMethodItem.containingClass() !== correspondingClassItem
+        )
+            correspondingMethodItem.duplicate(correspondingClassItem)
+        else correspondingMethodItem
+    }
 
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
