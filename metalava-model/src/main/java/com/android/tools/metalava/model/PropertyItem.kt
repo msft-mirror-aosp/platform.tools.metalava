@@ -64,10 +64,6 @@ interface PropertyItem : MemberItem {
 
     override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
 
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
-    }
-
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
             a.name().compareTo(b.name())

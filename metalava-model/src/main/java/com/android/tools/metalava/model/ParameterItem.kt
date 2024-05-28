@@ -93,10 +93,6 @@ interface ParameterItem : Item {
 
     override fun toStringForItem() = "parameter ${name()}"
 
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
-    }
-
     override fun containingClass(): ClassItem? = containingMethod().containingClass()
 
     override fun containingPackage(): PackageItem? = containingMethod().containingPackage()

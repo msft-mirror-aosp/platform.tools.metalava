@@ -161,13 +161,6 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * Returns true if this item requires nullness information (e.g. for a method where either the
-     * return value or any of the parameters are non-primitives. Note that it doesn't consider
-     * whether it already has nullness annotations; for that see [hasNullnessInfo].
-     */
-    fun requiresNullnessInfo(): Boolean = false
-
-    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
      * declared as source
      */

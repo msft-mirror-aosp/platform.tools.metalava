@@ -338,16 +338,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return sb.toString()
     }
 
-    override fun requiresNullnessInfo(): Boolean {
-        return when {
-            modifiers.hasJvmSyntheticAnnotation() -> false
-            isConstructor() -> false
-            (returnType() !is PrimitiveTypeItem) -> true
-            parameters().any { it.type() !is PrimitiveTypeItem } -> true
-            else -> false
-        }
-    }
-
     fun isImplicitConstructor(): Boolean {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }

@@ -91,18 +91,6 @@ interface FieldItem : MemberItem {
         return false
     }
 
-    override fun requiresNullnessInfo(): Boolean {
-        if (type() is PrimitiveTypeItem) {
-            return false
-        }
-
-        if (modifiers.isFinal() && initialValue(true) != null) {
-            return false
-        }
-
-        return true
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
