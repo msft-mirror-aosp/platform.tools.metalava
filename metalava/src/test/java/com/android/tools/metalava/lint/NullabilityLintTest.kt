@@ -28,12 +28,10 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class NullabilityLintTest : DriverTest() {
-    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils,Enum"),
             expectedIssues =
                 """
                 src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
@@ -72,6 +70,20 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
+                    androidxNullableSource,
+                    androidxNonNullSource
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test no missing nullability errors for enums`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_HIDE, "Enum"),
+            sourceFiles =
+                arrayOf(
                     java(
                         """
                     package test.pkg;
@@ -90,6 +102,18 @@ class NullabilityLintTest : DriverTest() {
                     }
                     """
                     ),
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test no missing nullability errors for kotlin constructs`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
                     kotlin(
                         """
                     package android.pkg
@@ -103,11 +127,14 @@ class NullabilityLintTest : DriverTest() {
                     class FooBarNamed {
                         companion object Named
                     }
+
+                    class Foo {
+                        val a = 3
+                        var b: String? = null
+                    }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
+                ),
         )
     }
 

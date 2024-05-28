@@ -1950,29 +1950,11 @@ private constructor(
                 // for Foo<Bar>, Bar does.
                 return // Do not enforce nullability for generics
             }
-            if (item is MethodItem && item.isKotlinProperty()) {
-                return // kotlinc doesn't add nullability
-                // https://youtrack.jetbrains.com/issue/KT-45771
-            }
             val where =
                 when (item) {
                     is ParameterItem ->
                         "parameter `${item.name()}` in method `${item.parent()?.name()}`"
-                    is FieldItem -> {
-                        if (item.isKotlin()) {
-                            if (item.name() == "INSTANCE") {
-                                // Kotlin compiler is not marking it with a nullability annotation
-                                // https://youtrack.jetbrains.com/issue/KT-33226
-                                return
-                            }
-                            if (item.modifiers.isCompanion()) {
-                                // Kotlin compiler is not marking it with a nullability annotation
-                                // https://youtrack.jetbrains.com/issue/KT-33314
-                                return
-                            }
-                        }
-                        "field `${item.name()}` in class `${item.parent()}`"
-                    }
+                    is FieldItem -> "field `${item.name()}` in class `${item.parent()}`"
                     is ConstructorItem -> "constructor `${item.name()}` return"
                     is MethodItem -> "method `${item.name()}` return"
                     else -> throw IllegalStateException("Unexpected item type: $item")
