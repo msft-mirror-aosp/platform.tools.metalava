@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -69,7 +70,6 @@ import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
@@ -3112,17 +3112,14 @@ private constructor(
 
     /**
      * Check that the nullability of [getterType] (from the return type of [getter]) and
-     * [setterType] (from the parameter type of [setter]) match, and recur on subtypes. [getterType]
-     * and [setterType] are assumed to be the same type.
+     * [setterType] (from the parameter type of [setter]) match.
      */
     private fun compareAccessorNullability(
-        getterType: TypeItem?,
-        setterType: TypeItem?,
+        getterType: TypeItem,
+        setterType: TypeItem,
         getter: MethodItem,
         setter: MethodItem
     ) {
-        getterType ?: return
-        setterType ?: return
         if (getterType.modifiers.nullability() != setterType.modifiers.nullability()) {
             val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
             val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
@@ -3131,47 +3128,6 @@ private constructor(
                 getter,
                 "Nullability of $getterTypeString in getter ${getter.describe()} does not match $setterTypeString in corresponding setter ${setter.describe()}"
             )
-            // No need to continue reporting mismatches on the same method.
-            return
-        }
-
-        when (getterType) {
-            is ArrayTypeItem -> {
-                setterType as ArrayTypeItem
-                compareAccessorNullability(
-                    getterType.componentType,
-                    setterType.componentType,
-                    getter,
-                    setter
-                )
-            }
-            is ClassTypeItem -> {
-                setterType as ClassTypeItem
-                compareAccessorNullability(
-                    getterType.outerClassType,
-                    setterType.outerClassType,
-                    getter,
-                    setter
-                )
-                getterType.arguments.zip(setterType.arguments).forEach { (getterArg, setterArg) ->
-                    compareAccessorNullability(getterArg, setterArg, getter, setter)
-                }
-            }
-            is WildcardTypeItem -> {
-                setterType as WildcardTypeItem
-                compareAccessorNullability(
-                    getterType.superBound,
-                    setterType.superBound,
-                    getter,
-                    setter
-                )
-                compareAccessorNullability(
-                    getterType.extendsBound,
-                    setterType.extendsBound,
-                    getter,
-                    setter
-                )
-            }
         }
     }
 
@@ -3197,7 +3153,18 @@ private constructor(
             // doesn't consider modifiers).
             if (getterReturnType != setterParamType) return
 
-            compareAccessorNullability(getterReturnType, setterParamType, getter, setter)
+            // Recur through the getter and setter type simultaneously.
+            getterReturnType.accept(
+                object : MultipleTypeVisitor() {
+                    override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                        // [type] is from the getter, [other] is from the setter. Since the getter
+                        // and setter are the same type, it is safe to assert that [other] isn't
+                        // empty.
+                        compareAccessorNullability(type, other.single(), getter, setter)
+                    }
+                },
+                listOf(setterParamType)
+            )
         }
     }
 
