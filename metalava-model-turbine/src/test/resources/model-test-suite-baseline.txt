@@ -13,6 +13,10 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
 
+com.android.tools.metalava.model.testsuite.methoditem.SourceMethodItemTest
+  test duplicate() for methoditem
+  test inherited methods
+
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test nullability annotation in package info
 
