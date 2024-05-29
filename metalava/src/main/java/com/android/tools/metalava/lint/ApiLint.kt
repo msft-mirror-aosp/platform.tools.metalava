@@ -67,6 +67,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
@@ -1239,7 +1240,7 @@ private constructor(
         }
         for (constructor in constructors) {
             for (arg in constructor.parameters()) {
-                if (arg.modifiers.isNullable()) {
+                if (arg.type().modifiers.isNullable) {
                     report(
                         OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT,
                         arg,
@@ -1279,7 +1280,7 @@ private constructor(
                     )
                 }
 
-                if (method.modifiers.isNullable()) {
+                if (method.returnType().modifiers.isNullable) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1693,7 +1694,7 @@ private constructor(
 
     private fun checkNullableCollections(type: TypeItem, item: Item) {
         if (type is PrimitiveTypeItem) return
-        if (!item.modifiers.isNullable()) return
+        if (!type.modifiers.isNullable) return
         val typeAsClass = type.asClass() ?: return
 
         val superItem: Item? =
@@ -1708,7 +1709,7 @@ private constructor(
                 else -> null
             }
 
-        if (superItem?.modifiers?.isNullable() == true) {
+        if (superItem?.type()?.modifiers?.isNullable == true) {
             return
         }
 
@@ -1931,9 +1932,8 @@ private constructor(
     }
 
     private fun checkHasNullability(item: Item) {
-        if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && item.type()?.modifiers?.nullability()?.isKnown != true) {
-            val type = item.type()
+        val type = item.type() ?: return
+        if (!type.modifiers.nullability().isKnown) {
             val inherited =
                 when (item) {
                     is ParameterItem -> item.containingMethod().inheritedFromAncestor
@@ -1950,39 +1950,13 @@ private constructor(
                 // for Foo<Bar>, Bar does.
                 return // Do not enforce nullability for generics
             }
-            if (item is MethodItem && item.isKotlinProperty()) {
-                return // kotlinc doesn't add nullability
-                // https://youtrack.jetbrains.com/issue/KT-45771
-            }
             val where =
                 when (item) {
                     is ParameterItem ->
                         "parameter `${item.name()}` in method `${item.parent()?.name()}`"
-                    is FieldItem -> {
-                        if (item.isKotlin()) {
-                            if (item.name() == "INSTANCE") {
-                                // Kotlin compiler is not marking it with a nullability annotation
-                                // https://youtrack.jetbrains.com/issue/KT-33226
-                                return
-                            }
-                            if (item.modifiers.isCompanion()) {
-                                // Kotlin compiler is not marking it with a nullability annotation
-                                // https://youtrack.jetbrains.com/issue/KT-33314
-                                return
-                            }
-                        }
-                        "field `${item.name()}` in class `${item.parent()}`"
-                    }
+                    is FieldItem -> "field `${item.name()}` in class `${item.parent()}`"
                     is ConstructorItem -> "constructor `${item.name()}` return"
-                    is MethodItem -> {
-                        // For methods requiresNullnessInfo and hasNullnessInfo considers both
-                        // parameters and return,
-                        // only warn about non-annotated returns here as parameters will get visited
-                        // individually.
-                        if (item.isConstructor() || item.returnType() is PrimitiveTypeItem) return
-                        if (item.modifiers.hasNullnessInfo()) return
-                        "method `${item.name()}` return"
-                    }
+                    is MethodItem -> "method `${item.name()}` return"
                     else -> throw IllegalStateException("Unexpected item type: $item")
                 }
             report(MISSING_NULLABILITY, item, "Missing nullability on $where")
@@ -1991,14 +1965,20 @@ private constructor(
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
                     if (item.containingMethod().isConstructor()) return
-                    if (item.modifiers.isNonNull()) {
-                        if (anySuperParameterLacksNullnessInfo(item)) {
+                    val supers =
+                        item.containingMethod().superMethods().mapNotNull {
+                            it.parameters().find { param ->
+                                item.parameterIndex == param.parameterIndex
+                            }
+                        }
+                    if (type.modifiers.isNonNull) {
+                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
                                 "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated."
                             )
-                        } else if (anySuperParameterIsNullable(item)) {
+                        } else if (supers.anyItemHasNullability(TypeNullability.NULLABLE)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
@@ -2008,14 +1988,15 @@ private constructor(
                     }
                 }
                 is MethodItem -> {
-                    if (item.modifiers.isNullable()) {
-                        if (anySuperMethodLacksNullnessInfo(item)) {
+                    val supers = item.superMethods()
+                    if (type.modifiers.isNullable) {
+                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
                                 "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable."
                             )
-                        } else if (anySuperMethodIsNonNull(item)) {
+                        } else if (supers.anyItemHasNullability(TypeNullability.NONNULL)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
@@ -2028,50 +2009,14 @@ private constructor(
         }
     }
 
-    private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
-        return method.superMethods().any { superMethod ->
-            // Disable check for generics
-            superMethod.modifiers.isNonNull() && superMethod.returnType() !is VariableTypeItem
+    /** Checks if any of the [Item]s in the list have a type with [nullability]. */
+    private fun List<Item>.anyItemHasNullability(nullability: TypeNullability): Boolean {
+        return any { superItem ->
+            val type = superItem.type() ?: return@any false
+            // Variable types have been excluded from the check because of previous inconsistency
+            // in modeling their nullability.
+            type !is VariableTypeItem && type.modifiers.nullability() == nullability
         }
-    }
-
-    private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
-        val supers = parameter.containingMethod().superMethods()
-        return supers.all { superMethod ->
-            // Disable check for generics
-            superMethod.parameters().none { it.type() is VariableTypeItem }
-        } &&
-            supers.any { superMethod ->
-                superMethod
-                    .parameters()
-                    .firstOrNull { param -> parameter.parameterIndex == param.parameterIndex }
-                    ?.modifiers
-                    ?.isNullable()
-                    ?: false
-            }
-    }
-
-    private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
-        return method.superMethods().any { superMethod ->
-            // Disable check for generics
-            !superMethod.modifiers.hasNullnessInfo() &&
-                superMethod.returnType() !is VariableTypeItem
-        }
-    }
-
-    private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
-        val supers = parameter.containingMethod().superMethods()
-        return supers.all { superMethod ->
-            // Disable check for generics
-            superMethod.parameters().none { it.type() is VariableTypeItem }
-        } &&
-            supers.any { superMethod ->
-                !(superMethod
-                    .parameters()
-                    .firstOrNull { param -> parameter.parameterIndex == param.parameterIndex }
-                    ?.hasNullnessInfo()
-                    ?: true)
-            }
     }
 
     private fun checkBoxed(type: TypeItem, item: Item) {

@@ -619,6 +619,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:9: error: Use android.net.Uri instead of android.net.URL (parameter param in android.pkg.MyClass.bad3(android.net.URL param)) [AndroidUri]
                 """,
             expectedFail = DefaultLintErrorMessage,
+            extraArguments = arrayOf(ARG_HIDE, "AcronymName"),
             sourceFiles =
                 arrayOf(
                     java(
@@ -632,8 +633,23 @@ class ApiLintTest : DriverTest() {
                         public @NonNull java.net.URL bad1() { throw new RuntimeException(); }
                         public void bad2(@NonNull List<java.net.URI> param) { }
                         public void bad3(@NonNull android.net.URL param) { }
+                        public void good(@NonNull android.net.Uri param) { }
                     }
                     """
+                    ),
+                    java(
+                        """
+                            package android.net;
+                            public class URL {
+                                private URL() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.net;
+                            public class Uri {}
+                        """
                     ),
                     androidxNonNullSource
                 )
