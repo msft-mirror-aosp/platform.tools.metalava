@@ -158,16 +158,23 @@ private constructor(
             writer.write("static ")
         }
 
-        if (
-            list.isFinal() &&
-                language == Language.JAVA &&
-                // Don't show final on parameters: that's an implementation side detail
-                item !is ParameterItem &&
-                classItem?.isEnum() != true
-        ) {
-            writer.write("final ")
-        } else if (!list.isFinal() && language == Language.KOTLIN) {
-            writer.write("open ")
+        when (language) {
+            Language.JAVA -> {
+                if (
+                    list.isFinal() &&
+                        // Don't show final on parameters: that's an implementation detail
+                        item !is ParameterItem &&
+                        // Don't add final on enum or enum members as they are implicitly final.
+                        classItem?.isEnum() != true
+                ) {
+                    writer.write("final ")
+                }
+            }
+            Language.KOTLIN -> {
+                if (!list.isFinal()) {
+                    writer.write("open ")
+                }
+            }
         }
 
         if (list.isSealed()) {
