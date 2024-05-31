@@ -19,7 +19,10 @@ package com.android.tools.metalava.lint
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class NullableCollectionsTest : DriverTest() {
@@ -197,6 +200,88 @@ class NullableCollectionsTest : DriverTest() {
                         """
                     ),
                     androidxNullableSource
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check inner nullable collections`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.kt:4: warning: Return type of method test.pkg.Foo.foo() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                    src/test/pkg/Foo.kt:4: warning: Return type of method test.pkg.Foo.foo() uses a nullable collection (`java.util.Map`); must be non-null [NullableCollection]
+                    src/test/pkg/Foo.kt:5: warning: Return type of method test.pkg.Foo.bar() uses a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection]
+                    src/test/pkg/Foo.kt:6: warning: Return type of method test.pkg.Foo.baz() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            import java.util.Optional
+                            class Foo {
+                                fun foo(): Pair<List<String>?, Map<String, Int>?>? = null
+                                fun bar(): Array<Array<String>?> = emptyArray()
+                                fun baz(): Optional<out List<String>?> = Optional.empty()
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check inner nullable collections matching super method`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_HIDE, "HiddenSuperclass"),
+            expectedIssues =
+                """
+                    src/test/pkg/Bar.kt:4: warning: Return type of method test.pkg.Bar.bar() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                    src/test/pkg/VisibleSuperclass.kt:3: warning: Return type of method test.pkg.VisibleSuperclass.foo() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            open class VisibleSuperclass {
+                                open fun foo(): List<List<String>?> = emptyList()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo : VisibleSuperclass() {
+                                // The warning shouldn't appear on this definition, only on the superclass
+                                override fun foo(): List<List<String>?> = emptyList()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            /** @hide */
+                            open class HiddenSuperclass {
+                                open fun bar(): List<List<String>?> = emptyList()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Bar : HiddenSuperclass() {
+                                // The superclass is hidden, so the warning will appear for this definition
+                                override fun bar(): List<List<String>?> = emptyList()
+                            }
+                        """
+                    )
                 )
         )
     }

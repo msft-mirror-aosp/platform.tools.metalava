@@ -1723,7 +1723,17 @@ private constructor(
             }
         val superType = superItem?.type()
 
-        checkNullableCollections(type, item, superType)
+        // Visit all subtypes of the type (paired with the types from the super method) to check for
+        // nullable collections.
+        type.accept(
+            object : MultipleTypeVisitor() {
+                override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                    // type is from the main type, other is from the supertype
+                    checkNullableCollections(type, item, other.singleOrNull())
+                }
+            },
+            listOfNotNull(superType)
+        )
     }
 
     private fun checkNullableCollections(type: TypeItem, item: Item, superType: TypeItem?) {
