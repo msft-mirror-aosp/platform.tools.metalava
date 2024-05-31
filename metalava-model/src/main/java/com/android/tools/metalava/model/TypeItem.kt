@@ -1086,9 +1086,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 
-    override fun asClass(): ClassItem? {
-        TODO("Not yet implemented")
-    }
+    override fun asClass(): ClassItem? = null
 }
 
 /**
