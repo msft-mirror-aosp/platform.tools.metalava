@@ -338,37 +338,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return sb.toString()
     }
 
-    override fun requiresNullnessInfo(): Boolean {
-        return when {
-            modifiers.hasJvmSyntheticAnnotation() -> false
-            isConstructor() -> false
-            (returnType() !is PrimitiveTypeItem) -> true
-            parameters().any { it.type() !is PrimitiveTypeItem } -> true
-            else -> false
-        }
-    }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
-            if (!modifiers.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        @Suppress("LoopToCallChain") // The quickfix is wrong! (covered by AnnotationStatisticsTest)
-        for (parameter in parameters()) {
-            if (!parameter.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        return true
-    }
-
     fun isImplicitConstructor(): Boolean {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }
