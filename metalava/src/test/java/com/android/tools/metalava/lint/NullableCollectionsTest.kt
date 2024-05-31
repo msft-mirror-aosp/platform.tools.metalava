@@ -209,7 +209,7 @@ class NullableCollectionsTest : DriverTest() {
     fun `Check inner nullable collections`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn,NullableCollectionElement"),
             expectedIssues =
                 """
                     src/test/pkg/Foo.kt:4: warning: Return type of method test.pkg.Foo.foo() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
@@ -239,7 +239,7 @@ class NullableCollectionsTest : DriverTest() {
     fun `Check inner nullable collections matching super method`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "HiddenSuperclass"),
+            extraArguments = arrayOf(ARG_HIDE, "HiddenSuperclass,NullableCollectionElement"),
             expectedIssues =
                 """
                     src/test/pkg/Bar.kt:4: warning: Return type of method test.pkg.Bar.bar() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
@@ -279,6 +279,73 @@ class NullableCollectionsTest : DriverTest() {
                             class Bar : HiddenSuperclass() {
                                 // The superclass is hidden, so the warning will appear for this definition
                                 override fun bar(): List<List<String>?> = emptyList()
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test nullable collection elements`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.kt:3: warning: Collection java.lang.String[] should not have a nullable element type (java.lang.String) in method test.pkg.Foo.foo() [NullableCollectionElement]
+                    src/test/pkg/Foo.kt:4: warning: Collection java.util.List<java.lang.String> should not have a nullable element type (java.lang.String) in method test.pkg.Foo.bar() [NullableCollectionElement]
+                    src/test/pkg/Foo.kt:5: warning: Collection java.util.Map<java.lang.String,java.lang.Integer> should not have a nullable element type (java.lang.String) in method test.pkg.Foo.baz() [NullableCollectionElement]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                fun foo(): Array<String?> = emptyArray()
+                                fun bar(): List<String?> = emptyList()
+                                fun baz(): Map<String?, Int?> = emptyMap()
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test nullable collection elements matching super method`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            expectedIssues =
+                """
+                    src/test/pkg/Parent.kt:3: warning: Collection java.lang.String[] should not have a nullable element type (java.lang.String) in method test.pkg.Parent.foo() [NullableCollectionElement]
+                    src/test/pkg/Parent.kt:4: warning: Collection java.util.List<java.lang.String> should not have a nullable element type (java.lang.String) in method test.pkg.Parent.bar() [NullableCollectionElement]
+                    src/test/pkg/Parent.kt:5: warning: Collection java.util.Map<java.lang.String,java.lang.Integer> should not have a nullable element type (java.lang.String) in method test.pkg.Parent.baz() [NullableCollectionElement]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            open class Parent {
+                                open fun foo(): Array<String?> = emptyArray()
+                                open fun bar(): List<String?> = emptyList()
+                                open fun baz(): Map<String?, Int?> = emptyMap()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo : Parent() {
+                                // Warnings will only appear for the parent types
+                                override fun foo(): Array<String?> = emptyArray()
+                                override fun bar(): List<String?> = emptyList()
+                                override fun baz(): Map<String?, Int?> = emptyMap()
                             }
                         """
                     )
