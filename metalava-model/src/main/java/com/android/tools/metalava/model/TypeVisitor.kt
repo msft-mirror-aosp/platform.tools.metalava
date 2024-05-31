@@ -108,7 +108,10 @@ open class MultipleTypeVisitor {
             other.mapNotNull { (it as? ClassTypeItem)?.outerClassType }
         )
         classType.arguments.forEachIndexed { index, arg ->
-            arg.accept(this, other.mapNotNull { (it as? ClassTypeItem)?.arguments?.get(index) })
+            arg.accept(
+                this,
+                other.mapNotNull { (it as? ClassTypeItem)?.arguments?.getOrNull(index) }
+            )
         }
     }
 
