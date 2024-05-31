@@ -1693,10 +1693,6 @@ private constructor(
     }
 
     private fun checkNullableCollections(type: TypeItem, item: Item) {
-        if (type is PrimitiveTypeItem) return
-        if (!type.modifiers.isNullable) return
-        val typeAsClass = type.asClass() ?: return
-
         val superItem: Item? =
             when (item) {
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
@@ -1708,20 +1704,17 @@ private constructor(
                         ?.find { it.parameterIndex == item.parameterIndex }
                 else -> null
             }
+        val superType = superItem?.type()
 
-        if (superItem?.type()?.modifiers?.isNullable == true) {
-            return
-        }
+        checkNullableCollections(type, item, superType)
+    }
 
-        if (
-            type is ArrayTypeItem ||
-                typeAsClass.extendsOrImplements("java.util.Collection") ||
-                typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
-                typeAsClass.extendsOrImplements("java.util.Map") ||
-                typeAsClass.extendsOrImplements("kotlin.collections.Map") ||
-                typeAsClass.qualifiedName() == "android.os.Bundle" ||
-                typeAsClass.qualifiedName() == "android.os.PersistableBundle"
-        ) {
+    private fun checkNullableCollections(type: TypeItem, item: Item, superType: TypeItem?) {
+        if (!type.modifiers.isNullable) return
+        // Allow a nullable collection when it is present in the super type
+        if (superType?.modifiers?.isNullable == true) return
+
+        if (type.isCollection()) {
             val where =
                 when (item) {
                     is MethodItem -> "Return type of ${item.describe()}"
@@ -1732,9 +1725,32 @@ private constructor(
             report(
                 NULLABLE_COLLECTION,
                 item,
-                "$where is a nullable collection (`$erased`); must be non-null"
+                "$where uses a nullable collection (`$erased`); must be non-null"
             )
         }
+    }
+
+    /**
+     * Whether the class is a collection (implements the standard java or kotlin collection
+     * interfaces) or a bundle.
+     */
+    private fun ClassItem.isCollection(): Boolean {
+        return extendsOrImplements("java.util.Collection") ||
+            extendsOrImplements("kotlin.collections.Collection") ||
+            extendsOrImplements("java.util.Map") ||
+            extendsOrImplements("kotlin.collections.Map") ||
+            qualifiedName() == "android.os.Bundle" ||
+            qualifiedName() == "android.os.PersistableBundle"
+    }
+
+    /**
+     * Whether the type is a collection. To preserve legacy behavior, primitive arrays (for which
+     * [TypeItem.asClass] is null) are not considered collections but other arrays are
+     * (b/343748165).
+     */
+    private fun TypeItem.isCollection(): Boolean {
+        val asClass = asClass() ?: return false
+        return this is ArrayTypeItem || asClass.isCollection()
     }
 
     private fun checkFlags(fields: Sequence<FieldItem>) {

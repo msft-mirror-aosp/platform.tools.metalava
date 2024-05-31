@@ -29,8 +29,8 @@ class NullableCollectionsTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass.java:8: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                src/android/pkg/MyClass.java:11: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection]
+                src/android/pkg/MyClass.java:8: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                src/android/pkg/MyClass.java:11: warning: Type of field android.pkg.MyClass.STRINGS uses a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection]
                 """,
             sourceFiles =
                 arrayOf(
@@ -62,7 +62,7 @@ class NullableCollectionsTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyCallback.java:6: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                src/android/pkg/MyCallback.java:6: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
                 """,
             sourceFiles =
                 arrayOf(
@@ -115,8 +115,8 @@ class NullableCollectionsTest : DriverTest() {
             extraArguments = arrayOf(ARG_HIDE, "HiddenSuperclass"),
             expectedIssues =
                 """
-                src/android/pkg/MyClass.java:7: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                src/android/pkg/MySubClass.java:14: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                src/android/pkg/MyClass.java:7: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                src/android/pkg/MySubClass.java:14: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
                 """,
             sourceFiles =
                 arrayOf(
