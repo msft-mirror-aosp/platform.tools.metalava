@@ -124,13 +124,13 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                     package android.foobar {
                       public class ExistingClass {
-                          ctor ExistingClass();
+                          ctor public ExistingClass();
                           field public static final String EXISTING_FIELD = "foo";
                           method public void existingMethod();
                       }
                       public interface ExistingInterface {
                           field public static final String EXISTING_INTERFACE_FIELD = "foo";
-                          method public void existingInterfaceMethod();
+                          method public default void existingInterfaceMethod();
                       }
                       public class ExistingSuperClass {
                           ctor public ExistingSuperClass();
@@ -249,7 +249,7 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                     package android.foobar {
                       public class Existing.Inner {
-                          method int existing();
+                          method public int existing();
                       }
                     }
                 """,
@@ -291,7 +291,7 @@ class FlaggedApiLintTest : DriverTest() {
                     package android.foobar {
                       public interface ExistingSystemInterface {
                           field public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
-                          method public void existingSystemInterfaceMethod();
+                          method public default void existingSystemInterfaceMethod();
                       }
                       public class ExistingSystemSuperClass {
                           ctor public ExistingSystemSuperClass();
