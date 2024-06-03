@@ -24,9 +24,9 @@ interface ParameterItem : Item {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
         containingMethod()
-            .findCorrespondingItemIn(codebase)
+            .findCorrespondingItemIn(codebase, superMethods = superMethods)
             ?.parameters()
             ?.getOrNull(parameterIndex)
 
@@ -92,18 +92,6 @@ interface ParameterItem : Item {
     }
 
     override fun toStringForItem() = "parameter ${name()}"
-
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
-    }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
 
     override fun containingClass(): ClassItem? = containingMethod().containingClass()
 

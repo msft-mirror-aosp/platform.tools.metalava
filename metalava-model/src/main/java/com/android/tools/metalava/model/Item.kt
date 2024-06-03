@@ -161,28 +161,6 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * Returns true if this item requires nullness information (e.g. for a method where either the
-     * return value or any of the parameters are non-primitives. Note that it doesn't consider
-     * whether it already has nullness annotations; for that see [hasNullnessInfo].
-     */
-    fun requiresNullnessInfo(): Boolean = false
-
-    /**
-     * Returns true if this item requires nullness information and supplies it (for all items, e.g.
-     * if a method is partially annotated this method would still return false)
-     */
-    fun hasNullnessInfo(): Boolean = false
-
-    /**
-     * Get this element's *implicit* nullness, if any.
-     *
-     * This returns [TypeNullability.NULLABLE] for implicitly nullable elements, such as the
-     * parameter to the [Object.equals] method, [TypeNullability.NONNULL] for implicitly non-null
-     * elements (such as annotation type members), and `null` if there is no implicit nullness.
-     */
-    fun implicitNullness(): TypeNullability? = null
-
-    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
      * declared as source
      */
@@ -276,8 +254,13 @@ interface Item : Reportable {
     /**
      * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
      * item.
+     *
+     * @param superMethods if true and this is a [MethodItem] then this method will search for super
+     *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
+     *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
+     *   the [ParameterItem.containingMethod].
      */
-    fun findCorrespondingItemIn(codebase: Codebase): Item?
+    fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean = false): Item?
 
     /**
      * Get the set of suppressed issues for this [Item].
@@ -450,7 +433,7 @@ abstract class DefaultItem(
     override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
-    override var emit = true
+    final override var emit = true
 
     companion object {
         private var nextRank = AtomicInteger()

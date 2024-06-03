@@ -67,7 +67,7 @@ object Issues {
     val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by Issue(Severity.ERROR, Category.COMPATIBILITY)
 
     // Issues in javadoc generation
-    val UNRESOLVED_LINK by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val DEPRECATED by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
@@ -77,20 +77,20 @@ object Issues {
     val PRIVATE_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val NULLABLE by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val INT_DEF by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
-    val REQUIRES_PERMISSION by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val BROADCAST_BEHAVIOR by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val SDK_CONSTANT by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val TODO by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val REQUIRES_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val NO_ARTIFACT_DATA by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val BROKEN_ARTIFACT_FILE by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Metalava warnings (not from doclava)
 
-    val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
-    val MISSING_PERMISSION by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val UNRESOLVED_CLASS by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val MISSING_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val UNRESOLVED_CLASS by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val INVALID_NULL_CONVERSION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val PARAMETER_NAME_CHANGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
@@ -225,9 +225,10 @@ object Issues {
     val NULLABLE_COLLECTION by Issue(Severity.WARNING, Category.API_LINT)
     val ASYNC_SUFFIX_FUTURE by Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS by Issue(Severity.ERROR, Category.API_LINT)
-    val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC)
+    val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT)
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
-    val FLAGGED_API_LITERAL by Issue(Severity.HIDDEN, Category.API_LINT)
+    val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
@@ -305,8 +306,6 @@ object Issues {
         COMPATIBILITY("Compatibility"),
         DOCUMENTATION("Documentation"),
         API_LINT("API Lint"),
-        // AndroidX API guidelines are split across multiple files, so add a category per-file
-        API_LINT_ANDROIDX_MISC("API Lint"),
         UNKNOWN("Default");
 
         /** Identifier for use in command-line arguments and reporting. */

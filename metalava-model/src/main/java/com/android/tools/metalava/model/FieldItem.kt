@@ -27,7 +27,7 @@ interface FieldItem : MemberItem {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
         containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
     /**
@@ -89,26 +89,6 @@ interface FieldItem : MemberItem {
         }
 
         return false
-    }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        if (type() is PrimitiveTypeItem) {
-            return false
-        }
-
-        if (modifiers.isFinal() && initialValue(true) != null) {
-            return false
-        }
-
-        return true
     }
 
     companion object {

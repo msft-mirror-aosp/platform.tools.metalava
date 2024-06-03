@@ -44,8 +44,14 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     override fun type() = returnType()
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
+        containingClass()
+            .findCorrespondingItemIn(codebase)
+            ?.findMethod(
+                this,
+                includeSuperClasses = superMethods,
+                includeInterfaces = superMethods,
+            )
 
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
@@ -330,37 +336,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         }
 
         return sb.toString()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        return when {
-            modifiers.hasJvmSyntheticAnnotation() -> false
-            isConstructor() -> false
-            (returnType() !is PrimitiveTypeItem) -> true
-            parameters().any { it.type() !is PrimitiveTypeItem } -> true
-            else -> false
-        }
-    }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
-            if (!modifiers.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        @Suppress("LoopToCallChain") // The quickfix is wrong! (covered by AnnotationStatisticsTest)
-        for (parameter in parameters()) {
-            if (!parameter.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        return true
     }
 
     fun isImplicitConstructor(): Boolean {

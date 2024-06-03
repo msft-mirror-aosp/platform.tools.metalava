@@ -19,8 +19,6 @@ package com.android.tools.metalava.lint
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.ANDROID_FLAGGED_API
 import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.CodebaseComparator
-import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.KotlinInteropChecks
 import com.android.tools.metalava.lint.ResourceType.AAPT
 import com.android.tools.metalava.lint.ResourceType.ANIM
@@ -64,11 +62,13 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
@@ -77,6 +77,7 @@ import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.IssueLocation
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
 import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
@@ -173,6 +174,7 @@ import com.android.tools.metalava.reporter.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
@@ -220,11 +222,26 @@ private constructor(
             id: Issue,
             reportable: Reportable?,
             message: String,
-            location: IssueLocation
+            location: IssueLocation,
+            maximumSeverity: Severity,
         ): Boolean {
+            // The [Severity] used may be limited by the [Item] on which it is reported.
+            var actualMaximumSeverity = maximumSeverity
 
             val item = reportable as? Item
             if (item != null) {
+                if (oldCodebase != null) {
+                    // Issues on previously released APIs have reduced [Severity].
+                    val computedMaximumSeverity = computeMaximumSeverity(item)
+                    if (computedMaximumSeverity == Severity.HIDDEN) {
+                        return false
+                    }
+
+                    // Use the minimum of the [Item] specific maximum [Severity] and the one
+                    // provided by the caller.
+                    actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
+                }
+
                 // Don't flag api warnings on deprecated APIs; these are obviously already known to
                 // be problematic.
                 if (item.effectivelyDeprecated) {
@@ -239,11 +256,76 @@ private constructor(
                 }
             }
 
-            return delegate.report(id, reportable, message, location)
+            return delegate.report(id, reportable, message, location, actualMaximumSeverity)
+        }
+
+        /** Compute the maximum [Severity] of issues on [item]. */
+        private fun computeMaximumSeverity(item: Item?) =
+            when {
+                // If the issue is being reported on the context Item then use its maximum.
+                item === contextItem -> maximumSeverityForItem
+                // If its containing item was previously released (so issues are hidden) but the
+                // item itself is new then generate a warning for existing code and an error in new
+                // code. That at least gives developers some indication that there is a problem with
+                // the existing code and prevents issues being added in new code.
+                maximumSeverityForItem == Severity.HIDDEN && !wasPreviouslyReleased(item) ->
+                    Severity.WARNING_ERROR_WHEN_NEW
+                // Otherwise, the use maximum for the context Item's contents.
+                else -> maximumSeverityForItemContents
+            }
+
+        /** The context [Item], i.e. the [Item] whose `visit<item-type>` method is being called. */
+        private var contextItem: Item? = null
+
+        /** The maximum [Severity] that an issue can have if it is reported on the [contextItem]. */
+        private var maximumSeverityForItem: Severity = Severity.UNLIMITED
+
+        /**
+         * The maximum [Severity] that an issue can have if it is reported on an [Item] other than
+         * the [contextItem], i.e. on an [Item] that belongs to the [contextItem]. e.g. If
+         * [contextItem] is a [ClassItem] then this will be the maximum [Severity] of issues
+         * reported on members of that [ClassItem]. Similarly, if [contextItem] is a [MethodItem]
+         * then this will be the maximum [Severity] of issues reported on its [ParameterItem]s.
+         */
+        private var maximumSeverityForItemContents: Severity = Severity.UNLIMITED
+
+        /**
+         * Run checks within the specific [contextItem].
+         *
+         * This allows the maximum [Severity] of checks to be dependent on whether the [Item] or its
+         * containing [Item] was previously released or not.
+         */
+        internal fun withContext(contextItem: Item, checker: () -> Unit) {
+            val oldContextItem = this.contextItem
+            val oldMaximumSeverityForItem = this.maximumSeverityForItem
+            val oldMaximumSeverityForItemContents = this.maximumSeverityForItemContents
+            try {
+                this.contextItem = contextItem
+                val previouslyReleased = oldCodebase != null && wasPreviouslyReleased(contextItem)
+                this.maximumSeverityForItem =
+                    if (previouslyReleased) Severity.HIDDEN else Severity.UNLIMITED
+                // Hide issues on a previously released Item's contents to replicate the behavior of
+                // the legacy CodebaseComparator based ApiLint.
+                this.maximumSeverityForItemContents = maximumSeverityForItem
+
+                checker()
+            } finally {
+                this.contextItem = oldContextItem
+                this.maximumSeverityForItem = oldMaximumSeverityForItem
+                this.maximumSeverityForItemContents = oldMaximumSeverityForItemContents
+            }
         }
     }
 
-    private val reporter: Reporter = FilteringReporter(reporter)
+    /** Find the corresponding item in the previously released API if available. */
+    private fun findPreviouslyReleased(item: Item?): Item? {
+        return oldCodebase?.let { item?.findCorrespondingItemIn(oldCodebase, superMethods = true) }
+    }
+
+    /** Check to see if [item] was previously released. */
+    private fun wasPreviouslyReleased(item: Item?) = findPreviouslyReleased(item) != null
+
+    private val reporter = FilteringReporter(reporter)
 
     private fun report(
         id: Issue,
@@ -255,38 +337,7 @@ private constructor(
     }
 
     private fun check() {
-        if (oldCodebase != null) {
-            // Only check the new APIs
-            CodebaseComparator(
-                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                )
-                .compare(
-                    object : ComparisonVisitor() {
-                        override fun added(new: Item) {
-                            if (
-                                new is ClassItem &&
-                                    !filterEmit.test(new) &&
-                                    oldCodebase.findClass(new.qualifiedName())?.emit == false
-                            ) {
-                                // old is implied (emit == false) in the old codebase but
-                                // wasn't emitted. new is also not eligible for emitting,
-                                // no point in checking it.
-                                // Skip here to avoid checking all of new's children even if
-                                // they're pre-existing. new's children will still be visited by
-                                // CodebaseComparator if they are truly new.
-                                return
-                            }
-                            new.accept(this@ApiLint)
-                        }
-                    },
-                    oldCodebase,
-                    codebase,
-                    filterReference
-                )
-        } else {
-            // No previous codebase to compare with: visit the whole thing
-            codebase.accept(this)
-        }
+        codebase.accept(this)
     }
 
     private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
@@ -298,26 +349,32 @@ private constructor(
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allMethods = methods.asSequence() + constructors.asSequence()
-        checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
+        reporter.withContext(cls) {
+            checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
+        }
     }
 
     override fun visitMethod(method: MethodItem) {
-        checkMethod(method, filterReference)
-        val returnType = method.returnType()
-        checkType(returnType, method)
-        checkNullableCollections(returnType, method)
-        checkMethodSuffixListenableFutureReturn(returnType, method)
-        for (parameter in method.parameters()) {
-            checkType(parameter.type(), parameter)
+        reporter.withContext(method) {
+            checkMethod(method, filterReference)
+            val returnType = method.returnType()
+            checkType(returnType, method)
+            checkNullableCollections(returnType, method)
+            checkMethodSuffixListenableFutureReturn(returnType, method)
+            for (parameter in method.parameters()) {
+                checkType(parameter.type(), parameter)
+            }
+            checkParameterOrder(method)
+            kotlinInterop.checkMethod(method)
         }
-        checkParameterOrder(method)
-        kotlinInterop.checkMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
-        checkField(field)
-        checkType(field.type(), field)
-        kotlinInterop.checkField(field)
+        reporter.withContext(field) {
+            checkField(field)
+            checkType(field.type(), field)
+            kotlinInterop.checkField(field)
+        }
     }
 
     private fun checkType(type: TypeItem, item: Item) {
@@ -376,6 +433,7 @@ private constructor(
         checkTypedef(cls)
         checkHasFlaggedApi(cls)
         checkFlaggedApiLiteral(cls)
+        checkAccessorNullabilityMatches(methods)
     }
 
     private fun checkField(field: FieldItem) {
@@ -1182,7 +1240,7 @@ private constructor(
         }
         for (constructor in constructors) {
             for (arg in constructor.parameters()) {
-                if (arg.modifiers.isNullable()) {
+                if (arg.type().modifiers.isNullable) {
                     report(
                         OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT,
                         arg,
@@ -1222,7 +1280,7 @@ private constructor(
                     )
                 }
 
-                if (method.modifiers.isNullable()) {
+                if (method.returnType().modifiers.isNullable) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1456,14 +1514,37 @@ private constructor(
             boolean isWiFiRoamingSettingEnabled()
         */
 
+        fun isBooleanGetter(method: MethodItem): Boolean {
+            val returnType = method.returnType()
+            return method.parameters().isEmpty() &&
+                returnType is PrimitiveTypeItem &&
+                returnType.toTypeString() == "boolean"
+        }
+
+        fun isBooleanSetter(method: MethodItem): Boolean {
+            return method.parameters().size == 1 &&
+                method.parameters()[0].type().toTypeString() == "boolean"
+        }
+
+        /**
+         * Searches the [methods] for one named [actual] that is a boolean getter if
+         * [lookingForGetter] is true or a boolean setter if [lookingForGetter] is false. If one is
+         * found, reports an error that the method should have been named [expected] instead of
+         * [actual] to match the naming of [trigger].
+         */
         fun errorIfExists(
             methods: Sequence<MethodItem>,
             trigger: String,
             expected: String,
-            actual: String
+            actual: String,
+            lookingForGetter: Boolean,
         ) {
             for (method in methods) {
-                if (method.name() == actual) {
+                if (
+                    method.name() == actual &&
+                        ((lookingForGetter && isBooleanGetter(method)) ||
+                            (!lookingForGetter && isBooleanSetter(method)))
+                ) {
                     report(
                         GETTER_SETTER_NAMES,
                         method,
@@ -1537,21 +1618,9 @@ private constructor(
             }
         }
 
-        fun isGetter(method: MethodItem): Boolean {
-            val returnType = method.returnType()
-            return method.parameters().isEmpty() &&
-                returnType is PrimitiveTypeItem &&
-                returnType.toTypeString() == "boolean"
-        }
-
-        fun isSetter(method: MethodItem): Boolean {
-            return method.parameters().size == 1 &&
-                method.parameters()[0].type().toTypeString() == "boolean"
-        }
-
         for (method in methods) {
             val name = method.name()
-            if (isGetter(method)) {
+            if (isBooleanGetter(method)) {
                 // Checks for Java and Kotlin getters are handled separately
                 if (method.isKotlinProperty()) {
                     checkKotlinProperty(method)
@@ -1565,11 +1634,11 @@ private constructor(
                     badBooleanSetterPrefixes.forEach {
                         val actualSetter = "${it}$target"
                         if (actualSetter != expectedSetter) {
-                            errorIfExists(methods, name, expectedSetter, actualSetter)
+                            errorIfExists(methods, name, expectedSetter, actualSetter, false)
                         }
                     }
                 }
-            } else if (isSetter(method)) {
+            } else if (isBooleanSetter(method)) {
                 // Handled in the getter case (if the setter is part of the API, the getter also
                 // has to be: https://youtrack.jetbrains.com/issue/KT-3110)
                 if (method.isKotlinProperty()) continue
@@ -1583,7 +1652,7 @@ private constructor(
                 badBooleanGetterPrefixes.forEach {
                     val actualGetter = "${it}$target"
                     if (actualGetter != expectedGetter) {
-                        errorIfExists(methods, name, expectedGetter, actualGetter)
+                        errorIfExists(methods, name, expectedGetter, actualGetter, true)
                     }
                 }
             }
@@ -1624,10 +1693,6 @@ private constructor(
     }
 
     private fun checkNullableCollections(type: TypeItem, item: Item) {
-        if (type is PrimitiveTypeItem) return
-        if (!item.modifiers.isNullable()) return
-        val typeAsClass = type.asClass() ?: return
-
         val superItem: Item? =
             when (item) {
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
@@ -1639,20 +1704,17 @@ private constructor(
                         ?.find { it.parameterIndex == item.parameterIndex }
                 else -> null
             }
+        val superType = superItem?.type()
 
-        if (superItem?.modifiers?.isNullable() == true) {
-            return
-        }
+        checkNullableCollections(type, item, superType)
+    }
 
-        if (
-            type is ArrayTypeItem ||
-                typeAsClass.extendsOrImplements("java.util.Collection") ||
-                typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
-                typeAsClass.extendsOrImplements("java.util.Map") ||
-                typeAsClass.extendsOrImplements("kotlin.collections.Map") ||
-                typeAsClass.qualifiedName() == "android.os.Bundle" ||
-                typeAsClass.qualifiedName() == "android.os.PersistableBundle"
-        ) {
+    private fun checkNullableCollections(type: TypeItem, item: Item, superType: TypeItem?) {
+        if (!type.modifiers.isNullable) return
+        // Allow a nullable collection when it is present in the super type
+        if (superType?.modifiers?.isNullable == true) return
+
+        if (type.isCollection()) {
             val where =
                 when (item) {
                     is MethodItem -> "Return type of ${item.describe()}"
@@ -1663,9 +1725,32 @@ private constructor(
             report(
                 NULLABLE_COLLECTION,
                 item,
-                "$where is a nullable collection (`$erased`); must be non-null"
+                "$where uses a nullable collection (`$erased`); must be non-null"
             )
         }
+    }
+
+    /**
+     * Whether the class is a collection (implements the standard java or kotlin collection
+     * interfaces) or a bundle.
+     */
+    private fun ClassItem.isCollection(): Boolean {
+        return extendsOrImplements("java.util.Collection") ||
+            extendsOrImplements("kotlin.collections.Collection") ||
+            extendsOrImplements("java.util.Map") ||
+            extendsOrImplements("kotlin.collections.Map") ||
+            qualifiedName() == "android.os.Bundle" ||
+            qualifiedName() == "android.os.PersistableBundle"
+    }
+
+    /**
+     * Whether the type is a collection. To preserve legacy behavior, primitive arrays (for which
+     * [TypeItem.asClass] is null) are not considered collections but other arrays are
+     * (b/343748165).
+     */
+    private fun TypeItem.isCollection(): Boolean {
+        val asClass = asClass() ?: return false
+        return this is ArrayTypeItem || asClass.isCollection()
     }
 
     private fun checkFlags(fields: Sequence<FieldItem>) {
@@ -1827,41 +1912,44 @@ private constructor(
                 it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
             }
         ) {
-            val elidedField =
-                if (item is FieldItem) {
-                    val inheritedFrom = item.inheritedFrom
-                    // The field gets elided if we're able to reference the original class, but not
-                    // emit it; this happens e.g. when inheriting from a public API interface into
-                    // an @SystemApi class.
-                    // The only edge-case we don't handle well here is if the inheritance itself is
-                    // new, because that can't be flagged.
-                    // TODO(b/299659989): adjust comment once flagging inheritance is possible.
-                    inheritedFrom != null && filterReference.test(inheritedFrom)
-                } else {
-                    false
-                }
-            if (!elidingFilterEmit.test(item) || elidedField) {
-                // This API wouldn't appear in the signature file, so we don't know here if the API
-                // is pre-existing.
-                // Since the base API is either new and subject to flagging rules, or preexisting
-                // and therefore stable, the elided API is not required to be flagged.
-                // The only edge-case we don't handle well here is if the inheritance itself is new,
-                // because that can't be flagged.
-                // TODO(b/299659989): adjust comment once flagging inheritance is possible.
-                return
-            }
-            report(
-                UNFLAGGED_API,
-                item,
-                "New API must be flagged with @FlaggedApi: ${item.describe()}"
-            )
+            checkFlaggedApiOnNewApi(item)
         }
     }
 
+    /**
+     * Check whether an `@FlaggedApi` annotation is required on a new [Item], i.e. one that has not
+     * previously been released.
+     */
+    private fun checkFlaggedApiOnNewApi(item: Item) {
+        val elidedField =
+            if (item is FieldItem) {
+                val inheritedFrom = item.inheritedFrom
+                // The field gets elided if we're able to reference the original class, but not emit
+                // it; this happens e.g. when inheriting from a public API interface into an
+                // @SystemApi class.
+                // The only edge-case we don't handle well here is if the inheritance itself is new,
+                // because that can't be flagged.
+                // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+                inheritedFrom != null && filterReference.test(inheritedFrom)
+            } else {
+                false
+            }
+        if (!elidingFilterEmit.test(item) || elidedField) {
+            // This API wouldn't appear in the signature file, so we don't know here if the API is
+            // pre-existing.
+            // Since the base API is either new and subject to flagging rules, or preexisting and
+            // therefore stable, the elided API is not required to be flagged.
+            // The only edge-case we don't handle well here is if the inheritance itself is new,
+            // because that can't be flagged.
+            // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+            return
+        }
+        report(UNFLAGGED_API, item, "New API must be flagged with @FlaggedApi: ${item.describe()}")
+    }
+
     private fun checkHasNullability(item: Item) {
-        if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && item.type()?.modifiers?.nullability()?.isKnown != true) {
-            val type = item.type()
+        val type = item.type() ?: return
+        if (!type.modifiers.nullability().isKnown) {
             val inherited =
                 when (item) {
                     is ParameterItem -> item.containingMethod().inheritedFromAncestor
@@ -1878,39 +1966,13 @@ private constructor(
                 // for Foo<Bar>, Bar does.
                 return // Do not enforce nullability for generics
             }
-            if (item is MethodItem && item.isKotlinProperty()) {
-                return // kotlinc doesn't add nullability
-                // https://youtrack.jetbrains.com/issue/KT-45771
-            }
             val where =
                 when (item) {
                     is ParameterItem ->
                         "parameter `${item.name()}` in method `${item.parent()?.name()}`"
-                    is FieldItem -> {
-                        if (item.isKotlin()) {
-                            if (item.name() == "INSTANCE") {
-                                // Kotlin compiler is not marking it with a nullability annotation
-                                // https://youtrack.jetbrains.com/issue/KT-33226
-                                return
-                            }
-                            if (item.modifiers.isCompanion()) {
-                                // Kotlin compiler is not marking it with a nullability annotation
-                                // https://youtrack.jetbrains.com/issue/KT-33314
-                                return
-                            }
-                        }
-                        "field `${item.name()}` in class `${item.parent()}`"
-                    }
+                    is FieldItem -> "field `${item.name()}` in class `${item.parent()}`"
                     is ConstructorItem -> "constructor `${item.name()}` return"
-                    is MethodItem -> {
-                        // For methods requiresNullnessInfo and hasNullnessInfo considers both
-                        // parameters and return,
-                        // only warn about non-annotated returns here as parameters will get visited
-                        // individually.
-                        if (item.isConstructor() || item.returnType() is PrimitiveTypeItem) return
-                        if (item.modifiers.hasNullnessInfo()) return
-                        "method `${item.name()}` return"
-                    }
+                    is MethodItem -> "method `${item.name()}` return"
                     else -> throw IllegalStateException("Unexpected item type: $item")
                 }
             report(MISSING_NULLABILITY, item, "Missing nullability on $where")
@@ -1919,14 +1981,20 @@ private constructor(
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
                     if (item.containingMethod().isConstructor()) return
-                    if (item.modifiers.isNonNull()) {
-                        if (anySuperParameterLacksNullnessInfo(item)) {
+                    val supers =
+                        item.containingMethod().superMethods().mapNotNull {
+                            it.parameters().find { param ->
+                                item.parameterIndex == param.parameterIndex
+                            }
+                        }
+                    if (type.modifiers.isNonNull) {
+                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
                                 "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated."
                             )
-                        } else if (anySuperParameterIsNullable(item)) {
+                        } else if (supers.anyItemHasNullability(TypeNullability.NULLABLE)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
@@ -1936,14 +2004,15 @@ private constructor(
                     }
                 }
                 is MethodItem -> {
-                    if (item.modifiers.isNullable()) {
-                        if (anySuperMethodLacksNullnessInfo(item)) {
+                    val supers = item.superMethods()
+                    if (type.modifiers.isNullable) {
+                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
                                 "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable."
                             )
-                        } else if (anySuperMethodIsNonNull(item)) {
+                        } else if (supers.anyItemHasNullability(TypeNullability.NONNULL)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
@@ -1956,50 +2025,14 @@ private constructor(
         }
     }
 
-    private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
-        return method.superMethods().any { superMethod ->
-            // Disable check for generics
-            superMethod.modifiers.isNonNull() && superMethod.returnType() !is VariableTypeItem
+    /** Checks if any of the [Item]s in the list have a type with [nullability]. */
+    private fun List<Item>.anyItemHasNullability(nullability: TypeNullability): Boolean {
+        return any { superItem ->
+            val type = superItem.type() ?: return@any false
+            // Variable types have been excluded from the check because of previous inconsistency
+            // in modeling their nullability.
+            type !is VariableTypeItem && type.modifiers.nullability() == nullability
         }
-    }
-
-    private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
-        val supers = parameter.containingMethod().superMethods()
-        return supers.all { superMethod ->
-            // Disable check for generics
-            superMethod.parameters().none { it.type() is VariableTypeItem }
-        } &&
-            supers.any { superMethod ->
-                superMethod
-                    .parameters()
-                    .firstOrNull { param -> parameter.parameterIndex == param.parameterIndex }
-                    ?.modifiers
-                    ?.isNullable()
-                    ?: false
-            }
-    }
-
-    private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
-        return method.superMethods().any { superMethod ->
-            // Disable check for generics
-            !superMethod.modifiers.hasNullnessInfo() &&
-                superMethod.returnType() !is VariableTypeItem
-        }
-    }
-
-    private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
-        val supers = parameter.containingMethod().superMethods()
-        return supers.all { superMethod ->
-            // Disable check for generics
-            superMethod.parameters().none { it.type() is VariableTypeItem }
-        } &&
-            supers.any { superMethod ->
-                !(superMethod
-                    .parameters()
-                    .firstOrNull { param -> parameter.parameterIndex == param.parameterIndex }
-                    ?.hasNullnessInfo()
-                    ?: true)
-            }
     }
 
     private fun checkBoxed(type: TypeItem, item: Item) {
@@ -3090,6 +3123,64 @@ private constructor(
                         "lambda parameter)"
                 )
             }
+        }
+    }
+
+    /**
+     * Check that the nullability of [getterType] (from the return type of [getter]) and
+     * [setterType] (from the parameter type of [setter]) match.
+     */
+    private fun compareAccessorNullability(
+        getterType: TypeItem,
+        setterType: TypeItem,
+        getter: MethodItem,
+        setter: MethodItem
+    ) {
+        if (getterType.modifiers.nullability() != setterType.modifiers.nullability()) {
+            val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
+            val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
+            report(
+                Issues.GETTER_SETTER_NULLABILITY,
+                getter,
+                "Nullability of $getterTypeString in getter ${getter.describe()} does not match $setterTypeString in corresponding setter ${setter.describe()}"
+            )
+        }
+    }
+
+    /** Check that the nullability of each getter/setter pair matches. */
+    private fun checkAccessorNullabilityMatches(methods: Sequence<MethodItem>) {
+        val getters = methods.filter { it.name().startsWith("get") && it.parameters().isEmpty() }
+
+        for (getter in getters) {
+            // Don't bother checking accessors generated from Kotlin properties, the nullness is
+            // guaranteed to match.
+            if (getter.property != null) continue
+
+            val expectedSetterName = getter.name().replaceFirst("get", "set")
+            val setter =
+                methods.singleOrNull {
+                    it.name() == expectedSetterName && it.parameters().size == 1
+                }
+                    ?: continue
+
+            val getterReturnType = getter.returnType()
+            val setterParamType = setter.parameters().single().type()
+            // Don't check nullness if the methods don't use the same type (this type equality check
+            // doesn't consider modifiers).
+            if (getterReturnType != setterParamType) return
+
+            // Recur through the getter and setter type simultaneously.
+            getterReturnType.accept(
+                object : MultipleTypeVisitor() {
+                    override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                        // [type] is from the getter, [other] is from the setter. Since the getter
+                        // and setter are the same type, it is safe to assert that [other] isn't
+                        // empty.
+                        compareAccessorNullability(type, other.single(), getter, setter)
+                    }
+                },
+                listOf(setterParamType)
+            )
         }
     }
 

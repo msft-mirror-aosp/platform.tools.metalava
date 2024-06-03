@@ -19,10 +19,10 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
-import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.EarlyOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
@@ -42,6 +42,7 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.psi.PsiModelOptions
@@ -49,7 +50,7 @@ import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
@@ -88,7 +89,7 @@ fun run(
 
     // Preprocess the arguments by adding any additional arguments specified in environment
     // variables.
-    val modifiedArgs = preprocessArgv(originalArgs)
+    val modifiedArgs = preprocessArgv(executionEnvironment, originalArgs)
 
     // Process the early options. This does not consume any arguments, they will be parsed again
     // later. A little inefficient but produces cleaner code.
@@ -99,7 +100,7 @@ fun run(
     progressTracker.progress("$PROGRAM_NAME started\n")
 
     // Dump the arguments, and maybe generate a rerun-script.
-    maybeDumpArgv(stdout, originalArgs, modifiedArgs)
+    maybeDumpArgv(executionEnvironment, originalArgs, modifiedArgs)
 
     // Actual work begins here.
     val command =
@@ -182,7 +183,10 @@ internal fun processFlags(
                 }
             val signatureFileLoader = SignatureFileLoader(annotationManager)
             val textCodebase =
-                signatureFileLoader.loadFiles(sources, classResolverProvider.classResolver)
+                signatureFileLoader.loadFiles(
+                    SignatureFile.fromFiles(sources),
+                    classResolverProvider.classResolver,
+                )
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
@@ -194,12 +198,10 @@ internal fun processFlags(
                 )
             }
             textCodebase
-        } else if (options.apiJar != null) {
-            actionContext.loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            actionContext.loadFromSources(signatureFileCache)
+            actionContext.loadFromSources(signatureFileCache, classResolverProvider)
         } else {
             return
         }
@@ -251,7 +253,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, reporterApiLint)
+        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporterApiLint)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -308,23 +310,6 @@ internal fun processFlags(
                 fileFormat = options.signatureFileFormat,
                 showUnannotated = options.showUnannotated,
                 apiVisitorConfig = options.apiVisitorConfig
-            )
-        }
-    }
-
-    options.apiXmlFile?.let { apiFile ->
-        val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
-
-        createReportFile(progressTracker, codebase, apiFile, "XML API") { printWriter ->
-            JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                codebase.preFiltered,
-                showUnannotated = @Suppress("DEPRECATION") options.showUnannotated,
-                config = options.apiVisitorConfig,
             )
         }
     }
@@ -388,7 +373,7 @@ internal fun processFlags(
             if (previousApiFile.path.endsWith(DOT_JAR)) {
                 actionContext.loadFromJarFile(previousApiFile)
             } else {
-                signatureFileCache.load(file = previousApiFile)
+                signatureFileCache.load(signatureFile = SignatureFile.fromFile(previousApiFile))
             }
 
         // If configured, checks for newly added nullness information compared
@@ -453,7 +438,8 @@ private fun ActionContext.subtractApi(
     val path = subtractApiFile.path
     val oldCodebase =
         when {
-            path.endsWith(DOT_TXT) -> signatureFileCache.load(subtractApiFile)
+            path.endsWith(DOT_TXT) ->
+                signatureFileCache.load(SignatureFile.fromFile(subtractApiFile))
             path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(
@@ -498,36 +484,34 @@ private fun ActionContext.checkCompatibility(
     // Fast path: if we've already generated a signature file, and it's identical to the previously
     // released API then we're good.
     //
-    // Some things to watch out for:
-    // * There is no guarantee that the signature file is actually a txt file, it could also be
-    //   a `jar` file, so double check that first.
-    // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
-    //   check the lengths first and then compare contents byte for byte so that it exits
-    //   quickly if they're different and does not do all the UTF-8 conversions.
+    // Reading two files that may be a couple of MBs each isn't a particularly fast path so check
+    // the lengths first and then compare contents byte for byte so that it exits quickly if they're
+    // different and does not do all the UTF-8 conversions.
     generatedApiFile?.let { apiFile ->
-        val signatureFile = check.files.last()
         val compatibilityCheckCanBeSkipped =
-            signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
+            check.lastSignatureFile?.let { signatureFile ->
+                compareFileContents(apiFile, signatureFile)
+            }
+                ?: false
         // TODO(b/301282006): Remove global variable use when this can be tested properly
         fastPathCheckResult = compatibilityCheckCanBeSkipped
         if (compatibilityCheckCanBeSkipped) return
     }
 
-    val oldCodebases =
-        check.files.map { signatureFile ->
-            if (signatureFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(signatureFile)
-            } else {
-                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+    val oldCodebase =
+        check.previouslyReleasedApi.load(
+            jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+            signatureFileLoader = { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
             }
-        }
+        )
 
     var baseApi: Codebase? = null
 
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
-            baseApi = signatureFileCache.load(file = baseApiFile)
+            baseApi = signatureFileCache.load(signatureFile = SignatureFile.fromFile(baseApiFile))
         }
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
@@ -537,9 +521,8 @@ private fun ActionContext.checkCompatibility(
         )
     }
 
-    // The MergedCodebase assume that the codebases are in order from widest to narrowest which is
-    // the opposite of how they are supplied so this reverses them.
-    val mergedOldCodebases = MergedCodebase(oldCodebases.reversed())
+    // Wrap the old Codebase in a [MergedCodebase].
+    val mergedOldCodebases = MergedCodebase(listOf(oldCodebase))
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
@@ -615,6 +598,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 @Suppress("DEPRECATION")
 private fun ActionContext.loadFromSources(
     signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
 ): Codebase {
     progressTracker.progress("Processing sources: ")
 
@@ -672,21 +656,25 @@ private fun ActionContext.loadFromSources(
     // General API checks for Android APIs
     AndroidApiChecks(reporterApiLint).check(codebase)
 
-    if (options.checkApi) {
+    options.apiLintOptions.let { apiLintOptions ->
+        if (!apiLintOptions.apiLintEnabled) return@let
+
         progressTracker.progress("API Lint: ")
         val localTimer = Stopwatch.createStarted()
+
         // See if we should provide a previous codebase to provide a delta from?
-        val previousApiFile = options.checkApiBaselineApiFile
-        val previous =
-            when {
-                previousApiFile == null -> null
-                previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
-                else -> signatureFileCache.load(file = previousApiFile)
-            }
+        val previouslyReleasedApi =
+            apiLintOptions.previouslyReleasedApi?.load(
+                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+                signatureFileLoader = { signatureFiles ->
+                    signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+                }
+            )
+
         val apiLintReporter = reporterApiLint as DefaultReporter
         ApiLint.check(
             codebase,
-            previous,
+            previouslyReleasedApi,
             apiLintReporter,
             options.manifest,
             options.apiVisitorConfig,
@@ -728,41 +716,17 @@ private class ClassResolverProvider(
     }
 }
 
-@Suppress("DEPRECATION")
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    preFiltered: Boolean = false,
-    apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
-    codebaseValidator: (Codebase) -> Unit = { codebase ->
-        options.nullabilityAnnotationsValidator?.validateAllFrom(
-            codebase,
-            options.validateNullabilityFromList
-        )
-        options.nullabilityAnnotationsValidator?.report()
-    },
-    apiPredicateConfig: ApiPredicate.Config = options.apiPredicateConfig,
+    apiAnalyzerConfig: ApiAnalyzer.Config = @Suppress("DEPRECATION") options.apiAnalyzerConfig,
 ): Codebase {
-    progressTracker.progress("Processing jar file: ")
-
-    val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
-    val apiEmit =
-        ApiPredicate(
-            config = apiPredicateConfig.copy(ignoreShown = true),
+    val jarCodebaseLoader =
+        JarCodebaseLoader.createForSourceParser(
+            progressTracker,
+            reporterApiLint,
+            sourceParser,
         )
-    val apiReference = apiEmit
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, apiAnalyzerConfig)
-    analyzer.mergeExternalInclusionAnnotations()
-    analyzer.computeApi()
-    analyzer.mergeExternalQualifierAnnotations()
-    codebaseValidator(codebase)
-    analyzer.generateInheritedStubs(apiEmit, apiReference)
-    return codebase
-}
-
-internal fun disableStderrDumping(): Boolean {
-    return !assertionsEnabled() &&
-        System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
-        !isUnderTest()
+    return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
 @Suppress("DEPRECATION")
@@ -838,7 +802,7 @@ fun createReportFile(
     apiFile: File,
     description: String?,
     deleteEmptyFiles: Boolean = false,
-    createVisitor: (PrintWriter) -> ApiVisitor
+    createVisitor: (PrintWriter) -> ItemVisitor
 ) {
     if (description != null) {
         progressTracker.progress("Writing $description file: ")
@@ -865,12 +829,6 @@ fun createReportFile(
     }
 }
 
-/** Whether metalava is running unit tests */
-fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
-
-/** Whether metalava is being invoked as part of an Android platform build */
-fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
-
 private fun createMetalavaCommand(
     executionEnvironment: ExecutionEnvironment,
     progressTracker: ProgressTracker
@@ -885,6 +843,7 @@ private fun createMetalavaCommand(
         MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
+        JarToJDiffCommand(),
         MakeAnnotationsPackagePrivateCommand(),
         MergeSignaturesCommand(),
         SignatureToDexCommand(),
