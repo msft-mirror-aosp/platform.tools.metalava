@@ -131,6 +131,7 @@ import com.android.tools.metalava.reporter.Issues.METHOD_NAME_UNITS
 import com.android.tools.metalava.reporter.Issues.MIN_MAX_CONSTANT
 import com.android.tools.metalava.reporter.Issues.MISSING_BUILD_METHOD
 import com.android.tools.metalava.reporter.Issues.MISSING_GETTER_MATCHING_BUILDER
+import com.android.tools.metalava.reporter.Issues.MISSING_INNER_NULLABILITY
 import com.android.tools.metalava.reporter.Issues.MISSING_NULLABILITY
 import com.android.tools.metalava.reporter.Issues.MUTABLE_BARE_FIELD
 import com.android.tools.metalava.reporter.Issues.NOT_CLOSEABLE
@@ -2007,7 +2008,7 @@ private constructor(
     }
 
     private fun checkHasNullability(item: Item) {
-        val type = item.type() ?: return
+        val itemType = item.type() ?: return
         val inherited =
             when (item) {
                 is ParameterItem -> item.containingMethod().inheritedFromAncestor
@@ -2027,19 +2028,32 @@ private constructor(
                 else -> emptyList()
             }
         val superTypes = superItems.mapNotNull { it.type() }
-        checkHasNullability(type, item, inherited, superTypes)
+
+        itemType.accept(
+            object : MultipleTypeVisitor() {
+                override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                    val isInner = itemType !== type
+                    checkHasNullability(type, item, inherited, other, isInner)
+                }
+            },
+            superTypes
+        )
     }
 
     /**
      * Checks that the [type] from [item] has a nullability (unless it is [inherited]) and that the
      * nullability does not conflict with the nullability of the [supers], which are the
      * corresponding types from the [item]'s super methods.
+     *
+     * The issue reported for missing nullability is either [MISSING_NULLABILITY] or
+     * [MISSING_INNER_NULLABILITY] depending on [isInner].
      */
     private fun checkHasNullability(
         type: TypeItem,
         item: Item,
         inherited: Boolean,
-        supers: List<TypeItem>
+        supers: List<TypeItem>,
+        isInner: Boolean,
     ) {
         if (type.modifiers.isPlatformNullability) {
             if (inherited) {
@@ -2060,14 +2074,24 @@ private constructor(
                     is MethodItem -> "method `${item.name()}` return"
                     else -> throw IllegalStateException("Unexpected item type: $item")
                 }
-            report(MISSING_NULLABILITY, item, "Missing nullability on $where")
+
+            if (isInner) {
+                report(
+                    MISSING_INNER_NULLABILITY,
+                    item,
+                    "Missing nullability on inner type $type in $where"
+                )
+            } else {
+                report(MISSING_NULLABILITY, item, "Missing nullability on $where")
+            }
         } else {
             when (item) {
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
                     if (item.containingMethod().isConstructor()) return
                     if (type.modifiers.isNonNull) {
-                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM)) {
+                        // TODO (b/344859664): Skip warning for inner type
+                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
@@ -2086,7 +2110,8 @@ private constructor(
                 }
                 is MethodItem -> {
                     if (type.modifiers.isNullable) {
-                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM)) {
+                        // TODO (b/344859664): Skip warning for inner type
+                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
