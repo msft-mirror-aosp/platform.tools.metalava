@@ -494,4 +494,37 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Require @FlaggedApi on APIs whose modifiers have changed`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo {
+                        ctor protected Foo();
+                        method public final void method();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
 }
