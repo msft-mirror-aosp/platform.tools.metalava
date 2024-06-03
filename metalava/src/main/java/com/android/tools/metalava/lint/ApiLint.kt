@@ -233,17 +233,17 @@ private constructor(
 
             val item = reportable as? Item
             if (item != null) {
-                if (oldCodebase != null) {
-                    // Issues on previously released APIs have reduced [Severity].
-                    val computedMaximumSeverity = computeMaximumSeverity(item, id)
-                    if (computedMaximumSeverity == Severity.HIDDEN) {
-                        return false
-                    }
+                val previousItem = findPreviouslyReleased(item)
 
-                    // Use the minimum of the [Item] specific maximum [Severity] and the one
-                    // provided by the caller.
-                    actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
+                // Issues on previously released APIs have reduced [Severity].
+                val computedMaximumSeverity = computeMaximumSeverity(item, previousItem, id)
+                if (computedMaximumSeverity == Severity.HIDDEN) {
+                    return false
                 }
+
+                // Use the minimum of the [Item] specific maximum [Severity] and the one
+                // provided by the caller.
+                actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
 
                 // Don't flag api warnings on deprecated APIs; these are obviously already known to
                 // be problematic.
@@ -263,7 +263,7 @@ private constructor(
         }
 
         /** Compute the maximum [Severity] of issues on [item]. */
-        private fun computeMaximumSeverity(item: Item?, issue: Issue) =
+        private fun computeMaximumSeverity(item: Item?, previousItem: Item?, issue: Issue) =
             when {
                 issue == Issues.UNFLAGGED_API -> Severity.ERROR
                 // If the issue is being reported on the context Item then use its maximum.
@@ -272,7 +272,7 @@ private constructor(
                 // item itself is new then generate a warning for existing code and an error in new
                 // code. That at least gives developers some indication that there is a problem with
                 // the existing code and prevents issues being added in new code.
-                maximumSeverityForItem == Severity.HIDDEN && !wasPreviouslyReleased(item) ->
+                maximumSeverityForItem == Severity.HIDDEN && previousItem == null ->
                     Severity.WARNING_ERROR_WHEN_NEW
                 // Otherwise, the use maximum for the context Item's contents.
                 else -> maximumSeverityForItemContents
