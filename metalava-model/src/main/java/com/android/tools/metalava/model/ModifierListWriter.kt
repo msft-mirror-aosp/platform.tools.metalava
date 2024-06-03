@@ -100,7 +100,7 @@ private constructor(
     }
 
     /** Write the modifier keywords. */
-    fun writeKeywords(item: Item) {
+    fun writeKeywords(item: Item, normalize: Boolean = false) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
@@ -165,7 +165,10 @@ private constructor(
                         // Don't show final on parameters: that's an implementation detail
                         item !is ParameterItem &&
                         // Don't add final on enum or enum members as they are implicitly final.
-                        classItem?.isEnum() != true
+                        classItem?.isEnum() != true &&
+                        // If normalizing and the current item is a method and its containing class
+                        // is final then do not write out the final keyword.
+                        (!normalize || methodItem?.containingClass()?.modifiers?.isFinal() != true)
                 ) {
                     writer.write("final ")
                 }

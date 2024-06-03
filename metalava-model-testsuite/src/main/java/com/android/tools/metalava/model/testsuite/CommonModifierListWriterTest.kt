@@ -26,10 +26,10 @@ import org.junit.Test
 /** Common tests for implementations of [ModifierListWriter]. */
 class CommonModifierListWriterTest : BaseModelTest() {
 
-    private fun Item.writeKeywords(): String {
+    private fun Item.writeKeywords(normalize: Boolean = false): String {
         val stringWriter = StringWriter()
         val writer = ModifierListWriter.forSignature(stringWriter, skipNullnessAnnotations = true)
-        writer.writeKeywords(this)
+        writer.writeKeywords(this, normalize = normalize)
         return stringWriter.toString().trimEnd()
     }
 
@@ -130,6 +130,38 @@ class CommonModifierListWriterTest : BaseModelTest() {
             // turbine do not. It is not 100% clear which is the correct behavior but at the moment
             // this treats the latter two behavior as correct.
             assertEquals("public final", methodItem.writeKeywords())
+        }
+    }
+
+    @Test
+    fun `modifiers public explicitly final method in final class - normalized`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public final void method();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public final class Test {
+                        private Test() {}
+
+                        public final void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val methodItem = testClass.methods().single()
+
+            assertEquals("public", methodItem.writeKeywords(normalize = true))
         }
     }
 
