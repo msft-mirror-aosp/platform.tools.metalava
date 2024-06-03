@@ -96,7 +96,11 @@ private constructor(
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
     fun write(item: Item) {
         writeAnnotations(item)
+        writeKeywords(item)
+    }
 
+    /** Write the modifier keywords. */
+    fun writeKeywords(item: Item) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
