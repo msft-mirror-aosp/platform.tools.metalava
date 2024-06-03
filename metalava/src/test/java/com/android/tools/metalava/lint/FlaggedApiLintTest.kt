@@ -579,8 +579,10 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Require @FlaggedApi on APIs whose deprecated status has changed to deprecated`() {
         check(
-            // TODO: This should contain an UnflaggedApi issue.
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:7: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                """,
             apiLint =
                 """
                     // Signature format: 2.0
@@ -614,8 +616,10 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Require @FlaggedApi on APIs whose deprecated status has changed to not deprecated`() {
         check(
-            // TODO: This should contain an UnflaggedApi issue.
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:3: warning: Changes from deprecated to not deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                """,
             apiLint =
                 """
                     // Signature format: 2.0

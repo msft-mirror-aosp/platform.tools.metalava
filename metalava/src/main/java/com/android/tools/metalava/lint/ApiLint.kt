@@ -245,9 +245,9 @@ private constructor(
                 // provided by the caller.
                 actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
 
-                // Don't flag api warnings on deprecated APIs; these are obviously already known to
-                // be problematic.
-                if (item.effectivelyDeprecated) {
+                // Don't flag api warnings on previously deprecated APIs; these are obviously
+                // already known to be problematic.
+                if (item.effectivelyDeprecated && previousItem?.effectivelyDeprecated != false) {
                     return false
                 }
 
@@ -1985,6 +1985,29 @@ private constructor(
                 "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
                 maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
             )
+            // Reporting the same issue on the same Item is pointless as the first report will
+            // update the baseline and so suppress the second report so return immediately.
+            return
+        }
+
+        // Check the deprecated status, if it has changed
+        val previousDeprecated = previousItem.deprecated
+        val currentDeprecated = currentItem.deprecated
+        if (currentDeprecated != previousDeprecated) {
+            fun deprecatedStatus(b: Boolean): String {
+                return if (b) "deprecated" else "not deprecated"
+            }
+            val current = deprecatedStatus(currentDeprecated)
+            val previous = deprecatedStatus(previousDeprecated)
+            report(
+                UNFLAGGED_API,
+                currentItem,
+                "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
+                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
+            )
+            // Reporting the same issue on the same Item is pointless as the first report will
+            // update the baseline and so suppress the second report so return immediately.
+            return
         }
     }
 
