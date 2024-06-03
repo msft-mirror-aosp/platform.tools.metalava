@@ -2041,7 +2041,7 @@ private constructor(
         inherited: Boolean,
         supers: List<TypeItem>
     ) {
-        if (!type.modifiers.nullability().isKnown) {
+        if (type.modifiers.isPlatformNullability) {
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
