@@ -2012,13 +2012,15 @@ private constructor(
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated."
+                                "Invalid nullability on type $type in parameter `${item.name()}` in method `${item.parent()?.name()}`. " +
+                                    "Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness."
                             )
                         } else if (supers.anyTypeHasNullability(TypeNullability.NULLABLE)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable."
+                                "Invalid nullability on type $type in parameter `${item.name()}` in method `${item.parent()?.name()}`. " +
+                                    "Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable."
                             )
                         }
                     }
@@ -2029,13 +2031,15 @@ private constructor(
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable."
+                                "Invalid nullability on type $type in method `${item.name()}` return. " +
+                                    "Method override cannot use a nullable type when the corresponding type from the super method is platform-nullness."
                             )
                         } else if (supers.anyTypeHasNullability(TypeNullability.NONNULL)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable."
+                                "Invalid nullability on type $type method `${item.name()}` return. " +
+                                    "Method override cannot use a nullable type when the corresponding type from the super method is non-null."
                             )
                         }
                     }

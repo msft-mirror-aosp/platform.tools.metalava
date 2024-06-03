@@ -327,9 +327,9 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:16: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:19: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in method `bar` return. Method override cannot use a nullable type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:19: error: Invalid nullability on type java.lang.String in parameter `y` in method `x`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
                 src/test/pkg/Foo.java:8: error: Missing nullability on method `bar` return [MissingNullability]
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
                 src/test/pkg/Foo.java:11: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
@@ -374,7 +374,7 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Bar.kt:5: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
                 src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
                 """,
@@ -413,7 +413,7 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:12: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:12: error: Invalid nullability on type java.lang.String method `bar` return. Method override cannot use a nullable type when the corresponding type from the super method is non-null. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -447,7 +447,7 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -515,7 +515,7 @@ class NullabilityLintTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/StringProperty.java:5: error: Invalid nullability on parameter `arg2` in method `foo`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]",
+                "src/test/pkg/StringProperty.java:5: error: Invalid nullability on type java.lang.String in parameter `arg2` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -548,7 +548,7 @@ class NullabilityLintTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/ArrayMap.java:11: error: Invalid nullability on parameter `key` in method `get`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]",
+                "src/test/pkg/ArrayMap.java:11: error: Invalid nullability on type java.lang.Object in parameter `key` in method `get`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]",
             sourceFiles =
                 arrayOf(
                     kotlin(
