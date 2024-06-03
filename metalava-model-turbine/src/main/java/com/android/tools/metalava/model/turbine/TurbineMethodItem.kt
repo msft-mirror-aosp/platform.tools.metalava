@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
 
@@ -133,6 +134,8 @@ internal open class TurbineMethodItem(
         if (targetContainingClass.deprecated) {
             duplicateMethod.deprecated = true
         }
+
+        duplicateMethod.updateCopiedMethodState()
 
         return duplicateMethod
     }

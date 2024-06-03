@@ -196,8 +196,7 @@ class CommonCopyMethodItemTest : BaseModelTest() {
             // Make sure that the default modifier is not copied from an interface method to a
             // class.
             assertTrue(sourceMethodItem.modifiers.isDefault())
-            // TODO(b/339166506): Fix this, it should be false.
-            assertTrue(targetMethodItem.modifiers.isDefault())
+            assertFalse(targetMethodItem.modifiers.isDefault())
         }
     }
 
