@@ -128,10 +128,7 @@ private constructor(
         }
 
         val isInterface =
-            classItem?.isInterface() == true ||
-                (methodItem?.containingClass()?.isInterface() == true &&
-                    !list.isDefault() &&
-                    !list.isStatic())
+            classItem?.isInterface() == true || methodItem?.containingClass()?.isInterface() == true
 
         val isAbstract = list.isAbstract()
         val ignoreAbstract =
