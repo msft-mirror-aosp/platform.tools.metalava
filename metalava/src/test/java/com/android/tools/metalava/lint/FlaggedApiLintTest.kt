@@ -575,4 +575,70 @@ class FlaggedApiLintTest : DriverTest() {
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
+
+    @Test
+    fun `Require @FlaggedApi on APIs whose deprecated status has changed to deprecated`() {
+        check(
+            // TODO: This should contain an UnflaggedApi issue.
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /**
+                             * @deprecated
+                             */
+                            @Deprecated
+                            public class Foo {
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
+
+    @Test
+    fun `Require @FlaggedApi on APIs whose deprecated status has changed to not deprecated`() {
+        check(
+            // TODO: This should contain an UnflaggedApi issue.
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Deprecated public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
 }
