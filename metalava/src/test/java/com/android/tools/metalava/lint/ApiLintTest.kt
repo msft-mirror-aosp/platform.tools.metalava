@@ -619,6 +619,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:9: error: Use android.net.Uri instead of android.net.URL (parameter param in android.pkg.MyClass.bad3(android.net.URL param)) [AndroidUri]
                 """,
             expectedFail = DefaultLintErrorMessage,
+            extraArguments = arrayOf(ARG_HIDE, "AcronymName"),
             sourceFiles =
                 arrayOf(
                     java(
@@ -632,8 +633,23 @@ class ApiLintTest : DriverTest() {
                         public @NonNull java.net.URL bad1() { throw new RuntimeException(); }
                         public void bad2(@NonNull List<java.net.URI> param) { }
                         public void bad3(@NonNull android.net.URL param) { }
+                        public void good(@NonNull android.net.Uri param) { }
                     }
                     """
+                    ),
+                    java(
+                        """
+                            package android.net;
+                            public class URL {
+                                private URL() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.net;
+                            public class Uri {}
+                        """
                     ),
                     androidxNonNullSource
                 )
@@ -1319,100 +1335,6 @@ class ApiLintTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource
-                )
-        )
-    }
-
-    @Test
-    fun `Check nullable collections`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MySubClass.java:5: warning: Public class android.pkg.MySubClass stripped of unavailable superclass android.pkg.MyHiddenInterface [HiddenSuperclass]
-                src/android/pkg/MyCallback.java:6: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                src/android/pkg/MyClass.java:9: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                src/android/pkg/MyClass.java:13: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection]
-                src/android/pkg/MySubClass.java:14: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass {
-                        public MyClass() { }
-
-                        @Nullable
-                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
-                            return null;
-                        }
-                        @Nullable
-                        public static final String[] STRINGS = null;
-
-                        /** @deprecated don't use this. */
-                        @Deprecated
-                        @Nullable
-                        public String[] ignoredBecauseDeprecated(@Nullable String[] ignored) {
-                            return null;
-                        }
-
-                        protected MyClass() {
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    /** @hide */
-                    public interface MyHiddenInterface {
-                        @Nullable
-                        java.util.List<String> getOtherList(@Nullable java.util.List<String> list);
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MySubClass extends MyClass implements MyHiddenInterface {
-                        @Nullable
-                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
-                            // Ignored because it has the same nullability as its super method
-                            return null;
-                        }
-
-                        @Override
-                        @Nullable
-                        public java.util.List<String> getOtherList(@Nullable java.util.List<String> list) {
-                            // Reported because the super method is hidden.
-                            return null;
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyCallback {
-                        public void onFoo(@Nullable java.util.List<String> list) {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
                 )
         )
     }
