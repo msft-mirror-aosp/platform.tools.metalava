@@ -532,4 +532,52 @@ class FlaggedApiLintTest : DriverTest() {
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
+
+    @Test
+    fun `Do not require @FlaggedApi on concrete class methods that override a default interface method`() {
+        check(
+            expectedIssues =
+                // TODO: Fix this test - the `default` modifier on an interface method should be
+                //  ignored when comparing with a concrete implementation of that method.
+                """
+                    src/test/pkg/Foo.java:5: warning: Changes to modifiers, from 'public default' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method() [UnflaggedApi]
+                """,
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Base {
+                        method public default void method();
+                      }
+                      public class Foo implements test.pkg.Base {
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Base {
+                                default void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo implements Base {
+                                private Foo() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
 }
