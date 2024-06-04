@@ -131,6 +131,7 @@ import com.android.tools.metalava.reporter.Issues.METHOD_NAME_UNITS
 import com.android.tools.metalava.reporter.Issues.MIN_MAX_CONSTANT
 import com.android.tools.metalava.reporter.Issues.MISSING_BUILD_METHOD
 import com.android.tools.metalava.reporter.Issues.MISSING_GETTER_MATCHING_BUILDER
+import com.android.tools.metalava.reporter.Issues.MISSING_INNER_NULLABILITY
 import com.android.tools.metalava.reporter.Issues.MISSING_NULLABILITY
 import com.android.tools.metalava.reporter.Issues.MUTABLE_BARE_FIELD
 import com.android.tools.metalava.reporter.Issues.NOT_CLOSEABLE
@@ -232,21 +233,21 @@ private constructor(
 
             val item = reportable as? Item
             if (item != null) {
-                if (oldCodebase != null) {
-                    // Issues on previously released APIs have reduced [Severity].
-                    val computedMaximumSeverity = computeMaximumSeverity(item, id)
-                    if (computedMaximumSeverity == Severity.HIDDEN) {
-                        return false
-                    }
+                val previousItem = findPreviouslyReleased(item)
 
-                    // Use the minimum of the [Item] specific maximum [Severity] and the one
-                    // provided by the caller.
-                    actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
+                // Issues on previously released APIs have reduced [Severity].
+                val computedMaximumSeverity = computeMaximumSeverity(item, previousItem, id)
+                if (computedMaximumSeverity == Severity.HIDDEN) {
+                    return false
                 }
 
-                // Don't flag api warnings on deprecated APIs; these are obviously already known to
-                // be problematic.
-                if (item.effectivelyDeprecated) {
+                // Use the minimum of the [Item] specific maximum [Severity] and the one
+                // provided by the caller.
+                actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
+
+                // Don't flag api warnings on previously deprecated APIs; these are obviously
+                // already known to be problematic.
+                if (item.effectivelyDeprecated && previousItem?.effectivelyDeprecated != false) {
                     return false
                 }
 
@@ -262,7 +263,7 @@ private constructor(
         }
 
         /** Compute the maximum [Severity] of issues on [item]. */
-        private fun computeMaximumSeverity(item: Item?, issue: Issue) =
+        private fun computeMaximumSeverity(item: Item?, previousItem: Item?, issue: Issue) =
             when {
                 issue == Issues.UNFLAGGED_API -> Severity.ERROR
                 // If the issue is being reported on the context Item then use its maximum.
@@ -271,7 +272,7 @@ private constructor(
                 // item itself is new then generate a warning for existing code and an error in new
                 // code. That at least gives developers some indication that there is a problem with
                 // the existing code and prevents issues being added in new code.
-                maximumSeverityForItem == Severity.HIDDEN && !wasPreviouslyReleased(item) ->
+                maximumSeverityForItem == Severity.HIDDEN && previousItem == null ->
                     Severity.WARNING_ERROR_WHEN_NEW
                 // Otherwise, the use maximum for the context Item's contents.
                 else -> maximumSeverityForItemContents
@@ -322,7 +323,19 @@ private constructor(
 
     /** Find the corresponding item in the previously released API if available. */
     private fun findPreviouslyReleased(item: Item?): Item? {
-        return oldCodebase?.let { item?.findCorrespondingItemIn(oldCodebase, superMethods = true) }
+        return oldCodebase?.let {
+            item?.findCorrespondingItemIn(
+                oldCodebase,
+                // Search in super classes and interfaces for a matching method definition· This is
+                // needed as overriding methods are elided from the API signature files.
+                superMethods = true,
+                // Make sure that if a super method was found that it is copied into the
+                // corresponding class item as the meaning of certain modifiers is affected by the
+                // containing class. e.g. the `default` modifier on an interface method must be
+                // discarded when copying that method into a concrete class.
+                duplicate = true,
+            )
+        }
     }
 
     /** Check to see if [item] was previously released. */
@@ -1972,6 +1985,29 @@ private constructor(
                 "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
                 maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
             )
+            // Reporting the same issue on the same Item is pointless as the first report will
+            // update the baseline and so suppress the second report so return immediately.
+            return
+        }
+
+        // Check the deprecated status, if it has changed
+        val previousDeprecated = previousItem.deprecated
+        val currentDeprecated = currentItem.deprecated
+        if (currentDeprecated != previousDeprecated) {
+            fun deprecatedStatus(b: Boolean): String {
+                return if (b) "deprecated" else "not deprecated"
+            }
+            val current = deprecatedStatus(currentDeprecated)
+            val previous = deprecatedStatus(previousDeprecated)
+            report(
+                UNFLAGGED_API,
+                currentItem,
+                "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
+                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
+            )
+            // Reporting the same issue on the same Item is pointless as the first report will
+            // update the baseline and so suppress the second report so return immediately.
+            return
         }
     }
 
@@ -1995,15 +2031,54 @@ private constructor(
     }
 
     private fun checkHasNullability(item: Item) {
-        val type = item.type() ?: return
-        if (!type.modifiers.nullability().isKnown) {
-            val inherited =
-                when (item) {
-                    is ParameterItem -> item.containingMethod().inheritedFromAncestor
-                    is FieldItem -> item.inheritedFromAncestor
-                    is MethodItem -> item.inheritedFromAncestor
-                    else -> false
+        val itemType = item.type() ?: return
+        val inherited =
+            when (item) {
+                is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                is FieldItem -> item.inheritedFromAncestor
+                is MethodItem -> item.inheritedFromAncestor
+                else -> false
+            }
+        val superItems =
+            when (item) {
+                is ParameterItem ->
+                    item.containingMethod().superMethods().mapNotNull {
+                        it.parameters().find { param ->
+                            item.parameterIndex == param.parameterIndex
+                        }
+                    }
+                is MethodItem -> item.superMethods()
+                else -> emptyList()
+            }
+        val superTypes = superItems.mapNotNull { it.type() }
+
+        itemType.accept(
+            object : MultipleTypeVisitor() {
+                override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                    val isInner = itemType !== type
+                    checkHasNullability(type, item, inherited, other, isInner)
                 }
+            },
+            superTypes
+        )
+    }
+
+    /**
+     * Checks that the [type] from [item] has a nullability (unless it is [inherited]) and that the
+     * nullability does not conflict with the nullability of the [supers], which are the
+     * corresponding types from the [item]'s super methods.
+     *
+     * The issue reported for missing nullability is either [MISSING_NULLABILITY] or
+     * [MISSING_INNER_NULLABILITY] depending on [isInner].
+     */
+    private fun checkHasNullability(
+        type: TypeItem,
+        item: Item,
+        inherited: Boolean,
+        supers: List<TypeItem>,
+        isInner: Boolean,
+    ) {
+        if (type.modifiers.isPlatformNullability) {
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
@@ -2022,48 +2097,56 @@ private constructor(
                     is MethodItem -> "method `${item.name()}` return"
                     else -> throw IllegalStateException("Unexpected item type: $item")
                 }
-            report(MISSING_NULLABILITY, item, "Missing nullability on $where")
+
+            if (isInner) {
+                report(
+                    MISSING_INNER_NULLABILITY,
+                    item,
+                    "Missing nullability on inner type $type in $where"
+                )
+            } else {
+                report(MISSING_NULLABILITY, item, "Missing nullability on $where")
+            }
         } else {
             when (item) {
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
                     if (item.containingMethod().isConstructor()) return
-                    val supers =
-                        item.containingMethod().superMethods().mapNotNull {
-                            it.parameters().find { param ->
-                                item.parameterIndex == param.parameterIndex
-                            }
-                        }
                     if (type.modifiers.isNonNull) {
-                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
+                        // TODO (b/344859664): Skip warning for inner type
+                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated."
+                                "Invalid nullability on type $type in parameter `${item.name()}` in method `${item.parent()?.name()}`. " +
+                                    "Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness."
                             )
-                        } else if (supers.anyItemHasNullability(TypeNullability.NULLABLE)) {
+                        } else if (supers.anyTypeHasNullability(TypeNullability.NULLABLE)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable."
+                                "Invalid nullability on type $type in parameter `${item.name()}` in method `${item.parent()?.name()}`. " +
+                                    "Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable."
                             )
                         }
                     }
                 }
                 is MethodItem -> {
-                    val supers = item.superMethods()
                     if (type.modifiers.isNullable) {
-                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
+                        // TODO (b/344859664): Skip warning for inner type
+                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable."
+                                "Invalid nullability on type $type in method `${item.name()}` return. " +
+                                    "Method override cannot use a nullable type when the corresponding type from the super method is platform-nullness."
                             )
-                        } else if (supers.anyItemHasNullability(TypeNullability.NONNULL)) {
+                        } else if (supers.anyTypeHasNullability(TypeNullability.NONNULL)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable."
+                                "Invalid nullability on type $type method `${item.name()}` return. " +
+                                    "Method override cannot use a nullable type when the corresponding type from the super method is non-null."
                             )
                         }
                     }
@@ -2072,10 +2155,9 @@ private constructor(
         }
     }
 
-    /** Checks if any of the [Item]s in the list have a type with [nullability]. */
-    private fun List<Item>.anyItemHasNullability(nullability: TypeNullability): Boolean {
-        return any { superItem ->
-            val type = superItem.type() ?: return@any false
+    /** Checks if any of the [TypeItem]s in the list are non-variable types with [nullability]. */
+    private fun List<TypeItem>.anyTypeHasNullability(nullability: TypeNullability): Boolean {
+        return any { type ->
             // Variable types have been excluded from the check because of previous inconsistency
             // in modeling their nullability.
             type !is VariableTypeItem && type.modifiers.nullability() == nullability
