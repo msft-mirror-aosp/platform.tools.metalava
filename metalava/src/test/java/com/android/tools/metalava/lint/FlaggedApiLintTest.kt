@@ -494,4 +494,42 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Require @FlaggedApi on APIs whose modifiers have changed`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:3: warning: Changes to modifiers, from 'public abstract' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:4: warning: Changes to modifiers, from 'protected' to 'public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() [UnflaggedApi]
+                    src/test/pkg/Foo.java:5: warning: Changes to modifiers, from 'public final' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method() [UnflaggedApi]
+                """,
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo {
+                        ctor protected Foo();
+                        method public final void method();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
 }

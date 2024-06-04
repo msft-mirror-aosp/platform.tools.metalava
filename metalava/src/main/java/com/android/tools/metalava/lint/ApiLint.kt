@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -180,6 +181,7 @@ import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
+import java.io.StringWriter
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
@@ -232,7 +234,7 @@ private constructor(
             if (item != null) {
                 if (oldCodebase != null) {
                     // Issues on previously released APIs have reduced [Severity].
-                    val computedMaximumSeverity = computeMaximumSeverity(item)
+                    val computedMaximumSeverity = computeMaximumSeverity(item, id)
                     if (computedMaximumSeverity == Severity.HIDDEN) {
                         return false
                     }
@@ -260,8 +262,9 @@ private constructor(
         }
 
         /** Compute the maximum [Severity] of issues on [item]. */
-        private fun computeMaximumSeverity(item: Item?) =
+        private fun computeMaximumSeverity(item: Item?, issue: Issue) =
             when {
+                issue == Issues.UNFLAGGED_API -> Severity.ERROR
                 // If the issue is being reported on the context Item then use its maximum.
                 item === contextItem -> maximumSeverityForItem
                 // If its containing item was previously released (so issues are hidden) but the
@@ -331,9 +334,10 @@ private constructor(
         id: Issue,
         item: Item,
         message: String,
-        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey
+        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
-        reporter.report(id, item, message, location)
+        reporter.report(id, item, message, location, maximumSeverity)
     }
 
     private fun check() {
@@ -1912,7 +1916,12 @@ private constructor(
                 it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
             }
         ) {
-            checkFlaggedApiOnNewApi(item)
+            val previouslyReleasedItem = findPreviouslyReleased(item)
+            if (previouslyReleasedItem == null) {
+                checkFlaggedApiOnNewApi(item)
+            } else {
+                checkFlaggedApiOnPreviouslyReleasedApi(previouslyReleasedItem, item)
+            }
         }
     }
 
@@ -1945,6 +1954,44 @@ private constructor(
             return
         }
         report(UNFLAGGED_API, item, "New API must be flagged with @FlaggedApi: ${item.describe()}")
+    }
+
+    /**
+     * Check to see whether a `FlaggedApi` annotation is required due to changes on an existing API.
+     */
+    private fun checkFlaggedApiOnPreviouslyReleasedApi(previousItem: Item, currentItem: Item) {
+        // Generate the modifiers from the previous API.
+        val previousModifiers = normalizeModifiers(previousItem)
+        // Generate the modifiers from the current API.
+        val currentModifiers = normalizeModifiers(currentItem)
+
+        if (currentModifiers != previousModifiers) {
+            report(
+                UNFLAGGED_API,
+                currentItem,
+                "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
+                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
+            )
+        }
+    }
+
+    /**
+     * Normalize the modifiers for the [Item].
+     *
+     * This uses the [ModifierListWriter] for signature files as that already has a lot of logic for
+     * handling signature files and ultimately it is changes to the signature files that need to be
+     * flagged.
+     */
+    private fun normalizeModifiers(item: Item): String {
+        return StringWriter().use { writer ->
+            val modifierListWriter =
+                ModifierListWriter.forSignature(
+                    writer,
+                    skipNullnessAnnotations = true,
+                )
+            modifierListWriter.writeKeywords(item, normalize = true)
+            writer.toString().trim()
+        }
     }
 
     private fun checkHasNullability(item: Item) {
