@@ -143,6 +143,7 @@ Available Issues                             |  Category                |   Defa
   MissingBuildMethod                         |  api_lint                |   warning
   MissingColumn                              |  documentation           |   warning
   MissingGetterMatchingBuilder               |  api_lint                |   warning
+  MissingInnerNullability                    |  api_lint                |   hidden
   MissingJvmstatic                           |  api_lint                |   warning
   MissingNullability                         |  api_lint                |   error
   MissingPermission                          |  documentation           |   error
