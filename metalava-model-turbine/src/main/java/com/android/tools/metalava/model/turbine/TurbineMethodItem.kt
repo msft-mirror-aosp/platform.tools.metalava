@@ -97,8 +97,6 @@ internal open class TurbineMethodItem(
     override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
-        // Duplicate the parameters
-        val params = parameters.map { TurbineParameterItem.duplicate(codebase, it, emptyMap()) }
         val retType = returnType.duplicate()
         val mods = modifiers.duplicate()
         val duplicateMethod =
@@ -113,6 +111,11 @@ internal open class TurbineMethodItem(
                 documentation,
                 defaultValue,
             )
+        // Duplicate the parameters
+        val params =
+            parameters.map {
+                TurbineParameterItem.duplicate(codebase, duplicateMethod, it, emptyMap())
+            }
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = containingClass
         duplicateMethod.throwableTypes = throwableTypes
