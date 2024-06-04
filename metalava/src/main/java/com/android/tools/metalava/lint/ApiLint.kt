@@ -2008,14 +2008,40 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         val type = item.type() ?: return
+        val inherited =
+            when (item) {
+                is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                is FieldItem -> item.inheritedFromAncestor
+                is MethodItem -> item.inheritedFromAncestor
+                else -> false
+            }
+        val superItems =
+            when (item) {
+                is ParameterItem ->
+                    item.containingMethod().superMethods().mapNotNull {
+                        it.parameters().find { param ->
+                            item.parameterIndex == param.parameterIndex
+                        }
+                    }
+                is MethodItem -> item.superMethods()
+                else -> emptyList()
+            }
+        val superTypes = superItems.mapNotNull { it.type() }
+        checkHasNullability(type, item, inherited, superTypes)
+    }
+
+    /**
+     * Checks that the [type] from [item] has a nullability (unless it is [inherited]) and that the
+     * nullability does not conflict with the nullability of the [supers], which are the
+     * corresponding types from the [item]'s super methods.
+     */
+    private fun checkHasNullability(
+        type: TypeItem,
+        item: Item,
+        inherited: Boolean,
+        supers: List<TypeItem>
+    ) {
         if (!type.modifiers.nullability().isKnown) {
-            val inherited =
-                when (item) {
-                    is ParameterItem -> item.containingMethod().inheritedFromAncestor
-                    is FieldItem -> item.inheritedFromAncestor
-                    is MethodItem -> item.inheritedFromAncestor
-                    else -> false
-                }
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
@@ -2040,42 +2066,39 @@ private constructor(
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
                     if (item.containingMethod().isConstructor()) return
-                    val supers =
-                        item.containingMethod().superMethods().mapNotNull {
-                            it.parameters().find { param ->
-                                item.parameterIndex == param.parameterIndex
-                            }
-                        }
                     if (type.modifiers.isNonNull) {
-                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
+                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated."
+                                "Invalid nullability on type $type in parameter `${item.name()}` in method `${item.parent()?.name()}`. " +
+                                    "Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness."
                             )
-                        } else if (supers.anyItemHasNullability(TypeNullability.NULLABLE)) {
+                        } else if (supers.anyTypeHasNullability(TypeNullability.NULLABLE)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable."
+                                "Invalid nullability on type $type in parameter `${item.name()}` in method `${item.parent()?.name()}`. " +
+                                    "Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable."
                             )
                         }
                     }
                 }
                 is MethodItem -> {
-                    val supers = item.superMethods()
                     if (type.modifiers.isNullable) {
-                        if (supers.anyItemHasNullability(TypeNullability.PLATFORM)) {
+                        if (supers.anyTypeHasNullability(TypeNullability.PLATFORM)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable."
+                                "Invalid nullability on type $type in method `${item.name()}` return. " +
+                                    "Method override cannot use a nullable type when the corresponding type from the super method is platform-nullness."
                             )
-                        } else if (supers.anyItemHasNullability(TypeNullability.NONNULL)) {
+                        } else if (supers.anyTypeHasNullability(TypeNullability.NONNULL)) {
                             report(
                                 INVALID_NULLABILITY_OVERRIDE,
                                 item,
-                                "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable."
+                                "Invalid nullability on type $type method `${item.name()}` return. " +
+                                    "Method override cannot use a nullable type when the corresponding type from the super method is non-null."
                             )
                         }
                     }
@@ -2084,10 +2107,9 @@ private constructor(
         }
     }
 
-    /** Checks if any of the [Item]s in the list have a type with [nullability]. */
-    private fun List<Item>.anyItemHasNullability(nullability: TypeNullability): Boolean {
-        return any { superItem ->
-            val type = superItem.type() ?: return@any false
+    /** Checks if any of the [TypeItem]s in the list are non-variable types with [nullability]. */
+    private fun List<TypeItem>.anyTypeHasNullability(nullability: TypeNullability): Boolean {
+        return any { type ->
             // Variable types have been excluded from the check because of previous inconsistency
             // in modeling their nullability.
             type !is VariableTypeItem && type.modifiers.nullability() == nullability
