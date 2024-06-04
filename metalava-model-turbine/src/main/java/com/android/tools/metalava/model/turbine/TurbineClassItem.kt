@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
@@ -217,6 +218,8 @@ internal open class TurbineClassItem(
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = method.containingClass()
         duplicateMethod.throwableTypes = method.throwableTypes
+
+        duplicateMethod.updateCopiedMethodState()
 
         return duplicateMethod
     }
