@@ -322,7 +322,19 @@ private constructor(
 
     /** Find the corresponding item in the previously released API if available. */
     private fun findPreviouslyReleased(item: Item?): Item? {
-        return oldCodebase?.let { item?.findCorrespondingItemIn(oldCodebase, superMethods = true) }
+        return oldCodebase?.let {
+            item?.findCorrespondingItemIn(
+                oldCodebase,
+                // Search in super classes and interfaces for a matching method definition· This is
+                // needed as overriding methods are elided from the API signature files.
+                superMethods = true,
+                // Make sure that if a super method was found that it is copied into the
+                // corresponding class item as the meaning of certain modifiers is affected by the
+                // containing class. e.g. the `default` modifier on an interface method must be
+                // discarded when copying that method into a concrete class.
+                duplicate = true,
+            )
+        }
     }
 
     /** Check to see if [item] was previously released. */
