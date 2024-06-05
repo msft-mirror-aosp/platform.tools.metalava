@@ -39,14 +39,30 @@ interface PropertyItem : MemberItem {
     /** The type of this property */
     override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
         containingClass().findCorrespondingItemIn(codebase)?.properties()?.find {
             it.name() == name()
         }
 
+    /** [PropertyItem]s are never inherited. */
+    override val inheritedFrom: ClassItem?
+        get() = null
+
+    /**
+     * Duplicates this property item.
+     *
+     * Override to specialize the return type.
+     */
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem =
+        codebase.unsupported("Not needed yet")
+
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
 
     override fun hasNullnessInfo(): Boolean {
         if (!requiresNullnessInfo()) {

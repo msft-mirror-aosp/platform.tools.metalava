@@ -19,13 +19,13 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.plainTerminal
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.IssueConfiguration
+import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.Severity.ERROR
@@ -34,12 +34,12 @@ import com.android.tools.metalava.reporter.Severity.INFO
 import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
+import com.android.tools.metalava.reporter.Severity.WARNING_ERROR_WHEN_NEW
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
 
-@Suppress("DEPRECATION")
 internal class DefaultReporter(
     private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
@@ -55,9 +55,35 @@ internal class DefaultReporter(
 
     /** Filter to hide issues reported in packages which are not part of the API. */
     private val packageFilter: PackageFilter? = null,
+
+    /** Additional config properties. */
+    private val config: Config = Config(),
 ) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
+
+    /**
+     * Configuration properties for the reporter.
+     *
+     * This contains properties that are shared across all instances of [DefaultReporter], except
+     * for the bootstrapping reporter. That receives a default instance of this.
+     */
+    class Config(
+        /** If true, treat all API lint warnings as errors */
+        val lintsAsErrors: Boolean = false,
+
+        /** If true, treat all warnings as errors */
+        val warningsAsErrors: Boolean = false,
+
+        /** Whether output should be colorized */
+        val terminal: Terminal = plainTerminal,
+
+        /**
+         * Optional writer to which, if present, all errors, even if they were suppressed in
+         * baseline or via annotation, will be written.
+         */
+        val reportEvenIfSuppressedWriter: PrintWriter? = null,
+    )
 
     /** The number of errors. */
     val errorCount
@@ -68,12 +94,23 @@ internal class DefaultReporter(
 
     override fun report(
         id: Issues.Issue,
-        item: Item?,
+        reportable: Reportable?,
         message: String,
-        location: Location
+        location: IssueLocation,
+        maximumSeverity: Severity,
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
-        if (severity == HIDDEN) {
+        val upgradedSeverity =
+            if (severity == LINT && config.lintsAsErrors) ERROR
+            else if (severity == WARNING && config.warningsAsErrors) {
+                ERROR
+            } else {
+                severity
+            }
+
+        // Limit the Severity to the maximum allowed.
+        val effectiveSeverity = minOf(upgradedSeverity, maximumSeverity)
+        if (effectiveSeverity == HIDDEN) {
             return false
         }
 
@@ -89,22 +126,23 @@ internal class DefaultReporter(
             val reportLocation =
                 when {
                     location.path != null -> location.forReport()
-                    item != null -> item.location().forReport()
+                    reportable != null -> reportable.issueLocation.forReport()
                     else -> null
                 }
 
-            return which(severity, reportLocation, message, id)
+            return which(effectiveSeverity, reportLocation, message, id)
         }
 
         // Optionally write to the --report-even-if-suppressed file.
         dispatch(this::reportEvenIfSuppressed)
 
-        if (isSuppressed(id, item, message)) {
+        if (isSuppressed(id, reportable, message)) {
             return false
         }
 
         // If we are only emitting some packages (--stub-packages), don't report
         // issues from other packages
+        val item = reportable as? Item
         if (item != null) {
             if (packageFilter != null) {
                 val pkg = (item as? PackageItem) ?: item.containingPackage()
@@ -121,7 +159,7 @@ internal class DefaultReporter(
             // signature would stay the same.
             val baselineLocation =
                 when {
-                    item != null -> item.location()
+                    reportable != null -> reportable.issueLocation
                     location.path != null -> location
                     else -> null
                 }
@@ -133,41 +171,20 @@ internal class DefaultReporter(
         return dispatch(this::doReport)
     }
 
-    override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean {
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
             return true
         }
 
-        item ?: return false
+        reportable ?: return false
 
-        for (annotation in item.modifiers.annotations()) {
-            val annotationName = annotation.qualifiedName
-            if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
-                for (attribute in annotation.attributes) {
-                    // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                    // one attribute such as value/names that is varargs of String
-                    val value = attribute.value
-                    if (value is AnnotationArrayAttributeValue) {
-                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                        for (innerValue in value.values) {
-                            val string = innerValue.value()?.toString() ?: continue
-                            if (suppressMatches(string, id.name, message)) {
-                                return true
-                            }
-                        }
-                    } else {
-                        // Example: @SuppressLint("RequiresFeature")
-                        val string = value.value()?.toString()
-                        if (string != null && (suppressMatches(string, id.name, message))) {
-                            return true
-                        }
-                    }
-                }
-            }
-        }
-
-        return false
+        // Suppress the issue if requested for the item.
+        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
     }
 
     private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
@@ -203,11 +220,12 @@ internal class DefaultReporter(
     }
 
     /**
-     * Convert the [Location] to an optional string representation suitable for use in a report.
+     * Convert the [IssueLocation] to an optional string representation suitable for use in a
+     * report.
      *
      * See [relativizeLocationPath].
      */
-    private fun Location.forReport(): String? {
+    private fun IssueLocation.forReport(): String? {
         val pathString = path?.let { relativizeLocationPath(it) } ?: return null
         return if (line > 0) "$pathString:$line" else pathString
     }
@@ -219,27 +237,15 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
     ): Boolean {
-        if (severity == HIDDEN) {
-            return false
-        }
-
-        val effectiveSeverity =
-            if (severity == LINT && options.lintsAreErrors) ERROR
-            else if (severity == WARNING && options.warningsAreErrors) {
-                ERROR
-            } else {
-                severity
-            }
-
-        val terminal: Terminal = options.terminal
-        val formattedMessage = format(effectiveSeverity, location, message, id, terminal)
-        if (effectiveSeverity == ERROR) {
+        val terminal: Terminal = config.terminal
+        val formattedMessage = format(severity, location, message, id, terminal)
+        if (severity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
             warningCount++
         }
 
-        environment.printReport(formattedMessage, effectiveSeverity)
+        environment.printReport(formattedMessage, severity)
         return true
     }
 
@@ -257,7 +263,8 @@ internal class DefaultReporter(
         when (severity) {
             LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
-            WARNING ->
+            WARNING,
+            WARNING_ERROR_WHEN_NEW ->
                 sb.append(terminal.attributes(foreground = TerminalColor.YELLOW))
                     .append("warning: ")
             ERROR ->
@@ -267,6 +274,7 @@ internal class DefaultReporter(
         }
         sb.append(terminal.reset())
         sb.append(message)
+        sb.append(severity.messageSuffix)
         id?.let { sb.append(" [").append(it.name).append("]") }
         return sb.toString()
     }
@@ -277,7 +285,7 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue
     ): Boolean {
-        options.reportEvenIfSuppressedWriter?.println(
+        config.reportEvenIfSuppressedWriter?.println(
             format(severity, location, message, id, terminal = plainTerminal)
         )
         return true
@@ -312,9 +320,6 @@ internal class DefaultReporter(
         }
     }
 }
-
-private val SUPPRESS_ANNOTATIONS =
-    listOf(ANDROID_SUPPRESS_LINT, JAVA_LANG_SUPPRESS_WARNINGS, KOTLIN_SUPPRESS)
 
 /**
  * Provides access to information about the environment within which the [Reporter] will be being

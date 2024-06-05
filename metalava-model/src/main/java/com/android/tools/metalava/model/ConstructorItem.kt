@@ -22,7 +22,7 @@ interface ConstructorItem : MethodItem {
     /** Returns the internal name of the class, as seen in bytecode */
     override fun internalName(): String = "<init>"
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
         containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
 
     /**
@@ -34,9 +34,4 @@ interface ConstructorItem : MethodItem {
     /** True if this is the primary constructor in Kotlin. */
     val isPrimary: Boolean
         get() = false
-
-    override fun implicitNullness(): Boolean? {
-        // Constructor returns are always non-null
-        return false
-    }
 }

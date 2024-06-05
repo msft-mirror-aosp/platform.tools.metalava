@@ -93,7 +93,10 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
 
     companion object {
         fun migrateNulls(codebase: Codebase, previous: Codebase) {
-            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
+                .compare(NullnessMigration(), previous, codebase)
         }
 
         fun hasNullnessInformation(item: Item): Boolean {
@@ -104,7 +107,7 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
             return item.modifiers.findAnnotation(AnnotationItem::isNullnessAnnotation)
         }
 
-        fun isNullable(item: Item): Boolean {
+        private fun isNullable(item: Item): Boolean {
             return item.modifiers.hasAnnotation(AnnotationItem::isNullable)
         }
 

@@ -23,14 +23,16 @@ import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
-import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
@@ -152,177 +154,6 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Flag invalid nullness changes`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:6: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
-                load-api.txt:6: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
-                load-api.txt:7: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
-                load-api.txt:7: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
-                load-api.txt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
-                load-api.txt:9: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
-                """,
-            format = FileFormat.V2,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class MyTest {
-                    method public Double convert1(Float);
-                    method public Double convert2(Float);
-                    method @Nullable public Double convert3(@Nullable Float);
-                    method @NonNull public Double convert4(@NonNull Float);
-                    method @Nullable public Double convert5(@Nullable Float);
-                    method @NonNull public Double convert6(@NonNull Float);
-                    // booleans cannot reasonably be annotated with @Nullable/@NonNull but
-                    // the compiler accepts it and we had a few of these accidentally annotated
-                    // that way in API 28, such as Boolean.getBoolean. Make sure we don't flag
-                    // these as incompatible changes when they're dropped.
-                    method public void convert7(@NonNull boolean);
-                  }
-                }
-                """,
-            // Changes: +nullness, -nullness, nullable->nonnull, nonnull->nullable
-            signatureSource =
-                """
-                package test.pkg {
-                  public class MyTest {
-                    method @Nullable public Double convert1(@Nullable Float);
-                    method @NonNull public Double convert2(@NonNull Float);
-                    method public Double convert3(Float);
-                    method public Double convert4(Float);
-                    method @NonNull public Double convert5(@NonNull Float);
-                    method @Nullable public Double convert6(@Nullable Float);
-                    method public void convert7(boolean);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Kotlin Nullness`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Outer.kt:5: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:5: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:6: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:9: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
-                """,
-            format = FileFormat.V2,
-            checkCompatibilityApiReleased =
-                """
-                    // Signature format: 3.0
-                    package test.pkg {
-                      public final class Outer {
-                        ctor public Outer();
-                        method public final String? method1(String, String?);
-                        method public final String method2(String?, String);
-                        method public final String? method3(String, String?);
-                      }
-                      public static final class Outer.Inner {
-                        ctor public Outer.Inner();
-                        method public final String method2(String?, String);
-                        method public final String? method3(String, String?);
-                      }
-                    }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class Outer {
-                        fun method1(string: String, maybeString: String?): String? = null
-                        fun method2(string: String, maybeString: String?): String? = null
-                        fun method3(maybeString: String?, string : String): String = ""
-                        class Inner {
-                            fun method2(string: String, maybeString: String?): String? = null
-                            fun method3(maybeString: String?, string : String): String = ""
-                        }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Java Parameter Name Change`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 [ParameterNameChange]
-                src/test/pkg/JavaClass.java:7: error: Attempted to change parameter name from secondParameter to newName in method test.pkg.JavaClass.method2 [ParameterNameChange]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class JavaClass {
-                    ctor public JavaClass();
-                    method public String method1(String parameterName);
-                    method public String method2(String firstParameter, String secondParameter);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    @Suppress("all")
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class JavaClass {
-                        public String method1(String newName) { return null; }
-                        public String method2(@ParameterName("firstParameter") String s, @ParameterName("newName") String prevName) { return null; }
-                    }
-                    """
-                    ),
-                    supportParameterName
-                ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
-        )
-    }
-
-    @Test
-    fun `Kotlin Parameter Name Change`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
-                """,
-            format = FileFormat.V2,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class KotlinClass {
-                    ctor public KotlinClass();
-                    method public final String? method1(String prevName);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class KotlinClass {
-                        fun method1(newName: String): String? = null
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
     fun `Kotlin Coroutines`() {
         check(
             expectedIssues = "",
@@ -350,6 +181,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove operator`() {
         check(
@@ -359,6 +191,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -381,6 +214,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove vararg`() {
         check(
@@ -390,6 +224,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class TestKt {
                     method public static final void method1(int[] x);
@@ -502,7 +337,7 @@ class CompatibilityCheckTest : DriverTest() {
                     method public test.pkg.FacetProvider? getFacetProvider(int);
                   }
                   public class FacetProviderAdapterImpl.FacetProviderImpl implements test.pkg.FacetProvider {
-                    method public Object? getFacet(Class<?>?);
+                    method public Object? getFacet(Class<? extends Object!>?);
                   }
                 }
                 """,
@@ -510,13 +345,14 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 released-api.txt:3: error: Removed class test.pkg.FacetProvider [RemovedInterface]
                 released-api.txt:6: error: Removed class test.pkg.FacetProviderAdapter [RemovedInterface]
-                src/test/pkg/FacetProviderAdapterImpl.java:6: error: Attempted to remove @Nullable annotation from method test.pkg.FacetProviderAdapterImpl.getFacetProvider(int) [InvalidNullConversion]
-                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove @Nullable annotation from method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
-                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove @Nullable annotation from parameter facetClass in test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?> facetClass) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:6: error: Attempted to remove nullability from test.pkg.FacetProvider (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.getFacetProvider(int) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove nullability from java.lang.Object (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove nullability from java.lang.Class<?> (was NULLABLE) in parameter facetClass in test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?> facetClass) [InvalidNullConversion]
             """
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to class that can be extended`() {
         // Adding final on a class is incompatible.
@@ -534,6 +370,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     ctor public Java();
@@ -569,6 +406,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to class that cannot be extended`() {
         // Adding final on a class is incompatible unless the class could not be extended.
@@ -584,6 +422,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     method public void method(int);
@@ -618,6 +457,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to method of class that can be extended`() {
         // Adding final on a method is incompatible.
@@ -631,6 +471,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     ctor public Java();
@@ -666,6 +507,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to method of class that cannot be extended`() {
         // Adding final on a method is incompatible unless the containing class could not be
@@ -681,6 +523,7 @@ class CompatibilityCheckTest : DriverTest() {
                     .trimIndent(),
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     method public void method(int);
@@ -949,6 +792,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove infix`() {
         check(
@@ -958,6 +802,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -984,6 +829,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add seal`() {
         check(
@@ -1010,6 +856,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove default parameter`() {
         check(
@@ -1050,6 +897,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove optional parameter`() {
         check(
@@ -1685,98 +1533,6 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible method change -- throws list -- java`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass {
-                      method public void finalize() throws java.lang.Throwable;
-                      method public void method1();
-                      method public void method2() throws java.io.IOException;
-                      method public void method3() throws java.io.IOException, java.lang.NumberFormatException;
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    @SuppressWarnings("RedundantThrows")
-                    public abstract class MyClass {
-                        private MyClass() {}
-                        public void finalize() {}
-                        public void method1() throws java.io.IOException {}
-                        public void method2() {}
-                        public void method3() throws java.lang.UnsupportedOperationException {}
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- throws list -- kt`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.kt:4: error: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:12: error: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:15: error: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:9: error: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class MyClass {
-                    ctor public MyClass(int);
-                    method public final void method1();
-                    method public final String getProperty1();
-                    method public final String getProperty2();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        class MyClass
-                        @Throws(MyException::class)
-                        constructor(
-                            val p: Int
-                        ) {
-                            @Throws(MyException::class)
-                            fun method1() {}
-
-                            @get:Throws(MyException::class)
-                            val property1 : String = "42"
-
-                            val property2 : String = "42"
-                                @Throws(MyException::class)
-                                get
-                        }
-
-                        class MyException : Exception()
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
     fun `Incompatible method change -- return types`() {
         check(
             expectedIssues =
@@ -2031,6 +1787,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Kotlin extensions`() {
         check(
@@ -2041,7 +1798,7 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.content {
                   public final class ContentValuesKt {
-                    method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,?>... pairs);
+                    method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,Object?>... pairs);
                   }
                 }
                 """,
@@ -2080,6 +1837,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Kotlin type bounds`() {
         check(
@@ -2440,81 +2198,6 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Partial text file where type previously did not exist`() {
-        check(
-            expectedIssues = """
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class SampleException1 extends java.lang.Exception {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                            """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class SampleException2 extends java.lang.Throwable {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                        """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class Utils {
-                        public void method1() throws SampleException1 { }
-                        public void method2() throws SampleException2 { }
-                    }
-                    """
-                    ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Utils {
-                    ctor public Utils();
-                    // We don't define SampleException1 or SampleException in this file,
-                    // in this partial signature, so we don't need to validate that they
-                    // have not been changed
-                    method public void method1() throws test.pkg.SampleException1;
-                    method public void method2() throws test.pkg.SampleException2;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Regression test for bug 120847535`() {
         // Regression test for
         // 120847535: check-api doesn't fail on method that is in current.txt, but marked @hide
@@ -2788,12 +2471,13 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Implicit nullness`() {
         check(
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 2.0
+                // Signature format: 5.0
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
                     method public abstract androidx.annotation.RestrictTo.Scope[] value();
@@ -2926,79 +2610,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Compare signatures with Kotlin nullability from signature`() {
-        check(
-            expectedIssues =
-                """
-            load-api.txt:5: error: Attempted to remove @NonNull annotation from parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
-            load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
-            """
-                    .trimIndent(),
-            format = FileFormat.V3,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String? str, int p, int int2 = double(int) + str.length);
-                    field public static final test.pkg.Foo.Companion! Companion;
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String! str = "hello world", java.lang.String... args);
-                    method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String str, int p, int int2 = double(int) + str.length);
-                    field public static final test.pkg.Foo.Companion! Companion;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Compare signatures with Kotlin nullability from source`() {
-        check(
-            expectedIssues =
-                """
-            src/test/pkg/test.kt:4: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
-            """
-                    .trimIndent(),
-            format = FileFormat.V3,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class TestKt {
-                    method public static void fun1(String? str1, String str2, java.util.List<java.lang.String!> list);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        import java.util.List
-
-                        fun fun1(str1: String, str2: String?, list: List<String?>) { }
-
-                    """
-                            .trimIndent()
-                    )
-                )
-        )
-    }
-
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Adding and removing reified`() {
         check(
@@ -3012,10 +2624,10 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void add(T! t);
-                    method public static inline <reified T> void remove(T! t);
-                    method public static inline <reified T> void unchanged(T! t);
-                    method public static inline <S, reified T> void two(S! s, T! t);
+                    method public static inline <T> void add(T t);
+                    method public static inline <reified T> void remove(T t);
+                    method public static inline <reified T> void unchanged(T t);
+                    method public static inline <S, reified T> void two(S s, T t);
                   }
                 }
                 """,
@@ -3449,7 +3061,7 @@ class CompatibilityCheckTest : DriverTest() {
                 package android.content {
                   public class Context {
                     field public static final String BUGREPORT_SERVICE = "bugreport";
-                    method public File getPreloadsFileCache();
+                    method public java.io.File getPreloadsFileCache();
                   }
                 }
                 """,
@@ -3460,6 +3072,7 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.content;
 
                     import android.annotation.SystemApi;
+                    import java.io.File;
 
                     public class Context {
                         public static final String BUGREPORT_SERVICE = "bugreport";
@@ -3549,13 +3162,14 @@ class CompatibilityCheckTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-
+                    import androidx.annotation.Nullable;
                     public class Parent {
                         public void sample(@Nullable String arg) {
                         }
                     }
                     """
-                    )
+                    ),
+                    androidxNullableSource
                 ),
             // The correct behavior would be for this test to fail, because of the removal of
             // nullability annotations on the child class. However, when we generate signature
@@ -4017,6 +3631,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove fun modifier from interface`() {
         check(
@@ -4089,7 +3704,7 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
                   public @interface UseExperimental {
-                    method public abstract Class<?> markerClass();
+                    method public abstract Class<? extends java.lang.Object!> markerClass();
                   }
                 }
                 """,
@@ -4107,6 +3722,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `adding methods to interfaces`() {
         check(
@@ -4246,7 +3862,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field public int bar;
                     field protected int baz;
                     field protected int spam;
@@ -4256,7 +3872,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field protected int bar;
                     field private int baz;
                     field internal int spam;
@@ -4278,7 +3894,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field protected int bar;
                     field private int baz;
                     field internal int spam;
@@ -4288,7 +3904,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field public int bar;
                     field protected int baz;
                     field protected int spam;
@@ -4304,7 +3920,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar();
                     method protected void baz();
                     method protected void spam();
@@ -4315,7 +3931,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar();
                     method private void baz();
                     method internal void spam();
@@ -4337,7 +3953,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar();
                     method private void baz();
                     method internal void spam();
@@ -4348,7 +3964,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar();
                     method protected void baz();
                     method protected void spam();
@@ -4444,7 +4060,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method abstract public void bar(Int);
                   }
                 }
@@ -4452,7 +4068,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method default public void bar(Int);
                     }
                   }
@@ -4488,9 +4104,10 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                     public abstract class Foo<T extends test.pkg.Foo<T>> {
-                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T>, String);
+                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T!>, String);
                     }
                 }
             """,
@@ -4804,25 +4421,25 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 error: Method test.pkg.MyCollection.add has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from e to p in method test.pkg.MyCollection.add [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
                 error: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.addAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
                 load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from o to p in method test.pkg.MyCollection.remove [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
                 error: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.removeAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.retainAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from a to p in method test.pkg.MyCollection.toArray [ParameterNameChange]
-            """,
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray [ParameterNameChange]
+                """,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 4.0
@@ -4858,37 +4475,6 @@ class CompatibilityCheckTest : DriverTest() {
                     method public java.util.Iterator<E> iterator();
                     property public int size;
                   }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Flag renaming a parameter from the classpath`() {
-        check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
-            expectedIssues =
-                """
-                error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.endsWith [ParameterNameChange]
-                load-api.txt:4: error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.startsWith [ParameterNameChange]
-            """
-                    .trimIndent(),
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                    public class MyString extends java.lang.String {
-                        method public boolean endsWith(String prefix);
-                    }
-                }
-            """,
-            signatureSource =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                    public class MyString extends java.lang.String {
-                        method public boolean startsWith(String suffix);
-                    }
                 }
             """
         )
@@ -5027,6 +4613,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@JvmDefaultWithCompatibility check works with source files`() {
         check(
@@ -5125,6 +4712,92 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Check compatibility against overridden method with type variable substitution`() {
+        check(
+            // The remove method isn't listed in this file, but it exists on Properties with return
+            // type `java.lang.Object`.
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                      }
+
+                      public class Hashtable<K, V> {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                        method public Object remove(Object);
+                      }
+
+                      public class Hashtable<K, V> extends java.util.Dictionary<K,V> implements java.lang.Cloneable java.util.Map<K,V> java.io.Serializable {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test adding method with same name as method with type parameter`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class TestKt {
+                        method public static <T> T foo(T target);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            fun <T> foo(target: T) = target
+                            fun foo(target: String) = target
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that parent method with type parameter matches child override`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                        method public void foo(Integer t);
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """
         )
     }
 

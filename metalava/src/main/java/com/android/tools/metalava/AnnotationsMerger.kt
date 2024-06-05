@@ -52,17 +52,19 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.extractRoots
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -129,14 +131,13 @@ class AnnotationsMerger(
             if (javaStubFiles.isNotEmpty()) {
                 // Set up class path to contain our main sources such that we can
                 // resolve types in the stubs
-                val roots = mutableListOf<File>()
-                extractRoots(reporter, options.sources, roots)
-                roots.addAll(options.sourcePath)
+                val roots =
+                    SourceSet(options.sources, options.sourcePath).extractRoots(reporter).sourcePath
                 val javaStubsCodebase =
                     sourceParser.parseSources(
-                        javaStubFiles,
+                        SourceSet(javaStubFiles, roots),
+                        SourceSet.empty(),
                         "Codebase loaded from stubs",
-                        sourcePath = roots,
                         classPath = options.classpath
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
@@ -189,7 +190,7 @@ class AnnotationsMerger(
             try {
                 // .txt: Old style signature files
                 // Others: new signature files (e.g. kotlin-style nullness info)
-                mergeAnnotationsSignatureFile(file.path)
+                mergeAnnotationsSignatureFile(file)
             } catch (e: IOException) {
                 error("I/O problem during transform: $e")
             }
@@ -232,21 +233,24 @@ class AnnotationsMerger(
             if (e is SAXParseException) {
                 message = "Line ${e.lineNumber}:${e.columnNumber}: $message"
             }
-            error(message)
             if (e !is IOException) {
-                e.printStackTrace()
+                message += "\n" + e.stackTraceToString().prependIndent("  ")
             }
+            error(message)
         }
     }
 
-    private fun mergeAnnotationsSignatureFile(path: String) {
+    private fun mergeAnnotationsSignatureFile(file: File) {
         try {
-            val signatureCodebase = ApiFile.parseApi(File(path), codebase.annotationManager)
-            signatureCodebase.description =
-                "Signature files for annotation merger: loaded from $path"
+            val signatureCodebase =
+                ApiFile.parseApi(
+                    SignatureFile.fromFile(file),
+                    codebase.annotationManager,
+                    "Signature files for annotation merger: loaded from $file"
+                )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
-            val message = "Unable to parse signature file $path: ${ex.message}"
+            val message = "Unable to parse signature file $file: ${ex.message}"
             throw MetalavaCliException(message)
         }
     }
@@ -309,13 +313,13 @@ class AnnotationsMerger(
                     }
 
                     if (addAnnotation) {
-                        new.mutableModifiers()
-                            .addAnnotation(
-                                new.codebase.createAnnotation(
-                                    annotation.toSource(showDefaultAttrs = false),
-                                    new,
-                                )
+                        mergeAnnotation(
+                            new,
+                            new.codebase.createAnnotation(
+                                annotation.toSource(showDefaultAttrs = false),
+                                new,
                             )
+                        )
                     }
                 }
 
@@ -326,7 +330,10 @@ class AnnotationsMerger(
                 }
             }
 
-        CodebaseComparator().compare(visitor, externalCodebase, codebase)
+        CodebaseComparator(
+                apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+            )
+            .compare(visitor, externalCodebase, codebase)
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
@@ -367,7 +374,7 @@ class AnnotationsMerger(
                     val modifiers = mainItem.mutableModifiers()
                     for (annotation in annotationsToCopy) {
                         if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
-                            modifiers.addAnnotation(annotation)
+                            mergeAnnotation(mainItem, annotation)
                         }
                     }
 
@@ -388,8 +395,7 @@ class AnnotationsMerger(
     }
 
     internal fun error(message: String) {
-        // TODO: Integrate with metalava error facility
-        options.stderr.println("Error: $message")
+        reporter.report(Issues.INTERNAL_ERROR, reportable = null, message)
     }
 
     internal fun warning(message: String) {
@@ -575,7 +581,7 @@ class AnnotationsMerger(
             }
 
             val annotationItem = createAnnotation(annotationElement) ?: continue
-            item.mutableModifiers().addAnnotation(annotationItem)
+            mergeAnnotation(item, annotationItem)
         }
     }
 
@@ -624,7 +630,7 @@ class AnnotationsMerger(
                 val value1 = valueElement1.getAttribute(ATTR_VAL)
                 val valName2 = valueElement2.getAttribute(ATTR_NAME)
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     "androidx.annotation.IntRange",
                     listOf(
@@ -669,7 +675,11 @@ class AnnotationsMerger(
 
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
-                            val filterEmit = ApiVisitor().filterEmit
+                            val filterEmit =
+                                ApiVisitor(
+                                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                                    )
+                                    .filterEmit
 
                             // Attempt with reflection
                             var first = true
@@ -716,7 +726,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
                     attributes,
@@ -757,7 +767,7 @@ class AnnotationsMerger(
                     parseChild(children[1])
                 }
                 val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
                     attributes,
@@ -769,7 +779,7 @@ class AnnotationsMerger(
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
                 return if (pure != null && pure.isNotEmpty()) {
-                    PsiAnnotationItem.create(
+                    DefaultAnnotationItem.create(
                         codebase,
                         name,
                         listOf(
@@ -778,7 +788,7 @@ class AnnotationsMerger(
                         ),
                     )
                 } else {
-                    PsiAnnotationItem.create(
+                    DefaultAnnotationItem.create(
                         codebase,
                         name,
                         listOf(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)),
@@ -801,7 +811,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return PsiAnnotationItem.create(codebase, name, attributes)
+                return DefaultAnnotationItem.create(codebase, name, attributes)
             }
         }
     }
@@ -818,6 +828,15 @@ class AnnotationsMerger(
             name == ANDROID_NULLABLE ||
             name == ANDROIDX_NULLABLE ||
             name == SUPPORT_NULLABLE
+    }
+
+    private fun mergeAnnotation(item: Item, annotation: AnnotationItem) {
+        item.mutableModifiers().addAnnotation(annotation)
+        if (annotation.isNullable()) {
+            item.type()?.modifiers?.setNullability(TypeNullability.NULLABLE)
+        } else if (annotation.isNonNull()) {
+            item.type()?.modifiers?.setNullability(TypeNullability.NONNULL)
+        }
     }
 
     private fun unescapeXml(escaped: String): String {
