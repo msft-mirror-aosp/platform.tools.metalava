@@ -96,14 +96,11 @@ interface Assertions {
             message = "$this: originallyDeprecated"
         )
         assertEquals(implicitlyDeprecated, deprecated, message = "$this: deprecated")
-
-        // deprecated and effectivelyDeprecated should be the same but are not at the moment so
-        // just warn if they are different.
-        if (deprecated != effectivelyDeprecated) {
-            System.err.println(
-                "WARNING: mismatch between effectivelyDeprecated ($effectivelyDeprecated) and deprecated ($deprecated)"
-            )
-        }
+        assertEquals(
+            implicitlyDeprecated,
+            effectivelyDeprecated,
+            message = "$this: effectivelyDeprecated"
+        )
     }
 
     /** Make sure that the item is not deprecated explicitly, or implicitly. */
