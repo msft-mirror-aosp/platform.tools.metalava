@@ -2028,8 +2028,8 @@ private constructor(
         }
 
         // Check the deprecated status, if it has changed
-        val previousDeprecated = previousItem.deprecated
-        val currentDeprecated = currentItem.deprecated
+        val previousDeprecated = previousItem.effectivelyDeprecated
+        val currentDeprecated = currentItem.effectivelyDeprecated
         if (currentDeprecated != previousDeprecated) {
             fun deprecatedStatus(b: Boolean): String {
                 return if (b) "deprecated" else "not deprecated"
