@@ -150,4 +150,159 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
             assertTrue(copiedMemberItem.modifiers.isStatic())
         }
     }
+
+    @Test
+    fun `test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated`() {
+        runCopyTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Source {
+                            field public int field;
+                          }
+                          @Deprecated public class Target implements Source {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.io.IOException;
+
+                        public class Source  {
+                            public int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        /** @deprecated */
+                        @Deprecated
+                        public final class Target implements Source {}
+                    """
+                ),
+            ),
+        ) {
+            // Make sure that the source class and member are not deprecated but the target
+            // class is explicitly deprecated.
+            sourceClassItem.assertNotDeprecated()
+            sourceMemberItem.assertNotDeprecated()
+            targetClassItem.assertExplicitlyDeprecated()
+
+            // Make sure that the copied member is implicitly deprecated because it inherits it from
+            // the deprecated target class.
+            copiedMemberItem.assertImplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `test copy non deprecated field from deprecated class to non deprecated class treats field as not deprecated`() {
+        runCopyTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @Deprecated public class Source {
+                            field public int field;
+                          }
+                          public class Target implements Source {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.io.IOException;
+
+                        /** @deprecated */
+                        @Deprecated
+                        public class Source  {
+                            public int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class Target implements Source {}
+                    """
+                ),
+            ),
+        ) {
+            // Make sure that the source member is implicitly deprecated due to being inside an
+            // explicitly deprecated class but the target class is not deprecated at all.
+            sourceClassItem.assertExplicitlyDeprecated()
+            sourceMemberItem.assertImplicitlyDeprecated()
+            targetClassItem.assertNotDeprecated()
+
+            // Make sure that the copied member is not implicitly deprecated because implicit
+            // deprecation is ignored when copying.
+            copiedMemberItem.assertNotDeprecated()
+        }
+    }
+
+    @Test
+    fun `test copy deprecated field from one class to another keeps field as deprecated`() {
+        runCopyTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Source {
+                            field @Deprecated public int field;
+                          }
+                          public class Target implements Source {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.io.IOException;
+
+                        public class Source  {
+                            /** @deprecated */
+                            @Deprecated public int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class Target implements Source {}
+                    """
+                ),
+            ),
+        ) {
+            // Make sure that the source class and target class are not deprecated by the source
+            // field is explicitly deprecated.
+            sourceClassItem.assertNotDeprecated()
+            sourceMemberItem.assertExplicitlyDeprecated()
+            targetClassItem.assertNotDeprecated()
+
+            // Make sure that the copied member is deprecated as its explicitly deprecated status is
+            // copied.
+            copiedMemberItem.assertExplicitlyDeprecated()
+        }
+    }
 }

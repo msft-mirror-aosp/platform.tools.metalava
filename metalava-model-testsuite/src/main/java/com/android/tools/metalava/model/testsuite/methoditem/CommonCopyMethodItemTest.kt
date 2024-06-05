@@ -261,4 +261,159 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
             assertFalse(copiedMemberItem.modifiers.isFinal())
         }
     }
+
+    @Test
+    fun `test copy non deprecated method from non deprecated class to deprecated class treats method as deprecated`() {
+        runCopyTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Source {
+                            method public void method();
+                          }
+                          @Deprecated public class Target implements Source {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.io.IOException;
+
+                        public class Source  {
+                            public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        /** @deprecated */
+                        @Deprecated
+                        public final class Target implements Source {}
+                    """
+                ),
+            ),
+        ) {
+            // Make sure that the source class and member are not deprecated but the target
+            // class is explicitly deprecated.
+            sourceClassItem.assertNotDeprecated()
+            sourceMemberItem.assertNotDeprecated()
+            targetClassItem.assertExplicitlyDeprecated()
+
+            // Make sure that the copied member is implicitly deprecated because it inherits it from
+            // the deprecated target class.
+            copiedMemberItem.assertImplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `test copy non deprecated method from deprecated class to non deprecated class treats method as deprecated`() {
+        runCopyTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @Deprecated public class Source {
+                            method public void method();
+                          }
+                          public class Target implements Source {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.io.IOException;
+
+                        /** @deprecated */
+                        @Deprecated
+                        public class Source  {
+                            public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class Target implements Source {}
+                    """
+                ),
+            ),
+        ) {
+            // Make sure that the source member is implicitly deprecated due to being inside an
+            // explicitly deprecated class but the target class is not deprecated at all.
+            sourceClassItem.assertExplicitlyDeprecated()
+            sourceMemberItem.assertImplicitlyDeprecated()
+            targetClassItem.assertNotDeprecated()
+
+            // Make sure that the copied member is not implicitly deprecated because implicit
+            // deprecation is ignored when copying.
+            copiedMemberItem.assertNotDeprecated()
+        }
+    }
+
+    @Test
+    fun `test copy deprecated method from one class to another keeps method as deprecated`() {
+        runCopyTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Source {
+                            method @Deprecated public void method();
+                          }
+                          public class Target implements Source {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.io.IOException;
+
+                        public class Source  {
+                            /** @deprecated */
+                            @Deprecated public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class Target implements Source {}
+                    """
+                ),
+            ),
+        ) {
+            // Make sure that the source class and target class are not deprecated by the source
+            // field is explicitly deprecated.
+            sourceClassItem.assertNotDeprecated()
+            sourceMemberItem.assertExplicitlyDeprecated()
+            targetClassItem.assertNotDeprecated()
+
+            // Make sure that the copied member is deprecated as its explicitly deprecated status is
+            // copied.
+            copiedMemberItem.assertExplicitlyDeprecated()
+        }
+    }
 }

@@ -2,12 +2,18 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with compound expression values
   annotation toSource() with constant literal values
 
+com.android.tools.metalava.model.testsuite.fielditem.CommonCopyFieldItemTest
+  test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field
   test non final field with default value as constant expression
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonCopyMethodItemTest
+  test copy non deprecated method from non deprecated class to deprecated class treats method as deprecated[INHERIT]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
