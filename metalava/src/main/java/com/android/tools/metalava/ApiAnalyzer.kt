@@ -884,7 +884,10 @@ class ApiAnalyzer(
                 config.allShowAnnotations.isNotEmpty()
 
         packages.accept(
-            object : ApiVisitor() {
+            object :
+                ApiVisitor(
+                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                ) {
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
                 }
@@ -1032,7 +1035,7 @@ class ApiAnalyzer(
                     if (
                         (name == "findViewById" || name == "getSystemService") &&
                             method.parameters().size == 1 &&
-                            method.modifiers.isNullable()
+                            method.returnType().modifiers.isNullable
                     ) {
                         reporter.report(
                             Issues.EXPECTED_PLATFORM_TYPE,
