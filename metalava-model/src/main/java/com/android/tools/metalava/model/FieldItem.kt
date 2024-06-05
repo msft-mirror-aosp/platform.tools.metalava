@@ -27,8 +27,11 @@ interface FieldItem : MemberItem {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        containingClass().findCorrespondingItemIn(codebase)?.findField(name())
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
     /**
      * The initial/constant value, if any. If [requireConstant] the initial value will only be

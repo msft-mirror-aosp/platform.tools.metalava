@@ -124,14 +124,19 @@ open class MultipleTypeVisitor {
         visitType(wildcardType, other)
         visitWildcardType(wildcardType, other)
 
-        wildcardType.extendsBound?.accept(
-            this,
-            other.mapNotNull { (it as? WildcardTypeItem)?.extendsBound }
-        )
-        wildcardType.superBound?.accept(
-            this,
-            other.mapNotNull { (it as? WildcardTypeItem)?.superBound }
-        )
+        if (wildcardType.superBound != null) {
+            wildcardType.superBound?.accept(
+                this,
+                other.mapNotNull { (it as? WildcardTypeItem)?.superBound }
+            )
+        } else {
+            // Only visit the extends bound if the super bound doesn't exist (don't visit implicit
+            // object bounds)
+            wildcardType.extendsBound?.accept(
+                this,
+                other.mapNotNull { (it as? WildcardTypeItem)?.extendsBound }
+            )
+        }
     }
 
     open fun visitType(type: TypeItem, other: List<TypeItem>) = Unit

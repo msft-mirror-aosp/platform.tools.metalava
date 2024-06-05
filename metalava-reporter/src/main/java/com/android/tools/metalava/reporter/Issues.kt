@@ -211,6 +211,8 @@ object Issues {
     val DOCUMENT_EXCEPTIONS by Issue(Severity.ERROR, Category.API_LINT)
     val FORBIDDEN_SUPER_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY by Issue(Severity.ERROR, Category.API_LINT)
+    // This issue must be manually enabled
+    val MISSING_INNER_NULLABILITY by Issue(Severity.HIDDEN, Category.API_LINT)
     val INVALID_NULLABILITY_OVERRIDE by Issue(Severity.ERROR, Category.API_LINT)
     val MUTABLE_BARE_FIELD by Issue(Severity.ERROR, Category.API_LINT)
     val INTERNAL_FIELD by Issue(Severity.ERROR, Category.API_LINT)
