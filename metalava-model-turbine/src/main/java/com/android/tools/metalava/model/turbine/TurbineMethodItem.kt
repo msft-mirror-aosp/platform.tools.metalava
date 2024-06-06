@@ -100,7 +100,7 @@ internal open class TurbineMethodItem(
     override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
         val retType = returnType.duplicate()
         val mods = modifiers.duplicate()
-        val duplicateMethod =
+        val duplicated =
             TurbineMethodItem(
                 codebase,
                 fileLocation,
@@ -114,30 +114,28 @@ internal open class TurbineMethodItem(
             )
         // Duplicate the parameters
         val params =
-            parameters.map {
-                TurbineParameterItem.duplicate(codebase, duplicateMethod, it, emptyMap())
-            }
-        duplicateMethod.parameters = params
-        duplicateMethod.inheritedFrom = containingClass
-        duplicateMethod.throwableTypes = throwableTypes
+            parameters.map { TurbineParameterItem.duplicate(codebase, duplicated, it, emptyMap()) }
+        duplicated.parameters = params
+        duplicated.inheritedFrom = containingClass
+        duplicated.throwableTypes = throwableTypes
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
-            duplicateMethod.hidden = true
+            duplicated.hidden = true
         }
         if (targetContainingClass.removed) {
-            duplicateMethod.removed = true
+            duplicated.removed = true
         }
         if (targetContainingClass.docOnly) {
-            duplicateMethod.docOnly = true
+            duplicated.docOnly = true
         }
         if (targetContainingClass.deprecated) {
-            duplicateMethod.deprecated = true
+            duplicated.deprecated = true
         }
 
-        duplicateMethod.updateCopiedMethodState()
+        duplicated.updateCopiedMethodState()
 
-        return duplicateMethod
+        return duplicated
     }
 
     override fun findMainDocumentation(): String = TODO("b/295800205")

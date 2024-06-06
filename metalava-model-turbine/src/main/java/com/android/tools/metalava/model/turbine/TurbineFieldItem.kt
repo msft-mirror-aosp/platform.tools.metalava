@@ -54,7 +54,7 @@ internal class TurbineFieldItem(
     override fun type(): TypeItem = type
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        val duplicateField =
+        val duplicated =
             TurbineFieldItem(
                 codebase,
                 fileLocation,
@@ -66,20 +66,20 @@ internal class TurbineFieldItem(
                 isEnumConstant,
                 fieldValue,
             )
-        duplicateField.inheritedFrom = containingClass
+        duplicated.inheritedFrom = containingClass
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
-            duplicateField.hidden = true
+            duplicated.hidden = true
         }
         if (targetContainingClass.removed) {
-            duplicateField.removed = true
+            duplicated.removed = true
         }
         if (targetContainingClass.docOnly) {
-            duplicateField.docOnly = true
+            duplicated.docOnly = true
         }
 
-        return duplicateField
+        return duplicated
     }
 
     override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
