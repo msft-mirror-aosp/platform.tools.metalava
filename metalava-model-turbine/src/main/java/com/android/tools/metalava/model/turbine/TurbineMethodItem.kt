@@ -33,7 +33,7 @@ internal open class TurbineMethodItem(
     fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
     private val containingClass: ClassItem,
-    protected var returnType: TypeItem,
+    private val returnType: TypeItem,
     modifiers: DefaultModifierList,
     override val typeParameterList: TypeParameterList,
     documentation: String,
