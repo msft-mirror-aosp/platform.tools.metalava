@@ -18,38 +18,35 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.source.SourceCodebase
-import com.google.turbine.binder.sym.TyVarSymbol
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 
 const val PACKAGE_ESTIMATE = 500
-const val CLASS_ESTIMATE = 15000
 
-open class TurbineBasedCodebase(
+internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
+    val allowReadingComments: Boolean
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
 
     /**
-     * Map from class name to class item. Classes are added via [populateClasses] while initialising
+     * Map from class name to class item. Classes are added via [registerClass] while initialising
      * the codebase
      */
     private lateinit var classMap: MutableMap<String, TurbineClassItem>
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
-
-    /** Map from type parameter symbol to the corresponding type parameter item */
-    private lateinit var typeParameterMap: MutableMap<TyVarSymbol, TypeParameterItem>
+    private val hiddenPackages = mutableSetOf<String>()
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -70,12 +67,10 @@ open class TurbineBasedCodebase(
         return classMap[className]
     }
 
+    override fun resolveClass(className: String) = findOrCreateClass(className)
+
     fun findOrCreateClass(className: String): TurbineClassItem? {
         return initializer.findOrCreateClass(className)
-    }
-
-    fun findTypeParameter(sym: TyVarSymbol): TypeParameterItem {
-        return typeParameterMap[sym]!!
     }
 
     override fun findPackage(pkgName: String): PackageItem? {
@@ -99,33 +94,42 @@ open class TurbineBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun addClass(classItem: TurbineClassItem, isTopClass: Boolean) {
+    fun registerClass(classItem: TurbineClassItem, isTopClass: Boolean) {
+        val qualifiedName = classItem.qualifiedName()
+        val existing = classMap.put(qualifiedName, classItem)
+        if (existing != null) {
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+            )
+        }
+
         if (isTopClass) {
             topLevelClassesFromSource.add(classItem)
         }
-        classMap.put(classItem.qualifiedName(), classItem)
+
+        addClass(classItem)
+    }
+
+    /**
+     * Determines if a given package name is marked as hidden.
+     *
+     * @param packageName the name of the package to check.
+     * @return true if the package is hidden, false otherwise.
+     */
+    fun isPackageHidden(packageName: String): Boolean {
+        return hiddenPackages.contains(packageName)
     }
 
     fun addPackage(packageItem: TurbinePackageItem) {
         packageMap.put(packageItem.qualifiedName(), packageItem)
     }
 
-    fun addTypeParameter(sym: TyVarSymbol, item: TypeParameterItem) {
-        typeParameterMap.put(sym, item)
-    }
-
-    fun initialize(units: List<CompUnit>, classpath: List<File>) {
+    fun initialize(units: List<CompUnit>, classpath: List<File>, hiddenPackages: Set<String>) {
+        this.hiddenPackages.addAll(hiddenPackages)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
         classMap = HashMap(CLASS_ESTIMATE)
         packageMap = HashMap(PACKAGE_ESTIMATE)
-        typeParameterMap = HashMap(CLASS_ESTIMATE)
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
         initializer.initialize()
-    }
-
-    internal fun getHeaderComments(source: String): String {
-        val packageIndex = source.indexOf("package")
-        // Return everything before "package" keyword
-        return if (packageIndex == -1) "" else source.substring(0, packageIndex)
     }
 }

@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -28,10 +27,9 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
-import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -52,10 +50,9 @@ class ConvertJarsToSignatureFiles(
     private val stderr: PrintWriter,
     private val stdout: PrintWriter,
     private val progressTracker: ProgressTracker,
-    private val reporter: Reporter,
     private val fileFormat: FileFormat,
 ) {
-    fun convertJars(environmentManager: EnvironmentManager, root: File) {
+    fun convertJars(jarCodebaseLoader: JarCodebaseLoader, root: File) {
         var api = 1
         while (true) {
             val apiJar =
@@ -78,28 +75,7 @@ class ConvertJarsToSignatureFiles(
             val annotationManager = DefaultAnnotationManager()
             val signatureFileLoader = SignatureFileLoader(annotationManager = annotationManager)
 
-            val sourceParser =
-                environmentManager.createSourceParser(
-                    reporter,
-                    annotationManager,
-                )
-            val actionContext =
-                ActionContext(
-                    progressTracker = progressTracker,
-                    reporter = reporter,
-                    reporterApiLint = reporter, // Use the same reporter for everything.
-                    sourceParser = sourceParser,
-                )
-            val jarCodebase =
-                actionContext.loadFromJarFile(
-                    apiJar,
-                    // Treat android.jar file as not filtered since they contain misc stuff that
-                    // shouldn't be there: package private super classes etc.
-                    preFiltered = false,
-                    apiAnalyzerConfig = ApiAnalyzer.Config(),
-                    codebaseValidator = {},
-                    apiPredicateConfig = ApiPredicate.Config(),
-                )
+            val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
             val apiPredicateConfig = ApiPredicate.Config()
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
@@ -109,7 +85,10 @@ class ConvertJarsToSignatureFiles(
                 // may be @RecentlyNullable/@RecentlyNonNull. Translate these back into
                 // normal @Nullable/@NonNull
                 jarCodebase.accept(
-                    object : ApiVisitor() {
+                    object :
+                        ApiVisitor(
+                            config = ApiVisitor.Config(),
+                        ) {
                         override fun visitItem(item: Item) {
                             unmarkRecent(item)
                             super.visitItem(item)
@@ -138,27 +117,6 @@ class ConvertJarsToSignatureFiles(
                 }
             }
 
-            // Sadly the old signature files have some APIs recorded as deprecated which
-            // are not in fact deprecated in the jar files. Try to pull this back in.
-
-            val oldRemovedFile = File(root, "prebuilts/sdk/$api/public/api/removed.txt")
-            if (oldRemovedFile.isFile) {
-                val oldCodebase = signatureFileLoader.load(oldRemovedFile)
-                val visitor =
-                    object : ComparisonVisitor() {
-                        override fun compare(old: MethodItem, new: MethodItem) {
-                            new.removed = true
-                            progressTracker.progress("Removed $old")
-                        }
-
-                        override fun compare(old: FieldItem, new: FieldItem) {
-                            new.removed = true
-                            progressTracker.progress("Removed $old")
-                        }
-                    }
-                CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
-            }
-
             // Read deprecated attributes. Seem to be missing from code model;
             // try to read via ASM instead since it must clearly be there.
             markDeprecated(jarCodebase, apiJar, apiJar.path)
@@ -167,7 +125,7 @@ class ConvertJarsToSignatureFiles(
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
                 try {
-                    val oldCodebase = signatureFileLoader.load(oldApiFile)
+                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFile(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compare(old: Item, new: Item) {

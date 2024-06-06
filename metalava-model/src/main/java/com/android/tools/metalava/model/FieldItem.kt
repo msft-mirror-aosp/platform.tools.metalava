@@ -27,8 +27,11 @@ interface FieldItem : MemberItem {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingClass().findCorrespondingItemIn(codebase)?.findField(name())
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
     /**
      * The initial/constant value, if any. If [requireConstant] the initial value will only be
@@ -49,9 +52,13 @@ interface FieldItem : MemberItem {
      */
     override fun duplicate(targetContainingClass: ClassItem): FieldItem
 
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
 
     /**
      * Check the declared value with a typed comparison, not a string comparison, to accommodate
@@ -85,42 +92,6 @@ interface FieldItem : MemberItem {
         }
 
         return false
-    }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        if (type() is PrimitiveTypeItem) {
-            return false
-        }
-
-        if (modifiers.isFinal() && initialValue(true) != null) {
-            return false
-        }
-
-        return true
-    }
-
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // Constant field not initialized to null?
-        if (isEnumConstant() || modifiers.isFinal() && initialValue(false) != null) {
-            // Assigned to constant: not nullable
-            return false
-        }
-
-        return null
     }
 
     companion object {

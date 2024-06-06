@@ -109,8 +109,7 @@ private fun <E> Stack<E>.pop(): E = removeAt(lastIndex)
 private fun <E> Stack<E>.peek(): E = last()
 
 class CodebaseComparator(
-    @Suppress("DEPRECATION")
-    private val apiVisitorConfig: ApiVisitor.Config = options.apiVisitorConfig,
+    private val apiVisitorConfig: ApiVisitor.Config,
 ) {
     /**
      * Visits this codebase and compares it with another codebase, informing the visitors about the
@@ -279,7 +278,7 @@ class CodebaseComparator(
     private fun visitAdded(visitor: ComparisonVisitor, new: Item) {
         if (visitor.visitAddedItemsRecursively) {
             new.accept(
-                object : ApiVisitor() {
+                object : ApiVisitor(config = apiVisitorConfig) {
                     override fun visitItem(item: Item) {
                         doVisitAdded(visitor, item)
                     }

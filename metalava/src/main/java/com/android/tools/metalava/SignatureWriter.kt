@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -60,6 +60,12 @@ class SignatureWriter(
         }
     }
 
+    private val modifierListWriter =
+        ModifierListWriter.forSignature(
+            writer = writer,
+            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
+        )
+
     internal fun write(text: String) {
         // If a header must only be written out when the file is not empty then write it here as
         // this is not called
@@ -85,7 +91,7 @@ class SignatureWriter(
         fun writeConstructor(skipMask: BitSet? = null) {
             write("    ctor ")
             writeModifiers(constructor)
-            writeTypeParameterList(constructor.typeParameterList(), addSpace = true)
+            writeTypeParameterList(constructor.typeParameterList, addSpace = true)
             write(constructor.containingClass().fullName())
             writeParameterList(constructor, skipMask)
             writeThrowsList(constructor)
@@ -158,7 +164,7 @@ class SignatureWriter(
     override fun visitMethod(method: MethodItem) {
         write("    method ")
         writeModifiers(method)
-        writeTypeParameterList(method.typeParameterList(), addSpace = true)
+        writeTypeParameterList(method.typeParameterList, addSpace = true)
 
         if (fileFormat.kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
@@ -203,7 +209,7 @@ class SignatureWriter(
         }
         write(" ")
         write(cls.fullName())
-        writeTypeParameterList(cls.typeParameterList(), addSpace = false)
+        writeTypeParameterList(cls.typeParameterList, addSpace = false)
         writeSuperClassStatement(cls)
         writeInterfaceList(cls)
 
@@ -215,12 +221,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        ModifierList.write(
-            writer = writer,
-            item = item,
-            target = AnnotationTarget.SIGNATURE_FILE,
-            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
-        )
+        modifierListWriter.write(item.actualItem)
     }
 
     /** Get the filtered super class type, ignoring java.lang.Object. */
@@ -246,7 +247,7 @@ class SignatureWriter(
         val superClassString =
             typeItem.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = false,
+                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
                 filter = filterReference
             )
         write(" ")
@@ -392,11 +393,13 @@ class SignatureWriter(
             }
         if (throws.any()) {
             write(" throws ")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.asSequence().sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed {
+                i,
+                type ->
                 if (i > 0) {
                     write(", ")
                 }
-                write(type.qualifiedName())
+                write(type.toTypeString())
             }
         }
     }

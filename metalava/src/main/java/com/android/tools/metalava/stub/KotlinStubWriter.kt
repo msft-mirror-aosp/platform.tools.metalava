@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -31,10 +30,9 @@ import java.util.function.Predicate
 
 internal class KotlinStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
@@ -68,7 +66,7 @@ internal class KotlinStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
-        generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
+        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         val printedSuperClass = generateSuperClassDeclaration(cls)
         generateInterfaceList(cls, printedSuperClass)
         writer.print(" {\n")
@@ -85,16 +83,7 @@ internal class KotlinStubWriter(
         }
     }
 
-    private fun appendModifiers(item: Item, removeAbstract: Boolean = false) =
-        ModifierList.write(
-            writer,
-            item,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-            skipNullnessAnnotations = true,
-            removeAbstract = removeAbstract,
-            language = Language.KOTLIN
-        )
+    private fun appendModifiers(item: Item) = modifierListWriter.write(item)
 
     private fun generateSuperClassDeclaration(cls: ClassItem): Boolean {
         if (cls.isEnum() || cls.isAnnotationType()) {
@@ -172,9 +161,6 @@ internal class KotlinStubWriter(
 
     override fun visitMethod(method: MethodItem) {
         if (method.isKotlinProperty()) return // will be handled by visitProperty
-        val containingClass = method.containingClass()
-        val isEnum = containingClass.isEnum()
-        val isAnnotation = containingClass.isAnnotationType()
 
         writer.println()
         appendDocumentation(method, writer, config)
@@ -182,13 +168,8 @@ internal class KotlinStubWriter(
         // TODO: Should be an annotation
         generateThrowsList(method)
 
-        // Need to filter out abstract from the modifiers list and turn it
-        // into a concrete method to make the stub compile
-        val modifiers = method.modifiers
-        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
-
-        appendModifiers(method, removeAbstract)
-        generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
+        appendModifiers(method)
+        generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         writer.print("fun ")
         writer.print(method.name())
@@ -198,7 +179,7 @@ internal class KotlinStubWriter(
         val returnType = method.returnType()
         writeType(returnType)
 
-        if (isAnnotation) {
+        if (method.containingClass().isAnnotationType()) {
             val default = method.defaultValue()
             if (default.isNotEmpty()) {
                 writer.print(" default ")
@@ -206,9 +187,7 @@ internal class KotlinStubWriter(
             }
         }
 
-        if (modifiers.isAbstract() && !isEnum || isAnnotation || modifiers.isNative()) {
-            // do nothing
-        } else {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" = ")
             writeThrowStub()
         }
@@ -248,11 +227,13 @@ internal class KotlinStubWriter(
             }
         if (throws.any()) {
             writer.print("@Throws(")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.asSequence().sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed {
+                i,
+                type ->
                 if (i > 0) {
                     writer.print(",")
                 }
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
                 writer.print("::class")
             }
             writer.print(")")

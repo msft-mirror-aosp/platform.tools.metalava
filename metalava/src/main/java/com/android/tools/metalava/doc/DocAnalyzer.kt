@@ -24,7 +24,7 @@ import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
-import com.android.tools.metalava.isUnderTest
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -69,10 +69,13 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
  *   (It works around this by replacing the space with &nbsp;.)
  */
 class DocAnalyzer(
+    private val executionEnvironment: ExecutionEnvironment,
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
 ) {
+
+    private val apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig
 
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
@@ -102,7 +105,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -671,7 +674,7 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
                     var doc = item.documentation
                     if (doc.isBlank()) {
@@ -690,12 +693,20 @@ class DocAnalyzer(
     }
 
     fun applyApiLevels(applyApiLevelsXml: File) {
-        val apiLookup = getApiLookup(applyApiLevelsXml)
+        val apiLookup =
+            getApiLookup(
+                xmlFile = applyApiLevelsXml,
+                underTest = executionEnvironment.isUnderTest(),
+            )
         val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(applyApiLevelsXml)
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
         codebase.accept(
-            object : ApiVisitor(visitConstructorsAsMethods = true) {
+            object :
+                ApiVisitor(
+                    visitConstructorsAsMethods = true,
+                    config = apiVisitorConfig,
+                ) {
                 override fun visitMethod(method: MethodItem) {
                     // Do not add API information to implicit constructor. It is not clear exactly
                     // why this is needed but without it some existing tests break.
@@ -864,7 +875,9 @@ fun ApiLookup.getMethodVersion(method: MethodItem): Int {
     val containingClass = method.containingClass()
     val owner = containingClass.qualifiedName()
     val desc = method.getApiLookupMethodDescription()
-    return getMethodVersions(owner, method.name(), desc).minApiLevel()
+    // Metalava uses the class name as the name of the constructor but the ApiLookup uses <init>.
+    val name = if (method.isConstructor()) "<init>" else method.name()
+    return getMethodVersions(owner, name, desc).minApiLevel()
 }
 
 fun ApiLookup.getFieldVersion(field: FieldItem): Int {
@@ -902,7 +915,11 @@ fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): Int {
     return getFieldDeprecatedInVersions(owner, field.name()).minApiLevel()
 }
 
-fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
+fun getApiLookup(
+    xmlFile: File,
+    cacheDir: File? = null,
+    underTest: Boolean = true,
+): ApiLookup {
     val client =
         object : LintCliClient(PROGRAM_NAME) {
             override fun getCacheDir(name: String?, create: Boolean): File? {
@@ -910,7 +927,7 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
                     return cacheDir
                 }
 
-                if (create && isUnderTest()) {
+                if (create && underTest) {
                     // Pick unique directory during unit tests
                     return Files.createTempDirectory(PROGRAM_NAME).toFile()
                 }

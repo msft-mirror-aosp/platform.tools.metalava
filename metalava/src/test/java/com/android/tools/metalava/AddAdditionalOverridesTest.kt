@@ -682,4 +682,61 @@ class AddAdditionalOverridesTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Elide methods inherited from one inaccessible class if they override method inherited from another inaccessible class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass1 {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class PublicClass1 extends InaccessibleClass1 {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass2 extends PublicClass1 {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class PublicClass2 extends InaccessibleClass2 {
+                        }
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicClass1 {
+                        ctor public PublicClass1();
+                        method public void bar();
+                      }
+                      public class PublicClass2 extends test.pkg.PublicClass1 {
+                        ctor public PublicClass2();
+                      }
+                    }
+                """,
+        )
+    }
 }

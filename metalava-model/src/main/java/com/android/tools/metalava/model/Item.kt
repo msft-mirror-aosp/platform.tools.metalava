@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.IssueLocation
+import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -29,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * The abstraction also lets us back the model by an alternative implementation read from signature
  * files, to do compatibility checks.
  */
-interface Item {
+interface Item : Reportable {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
@@ -97,12 +101,6 @@ interface Item {
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
 
-    /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
-     * enums
-     */
-    val synthetic: Boolean
-
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
 
@@ -156,33 +154,11 @@ interface Item {
 
     override fun hashCode(): Int
 
-    /**
-     * Returns true if this item requires nullness information (e.g. for a method where either the
-     * return value or any of the parameters are non-primitives. Note that it doesn't consider
-     * whether it already has nullness annotations; for that see [hasNullnessInfo].
-     */
-    fun requiresNullnessInfo(): Boolean = false
+    /** Calls [toStringForItem]. */
+    override fun toString(): String
 
-    /**
-     * Returns true if this item requires nullness information and supplies it (for all items, e.g.
-     * if a method is partially annotated this method would still return false)
-     */
-    fun hasNullnessInfo(): Boolean = false
-
-    /**
-     * Get this element's *implicit* nullness, if any.
-     *
-     * This returns true for implicitly nullable elements, such as the parameter to the
-     * [Object.equals] method, false for implicitly non-null elements (such as annotation type
-     * members), and null if there is no implicit nullness.
-     */
-    fun implicitNullness(): Boolean? = null
-
-    /**
-     * Returns true if this item has generic type whose nullability is determined at subclass
-     * declaration site.
-     */
-    fun hasInheritedGenericType(): Boolean = false
+    /** Provides a string representation of the item, suitable for use while debugging. */
+    fun toStringForItem(): String
 
     /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
@@ -232,8 +208,12 @@ interface Item {
         return null
     }
 
-    /** Returns the [Location] for this item, if any. */
-    fun location(): Location = Location.unknownLocationAndBaselineKey
+    override val fileLocation: FileLocation
+        get() = FileLocation.UNKNOWN
+
+    /** Returns the [IssueLocation] for this item, if any. */
+    override val issueLocation
+        get() = IssueLocation(fileLocation, baselineKey)
 
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
@@ -259,17 +239,74 @@ interface Item {
     fun containingClass(): ClassItem?
 
     /**
-     * Returns the associated type if any. For example, for a field, property or parameter, this is
-     * the type of the variable; for a method, it's the return type. For packages, classes and
-     * files, it's null.
+     * Returns the associated type, if any.
+     *
+     * i.e.
+     * * For a field, property or parameter, this is the type of the variable.
+     * * For a method, it's the return type.
+     * * For classes it's the declared class type, i.e. a class type using the type parameter types
+     *   as the type arguments.
+     * * For type parameters it's a [VariableTypeItem] reference the type parameter.
+     * * For packages and files, it's null.
      */
     fun type(): TypeItem?
 
     /**
      * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
      * item.
+     *
+     * If [superMethods] is true and this is a [MethodItem] then the returned [MethodItem], if any,
+     * could be in a [ClassItem] that does not correspond to the [MethodItem.containingClass], it
+     * could be from a super class or super interface. e.g. if the [codebase] contains something
+     * like:
+     * ```
+     *     public class Super {
+     *         public void method() {...}
+     *     }
+     *     public class Foo extends Super {}
+     * ```
+     *
+     * And this is called on `Foo.method()` then:
+     * * if [superMethods] is false this will return `null`.
+     * * if [superMethods] is true and [duplicate] is false, then this will return `Super.method()`.
+     * * if both [superMethods] and [duplicate] are true then this will return a duplicate of
+     *   `Super.method()` that has been added to `Foo` so it will be essentially `Foo.method()`.
+     *
+     * @param codebase the [Codebase] to search for a corresponding item.
+     * @param superMethods if true and this is a [MethodItem] then this method will search for super
+     *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
+     *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
+     *   the [ParameterItem.containingMethod].
+     * @param duplicate if true, and this is a [MemberItem] (or [ParameterItem]) then the returned
+     *   [Item], if any, will be in the [ClassItem] that corresponds to the [Item.containingClass].
+     *   This should be `true` if the returned [Item] is going to be compared to the original [Item]
+     *   as the [Item.containingClass] can affect that comparison, e.g. the meaning of certain
+     *   modifiers.
      */
-    fun findCorrespondingItemIn(codebase: Codebase): Item?
+    fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean = false,
+        duplicate: Boolean = false,
+    ): Item?
+
+    /**
+     * Get the set of suppressed issues for this [Item].
+     *
+     * These are the values supplied to any of the [SUPPRESS_ANNOTATIONS] on this item. It DOES not
+     * include suppressed issues from the [parent].
+     */
+    override fun suppressedIssues(): Set<String>
+
+    /** The [BaselineKey] for this. */
+    val baselineKey
+        get() = BaselineKey.forElementId(baselineElementId())
+
+    /**
+     * Get the baseline element id from which [baselineKey] is constructed.
+     *
+     * See [BaselineKey.forElementId] for more details.
+     */
+    fun baselineElementId(): String
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -388,7 +425,15 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
+abstract class DefaultItem(
+    final override val fileLocation: FileLocation,
+    final override val modifiers: DefaultModifierList,
+) : Item {
+
+    init {
+        @Suppress("LeakingThis")
+        modifiers.owner = this
+    }
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -397,6 +442,8 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     final override var effectivelyDeprecated = originallyDeprecated
 
     final override var deprecated = originallyDeprecated
+
+    final override fun mutableModifiers(): MutableModifierList = modifiers
 
     override val isPublic: Boolean
         get() = modifiers.isPublic()
@@ -413,7 +460,7 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
-    override var emit = true
+    final override var emit = true
 
     companion object {
         private var nextRank = AtomicInteger()
@@ -422,4 +469,30 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
+
+    override fun suppressedIssues(): Set<String> {
+        return buildSet {
+            for (annotation in modifiers.annotations()) {
+                val annotationName = annotation.qualifiedName
+                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                    for (attribute in annotation.attributes) {
+                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                        // one attribute such as value/names that is varargs of String
+                        val value = attribute.value
+                        if (value is AnnotationArrayAttributeValue) {
+                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                            for (innerValue in value.values) {
+                                innerValue.value()?.toString()?.let { add(it) }
+                            }
+                        } else {
+                            // Example: @SuppressLint("RequiresFeature")
+                            value.value()?.toString()?.let { add(it) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    final override fun toString() = toStringForItem()
 }

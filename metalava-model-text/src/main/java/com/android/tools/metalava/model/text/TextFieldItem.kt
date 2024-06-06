@@ -20,20 +20,17 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
-class TextFieldItem(
+internal class TextFieldItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    private val type: TextTypeItem,
+    private val type: TypeItem,
     private val constantValue: Any?,
-    position: SourcePositionInfo
-) : TextMemberItem(codebase, name, containingClass, position, modifiers), FieldItem {
-
-    init {
-        modifiers.setOwner(this)
-    }
+    fileLocation: FileLocation
+) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), FieldItem {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -52,8 +49,6 @@ class TextFieldItem(
 
     override fun initialValue(requireConstant: Boolean): Any? = constantValue
 
-    override fun toString(): String = "field ${containingClass().fullName()}.${name()}"
-
     override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
         val duplicated =
             TextFieldItem(
@@ -63,7 +58,7 @@ class TextFieldItem(
                 modifiers.duplicate(),
                 type,
                 constantValue,
-                position
+                fileLocation
             )
         duplicated.inheritedFrom = containingClass()
 

@@ -21,11 +21,21 @@ import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
 /**
+ * The base of dessert release independent SDKs.
+ *
+ * A dessert release independent SDK is one which is not coupled to the Android dessert release
+ * numbering. Any SDK greater than or equal to this is not comparable to either each other, or to
+ * the Android dessert release. e.g. `1000000` is not the same as, later than, or earlier than
+ * SDK 31. Similarly, `1000001` is not the same as, later than, or earlier then `1000000`.
+ */
+private const val DESSERT_RELEASE_INDEPENDENT_SDK_BASE = 1000000
+
+/**
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
  * what extension SDK it first appeared in. Also, a mapping between SDK name and numerical ID.
  *
- * Internally, the filers are represented as a tree, where each node in the tree matches a part of a
- * package, class or member name. For example, given the patterns
+ * Internally, the filters are represented as a tree, where each node in the tree matches a part of
+ * a package, class or member name. For example, given the patterns
  *
  * com.example.Foo -> [A] com.example.Foo#someMethod -> [B] com.example.Bar -> [A, C]
  *
@@ -125,7 +135,9 @@ private constructor(
                     sdkIdentifiers.find { it.shortname == ext }
                         ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
                 assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
-                versions.add("${ident.id}:$extensionsSince")
+                if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= androidSince) {
+                    versions.add("${ident.id}:$extensionsSince")
+                }
             }
         }
 
@@ -145,7 +157,7 @@ private constructor(
 
         private val REGEX_DELIMITERS = Regex("[.#$]")
 
-        /*
+        /**
          * Create an ApiToExtensionsMap from a list of text based rules.
          *
          * The input is XML:
@@ -157,26 +169,19 @@ private constructor(
          *     </sdk-extensions-info>
          *
          * The <sdk> and <symbol> tags may be repeated.
-         *
          * - <name> is a long name for the SDK, e.g. "R Extensions".
-         *
          * - <short-name> is a short name for the SDK, e.g. "R-ext".
-         *
          * - <id> is the numerical identifier for the SDK, e.g. 30. It is an error to use the
          *   Android SDK ID (0).
-         *
          * - <jar> is the jar file symbol belongs to, named after the jar file in
          *   prebuilts/sdk/extensions/<int>/public, e.g. "framework-sdkextensions".
-         *
          * - <constant> is a Java symbol that can be passed to `SdkExtensions.getExtensionVersion`
          *   to look up the version of the corresponding SDK, e.g.
          *   "android/os/Build$VERSION_CODES$R"
-         *
          * - <pattern> is either '*', which matches everything, or a 'com.foo.Bar$Inner#member'
          *   string (or prefix thereof terminated before . or $), which matches anything with that
          *   prefix. Note that arguments and return values of methods are omitted (and there is no
          *   way to distinguish overloaded methods).
-         *
          * - <sdks> is a comma separated list of SDKs in which the symbol defined by <jar> and
          *   <pattern> appears; the list items are <name> attributes of SDKs defined in the XML.
          *
@@ -184,7 +189,8 @@ private constructor(
          *
          * A more specific <symbol> rule has higher precedence than a less specific rule.
          *
-         * @param jar jar file to limit lookups to: ignore symbols not present in this jar file
+         * @param filterByJar jar file to limit lookups to: ignore symbols not present in this jar
+         *   file
          * @param xml XML as described above
          * @throws IllegalArgumentException if the XML is malformed
          */

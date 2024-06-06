@@ -17,24 +17,32 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.DefaultItem
-import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.source.utils.LazyDelegate
+import com.android.tools.metalava.reporter.FileLocation
 
-abstract class TurbineItem(
+internal abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineModifierItem,
-    override var documentation: String,
-) : DefaultItem(modifiers) {
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
+    final override var documentation: String,
+    initialHiddenStatus: Boolean = false,
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     override var docOnly: Boolean = documentation.contains("@doconly")
 
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     override var originallyHidden: Boolean by LazyDelegate {
-        documentation.contains("@hide") || documentation.contains("@pending") || hasHideAnnotation()
+        documentation.contains("@hide") ||
+            documentation.contains("@pending") ||
+            hasHideAnnotation() ||
+            initialHiddenStatus
     }
-
-    override var synthetic: Boolean = false
 
     override var removed: Boolean = false
 
@@ -45,6 +53,4 @@ abstract class TurbineItem(
     override fun findTagDocumentation(tag: String, value: String?): String? {
         TODO("b/295800205")
     }
-
-    override fun mutableModifiers(): MutableModifierList = modifiers
 }

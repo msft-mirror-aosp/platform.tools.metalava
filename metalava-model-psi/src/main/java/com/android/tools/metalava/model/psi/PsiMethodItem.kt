@@ -17,11 +17,18 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.updateCopiedMethodState
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -42,20 +49,24 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 open class PsiMethodItem(
     codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
     // TextClassItem.
     containingClass: ClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
-    private val returnType: PsiTypeItem,
-    private val parameters: List<PsiParameterItem>
+    private val returnType: TypeItem,
+    private val parameters: List<PsiParameterItem>,
+    override val typeParameterList: TypeParameterList,
+    private val throwsTypes: List<ExceptionTypeItem>
 ) :
     PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod,
+        fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
     ),
@@ -67,8 +78,6 @@ open class PsiMethodItem(
             parameter.containingMethod = this
         }
     }
-
-    override var emit: Boolean = !modifiers.isExpect()
 
     override var inheritedFrom: ClassItem? = null
 
@@ -108,42 +117,19 @@ open class PsiMethodItem(
 
     override fun parameters(): List<PsiParameterItem> = parameters
 
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
-
     override fun psi() = psiMethod
 
     private var superMethods: List<MethodItem>? = null
 
     override fun superMethods(): List<MethodItem> {
         if (superMethods == null) {
-            val result = mutableListOf<MethodItem>()
-            psiMethod.findSuperMethods().mapTo(result) { codebase.findMethod(it) }
-            superMethods = result
+            superMethods = computeSuperMethods()
         }
 
         return superMethods!!
     }
 
-    override fun typeParameterList(): TypeParameterList {
-        if (psiMethod.hasTypeParameters()) {
-            return PsiTypeParameterList(
-                codebase,
-                psiMethod.typeParameterList ?: return TypeParameterList.NONE
-            )
-        } else {
-            return TypeParameterList.NONE
-        }
-    }
-
-    //    private var throwsTypes: List<ClassItem>? = null
-    private lateinit var throwsTypes: List<ClassItem>
-
-    internal fun setThrowsTypes(throwsTypes: List<ClassItem>) {
-        this.throwsTypes = throwsTypes
-    }
-
-    override fun throwsTypes(): List<ClassItem> = throwsTypes
+    override fun throwsTypes() = throwsTypes
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
@@ -177,7 +163,9 @@ open class PsiMethodItem(
                 override fun visitThrowExpression(node: UThrowExpression): Boolean {
                     val type = node.thrownExpression.getExpressionType()
                     if (type != null) {
-                        val exceptionClass = codebase.getType(type).asClass()
+                        val typeItemFactory =
+                            codebase.globalTypeItemFactory.from(this@PsiMethodItem)
+                        val exceptionClass = typeItemFactory.getType(type).asClass()
                         if (exceptionClass != null && !isCaught(exceptionClass, node)) {
                             exceptions.add(exceptionClass)
                         }
@@ -237,7 +225,15 @@ open class PsiMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        val duplicated = create(codebase, targetContainingClass, psiMethod)
+        val duplicated =
+            create(
+                codebase,
+                targetContainingClass,
+                psiMethod,
+                // Use the scope from this class to resolve type parameter references as the target
+                // class may have a completely different set.
+                codebase.globalTypeItemFactory.from(containingClass)
+            )
 
         duplicated.inheritedFrom = containingClass
 
@@ -254,7 +250,9 @@ open class PsiMethodItem(
         if (targetContainingClass.deprecated) {
             duplicated.deprecated = true
         }
-        duplicated.throwsTypes = throwsTypes
+
+        duplicated.updateCopiedMethodState()
+
         return duplicated
     }
 
@@ -279,14 +277,6 @@ open class PsiMethodItem(
             parameters.any { it.hasDefaultValue() }
     }
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        throwsTypes = throwsTypes(codebase, psiMethod)
-        returnType.finishInitialization(this)
-        parameters.forEach { it.finishInitialization() }
-    }
-
     companion object {
         /**
          * Create a [PsiMethodItem].
@@ -298,7 +288,8 @@ open class PsiMethodItem(
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
             // UAST workaround: @JvmName for UMethod with fake LC PSI
@@ -324,11 +315,28 @@ open class PsiMethodItem(
                 } else {
                     psiMethod.name
                 }
-            val commentText = javadoc(psiMethod)
+            val commentText = javadoc(psiMethod, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiMethod, commentText)
-            val parameters = parameterList(codebase, psiMethod)
-            val psiReturnType = psiMethod.returnType
-            val returnType = codebase.getType(psiReturnType!!, psiMethod)
+            // Create the TypeParameterList for this before wrapping any of the other types used by
+            // it as they may reference a type parameter in the list.
+            val (typeParameterList, methodTypeItemFactory) =
+                PsiTypeParameterList.create(
+                    codebase,
+                    enclosingClassTypeItemFactory,
+                    "method $name",
+                    psiMethod
+                )
+            val parameters = parameterList(codebase, psiMethod, methodTypeItemFactory)
+            val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
+            val isAnnotationElement = containingClass.isAnnotationType() && !modifiers.isStatic()
+            val returnType =
+                methodTypeItemFactory.getMethodReturnType(
+                    underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
+                    itemAnnotations = modifiers.annotations(),
+                    fingerprint = fingerprint,
+                    isAnnotationElement = isAnnotationElement,
+                )
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -338,20 +346,17 @@ open class PsiMethodItem(
                     documentation = commentText,
                     modifiers = modifiers,
                     returnType = returnType,
-                    parameters = parameters
+                    parameters = parameters,
+                    typeParameterList = typeParameterList,
+                    throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                 )
-            method.modifiers.setOwner(method)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
                 // The containing class is final, so it is implied that every method is final as
                 // well.
                 // No need to apply 'final' to each method. (We do it here rather than just in the
                 // signature emit code since we want to make sure that the signature comparison
                 // methods with super methods also consider this method non-final.)
-                if (!containingClass.isEnum() && !method.isEnumSyntheticMethod()) {
-                    // Unless this is a non-synthetic enum member
-                    // See: https://youtrack.jetbrains.com/issue/KT-57567
-                    modifiers.setFinal(false)
-                }
+                modifiers.setFinal(false)
             }
 
             return method
@@ -362,13 +367,9 @@ open class PsiMethodItem(
          *
          * @see ClassItem.inheritMethodFromNonApiAncestor
          */
-        internal fun create(
-            codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
-            original: PsiMethodItem
-        ): PsiMethodItem {
-            val replacementMap = containingClass.mapTypeVariables(original.containingClass())
-            val returnType = original.returnType.convertType(replacementMap) as PsiTypeItem
+        internal fun create(containingClass: PsiClassItem, original: PsiMethodItem): PsiMethodItem {
+            val typeParameterBindings = containingClass.mapTypeVariables(original.containingClass())
+            val returnType = original.returnType.convertType(typeParameterBindings) as PsiTypeItem
 
             // This results in a PsiMethodItem that is inconsistent, compared with other
             // PsiMethodItem. PsiMethodItems created directly from the source are such that:
@@ -389,58 +390,64 @@ open class PsiMethodItem(
             // class, not the PsiMethodItem's containing class.
             val method =
                 PsiMethodItem(
-                    codebase = codebase,
+                    codebase = original.codebase,
                     psiMethod = original.psiMethod,
                     containingClass = containingClass,
                     name = original.name(),
                     documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                    modifiers = original.modifiers.duplicate(),
                     returnType = returnType,
                     parameters =
-                        PsiParameterItem.create(codebase, original.parameters(), replacementMap)
+                        PsiParameterItem.create(original.parameters(), typeParameterBindings),
+                    // This is probably incorrect as the type parameter bindings probably need
+                    // applying here but this is the same behavior as before.
+                    // TODO: Investigate whether the above comment is correct and fix if necessary.
+                    typeParameterList = original.typeParameterList,
+                    throwsTypes = original.throwsTypes,
                 )
-            method.modifiers.setOwner(method)
 
             return method
         }
 
         internal fun parameterList(
             codebase: PsiBasedCodebase,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            enclosingTypeItemFactory: PsiTypeItemFactory,
         ): List<PsiParameterItem> {
-            return if (psiMethod is UMethod) {
-                psiMethod.uastParameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index)
-                }
-            } else {
-                psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index)
-                }
+            val psiParameters = psiMethod.psiParameters
+            val fingerprint = MethodFingerprint(psiMethod.name, psiParameters.size)
+            return psiParameters.mapIndexed { index, parameter ->
+                PsiParameterItem.create(
+                    codebase,
+                    fingerprint,
+                    parameter,
+                    index,
+                    enclosingTypeItemFactory
+                )
             }
         }
 
-        private fun throwsTypes(codebase: PsiBasedCodebase, psiMethod: PsiMethod): List<ClassItem> {
-            val interfaces = psiMethod.throwsList.referencedTypes
-            if (interfaces.isEmpty()) {
+        internal fun throwsTypes(
+            psiMethod: PsiMethod,
+            enclosingTypeItemFactory: PsiTypeItemFactory,
+        ): List<ExceptionTypeItem> {
+            val throwsClassTypes = psiMethod.throwsList.referencedTypes
+            if (throwsClassTypes.isEmpty()) {
                 return emptyList()
             }
 
-            val result = ArrayList<ClassItem>(interfaces.size)
-            for (cls in interfaces) {
-                result.add(codebase.findClass(cls) ?: continue)
-            }
-
-            // We're sorting the names here even though outputs typically do their own sorting,
-            // since for example the MethodItem.sameSignature check wants to do an
-            // element-by-element
-            // comparison to see if the signature matches, and that should match overrides even if
-            // they specify their elements in different orders.
-            result.sortWith(ClassItem.fullNameComparator)
-            return result
+            return throwsClassTypes
+                // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
+                .map { psiType -> enclosingTypeItemFactory.getExceptionType(PsiTypeInfo(psiType)) }
+                // We're sorting the names here even though outputs typically do their own sorting,
+                // since for example the MethodItem.sameSignature check wants to do an
+                // element-by-element comparison to see if the signature matches, and that should
+                // match overrides even if they specify their elements in different orders.
+                .sortedWith(ExceptionTypeItem.fullNameComparator)
         }
     }
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${
-    containingClass.qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 }
+
+/** Get the [PsiParameter]s for a [PsiMethod]. */
+val PsiMethod.psiParameters: List<PsiParameter>
+    get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()

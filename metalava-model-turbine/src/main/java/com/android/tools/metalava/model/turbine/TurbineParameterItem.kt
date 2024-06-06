@@ -17,20 +17,24 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.reporter.FileLocation
 
-class TurbineParameterItem(
+internal class TurbineParameterItem(
     codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val name: String,
-    private val containingMethod: TurbineMethodItem,
+    private val containingMethod: MethodItem,
     override val parameterIndex: Int,
-    private val type: TurbineTypeItem,
-    modifiers: TurbineModifierItem,
-) : TurbineItem(codebase, modifiers, ""), ParameterItem {
+    private val type: TypeItem,
+    modifiers: DefaultModifierList,
+) : TurbineItem(codebase, fileLocation, modifiers, ""), ParameterItem {
 
     override fun name(): String = name
 
@@ -53,11 +57,39 @@ class TurbineParameterItem(
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
 
-    override fun equals(other: Any?): Boolean = TODO("b/295800205")
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        return other is ParameterItem &&
+            parameterIndex == other.parameterIndex &&
+            containingMethod == other.containingMethod()
+    }
 
-    override fun hashCode(): Int = TODO("b/295800205")
+    override fun hashCode(): Int = parameterIndex
 
     override fun type(): TypeItem = type
 
     override fun isVarArgs(): Boolean = modifiers.isVarArg()
+
+    companion object {
+        internal fun duplicate(
+            codebase: TurbineBasedCodebase,
+            containingMethod: MethodItem,
+            parameter: ParameterItem,
+            typeParameterBindings: TypeParameterBindings,
+        ): TurbineParameterItem {
+            val type = parameter.type().convertType(typeParameterBindings)
+            val mods = (parameter.modifiers as DefaultModifierList).duplicate()
+            return TurbineParameterItem(
+                codebase,
+                FileLocation.UNKNOWN,
+                parameter.name(),
+                containingMethod,
+                parameter.parameterIndex,
+                type,
+                mods
+            )
+        }
+    }
 }

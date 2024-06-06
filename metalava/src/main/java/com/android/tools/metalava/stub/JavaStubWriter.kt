@@ -16,14 +16,15 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
@@ -32,11 +33,10 @@ import java.util.function.Predicate
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
@@ -81,7 +81,7 @@ internal class JavaStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
-        generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
+        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
         writer.print(" {\n")
@@ -116,14 +116,9 @@ internal class JavaStubWriter(
         writer.print("}\n\n")
     }
 
-    private fun appendModifiers(item: Item, removeAbstract: Boolean = false) =
-        ModifierList.write(
-            writer,
-            item,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-            removeAbstract = removeAbstract,
-        )
+    private fun appendModifiers(item: Item) {
+        modifierListWriter.write(item.actualItem)
+    }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
@@ -183,7 +178,7 @@ internal class JavaStubWriter(
         writer.println()
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
-        generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
+        generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
         writer.print(constructor.containingClass().simpleName())
 
         generateParameterList(constructor)
@@ -246,7 +241,7 @@ internal class JavaStubWriter(
                                     constructor
                                         .containingClass()
                                         .mapTypeVariables(it.containingClass())
-                                val cast = map[type]?.toTypeString() ?: typeString
+                                val cast = map[type.asTypeParameter]?.toTypeString() ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)
@@ -291,26 +286,11 @@ internal class JavaStubWriter(
     }
 
     private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
-        val isEnum = containingClass.isEnum()
-        val isAnnotation = containingClass.isAnnotationType()
-
-        if (method.isEnumSyntheticMethod()) {
-            // Skip the values() and valueOf(String) methods in enums: these are added by
-            // the compiler for enums anyway, but was part of the doclava1 signature files
-            // so inserted in compat mode.
-            return
-        }
-
         writer.println()
         appendDocumentation(method, writer, config)
 
-        // Need to filter out abstract from the modifiers list and turn it
-        // into a concrete method to make the stub compile
-        val modifiers = method.modifiers
-        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
-
-        appendModifiers(method, removeAbstract)
-        generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
+        appendModifiers(method)
+        generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         val returnType = method.returnType()
         writer.print(returnType.toTypeString(annotations = false, filter = filterReference))
@@ -320,7 +300,7 @@ internal class JavaStubWriter(
         generateParameterList(method)
         generateThrowsList(method)
 
-        if (isAnnotation) {
+        if (containingClass.isAnnotationType()) {
             val default = method.defaultValue()
             if (default.isNotEmpty()) {
                 writer.print(" default ")
@@ -328,16 +308,12 @@ internal class JavaStubWriter(
             }
         }
 
-        if (
-            modifiers.isAbstract() && !removeAbstract && !isEnum ||
-                isAnnotation ||
-                modifiers.isNative()
-        ) {
-            writer.println(";")
-        } else {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method.actualItem)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")
+        } else {
+            writer.println(";")
         }
     }
 
@@ -404,11 +380,11 @@ internal class JavaStubWriter(
             }
         if (throws.any()) {
             writer.print(" throws ")
-            throws.sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     writer.print(", ")
                 }
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
             }
         }
     }
