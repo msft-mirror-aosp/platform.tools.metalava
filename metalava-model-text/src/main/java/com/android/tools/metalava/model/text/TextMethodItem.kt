@@ -131,8 +131,10 @@ internal open class TextMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
+        if (targetContainingClass.deprecated) {
+            duplicated.deprecated = true
+        }
 
-        duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
         duplicated.throwsTypes = this.throwsTypes
         duplicated.typeParameterList = typeParameterList
