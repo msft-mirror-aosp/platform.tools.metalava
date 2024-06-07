@@ -251,6 +251,11 @@ private constructor(
                     // Do not write @Deprecated for a parameter unless it was explicitly marked
                     // as deprecated.
                     is ParameterItem -> item.originallyDeprecated
+                    // Do not write @Deprecated for a field if it was inherited from another class
+                    // and was not explicitly qualified.
+                    is FieldItem ->
+                        if (item.inheritedFromAncestor) item.originallyDeprecated
+                        else item.deprecated
                     else -> item.deprecated
                 }
             if (writeDeprecated) {

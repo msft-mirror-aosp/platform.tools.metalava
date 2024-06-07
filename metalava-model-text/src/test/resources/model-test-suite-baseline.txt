@@ -8,9 +8,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values
   annotation with type cast values
 
-com.android.tools.metalava.model.testsuite.fielditem.CommonCopyFieldItemTest
-  test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated
-
 com.android.tools.metalava.model.testsuite.methoditem.CommonCopyMethodItemTest
   test copy non deprecated method from deprecated class to non deprecated class treats method as deprecated[DUPLICATE]
   test copy non deprecated method from non deprecated class to deprecated class treats method as deprecated[DUPLICATE]

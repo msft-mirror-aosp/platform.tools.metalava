@@ -10,10 +10,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
-com.android.tools.metalava.model.testsuite.fielditem.CommonCopyFieldItemTest
-  test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated[java,k1]
-  test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated[java,k2]
-
 com.android.tools.metalava.model.testsuite.methoditem.CommonCopyMethodItemTest
   test copy non deprecated method from non deprecated class to deprecated class treats method as deprecated[java,k1,INHERIT]
   test copy non deprecated method from non deprecated class to deprecated class treats method as deprecated[java,k2,INHERIT]
