@@ -32,13 +32,15 @@ internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
-    private val containingClass: ClassItem,
-    protected var returnType: TypeItem,
+    containingClass: ClassItem,
+    private val returnType: TypeItem,
     modifiers: DefaultModifierList,
     override val typeParameterList: TypeParameterList,
     documentation: String,
     private val defaultValue: String,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), MethodItem {
+) :
+    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     internal lateinit var throwableTypes: List<ExceptionTypeItem>
@@ -57,8 +59,6 @@ internal open class TurbineMethodItem(
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
     override fun isConstructor(): Boolean = false
-
-    override fun containingClass(): ClassItem = containingClass
 
     /**
      * Super methods for a given method M with containing class C are calculated as follows:
@@ -116,7 +116,7 @@ internal open class TurbineMethodItem(
         val params =
             parameters.map { TurbineParameterItem.duplicate(codebase, duplicated, it, emptyMap()) }
         duplicated.parameters = params
-        duplicated.inheritedFrom = containingClass
+        duplicated.inheritedFrom = containingClass()
         duplicated.throwableTypes = throwableTypes
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
