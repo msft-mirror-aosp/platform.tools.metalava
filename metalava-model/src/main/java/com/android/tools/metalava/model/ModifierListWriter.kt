@@ -246,13 +246,16 @@ private constructor(
 
         // Do not write deprecate or suppress compatibility annotations on a package.
         if (item !is PackageItem) {
-            if (item.deprecated) {
-                // Do not write @Deprecated for a parameter unless it was explicitly marked as
-                // deprecated.
-                if (item !is ParameterItem || item.originallyDeprecated) {
-                    writer.write("@Deprecated")
-                    writer.write(if (separateLines) "\n" else " ")
+            val writeDeprecated =
+                when (item) {
+                    // Do not write @Deprecated for a parameter unless it was explicitly marked
+                    // as deprecated.
+                    is ParameterItem -> item.originallyDeprecated
+                    else -> item.deprecated
                 }
+            if (writeDeprecated) {
+                writer.write("@Deprecated")
+                writer.write(if (separateLines) "\n" else " ")
             }
 
             if (item.hasSuppressCompatibilityMetaAnnotation()) {
