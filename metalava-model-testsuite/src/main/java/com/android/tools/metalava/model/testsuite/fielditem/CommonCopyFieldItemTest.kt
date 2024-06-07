@@ -17,51 +17,21 @@
 package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for [FieldItem.duplicate]. */
-class CommonCopyFieldItemTest : BaseModelTest() {
+class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
-    private class CopyContext(
-        override val codebase: Codebase,
-        val sourceClassItem: ClassItem,
-        val targetClassItem: ClassItem,
-        val sourceFieldItem: FieldItem,
-        val targetFieldItem: FieldItem,
-    ) : CodebaseContext<Codebase>
+    override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertField("field")
 
-    private fun runCopyTest(
-        vararg inputs: InputSet,
-        test: CopyContext.() -> Unit,
-    ) {
-        runCodebaseTest(
-            *inputs,
-        ) {
-            val sourceClassItem = codebase.assertClass("test.pkg.Source")
-            val targetClassItem = codebase.assertClass("test.pkg.Target")
-
-            val sourceFieldItem = sourceClassItem.assertField("field")
-            val targetFieldItem = sourceFieldItem.duplicate(targetClassItem)
-
-            val context =
-                CopyContext(
-                    codebase,
-                    sourceClassItem,
-                    targetClassItem,
-                    sourceFieldItem,
-                    targetFieldItem,
-                )
-
-            context.test()
-        }
-    }
+    override fun copyMember(sourceMemberItem: FieldItem, targetClassItem: ClassItem) =
+        sourceMemberItem.duplicate(targetClassItem)
 
     @Test
     fun `test copy field from interface to class uses public visibility`() {
@@ -102,8 +72,8 @@ class CommonCopyFieldItemTest : BaseModelTest() {
             ),
         ) {
             // Make sure that the visibility level is public.
-            assertEquals(VisibilityLevel.PUBLIC, sourceFieldItem.modifiers.getVisibilityLevel())
-            assertEquals(VisibilityLevel.PUBLIC, targetFieldItem.modifiers.getVisibilityLevel())
+            assertEquals(VisibilityLevel.PUBLIC, sourceMemberItem.modifiers.getVisibilityLevel())
+            assertEquals(VisibilityLevel.PUBLIC, copiedMemberItem.modifiers.getVisibilityLevel())
         }
     }
 
@@ -146,8 +116,8 @@ class CommonCopyFieldItemTest : BaseModelTest() {
             ),
         ) {
             // Make sure that the static modifier is copied from an interface field to a class.
-            assertTrue(sourceFieldItem.modifiers.isStatic())
-            assertTrue(targetFieldItem.modifiers.isStatic())
+            assertTrue(sourceMemberItem.modifiers.isStatic())
+            assertTrue(copiedMemberItem.modifiers.isStatic())
         }
     }
 
@@ -176,8 +146,8 @@ class CommonCopyFieldItemTest : BaseModelTest() {
             ),
         ) {
             // Make sure that the static modifier is copied from an interface field to a class.
-            assertTrue(sourceFieldItem.modifiers.isStatic())
-            assertTrue(targetFieldItem.modifiers.isStatic())
+            assertTrue(sourceMemberItem.modifiers.isStatic())
+            assertTrue(copiedMemberItem.modifiers.isStatic())
         }
     }
 }

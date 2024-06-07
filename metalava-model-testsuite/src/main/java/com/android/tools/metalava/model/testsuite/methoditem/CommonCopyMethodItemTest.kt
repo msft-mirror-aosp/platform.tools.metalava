@@ -17,11 +17,10 @@
 package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -35,7 +34,7 @@ import org.junit.runners.Parameterized
  * These methods do very similar jobs, i.e. take a [MethodItem] from one [ClassItem], create a copy
  * of it in some way, and then add it to another [ClassItem].
  */
-class CommonCopyMethodItemTest : BaseModelTest() {
+class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
     enum class CopyMethod(
         val supportedInputFormats: Set<InputFormat> = setOf(InputFormat.JAVA, InputFormat.SIGNATURE)
@@ -74,42 +73,14 @@ class CommonCopyMethodItemTest : BaseModelTest() {
      */
     @Parameterized.Parameter(0) lateinit var copyMethod: CopyMethod
 
-    private class CopyContext(
-        override val codebase: Codebase,
-        val sourceClassItem: ClassItem,
-        val targetClassItem: ClassItem,
-        val sourceMethodItem: MethodItem,
-        val targetMethodItem: MethodItem,
-    ) : CodebaseContext<Codebase>
-
-    private fun runCopyTest(
-        vararg inputs: InputSet,
-        test: CopyContext.() -> Unit,
-    ) {
-        // If the copy method does not support the current input format then just return.
-        if (inputFormat !in copyMethod.supportedInputFormats) return
-
-        runCodebaseTest(
-            *inputs,
-        ) {
-            val sourceClassItem = codebase.assertClass("test.pkg.Source")
-            val targetClassItem = codebase.assertClass("test.pkg.Target")
-
-            val sourceMethodItem = sourceClassItem.assertMethod("method", "")
-            val targetMethodItem = copyMethod.copy(sourceMethodItem, targetClassItem)
-
-            val context =
-                CopyContext(
-                    codebase,
-                    sourceClassItem,
-                    targetClassItem,
-                    sourceMethodItem,
-                    targetMethodItem,
-                )
-
-            context.test()
-        }
+    override fun supportsInputFormat(): Boolean {
+        return (inputFormat in copyMethod.supportedInputFormats)
     }
+
+    override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertMethod("method", "")
+
+    override fun copyMember(sourceMemberItem: MethodItem, targetClassItem: ClassItem) =
+        copyMethod.copy(sourceMemberItem, targetClassItem)
 
     @Test
     fun `test copy method from interface to class uses public visibility`() {
@@ -150,8 +121,8 @@ class CommonCopyMethodItemTest : BaseModelTest() {
             ),
         ) {
             // Make sure that the visibility level is public.
-            assertEquals(VisibilityLevel.PUBLIC, sourceMethodItem.modifiers.getVisibilityLevel())
-            assertEquals(VisibilityLevel.PUBLIC, targetMethodItem.modifiers.getVisibilityLevel())
+            assertEquals(VisibilityLevel.PUBLIC, sourceMemberItem.modifiers.getVisibilityLevel())
+            assertEquals(VisibilityLevel.PUBLIC, copiedMemberItem.modifiers.getVisibilityLevel())
         }
     }
 
@@ -195,8 +166,8 @@ class CommonCopyMethodItemTest : BaseModelTest() {
         ) {
             // Make sure that the default modifier is not copied from an interface method to a
             // class.
-            assertTrue(sourceMethodItem.modifiers.isDefault())
-            assertFalse(targetMethodItem.modifiers.isDefault())
+            assertTrue(sourceMemberItem.modifiers.isDefault())
+            assertFalse(copiedMemberItem.modifiers.isDefault())
         }
     }
 
@@ -239,8 +210,8 @@ class CommonCopyMethodItemTest : BaseModelTest() {
             ),
         ) {
             // Make sure that the static modifier is copied from an interface method to a class.
-            assertTrue(sourceMethodItem.modifiers.isStatic())
-            assertTrue(targetMethodItem.modifiers.isStatic())
+            assertTrue(sourceMemberItem.modifiers.isStatic())
+            assertTrue(copiedMemberItem.modifiers.isStatic())
         }
     }
 
@@ -285,9 +256,9 @@ class CommonCopyMethodItemTest : BaseModelTest() {
             // Make sure that the final modifier is not added to a non-final method copied from a
             // non-final class to a final class.
             assertFalse(sourceClassItem.modifiers.isFinal())
-            assertFalse(sourceMethodItem.modifiers.isFinal())
+            assertFalse(sourceMemberItem.modifiers.isFinal())
             assertTrue(targetClassItem.modifiers.isFinal())
-            assertFalse(targetMethodItem.modifiers.isFinal())
+            assertFalse(copiedMemberItem.modifiers.isFinal())
         }
     }
 }
