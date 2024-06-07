@@ -129,9 +129,6 @@ internal open class TurbineMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
-        if (targetContainingClass.deprecated) {
-            duplicated.deprecated = true
-        }
 
         duplicated.updateCopiedMethodState()
 
