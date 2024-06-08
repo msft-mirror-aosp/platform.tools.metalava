@@ -107,7 +107,7 @@ class DefaultModifierList(
         return isSet(DEFAULT)
     }
 
-    fun isDeprecated(): Boolean {
+    override fun isDeprecated(): Boolean {
         return isSet(DEPRECATED)
     }
 
@@ -235,7 +235,7 @@ class DefaultModifierList(
         set(VARARG, vararg)
     }
 
-    fun setDeprecated(deprecated: Boolean) {
+    override fun setDeprecated(deprecated: Boolean) {
         set(DEPRECATED, deprecated)
     }
 
