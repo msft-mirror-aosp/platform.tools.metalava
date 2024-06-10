@@ -19,8 +19,11 @@ package com.android.tools.metalava.lint
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
+import com.android.tools.metalava.libcoreNonNullSource
+import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
@@ -327,9 +330,9 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:16: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:19: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in method `bar` return. Method override cannot use a nullable type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:19: error: Invalid nullability on type java.lang.String in parameter `y` in method `x`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
                 src/test/pkg/Foo.java:8: error: Missing nullability on method `bar` return [MissingNullability]
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
                 src/test/pkg/Foo.java:11: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
@@ -374,7 +377,7 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Bar.kt:5: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
                 src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
                 """,
@@ -413,7 +416,7 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:12: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:12: error: Invalid nullability on type java.lang.String method `bar` return. Method override cannot use a nullable type when the corresponding type from the super method is non-null. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -447,7 +450,7 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -515,7 +518,7 @@ class NullabilityLintTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/StringProperty.java:5: error: Invalid nullability on parameter `arg2` in method `foo`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]",
+                "src/test/pkg/StringProperty.java:5: error: Invalid nullability on type java.lang.String in parameter `arg2` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -548,7 +551,7 @@ class NullabilityLintTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/ArrayMap.java:11: error: Invalid nullability on parameter `key` in method `get`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]",
+                "src/test/pkg/ArrayMap.java:11: error: Invalid nullability on type java.lang.Object in parameter `key` in method `get`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]",
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -664,6 +667,118 @@ class NullabilityLintTest : DriverTest() {
                     }
                     """
                     )
+                )
+        )
+    }
+
+    @Test
+    fun `Missing inner nullability`() {
+        check(
+            apiLint = "",
+            extraArguments = arrayOf(ARG_ERROR, "MissingInnerNullability"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: Missing nullability on method `getArray` return [MissingNullability]
+                    src/test/pkg/Foo.java:5: error: Missing nullability on inner type java.lang.String in method `getArray` return [MissingInnerNullability]
+                    src/test/pkg/Foo.java:6: error: Missing nullability on method `getMap` return [MissingNullability]
+                    src/test/pkg/Foo.java:6: error: Missing nullability on inner type java.lang.Number in method `getMap` return [MissingInnerNullability]
+                    src/test/pkg/Foo.java:6: error: Missing nullability on inner type java.lang.String in method `getMap` return [MissingInnerNullability]
+                    src/test/pkg/Foo.java:7: error: Missing nullability on method `getWildcardMap` return [MissingNullability]
+                    src/test/pkg/Foo.java:7: error: Missing nullability on inner type java.lang.Number in method `getWildcardMap` return [MissingInnerNullability]
+                    src/test/pkg/Foo.java:7: error: Missing nullability on inner type java.lang.String in method `getWildcardMap` return [MissingInnerNullability]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            import java.util.Map;
+                            public class Foo {
+                                public String[] getArray() { return null; }
+                                public Map<Number, String> getMap() { return null; }
+                                public Map<? extends Number, ? super String> getWildcardMap() { return null; }
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test inner type nullness overrides of defined nullness`() {
+        check(
+            apiLint = "",
+            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String method `foo` return. Method override cannot use a nullable type when the corresponding type from the super method is non-null. [InvalidNullabilityOverride]
+                    src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String in parameter `arg` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            import libcore.util.NonNull;
+                            import libcore.util.Nullable;
+                            public class Superclass {
+                                public @NonNull String @NonNull [] foo(@NonNull List<@Nullable String> arg) { return null; }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            import libcore.util.NonNull;
+                            import libcore.util.Nullable;
+                            public class Foo extends Superclass {
+                                @Override
+                                public @Nullable String @NonNull [] foo(@NonNull List<@NonNull String> arg) { return null; }
+                            }
+                        """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource,
+                )
+        )
+    }
+
+    @Test
+    fun `Test inner type nullness overrides of platform nullness`() {
+        // TODO (b/344859664): this case is ignored for now
+        check(
+            apiLint = "",
+            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import libcore.util.NonNull;
+                            import libcore.util.Nullable;
+                            public class Superclass {
+                                public String @NonNull [] foo(@NonNull List<String> arg) { return null; }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import libcore.util.NonNull;
+                            import libcore.util.Nullable;
+                            public class Foo extends Superclass {
+                                @Override
+                                public @Nullable String @NonNull [] foo(@NonNull List<@NonNull String> arg) { return null; }
+                            }
+                        """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource,
                 )
         )
     }

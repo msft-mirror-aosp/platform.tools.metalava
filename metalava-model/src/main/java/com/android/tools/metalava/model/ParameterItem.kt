@@ -24,9 +24,13 @@ interface ParameterItem : Item {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
         containingMethod()
-            .findCorrespondingItemIn(codebase, superMethods = superMethods)
+            .findCorrespondingItemIn(codebase, superMethods = superMethods, duplicate = duplicate)
             ?.parameters()
             ?.getOrNull(parameterIndex)
 
@@ -84,6 +88,9 @@ interface ParameterItem : Item {
 
     override fun parent(): MethodItem? = containingMethod()
 
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingMethod().effectivelyDeprecated
+
     override fun baselineElementId() =
         containingMethod().baselineElementId() + " parameter #" + parameterIndex
 
@@ -93,7 +100,7 @@ interface ParameterItem : Item {
 
     override fun toStringForItem() = "parameter ${name()}"
 
-    override fun containingClass(): ClassItem? = containingMethod().containingClass()
+    override fun containingClass(): ClassItem = containingMethod().containingClass()
 
     override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
 

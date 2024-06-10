@@ -86,7 +86,7 @@ interface Item : Reportable {
      * True if this item has been marked as deprecated or is a descendant of a non-package item that
      * has been marked as deprecated.
      */
-    var effectivelyDeprecated: Boolean
+    val effectivelyDeprecated: Boolean
 
     /**
      * True if this item has been marked deprecated.
@@ -255,12 +255,39 @@ interface Item : Reportable {
      * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
      * item.
      *
+     * If [superMethods] is true and this is a [MethodItem] then the returned [MethodItem], if any,
+     * could be in a [ClassItem] that does not correspond to the [MethodItem.containingClass], it
+     * could be from a super class or super interface. e.g. if the [codebase] contains something
+     * like:
+     * ```
+     *     public class Super {
+     *         public void method() {...}
+     *     }
+     *     public class Foo extends Super {}
+     * ```
+     *
+     * And this is called on `Foo.method()` then:
+     * * if [superMethods] is false this will return `null`.
+     * * if [superMethods] is true and [duplicate] is false, then this will return `Super.method()`.
+     * * if both [superMethods] and [duplicate] are true then this will return a duplicate of
+     *   `Super.method()` that has been added to `Foo` so it will be essentially `Foo.method()`.
+     *
+     * @param codebase the [Codebase] to search for a corresponding item.
      * @param superMethods if true and this is a [MethodItem] then this method will search for super
      *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
      *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
      *   the [ParameterItem.containingMethod].
+     * @param duplicate if true, and this is a [MemberItem] (or [ParameterItem]) then the returned
+     *   [Item], if any, will be in the [ClassItem] that corresponds to the [Item.containingClass].
+     *   This should be `true` if the returned [Item] is going to be compared to the original [Item]
+     *   as the [Item.containingClass] can affect that comparison, e.g. the meaning of certain
+     *   modifiers.
      */
-    fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean = false): Item?
+    fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean = false,
+        duplicate: Boolean = false,
+    ): Item?
 
     /**
      * Get the set of suppressed issues for this [Item].
@@ -411,8 +438,6 @@ abstract class DefaultItem(
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
     final override var originallyDeprecated = modifiers.isDeprecated()
-
-    final override var effectivelyDeprecated = originallyDeprecated
 
     final override var deprecated = originallyDeprecated
 
