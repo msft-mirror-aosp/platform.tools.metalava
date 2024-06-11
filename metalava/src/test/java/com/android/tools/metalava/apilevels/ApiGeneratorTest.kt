@@ -98,6 +98,15 @@ class ApiGeneratorTest : DriverTest() {
             <api version="3" min="30">
                 <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
                 <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S"/>
+                <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30">
+                <extends name="java/lang/Object"/>
+                <method name="&lt;init>(F)V" deprecated="30"/>
+                <method name="&lt;init>(I)V" deprecated="31"/>
+                <method name="methodExplicitlyDeprecated()V" deprecated="30"/>
+                <method name="methodImplicitlyDeprecated()V" deprecated="31"/>
+                <field name="FIELD_EXPLICITLY_DEPRECATED" deprecated="30"/>
+                <field name="FIELD_IMPLICITLY_DEPRECATED" deprecated="31"/>
+                </class>
                 <class name="android/test/ClassAddedInApi30" since="30">
                     <extends name="java/lang/Object"/>
                     <method name="methodAddedInApi30()V"/>
@@ -177,6 +186,15 @@ class ApiGeneratorTest : DriverTest() {
             <api version="3" min="30">
                 <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
                 <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S"/>
+                <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30">
+                <extends name="java/lang/Object"/>
+                <method name="&lt;init>(F)V" deprecated="30"/>
+                <method name="&lt;init>(I)V" deprecated="31"/>
+                <method name="methodExplicitlyDeprecated()V" deprecated="30"/>
+                <method name="methodImplicitlyDeprecated()V" deprecated="31"/>
+                <field name="FIELD_EXPLICITLY_DEPRECATED" deprecated="30"/>
+                <field name="FIELD_IMPLICITLY_DEPRECATED" deprecated="31"/>
+                </class>
                 <class name="android/test/ClassAddedInApi30" since="30">
                     <extends name="java/lang/Object"/>
                     <method name="methodAddedInApi30()V"/>
