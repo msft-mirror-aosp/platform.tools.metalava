@@ -152,15 +152,15 @@ internal class DefaultReporter(
             // preference to the location because the item is more stable. e.g. the location may be
             // for a specific line within a method which would change over time while the method
             // signature would stay the same.
-            val baselineLocation =
+            val baselineKey =
                 when {
-                    reportable != null -> reportable.issueLocation
-                    location.path != null -> location
-                    else -> null
+                    // When available use the baseline key from the reportable.
+                    reportable != null -> reportable.issueLocation.baselineKey
+                    // Otherwise, use the baseline key from the file location.
+                    else -> location.fileLocation?.baselineKey
                 }
 
-            if (baselineLocation != null && baseline.mark(baselineLocation, message, id))
-                return false
+            if (baselineKey != null && baseline.mark(baselineKey, message, id)) return false
         }
 
         return dispatch(this::doReport)
