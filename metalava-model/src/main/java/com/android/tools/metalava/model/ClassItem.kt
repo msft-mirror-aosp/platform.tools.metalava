@@ -53,6 +53,9 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     override fun parent(): Item? = containingClass() ?: containingPackage()
 
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
+
     /**
      * The qualified name where inner classes use $ as a separator. In class foo.bar.Outer.Inner,
      * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
@@ -202,8 +205,11 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Gets the type for this class */
     override fun type(): ClassTypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        codebase.findClass(qualifiedName())
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = codebase.findClass(qualifiedName())
 
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
