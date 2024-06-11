@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.reporter
 
-import java.io.File
 import java.nio.file.Path
 
 /**
@@ -47,17 +46,6 @@ class IssueLocation(
     /** The line number, may be non-positive indicating that it could not be found. */
     val line: Int
         get() = fileLocation?.line ?: 0
-
-    companion object {
-        val unknownLocationAndBaselineKey = IssueLocation(null, BaselineKey.UNKNOWN)
-
-        fun forFile(file: File?): IssueLocation {
-            file ?: return unknownLocationAndBaselineKey
-            val path = file.toPath()
-            val fileLocation = FileLocation.createLocation(path, 0)
-            return IssueLocation(fileLocation, BaselineKey.forPath(path))
-        }
-    }
 }
 
 /** Key that can be used to identify an API component for use in the baseline. */

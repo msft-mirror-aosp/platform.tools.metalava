@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.reporter
 
+import java.io.File
 import java.nio.file.Path
 
 /** Identifies a specific line within an input file. */
@@ -50,5 +51,10 @@ abstract class FileLocation {
 
         /** Create a [FileLocation] for a [path] and optional [line] number. */
         fun createLocation(path: Path, line: Int = 0): FileLocation = FixedFileLocation(path, line)
+
+        fun forFile(file: File?): FileLocation {
+            file ?: return UNKNOWN
+            return createLocation(file.toPath(), 0)
+        }
     }
 }

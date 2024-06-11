@@ -22,8 +22,8 @@ import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
-import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
@@ -92,7 +92,7 @@ internal class DefaultReporter(
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation,
+        location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
@@ -120,12 +120,11 @@ internal class DefaultReporter(
             // method then the location may be a line within the body of the method.
             val reportLocation =
                 when {
-                    location.path != null -> location.forReport()
-                    reportable != null -> reportable.issueLocation.forReport()
-                    else -> null
+                    location.path != null -> location
+                    else -> reportable?.fileLocation
                 }
 
-            return which(effectiveSeverity, reportLocation, message, id)
+            return which(effectiveSeverity, reportLocation?.forReport(), message, id)
         }
 
         // Optionally write to the --report-even-if-suppressed file.
@@ -157,7 +156,7 @@ internal class DefaultReporter(
                     // When available use the baseline key from the reportable.
                     reportable != null -> reportable.issueLocation.baselineKey
                     // Otherwise, use the baseline key from the file location.
-                    else -> location.fileLocation?.baselineKey
+                    else -> location.baselineKey
                 }
 
             if (baselineKey != null && baseline.mark(baselineKey, message, id)) return false
@@ -215,12 +214,11 @@ internal class DefaultReporter(
     }
 
     /**
-     * Convert the [IssueLocation] to an optional string representation suitable for use in a
-     * report.
+     * Convert the [FileLocation] to an optional string representation suitable for use in a report.
      *
      * See [relativizeLocationPath].
      */
-    private fun IssueLocation.forReport(): String? {
+    private fun FileLocation.forReport(): String? {
         val pathString = path?.let { relativizeLocationPath(it) } ?: return null
         return if (line > 0) "$pathString:$line" else pathString
     }

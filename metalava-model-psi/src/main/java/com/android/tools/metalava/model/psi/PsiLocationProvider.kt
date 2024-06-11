@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.vfs.VfsUtilCore
@@ -38,20 +37,13 @@ class PsiLocationProvider {
 
     companion object {
         /**
-         * Compute a [IssueLocation] (including [BaselineKey]) from a [PsiElement]
+         * Compute a [FileLocation] from a [PsiElement]
          *
          * @param element the optional element from which the path, line and [BaselineKey] will be
          *   computed.
-         * @param overridingBaselineKey the optional [BaselineKey] to use instead of the
-         *   [BaselineKey] computed from the element.
          */
-        fun elementToIssueLocation(
-            element: PsiElement?,
-            overridingBaselineKey: BaselineKey? = null
-        ): IssueLocation {
-            val fileLocation = element?.let { PsiFileLocation(it) } ?: FileLocation.UNKNOWN
-            val actualBaselineKey = overridingBaselineKey ?: getBaselineKey(element)
-            return IssueLocation(fileLocation, actualBaselineKey)
+        fun elementToFileLocation(element: PsiElement?): FileLocation {
+            return element?.let { PsiFileLocation(it) } ?: FileLocation.UNKNOWN
         }
 
         internal fun getBaselineKey(element: PsiElement?): BaselineKey {
@@ -122,6 +114,6 @@ class PsiLocationProvider {
 }
 
 fun Reporter.report(id: Issues.Issue, element: PsiElement?, message: String): Boolean {
-    val location = PsiLocationProvider.elementToIssueLocation(element)
+    val location = PsiLocationProvider.elementToFileLocation(element)
     return report(id, null, message, location)
 }
