@@ -101,11 +101,11 @@ class ApiGeneratorTest : DriverTest() {
                 <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30">
                 <extends name="java/lang/Object"/>
                 <method name="&lt;init>(F)V" deprecated="30"/>
-                <method name="&lt;init>(I)V" deprecated="31"/>
+                <method name="&lt;init>(I)V" deprecated="30"/>
                 <method name="methodExplicitlyDeprecated()V" deprecated="30"/>
-                <method name="methodImplicitlyDeprecated()V" deprecated="31"/>
+                <method name="methodImplicitlyDeprecated()V" deprecated="30"/>
                 <field name="FIELD_EXPLICITLY_DEPRECATED" deprecated="30"/>
-                <field name="FIELD_IMPLICITLY_DEPRECATED" deprecated="31"/>
+                <field name="FIELD_IMPLICITLY_DEPRECATED" deprecated="30"/>
                 </class>
                 <class name="android/test/ClassAddedInApi30" since="30">
                     <extends name="java/lang/Object"/>
@@ -189,11 +189,11 @@ class ApiGeneratorTest : DriverTest() {
                 <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30">
                 <extends name="java/lang/Object"/>
                 <method name="&lt;init>(F)V" deprecated="30"/>
-                <method name="&lt;init>(I)V" deprecated="31"/>
+                <method name="&lt;init>(I)V" deprecated="30"/>
                 <method name="methodExplicitlyDeprecated()V" deprecated="30"/>
-                <method name="methodImplicitlyDeprecated()V" deprecated="31"/>
+                <method name="methodImplicitlyDeprecated()V" deprecated="30"/>
                 <field name="FIELD_EXPLICITLY_DEPRECATED" deprecated="30"/>
-                <field name="FIELD_IMPLICITLY_DEPRECATED" deprecated="31"/>
+                <field name="FIELD_IMPLICITLY_DEPRECATED" deprecated="30"/>
                 </class>
                 <class name="android/test/ClassAddedInApi30" since="30">
                     <extends name="java/lang/Object"/>
