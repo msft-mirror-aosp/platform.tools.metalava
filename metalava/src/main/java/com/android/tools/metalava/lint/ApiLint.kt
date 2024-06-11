@@ -73,7 +73,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiLocationProvider
+import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
@@ -1082,7 +1082,7 @@ private constructor(
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiLocationProvider.elementToFileLocation(psi)
+            val location = PsiFileLocation.fromPsiElement(psi)
             report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
