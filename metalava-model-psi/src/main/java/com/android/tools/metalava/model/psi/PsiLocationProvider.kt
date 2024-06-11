@@ -54,13 +54,13 @@ class PsiLocationProvider {
             return IssueLocation(fileLocation, actualBaselineKey)
         }
 
-        private fun getBaselineKey(element: PsiElement?): BaselineKey {
+        internal fun getBaselineKey(element: PsiElement?): BaselineKey {
             element ?: return BaselineKey.UNKNOWN
             return when (element) {
                 is PsiFile -> {
                     val virtualFile = element.virtualFile
                     val file = VfsUtilCore.virtualToIoFile(virtualFile)
-                    BaselineKey.forFile(file)
+                    BaselineKey.forPath(file.toPath())
                 }
                 else -> {
                     val elementId = getElementId(element)

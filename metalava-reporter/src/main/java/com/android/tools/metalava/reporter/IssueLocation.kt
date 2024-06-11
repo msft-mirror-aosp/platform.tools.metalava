@@ -53,8 +53,9 @@ class IssueLocation(
 
         fun forFile(file: File?): IssueLocation {
             file ?: return unknownLocationAndBaselineKey
-            val fileLocation = FileLocation.createLocation(file.toPath(), 0)
-            return IssueLocation(fileLocation, BaselineKey.forFile(file))
+            val path = file.toPath()
+            val fileLocation = FileLocation.createLocation(path, 0)
+            return IssueLocation(fileLocation, BaselineKey.forPath(path))
         }
     }
 }
@@ -82,9 +83,9 @@ sealed interface BaselineKey {
             return ElementIdBaselineKey(elementId)
         }
 
-        /** Get a [BaselineKey] for the supplied file. */
-        fun forFile(file: File): BaselineKey {
-            return PathBaselineKey(file.toPath())
+        /** Get a [BaselineKey] for the supplied path. */
+        fun forPath(path: Path): BaselineKey {
+            return PathBaselineKey(path)
         }
     }
 

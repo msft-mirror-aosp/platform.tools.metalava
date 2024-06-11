@@ -26,6 +26,10 @@ abstract class FileLocation {
     /** The line number, may be non-positive indicating that it could not be found. */
     abstract val line: Int
 
+    /** The optional [BaselineKey] for the [path]. */
+    open val baselineKey: BaselineKey?
+        get() = path?.let { BaselineKey.forPath(it) }
+
     /** Append the string representation of this to the [builder]. */
     fun appendTo(builder: StringBuilder) {
         builder.append(path)

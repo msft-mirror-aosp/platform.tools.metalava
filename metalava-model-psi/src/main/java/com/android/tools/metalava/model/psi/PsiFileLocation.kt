@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiCompiledElement
@@ -57,6 +58,9 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
             ensureInitialized()
             return _line
         }
+
+    override val baselineKey: BaselineKey
+        get() = PsiLocationProvider.getBaselineKey(psiElement)
 
     /**
      * Make sure that this is initialized, if it is not then compute the [path] and [line] from the
