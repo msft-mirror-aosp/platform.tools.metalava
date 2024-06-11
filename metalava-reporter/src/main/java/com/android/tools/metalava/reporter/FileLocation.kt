@@ -19,7 +19,13 @@ package com.android.tools.metalava.reporter
 import java.io.File
 import java.nio.file.Path
 
-/** Identifies a specific line within an input file. */
+/**
+ * Identifies a specific line within an input file.
+ *
+ * The file location is optional as it is not always available. An unavailable source location is
+ * indicated by a null [path]. Even when the [path] is available the [line] may be unknown, which is
+ * indicated by a non-positive value.
+ */
 abstract class FileLocation {
     /** The absolute path to the location, or `null` if it could not be found. */
     abstract val path: Path?

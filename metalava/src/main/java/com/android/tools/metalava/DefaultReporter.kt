@@ -154,7 +154,7 @@ internal class DefaultReporter(
             val baselineKey =
                 when {
                     // When available use the baseline key from the reportable.
-                    reportable != null -> reportable.issueLocation.baselineKey
+                    reportable != null -> reportable.baselineKey
                     // Otherwise, use the baseline key from the file location.
                     else -> location.baselineKey
                 }
