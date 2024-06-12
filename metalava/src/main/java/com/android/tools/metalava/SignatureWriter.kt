@@ -371,16 +371,10 @@ class SignatureWriter(
     }
 
     private fun writeThrowsList(method: MethodItem) {
-        val throws =
-            when {
-                preFiltered -> method.throwsTypes().asSequence()
-                else -> method.filteredThrowsTypes(filterReference).asSequence()
-            }
-        if (throws.any()) {
+        val throws = method.throwsTypes()
+        if (throws.isNotEmpty()) {
             write(" throws ")
-            throws.asSequence().sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed {
-                i,
-                type ->
+            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     write(", ")
                 }

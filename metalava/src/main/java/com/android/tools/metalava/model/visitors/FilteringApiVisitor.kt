@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
@@ -192,6 +193,17 @@ class FilteringApiVisitor(
         methodItem.parameters().map { FilteringParameterItem(it) }
 
     /**
+     * Get the [MethodItem.filteredThrowsTypes] and apply [typeAnnotationFilter] to each
+     * [ExceptionTypeItem] in the list.
+     */
+    private fun filteredThrowsTypes(methodItem: MethodItem) =
+        if (preFiltered) methodItem.throwsTypes()
+        else
+            methodItem.filteredThrowsTypes(filterReference).map {
+                it.transform(typeAnnotationFilter)
+            }
+
+    /**
      * [ConstructorItem] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
      */
@@ -201,6 +213,8 @@ class FilteringApiVisitor(
         override fun returnType() = filteredReturnType(delegate)
 
         override fun parameters() = filteredParameters(delegate)
+
+        override fun throwsTypes() = filteredThrowsTypes(delegate)
     }
 
     /**
@@ -213,6 +227,8 @@ class FilteringApiVisitor(
         override fun returnType() = filteredReturnType(delegate)
 
         override fun parameters() = filteredParameters(delegate)
+
+        override fun throwsTypes() = filteredThrowsTypes(delegate)
     }
 
     /**
