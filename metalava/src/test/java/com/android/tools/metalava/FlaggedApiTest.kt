@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -1795,6 +1796,182 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedStubs = stubsWithoutFlaggedApis,
                     ),
                 ),
+        )
+    }
+
+    @Test
+    fun `Test that pulling method up into super class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+                // TODO(b/337840740): Foo should have method().
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Bar {
+                        // This is flagged as the method was pulled up from Foo.
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void method() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo extends Bar {
+                        private Foo() {}
+                    }
+                """
+            ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar {
+                                ctor public Bar();
+                              }
+                              public class Foo {
+                                method public void method();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void method();
+                                  }
+                                  public class Foo extends test.pkg.Bar {
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            // TODO(b/337840740): Foo should have method().
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo extends test.pkg.Bar {
+                                  }
+                                }
+                            """,
+                        expectedIssues =
+                            // TODO(b/337840740): Foo should have method().
+                            """
+                                released-api.txt:7: warning: Removed method test.pkg.Foo.method() [RemovedMethod]
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                ),
+            // TODO(b/337840740): This should not be needed as the method should not be removed.
+            // Downgraded RemovedMethod to warning to stop it aborting.
+            extraArguments = arrayOf(ARG_WARNING, Issues.REMOVED_METHOD.name),
         )
     }
 }
