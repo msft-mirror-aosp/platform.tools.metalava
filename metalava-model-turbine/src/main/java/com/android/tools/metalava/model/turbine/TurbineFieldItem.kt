@@ -17,20 +17,24 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
-class TurbineFieldItem(
-    override val codebase: Codebase,
+internal class TurbineFieldItem(
+    codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val name: String,
-    private val containingClass: TurbineClassItem,
-    override val modifiers: TurbineModifierItem,
-) : TurbineItem(codebase, modifiers), FieldItem {
+    private val containingClass: ClassItem,
+    private val type: TypeItem,
+    modifiers: DefaultModifierList,
+    documentation: String,
+    private val isEnumConstant: Boolean,
+    private val fieldValue: TurbineFieldValue?,
+) : TurbineItem(codebase, fileLocation, modifiers, documentation), FieldItem {
 
     override var inheritedFrom: ClassItem? = null
-
-    override var inheritedField: Boolean = false
 
     override fun name(): String = name
 
@@ -47,19 +51,49 @@ class TurbineFieldItem(
 
     override fun hashCode(): Int = name.hashCode()
 
-    override fun type(): TypeItem {
-        TODO("b/295800205")
-    }
+    override fun type(): TypeItem = type
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        TODO("b/295800205")
+        val duplicateField =
+            TurbineFieldItem(
+                codebase,
+                fileLocation,
+                name,
+                targetContainingClass,
+                type.duplicate(),
+                modifiers.duplicate(),
+                documentation,
+                isEnumConstant,
+                fieldValue,
+            )
+        duplicateField.inheritedFrom = containingClass
+
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (targetContainingClass.hidden) {
+            duplicateField.hidden = true
+        }
+        if (targetContainingClass.removed) {
+            duplicateField.removed = true
+        }
+        if (targetContainingClass.docOnly) {
+            duplicateField.docOnly = true
+        }
+
+        return duplicateField
     }
 
-    override fun initialValue(requireConstant: Boolean): Any? {
-        TODO("b/295800205")
-    }
+    override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
 
-    override fun isEnumConstant(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isEnumConstant(): Boolean = isEnumConstant
+}
+
+/** Provides access to the initial values of a field. */
+class TurbineFieldValue(
+    private var initialValueWithRequiredConstant: Any?,
+    private var initialValueWithoutRequiredConstant: Any?,
+) {
+
+    fun initialValue(requireConstant: Boolean) =
+        if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
 }
