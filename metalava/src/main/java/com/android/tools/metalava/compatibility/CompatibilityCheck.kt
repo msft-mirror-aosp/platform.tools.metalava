@@ -940,13 +940,24 @@ class CompatibilityCheck(
                     includeInterfaces = from.isInterface()
                 )
             }
-        if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
+        if (inherited == null || inherited != old && inherited.treatAsRemoved()) {
             val error =
                 if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
                 else Issues.REMOVED_METHOD
             handleRemoved(error, old)
         }
     }
+
+    /**
+     * Check the [Item] to see whether it should be treated as if it was removed.
+     *
+     * An [Item] is treated as it if it was removed if it is hidden/removed and is not an unstable
+     * API that will be reverted. If it is an unstable API then reverting it will replace it with
+     * the old item against which it is being compared in this compatibility check. So, while this
+     * specific item will not appear in the API the old item will and so the old item will not be
+     * removed.
+     */
+    private fun Item.treatAsRemoved() = isHiddenOrRemoved() && !showability.revertUnstableApi()
 
     override fun removed(old: FieldItem, from: ClassItem?) {
         val inherited =

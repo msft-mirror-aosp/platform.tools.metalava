@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -1925,11 +1924,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
-                        expectedIssues =
-                            // TODO(b/337840740): Foo should have method().
-                            """
-                                released-api.txt:7: warning: Removed method test.pkg.Foo.method() [RemovedMethod]
-                            """,
                         expectedStubs = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
@@ -1969,9 +1963,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedStubs = stubsWithoutFlaggedApis,
                     ),
                 ),
-            // TODO(b/337840740): This should not be needed as the method should not be removed.
-            // Downgraded RemovedMethod to warning to stop it aborting.
-            extraArguments = arrayOf(ARG_WARNING, Issues.REMOVED_METHOD.name),
         )
     }
 }
