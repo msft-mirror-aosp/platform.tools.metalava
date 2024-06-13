@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -30,29 +31,21 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
 import java.util.BitSet
 import java.util.function.Predicate
 
 class SignatureWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
+    private val filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
-    showUnannotated: Boolean,
-    apiVisitorConfig: Config,
 ) :
-    ApiVisitor(
+    BaseItemVisitor(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
-        inlineInheritedFields = true,
-        methodComparator = fileFormat.overloadedMethodOrder.comparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        showUnannotated = showUnannotated,
-        config = apiVisitorConfig,
     ) {
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
@@ -60,6 +53,30 @@ class SignatureWriter(
             writer.print(fileFormat.header())
         }
     }
+
+    /**
+     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * [SignatureWriter] instance.
+     */
+    fun createFilteringVisitor(
+        filterEmit: Predicate<Item>,
+        filterReference: Predicate<Item>,
+        showUnannotated: Boolean,
+        apiVisitorConfig: ApiVisitor.Config,
+    ): ApiVisitor =
+        FilteringApiVisitor(
+            delegate = this,
+            visitConstructorsAsMethods = false,
+            nestInnerClasses = false,
+            inlineInheritedFields = true,
+            methodComparator = fileFormat.overloadedMethodOrder.comparator,
+            filterEmit = filterEmit,
+            filterReference = filterReference,
+            showUnannotated = showUnannotated,
+            config = apiVisitorConfig,
+        )
 
     private val modifierListWriter =
         ModifierListWriter.forSignature(

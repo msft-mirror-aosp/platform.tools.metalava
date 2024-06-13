@@ -55,15 +55,19 @@ class SignatureInputOutputTest : Assertions {
                     val signatureWriter =
                         SignatureWriter(
                             writer = printWriter,
-                            filterEmit = { true },
                             filterReference = { true },
                             preFiltered = true,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = format,
+                        )
+                    codebase.accept(
+                        signatureWriter.createFilteringVisitor(
+                            filterEmit = { true },
+                            filterReference = { true },
                             showUnannotated = false,
                             apiVisitorConfig = ApiVisitor.Config(),
                         )
-                    codebase.accept(signatureWriter)
+                    )
                 }
                 stringWriter.toString()
             }
