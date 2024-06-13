@@ -178,7 +178,14 @@ class FilteringApiVisitor(
      * [FilteringApiVisitor.delegate].
      */
     private inner class FilteringParameterItem(private val delegate: ParameterItem) :
-        ParameterItem by delegate
+        ParameterItem by delegate {
+
+        override fun type() = delegate.type().transform(typeAnnotationFilter)
+    }
+
+    /** Get the [MethodItem.returnType] and apply the [typeAnnotationFilter] to it. */
+    fun filteredReturnType(methodItem: MethodItem) =
+        methodItem.returnType().transform(typeAnnotationFilter)
 
     /** Get the [MethodItem.parameters] and wrap each one in a [FilteringParameterItem]. */
     fun filteredParameters(methodItem: MethodItem): List<ParameterItem> =
@@ -191,6 +198,8 @@ class FilteringApiVisitor(
     private inner class FilteringConstructorItem(private val delegate: ConstructorItem) :
         ConstructorItem by delegate {
 
+        override fun returnType() = filteredReturnType(delegate)
+
         override fun parameters() = filteredParameters(delegate)
     }
 
@@ -201,6 +210,8 @@ class FilteringApiVisitor(
     private inner class FilteringMethodItem(private val delegate: MethodItem) :
         MethodItem by delegate {
 
+        override fun returnType() = filteredReturnType(delegate)
+
         override fun parameters() = filteredParameters(delegate)
     }
 
@@ -208,12 +219,19 @@ class FilteringApiVisitor(
      * [FieldItem] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
      */
-    private inner class FilteringFieldItem(private val delegate: FieldItem) : FieldItem by delegate
+    private inner class FilteringFieldItem(private val delegate: FieldItem) :
+        FieldItem by delegate {
+
+        override fun type() = delegate.type().transform(typeAnnotationFilter)
+    }
 
     /**
      * [PropertyItem] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
      */
     private inner class FilteringPropertyItem(private val delegate: PropertyItem) :
-        PropertyItem by delegate
+        PropertyItem by delegate {
+
+        override fun type() = delegate.type().transform(typeAnnotationFilter)
+    }
 }

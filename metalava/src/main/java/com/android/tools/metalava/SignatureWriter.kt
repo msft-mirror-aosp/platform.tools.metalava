@@ -362,7 +362,6 @@ class SignatureWriter(
             type.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                filter = filterReference
             )
 
         // Strip java.lang. prefix
