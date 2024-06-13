@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -26,6 +27,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeTransformer
 import java.util.function.Predicate
 
 /**
@@ -45,6 +48,7 @@ class FilteringApiVisitor(
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
+    private val preFiltered: Boolean,
     includeEmptyOuterClasses: Boolean = false,
     showUnannotated: Boolean = true,
     config: Config,
@@ -61,6 +65,25 @@ class FilteringApiVisitor(
         config,
     ),
     ItemVisitor {
+
+    /**
+     * A [TypeTransformer] that will remove any type annotations for which [filterReference] returns
+     * false when called against the annotation's [ClassItem].
+     */
+    private val typeAnnotationFilter =
+        object : BaseTypeTransformer() {
+            override fun transform(modifiers: TypeModifiers): TypeModifiers {
+                if (modifiers.annotations.isEmpty()) return modifiers
+                return modifiers.substitute(
+                    annotations =
+                        modifiers.annotations.filter { annotationItem ->
+                            // If the annotation cannot be resolved then keep it.
+                            val annotationClass = annotationItem.resolve() ?: return@filter true
+                            filterReference.test(annotationClass)
+                        }
+                )
+            }
+        }
 
     override fun visitPackage(pkg: PackageItem) {
         delegate.visitPackage(pkg)
@@ -123,7 +146,14 @@ class FilteringApiVisitor(
      */
     private inner class FilteringClassItem(
         val delegate: ClassItem,
-    ) : ClassItem by delegate
+    ) : ClassItem by delegate {
+
+        override fun superClass() = superClassType()?.asClass()
+
+        override fun superClassType() =
+            if (preFiltered) delegate.superClassType()
+            else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
+    }
 
     /**
      * [ParameterItem] that will filter out anything which is not to be written out by the

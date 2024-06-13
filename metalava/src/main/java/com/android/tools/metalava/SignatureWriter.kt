@@ -74,6 +74,7 @@ class SignatureWriter(
             methodComparator = fileFormat.overloadedMethodOrder.comparator,
             filterEmit = filterEmit,
             filterReference = filterReference,
+            preFiltered = preFiltered,
             showUnannotated = showUnannotated,
             config = apiVisitorConfig,
         )
@@ -242,23 +243,17 @@ class SignatureWriter(
         modifierListWriter.write(item.actualItem)
     }
 
-    /** Get the filtered super class type, ignoring java.lang.Object. */
-    private fun getFilteredSuperClassTypeFor(cls: ClassItem): TypeItem? {
-        val superClassItem =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-        return if (superClassItem == null || superClassItem.isJavaLangObject()) null
-        else superClassItem
-    }
-
     private fun writeSuperClassStatement(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
             return
         }
 
-        getFilteredSuperClassTypeFor(cls)?.let { superClassType ->
-            write(" extends")
-            writeExtendsOrImplementsType(superClassType)
-        }
+        /** Get the super class type, ignoring java.lang.Object. */
+        val superClassType = cls.superClassType()
+        if (superClassType == null || superClassType.isJavaLangObject()) return
+
+        write(" extends")
+        writeExtendsOrImplementsType(superClassType)
     }
 
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
