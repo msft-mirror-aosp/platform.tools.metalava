@@ -143,6 +143,7 @@ Available Issues                             |  Category                |   Defa
   MissingBuildMethod                         |  api_lint                |   warning
   MissingColumn                              |  documentation           |   warning
   MissingGetterMatchingBuilder               |  api_lint                |   warning
+  MissingInnerNullability                    |  api_lint                |   hidden
   MissingJvmstatic                           |  api_lint                |   warning
   MissingNullability                         |  api_lint                |   error
   MissingPermission                          |  documentation           |   error
@@ -155,6 +156,7 @@ Available Issues                             |  Category                |   Defa
   NotCloseable                               |  api_lint                |   warning
   Nullable                                   |  documentation           |   hidden
   NullableCollection                         |  api_lint                |   warning
+  NullableCollectionElement                  |  api_lint                |   warning
   OnNameExpected                             |  api_lint                |   warning
   OperatorRemoval                            |  compatibility           |   error
   OptionalBuilderConstructorArgument         |  api_lint                |   warning
