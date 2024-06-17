@@ -28,6 +28,8 @@ plugins {
 dependencies {
     testFixturesImplementation(libs.junit4)
 
+    testImplementation(project(":metalava-testing"))
+    testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)

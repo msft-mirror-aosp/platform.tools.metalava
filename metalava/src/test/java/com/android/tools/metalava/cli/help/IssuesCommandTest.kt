@@ -77,12 +77,10 @@ Available Issues                             |  Category                |   Defa
   ChangedType                                |  compatibility           |   error
   ChangedValue                               |  compatibility           |   error
   ChangedVolatile                            |  compatibility           |   error
-  CommonArgsFirst                            |  api_lint                |   warning
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
   ConfigFieldName                            |  api_lint                |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
-  ConsistentArgumentOrder                    |  api_lint                |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  api_lint                |   error
@@ -90,6 +88,7 @@ Available Issues                             |  Category                |   Defa
   DeprecatedOption                           |  unknown                 |   warning
   DeprecationMismatch                        |  documentation           |   error
   DocumentExceptions                         |  api_lint                |   error
+  DuplicateSourceClass                       |  unknown                 |   warning
   EndsWithImpl                               |  api_lint                |   error
   Enum                                       |  api_lint                |   error
   EqualsAndHashCode                          |  api_lint                |   error
@@ -98,6 +97,7 @@ Available Issues                             |  Category                |   Defa
   ExpectedPlatformType                       |  unknown                 |   hidden
   ExtendsDeprecated                          |  unknown                 |   hidden
   ExtendsError                               |  api_lint                |   error
+  FlaggedApiLiteral                          |  api_lint                |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                |   error
   ForbiddenTag                               |  unknown                 |   error
   FractionFloat                              |  api_lint                |   error
@@ -128,7 +128,7 @@ Available Issues                             |  Category                |   Defa
   InvalidNullabilityOverride                 |  api_lint                |   error
   InvalidSyntax                              |  unknown                 |   error
   IoError                                    |  unknown                 |   error
-  KotlinDefaultParameterOrder                |  api_lint_androidx_misc  |   error
+  KotlinDefaultParameterOrder                |  api_lint                |   error
   KotlinKeyword                              |  api_lint                |   error
   KotlinOperator                             |  api_lint                |   info
   ListenerInterface                          |  api_lint                |   error
@@ -211,7 +211,7 @@ Available Issues                             |  Category                |   Defa
   UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  unknown                 |   error
   UniqueKotlinOperator                       |  api_lint                |   error
-  UnmatchedMergeAnnotation                   |  unknown                 |   warning
+  UnmatchedMergeAnnotation                   |  unknown                 |   error
   UnresolvedClass                            |  documentation           |   lint
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   lint
