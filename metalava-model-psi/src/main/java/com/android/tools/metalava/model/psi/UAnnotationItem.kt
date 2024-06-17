@@ -231,7 +231,7 @@ private constructor(
                         sb,
                         value,
                         // Normalize the input name of the annotation.
-                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
+                        codebase.annotationManager.normalizeInputName(value.qualifiedName!!),
                         target,
                         showDefaultAttrs
                     )

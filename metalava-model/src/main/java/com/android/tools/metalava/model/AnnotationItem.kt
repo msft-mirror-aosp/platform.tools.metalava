@@ -44,7 +44,7 @@ interface AnnotationItem {
     val codebase: Codebase
 
     /** Fully qualified name of the annotation */
-    val qualifiedName: String?
+    val qualifiedName: String
 
     /**
      * Determines the effect that this will have on whether an item annotated with this annotation
@@ -83,12 +83,12 @@ interface AnnotationItem {
 
     /** True if this annotation represents @JvmSynthetic */
     fun isJvmSynthetic(): Boolean {
-        return isJvmSyntheticAnnotation(qualifiedName ?: return false)
+        return isJvmSyntheticAnnotation(qualifiedName)
     }
 
     /** True if this annotation represents @IntDef, @LongDef or @StringDef */
     fun isTypeDefAnnotation(): Boolean {
-        val name = qualifiedName ?: return false
+        val name = qualifiedName
         if (!(name.endsWith("Def"))) {
             return false
         }
@@ -105,7 +105,7 @@ interface AnnotationItem {
      * annotation). The parameter name should be the default attribute or "value".
      */
     fun isParameterName(): Boolean {
-        return qualifiedName?.endsWith(".ParameterName") ?: return false
+        return qualifiedName.endsWith(".ParameterName")
     }
 
     /**
@@ -113,7 +113,7 @@ interface AnnotationItem {
      * annotation). The default value should be the default attribute or "value".
      */
     fun isDefaultValue(): Boolean {
-        return qualifiedName?.endsWith(".DefaultValue") ?: return false
+        return qualifiedName.endsWith(".DefaultValue")
     }
 
     /** Returns the given named attribute if specified */
@@ -194,7 +194,7 @@ interface AnnotationItem {
          * prefixed by @
          */
         fun simpleName(item: AnnotationItem): String {
-            return item.qualifiedName?.let { "@${it.substringAfterLast('.')}" }.orEmpty()
+            return item.qualifiedName.let { "@${it.substringAfterLast('.')}" }
         }
 
         /**
