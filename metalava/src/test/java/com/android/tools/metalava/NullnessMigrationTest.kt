@@ -732,13 +732,12 @@ class NullnessMigrationTest : DriverTest() {
             stubFiles =
                 arrayOf(
                     java(
-                        // TODO(b/347885819): This should use @Recently...
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Appendable {
-                            @android.annotation.NonNull
-                            public test.pkg.Appendable append(@android.annotation.Nullable java.lang.CharSequence csq);
+                            @androidx.annotation.RecentlyNonNull
+                            public test.pkg.Appendable append(@androidx.annotation.RecentlyNullable java.lang.CharSequence csq);
                             }
                         """
                     ),

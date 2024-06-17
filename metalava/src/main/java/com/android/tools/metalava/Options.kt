@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
@@ -30,6 +31,7 @@ import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
@@ -532,6 +534,8 @@ class Options(
                         .trimIndent()
             )
             .existingFile()
+            .multiple()
+            .map { PreviouslyReleasedApi.optionalPreviouslyReleasedApi(ARG_MIGRATE_NULLNESS, it) }
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
