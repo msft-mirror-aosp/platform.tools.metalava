@@ -51,8 +51,8 @@ class UAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
-    originalName: String?,
-    qualifiedName: String?,
+    originalName: String,
+    qualifiedName: String,
 ) :
     DefaultAnnotationItem(
         codebase = codebase,
@@ -100,9 +100,10 @@ private constructor(
         fun create(
             codebase: PsiBasedCodebase,
             uAnnotation: UAnnotation,
-        ): AnnotationItem {
-            val originalName = uAnnotation.qualifiedName
-            val qualifiedName = codebase.annotationManager.normalizeInputName(originalName)
+        ): AnnotationItem? {
+            val originalName = uAnnotation.qualifiedName ?: return null
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return UAnnotationItem(
                 codebase = codebase,
                 uAnnotation = uAnnotation,

@@ -49,8 +49,8 @@ class PsiAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
-    originalName: String?,
-    qualifiedName: String?,
+    originalName: String,
+    qualifiedName: String,
 ) :
     DefaultAnnotationItem(
         codebase = codebase,
@@ -100,9 +100,10 @@ private constructor(
         fun create(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,
-        ): AnnotationItem {
-            val originalName = psiAnnotation.qualifiedName
-            val qualifiedName = codebase.annotationManager.normalizeInputName(originalName)
+        ): AnnotationItem? {
+            val originalName = psiAnnotation.qualifiedName ?: return null
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return PsiAnnotationItem(
                 codebase = codebase,
                 psiAnnotation = psiAnnotation,
