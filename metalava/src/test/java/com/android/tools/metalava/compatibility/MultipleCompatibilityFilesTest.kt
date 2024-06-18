@@ -115,6 +115,11 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             // only reports issues found when comparing against `previouslyReleasedSystemApiDelta`.
             // That is to avoid reporting an issue in one API surface against any API surface that
             // extends it.
+            // TODO(b/347922041): Fix the handling of methods that overlap signature files.
+            expectedIssues =
+                """
+                    load-api.txt:9: error: Method test.pkg.Foo.foo added thrown exception test.pkg.Baz [ChangedThrows]
+                """,
         )
     }
 

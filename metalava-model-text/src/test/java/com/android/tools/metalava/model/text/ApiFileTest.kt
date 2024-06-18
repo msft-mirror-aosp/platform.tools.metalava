@@ -540,6 +540,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         assertEquals(
             """
+                package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
                 parameter currentCtorParameter

@@ -427,6 +427,11 @@ private constructor(
                         tokenizer
                     )
                 }
+                // Make sure that to mark the existing package as part of the current API surface if
+                // it is referenced in any signature file that was part of the current API surface.
+                if (!existing.emit) {
+                    existing.markForCurrentApiSurface()
+                }
                 existing
             } else {
                 val newPackageItem =
