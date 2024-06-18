@@ -450,6 +450,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         /** An optional API signature to use as the base API codebase during compat checks */
         @Language("TEXT") checkCompatibilityBaseApi: String? = null,
         @Language("TEXT") migrateNullsApi: String? = null,
+        migrateNullsApiList: List<String> = listOfNotNull(migrateNullsApi),
         /** An optional Proguard keep file to generate */
         @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
@@ -749,9 +750,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 "compatibility-base-api.txt"
             )
 
-        val migrateNullsApiFile =
-            useExistingSignatureFileOrCreateNewFile(project, migrateNullsApi, "stable-api.txt")
-
         val manifestFileArgs =
             if (manifest != null) {
                 val file = File(project, "manifest.xml")
@@ -762,11 +760,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             }
 
         val migrateNullsArguments =
-            if (migrateNullsApiFile != null) {
-                arrayOf(ARG_MIGRATE_NULLNESS, migrateNullsApiFile.path)
-            } else {
-                emptyArray()
-            }
+            migrateNullsApiList.contentOrPathListToArgsArray(
+                project,
+                "stable-api.txt",
+                ARG_MIGRATE_NULLNESS
+            )
 
         val checkCompatibilityBaseApiArguments =
             if (checkCompatibilityBaseApiFile != null) {
