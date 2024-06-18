@@ -442,7 +442,7 @@ internal object PsiModifierItem {
                             flags = getVisibilityFlag(ref, flags)
                         }
 
-                        PsiAnnotationItem.create(codebase, it, qualifiedName)
+                        PsiAnnotationItem.create(codebase, it)
                     }
                     .filter { !it.isDeprecatedForSdk() }
                     .toMutableList()
@@ -497,7 +497,7 @@ internal object PsiModifierItem {
                             flags = getVisibilityFlag(ref, flags)
                         }
 
-                        UAnnotationItem.create(codebase, it, qualifiedName)
+                        UAnnotationItem.create(codebase, it)
                     }
                     .filter { !it.isDeprecatedForSdk() }
                     .toMutableList()

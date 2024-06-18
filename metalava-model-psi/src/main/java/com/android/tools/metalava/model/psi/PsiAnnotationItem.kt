@@ -98,9 +98,9 @@ private constructor(
         fun create(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,
-            qualifiedName: String? = psiAnnotation.qualifiedName
         ): AnnotationItem {
-            return PsiAnnotationItem(codebase, psiAnnotation, qualifiedName)
+            val originalName = psiAnnotation.qualifiedName
+            return PsiAnnotationItem(codebase, psiAnnotation, originalName)
         }
 
         private fun getAttributes(
