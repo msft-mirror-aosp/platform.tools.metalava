@@ -1320,15 +1320,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
         /** The arguments to pass to Metalava. */
         fun arguments(project: File): Array<out String> {
-            if (fileOrSignatureContentsList.isEmpty()) return emptyArray()
-
-            val paths =
-                fileOrSignatureContentsList.mapNotNull {
-                    useExistingSignatureFileOrCreateNewFile(project, it, newBasename)?.path
-                }
-
-            // For each path in the list generate an option with the path as the value.
-            return paths.flatMap { listOf(optionName, it) }.toTypedArray()
+            return fileOrSignatureContentsList.contentOrPathListToArgsArray(
+                project,
+                newBasename,
+                optionName
+            )
         }
     }
 
@@ -1407,6 +1403,33 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                     file
                 }
             }
+
+        /**
+         * Converts the contents of the list, which may be either the name of a file or the contents
+         * of a file into an array of arguments.
+         *
+         * This will use files supplied and create new files from the contents of the file and then
+         * precede each file by the [optionName].
+         *
+         * @param project the project directory for the test.
+         * @param baseName the base name of the files, including extension. Any created files will
+         *   have a unique name based on this name.
+         * @param optionName the name of the option to use in the arguments.
+         */
+        private fun List<String>.contentOrPathListToArgsArray(
+            project: File,
+            baseName: String,
+            optionName: String
+        ): Array<String> {
+            if (isEmpty()) return emptyArray()
+
+            val paths = mapNotNull {
+                useExistingSignatureFileOrCreateNewFile(project, it, baseName)?.path
+            }
+
+            // For each path in the list generate an option with the path as the value.
+            return paths.flatMap { listOf(optionName, it) }.toTypedArray()
+        }
 
         private fun findNonExistentFile(project: File, basename: String): File {
             // Split the basename into the name without any extension an optional extension.
