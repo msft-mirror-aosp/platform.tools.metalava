@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.updateCopiedMethodState
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -94,8 +95,6 @@ internal constructor(
     override fun isFromClassPath(): Boolean = fromClassPath
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
-
-    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
@@ -231,6 +230,8 @@ internal constructor(
 
         // Remember which class this method was copied from.
         newMethod.inheritedFrom = template.containingClass()
+
+        newMethod.updateCopiedMethodState()
 
         return newMethod
     }
