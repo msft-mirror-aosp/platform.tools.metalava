@@ -712,26 +712,33 @@ class NullnessMigrationTest : DriverTest() {
                     androidxNonNullSource,
                     androidxNullableSource,
                 ),
-            migrateNullsApi =
-                """
-                    package test.pkg {
-                      public interface Appendable {
-                        method public Appendable append(java.lang.CharSequence csq) throws IOException;
-                      }
-                      public class ForSystemUse {
-                        method public Object foo(String foo);
-                      }
-                    }
-                """,
+            migrateNullsApiList =
+                listOf(
+                    """
+                        package test.pkg {
+                          public interface Appendable {
+                            method public Appendable append(java.lang.CharSequence csq) throws IOException;
+                          }
+                        }
+                    """,
+                    """
+                        package test.pkg {
+                          public class ForSystemUse {
+                            method public Object foo(String foo);
+                          }
+                        }
+                    """,
+                ),
             stubFiles =
                 arrayOf(
                     java(
+                        // TODO(b/347885819): This should use @Recently...
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Appendable {
-                            @androidx.annotation.RecentlyNonNull
-                            public test.pkg.Appendable append(@androidx.annotation.RecentlyNullable java.lang.CharSequence csq);
+                            @android.annotation.NonNull
+                            public test.pkg.Appendable append(@android.annotation.Nullable java.lang.CharSequence csq);
                             }
                         """
                     ),
