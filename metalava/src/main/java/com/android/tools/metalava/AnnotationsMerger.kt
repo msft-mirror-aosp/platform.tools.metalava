@@ -314,13 +314,12 @@ class AnnotationsMerger(
                     }
 
                     if (addAnnotation) {
-                        mergeAnnotation(
-                            new,
-                            new.codebase.createAnnotation(
+                        new.codebase
+                            .createAnnotation(
                                 annotation.toSource(showDefaultAttrs = false),
                                 new,
                             )
-                        )
+                            ?.let { mergeAnnotation(new, it) }
                     }
                 }
 

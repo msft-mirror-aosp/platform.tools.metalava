@@ -503,7 +503,7 @@ protected constructor(
             originalName: String,
             attributes: List<AnnotationAttribute> = emptyList(),
             context: Item? = null
-        ): AnnotationItem {
+        ): AnnotationItem? {
             val source = formatAnnotationItem(originalName, attributes)
             return codebase.createAnnotation(source, context)
         }
