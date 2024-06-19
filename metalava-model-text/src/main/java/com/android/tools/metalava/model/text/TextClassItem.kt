@@ -100,6 +100,8 @@ internal open class TextClassItem(
 
     private var superClassType: ClassTypeItem? = null
 
+    override fun superClass(): ClassItem? = superClassType?.asClass()
+
     override fun superClassType(): ClassTypeItem? = superClassType
 
     internal fun setSuperClassType(superClassType: ClassTypeItem?) {
