@@ -427,6 +427,11 @@ private constructor(
                         tokenizer
                     )
                 }
+                // Make sure that to mark the existing package as part of the current API surface if
+                // it is referenced in any signature file that was part of the current API surface.
+                if (!existing.emit) {
+                    existing.markForCurrentApiSurface()
+                }
                 existing
             } else {
                 val newPackageItem =
@@ -1120,9 +1125,9 @@ private constructor(
         method.setThrowsTypes(throwsList)
         method.setAnnotationDefault(defaultAnnotationMethodValue)
 
-        if (!cl.methods().contains(method)) {
-            cl.addMethod(method)
-        }
+        // If the method already exists in the class item because it was defined in a previous
+        // signature file then replace it with this one, otherwise just add this method.
+        cl.replaceOrAddMethod(method)
     }
 
     private fun parseField(
