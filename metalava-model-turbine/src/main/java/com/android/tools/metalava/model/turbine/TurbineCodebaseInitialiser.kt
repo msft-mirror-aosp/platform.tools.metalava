@@ -302,6 +302,21 @@ internal open class TurbineCodebaseInitialiser(
         val pkgName = sym.packageName().replace('/', '.')
         val pkgItem = findOrCreatePackage(pkgName, null, "")
 
+        // Create the sourcefile
+        val sourceFile =
+            if (isTopClass && !isFromClassPath) {
+                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
+                    TurbineSourceFile(codebase, it)
+                }
+            } else null
+        val fileLocation =
+            when {
+                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
+                containingClassItem != null ->
+                    TurbineFileLocation.forTree(containingClassItem, decl)
+                else -> FileLocation.UNKNOWN
+            }
+
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
@@ -321,20 +336,6 @@ internal open class TurbineCodebaseInitialiser(
                 enclosingClassTypeItemFactory,
                 "class $qualifiedName",
             )
-        // Create the sourcefile
-        val sourceFile =
-            if (isTopClass && !isFromClassPath) {
-                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
-                    TurbineSourceFile(codebase, it)
-                }
-            } else null
-        val fileLocation =
-            when {
-                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
-                containingClassItem != null ->
-                    TurbineFileLocation.forTree(containingClassItem, decl)
-                else -> FileLocation.UNKNOWN
-            }
         val classItem =
             TurbineClassItem(
                 codebase,
