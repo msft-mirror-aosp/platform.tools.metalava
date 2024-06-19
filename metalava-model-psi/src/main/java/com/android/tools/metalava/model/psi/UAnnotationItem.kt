@@ -68,7 +68,7 @@ private constructor(
     }
 
     override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName ?: return null)
+        return codebase.findOrCreateClass(originalName)
     }
 
     override fun isNonNull(): Boolean {

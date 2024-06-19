@@ -323,7 +323,7 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
             else -> listOfNotNull(attributeValue.value())
         }
 
-    return values.map { caster(convertValue(codebase, kClass, it)) }
+    return values.mapNotNull { convertValue(codebase, kClass, it) }.map { caster(it) }
 }
 
 /**
@@ -333,7 +333,7 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
  * simply returns the value it is given. It is the caller's responsibility to actually cast the
  * returned value to the correct type.
  */
-private fun convertValue(codebase: Codebase, kClass: KClass<*>, value: Any): Any {
+private fun convertValue(codebase: Codebase, kClass: KClass<*>, value: Any): Any? {
     // The value stored for number types is not always the same as the type of the annotation
     // attributes. This is for a number of reasons, e.g.
     // * In a .class file annotation values are stored in the constant pool and some number types do
@@ -372,10 +372,10 @@ protected constructor(
     override val codebase: Codebase,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    protected val originalName: String?,
+    protected val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
-    final override val qualifiedName: String?,
+    final override val qualifiedName: String,
 
     /** Possibly empty list of attributes. */
     attributesGetter: () -> List<AnnotationAttribute>,
@@ -409,7 +409,7 @@ protected constructor(
         get() = info.showability
 
     override fun resolve(): ClassItem? {
-        return codebase.findClass(originalName ?: return null)
+        return codebase.findClass(originalName)
     }
 
     /** If this annotation has a typedef annotation associated with it, return it */
@@ -433,7 +433,7 @@ protected constructor(
     }
 
     override fun hashCode(): Int {
-        var result = qualifiedName?.hashCode() ?: 0
+        var result = qualifiedName.hashCode()
         result = 31 * result + attributes.hashCode()
         return result
     }
@@ -476,7 +476,7 @@ protected constructor(
             }
         }
 
-        fun create(codebase: Codebase, source: String): AnnotationItem {
+        fun create(codebase: Codebase, source: String): AnnotationItem? {
             val index = source.indexOf("(")
             val originalName =
                 if (index == -1) source.substring(1) // Strip @
@@ -510,10 +510,11 @@ protected constructor(
          */
         fun create(
             codebase: Codebase,
-            originalName: String?,
+            originalName: String,
             attributesGetter: () -> List<AnnotationAttribute>,
-        ): AnnotationItem {
-            val qualifiedName = codebase.annotationManager.normalizeInputName(originalName)
+        ): AnnotationItem? {
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return DefaultAnnotationItem(
                 codebase = codebase,
                 originalName = originalName,

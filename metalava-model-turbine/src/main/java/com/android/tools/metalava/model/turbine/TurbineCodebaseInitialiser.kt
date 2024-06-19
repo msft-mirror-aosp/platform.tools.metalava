@@ -408,10 +408,10 @@ internal open class TurbineCodebaseInitialiser(
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.map { createAnnotation(it) }
+        return annotations.mapNotNull { createAnnotation(it) }
     }
 
-    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem {
+    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
         val simpleName = annotation.tree()?.let { extractNameFromIdent(it.name()) }
         val clsSym = annotation.sym()
         val qualifiedName =
