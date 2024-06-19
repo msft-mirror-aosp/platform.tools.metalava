@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -55,6 +56,7 @@ class CompatibilityCheck(
     private val apiType: ApiType,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
+    private val apiCompatAnnotations: Set<String>,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
@@ -187,6 +189,25 @@ class CompatibilityCheck(
                 old,
                 "Removed ${describe(old)} from compatibility checked API surface"
             )
+        }
+
+        apiCompatAnnotations.forEach { annotation ->
+            val isOldAnnotated = oldModifiers.isAnnotatedWith(annotation)
+            val newAnnotation = newModifiers.findAnnotation(annotation)
+            if (isOldAnnotated && newAnnotation == null) {
+                report(
+                    Issues.REMOVED_ANNOTATION,
+                    new,
+                    "Cannot remove @$annotation annotation from ${describe(old)}: Incompatible change",
+                )
+            } else if (!isOldAnnotated && newAnnotation != null) {
+                report(
+                    Issues.ADDED_ANNOTATION,
+                    new,
+                    "Cannot add @$annotation annotation to ${describe(old)}: Incompatible change",
+                    newAnnotation.fileLocation,
+                )
+            }
         }
 
         compareItemNullability(old, new)
@@ -996,6 +1017,7 @@ class CompatibilityCheck(
         issue: Issue,
         item: Item,
         message: String,
+        location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
         if (item.isCompatibilitySuppressed()) {
@@ -1004,7 +1026,7 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, maximumSeverity = maximumSeverity)) {
+        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
@@ -1022,6 +1044,7 @@ class CompatibilityCheck(
             apiType: ApiType,
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
+            apiCompatAnnotations: Set<String>,
         ) {
             val filter =
                 apiType
@@ -1036,6 +1059,7 @@ class CompatibilityCheck(
                     apiType,
                     reporter,
                     issueConfiguration,
+                    apiCompatAnnotations,
                 )
 
             CodebaseComparator(
