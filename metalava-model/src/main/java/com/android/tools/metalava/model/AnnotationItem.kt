@@ -368,7 +368,7 @@ private fun convertValue(codebase: Codebase, kClass: KClass<*>, value: Any): Any
 /** Default implementation of an annotation item */
 open class DefaultAnnotationItem
 /** The primary constructor is private to force sub-classes to use the secondary constructor. */
-private constructor(
+protected constructor(
     override val codebase: Codebase,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
@@ -380,22 +380,6 @@ private constructor(
     /** Possibly empty list of attributes. */
     attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
-
-    /**
-     * This constructor is needed to initialize [qualifiedName] using the [codebase] parameter
-     * instead of the [DefaultAnnotationItem.codebase] property which is overridden by subclasses
-     * and will not be initialized at the time it is used.
-     */
-    constructor(
-        codebase: Codebase,
-        originalName: String?,
-        attributesGetter: () -> List<AnnotationAttribute>,
-    ) : this(
-        codebase,
-        originalName,
-        qualifiedName = codebase.annotationManager.normalizeInputName(originalName),
-        attributesGetter,
-    )
 
     override val targets: Set<AnnotationTarget> by lazy {
         codebase.annotationManager.computeTargets(this, codebase::findClass)
@@ -511,7 +495,7 @@ private constructor(
                     )
                 }
 
-            return DefaultAnnotationItem(codebase, originalName, ::attributes)
+            return create(codebase, originalName, ::attributes)
         }
 
         fun create(
@@ -522,6 +506,24 @@ private constructor(
         ): AnnotationItem {
             val source = formatAnnotationItem(originalName, attributes)
             return codebase.createAnnotation(source, context)
+        }
+
+        /**
+         * Create a [DefaultAnnotationItem] by mapping the [originalName] to a [qualifiedName] by
+         * using the [codebase]'s [AnnotationManager.normalizeInputName].
+         */
+        fun create(
+            codebase: Codebase,
+            originalName: String?,
+            attributesGetter: () -> List<AnnotationAttribute>,
+        ): AnnotationItem {
+            val qualifiedName = codebase.annotationManager.normalizeInputName(originalName)
+            return DefaultAnnotationItem(
+                codebase = codebase,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+                attributesGetter = attributesGetter,
+            )
         }
     }
 }

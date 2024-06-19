@@ -417,7 +417,7 @@ internal open class TurbineCodebaseInitialiser(
         val qualifiedName =
             if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
 
-        return DefaultAnnotationItem(codebase, qualifiedName) {
+        return DefaultAnnotationItem.create(codebase, qualifiedName) {
             getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
         }
     }

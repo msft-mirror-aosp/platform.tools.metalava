@@ -51,12 +51,14 @@ class UAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
-    originalName: String?
+    originalName: String?,
+    qualifiedName: String?,
 ) :
     DefaultAnnotationItem(
-        codebase,
-        originalName,
-        { getAnnotationAttributes(codebase, uAnnotation) }
+        codebase = codebase,
+        originalName = originalName,
+        qualifiedName = qualifiedName,
+        attributesGetter = { getAnnotationAttributes(codebase, uAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -100,7 +102,13 @@ private constructor(
             uAnnotation: UAnnotation,
         ): AnnotationItem {
             val originalName = uAnnotation.qualifiedName
-            return UAnnotationItem(codebase, uAnnotation, originalName)
+            val qualifiedName = codebase.annotationManager.normalizeInputName(originalName)
+            return UAnnotationItem(
+                codebase = codebase,
+                uAnnotation = uAnnotation,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+            )
         }
 
         private fun getAttributes(
