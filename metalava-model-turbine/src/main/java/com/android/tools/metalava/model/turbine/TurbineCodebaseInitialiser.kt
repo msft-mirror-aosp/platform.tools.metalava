@@ -174,6 +174,24 @@ internal open class TurbineCodebaseInitialiser(
         createAllClasses()
     }
 
+    /** Map from file path to the [TurbineSourceFile]. */
+    private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
+
+    /**
+     * Create a [TurbineSourceFile] for the specified [compUnit].
+     *
+     * This may be called multiple times for the same [compUnit] in which case it will return the
+     * same [TurbineSourceFile]. It will throw an exception if two [CompUnit]s have the same path.
+     */
+    private fun createTurbineSourceFile(compUnit: CompUnit): TurbineSourceFile {
+        val path = compUnit.source().path()
+        val existing = turbineSourceFiles[path]
+        if (existing != null && existing.compUnit != compUnit) {
+            error("duplicate source file found for $path")
+        }
+        return TurbineSourceFile(codebase, compUnit).also { turbineSourceFiles[path] = it }
+    }
+
     private fun createAllPackages() {
         // Root package
         findOrCreatePackage("", null, "")
@@ -184,7 +202,7 @@ internal open class TurbineCodebaseInitialiser(
             // No class declarations. Will be a case of package-info file
             if (unit.decls().isEmpty()) {
                 val source = unit.source().source()
-                sourceFile = TurbineSourceFile(codebase, unit)
+                sourceFile = createTurbineSourceFile(unit)
                 doc = getHeaderComments(source)
             }
             findOrCreatePackage(getPackageName(unit), sourceFile, doc)
@@ -306,7 +324,7 @@ internal open class TurbineCodebaseInitialiser(
         val sourceFile =
             if (isTopClass && !isFromClassPath) {
                 classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
-                    TurbineSourceFile(codebase, it)
+                    createTurbineSourceFile(it)
                 }
             } else null
         val fileLocation =
