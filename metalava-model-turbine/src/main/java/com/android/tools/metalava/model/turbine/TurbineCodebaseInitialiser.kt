@@ -58,6 +58,7 @@ import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
+import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
@@ -191,6 +192,15 @@ internal open class TurbineCodebaseInitialiser(
         }
         return TurbineSourceFile(codebase, compUnit).also { turbineSourceFiles[path] = it }
     }
+
+    /**
+     * Get the [TurbineSourceFile] for a [SourceFile], failing if it could not be found.
+     *
+     * A [TurbineSourceFile] must be created by [createTurbineSourceFile] before calling this.
+     */
+    private fun turbineSourceFile(sourceFile: SourceFile): TurbineSourceFile =
+        turbineSourceFiles[sourceFile.path()]
+            ?: error("unrecognized source file: ${sourceFile.path()}")
 
     private fun createAllPackages() {
         // Root package
@@ -431,13 +441,21 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
-        val simpleName = annotation.tree()?.let { extractNameFromIdent(it.name()) }
+        val tree = annotation.tree()
+        val simpleName = tree?.let { extractNameFromIdent(it.name()) }
         val clsSym = annotation.sym()
         val qualifiedName =
             if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
 
-        return DefaultAnnotationItem.create(codebase, qualifiedName) {
-            getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
+        val fileLocation =
+            annotation
+                .source()
+                ?.let { sourceFile -> turbineSourceFile(sourceFile) }
+                ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
+                ?: FileLocation.UNKNOWN
+
+        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) {
+            getAnnotationAttributes(annotation.values(), tree?.args())
         }
     }
 

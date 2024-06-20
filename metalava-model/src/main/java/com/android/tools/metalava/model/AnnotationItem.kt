@@ -501,7 +501,7 @@ protected constructor(
                     )
                 }
 
-            return create(codebase, originalName, ::attributes)
+            return create(codebase, FileLocation.UNKNOWN, originalName, ::attributes)
         }
 
         fun create(
@@ -520,6 +520,7 @@ protected constructor(
          */
         fun create(
             codebase: Codebase,
+            fileLocation: FileLocation,
             originalName: String,
             attributesGetter: () -> List<AnnotationAttribute>,
         ): AnnotationItem? {
@@ -527,7 +528,7 @@ protected constructor(
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return DefaultAnnotationItem(
                 codebase = codebase,
-                fileLocation = FileLocation.UNKNOWN,
+                fileLocation = fileLocation,
                 originalName = originalName,
                 qualifiedName = qualifiedName,
                 attributesGetter = attributesGetter,
