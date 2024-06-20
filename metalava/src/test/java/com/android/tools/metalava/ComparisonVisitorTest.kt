@@ -20,7 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
@@ -35,71 +34,6 @@ import org.junit.rules.TemporaryFolder
 
 class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
     @get:Rule override val temporaryFolder = TemporaryFolder()
-
-    @Test
-    fun `prefer first's real children even when first is only implied`() {
-        val new =
-            MergedCodebase(
-                listOf(
-                    ApiFile.parseApi(
-                        "first.txt",
-                        """
-                        // Signature format: 2.0
-                        package pkg {
-                            public class Outer.Inner {
-                                method public TypeInFirst foobar();
-                            }
-                        }
-                        """
-                            .trimIndent()
-                    ),
-                    ApiFile.parseApi(
-                        "second.txt",
-                        """
-                        // Signature format: 2.0
-                        package pkg {
-                            public class Outer {
-                            }
-                            public class Outer.Inner {
-                                method public TypeInSecond foobar();
-                            }
-                        }
-                        """
-                            .trimIndent()
-                    )
-                )
-            )
-        val old =
-            MergedCodebase(
-                listOf(
-                    ApiFile.parseApi(
-                        "old.txt",
-                        """
-                        // Signature format: 2.0
-                        package pkg {
-                            public class Outer {
-                            }
-                            public class Outer.Inner {
-                            }
-                        }
-                        """
-                            .trimIndent()
-                    ),
-                )
-            )
-        var methodType: String? = null
-        CodebaseComparator(ApiVisitor.Config())
-            .compare(
-                object : ComparisonVisitor() {
-                    override fun added(new: MethodItem) {
-                        methodType = new.type().toSimpleType()
-                    }
-                },
-                old,
-                new
-            )
-        assertEquals("TypeInFirst", methodType)
-    }
 
     @Test
     fun `Test make sure that method with emit=false is ignored during comparison`() {
