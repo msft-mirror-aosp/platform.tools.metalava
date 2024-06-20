@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.FileLocation
 import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
@@ -42,6 +43,15 @@ fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
 
 interface AnnotationItem {
     val codebase: Codebase
+
+    /**
+     * The location of this annotation with the source file.
+     *
+     * Will be [FileLocation.UNKNOWN] if the location cannot be determined, e.g. because it is from
+     * a `.class` file.
+     */
+    val fileLocation: FileLocation
+        get() = FileLocation.UNKNOWN
 
     /** Fully qualified name of the annotation */
     val qualifiedName: String
