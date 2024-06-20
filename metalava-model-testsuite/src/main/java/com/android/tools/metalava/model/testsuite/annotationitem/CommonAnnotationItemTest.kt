@@ -113,10 +113,20 @@ class CommonAnnotationItemTest : BaseModelTest() {
             checkLocationInformation(
                 codebase.assertClass("test.pkg.Foo"),
                 """
+                    3:@test.pkg.LineBefore("Foo")
+                    4:@test.pkg.SameLine("Foo")
                     4:class test.pkg.Foo
+                    5:@test.pkg.LineBefore("constructor")
+                    6:@test.pkg.SameLine("constructor")
                     6:constructor test.pkg.Foo()
+                    7:@test.pkg.LineBefore("field")
+                    8:@test.pkg.SameLine("field")
                     8:field test.pkg.Foo.field
+                    9:@test.pkg.LineBefore("method")
+                    10:@test.pkg.SameLine("method")
                     10:method test.pkg.Foo.method(int)
+                    11:@test.pkg.LineBefore("parameter")
+                    12:@test.pkg.SameLine("parameter")
                     12:parameter p in test.pkg.Foo.method(int p)
                 """
             )
@@ -152,12 +162,22 @@ class CommonAnnotationItemTest : BaseModelTest() {
             checkLocationInformation(
                 codebase.assertClass("test.pkg.Foo"),
                 """
+                    3:@test.pkg.LineBefore("Foo")
+                    4:@test.pkg.SameLine("Foo")
                     4:class test.pkg.Foo
+                    5:@test.pkg.LineBefore("constructor")
                     5:constructor test.pkg.Foo()
+                    6:@test.pkg.SameLine("constructor")
+                    7:@test.pkg.LineBefore("field")
+                    8:@test.pkg.SameLine("field")
                     8:field test.pkg.Foo.field
                     8:method test.pkg.Foo.getField()
                     8:property Foo.field
+                    9:@test.pkg.LineBefore("method")
+                    10:@test.pkg.SameLine("method")
                     10:method test.pkg.Foo.method(int)
+                    11:@test.pkg.LineBefore("parameter")
+                    12:@test.pkg.SameLine("parameter")
                     12:parameter p in test.pkg.Foo.method(int p)
                 """
             )

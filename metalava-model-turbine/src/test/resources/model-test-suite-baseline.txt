@@ -1,4 +1,5 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation location (java)
   annotation toSource() with compound expression values
   annotation toSource() with constant literal values
 

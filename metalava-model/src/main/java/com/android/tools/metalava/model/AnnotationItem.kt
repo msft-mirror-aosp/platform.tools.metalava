@@ -51,7 +51,6 @@ interface AnnotationItem {
      * a `.class` file.
      */
     val fileLocation: FileLocation
-        get() = FileLocation.UNKNOWN
 
     /** Fully qualified name of the annotation */
     val qualifiedName: String
@@ -380,6 +379,7 @@ open class DefaultAnnotationItem
 /** The primary constructor is private to force sub-classes to use the secondary constructor. */
 protected constructor(
     override val codebase: Codebase,
+    override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
     protected val originalName: String,
@@ -527,6 +527,7 @@ protected constructor(
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return DefaultAnnotationItem(
                 codebase = codebase,
+                fileLocation = FileLocation.UNKNOWN,
                 originalName = originalName,
                 qualifiedName = qualifiedName,
                 attributesGetter = attributesGetter,
