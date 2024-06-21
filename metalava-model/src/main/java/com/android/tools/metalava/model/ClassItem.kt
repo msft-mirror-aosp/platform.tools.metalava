@@ -456,7 +456,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         }
     }
 
-    fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
+    fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
@@ -471,7 +471,7 @@ interface ClassItem : Item, TypeParameterListOwner {
                     return superClassType
                 }
 
-                return superClassType.convertType(this, prev)
+                return superClassType.convertType(this, prev) as ClassTypeItem
             }
 
             prev = superClass
@@ -575,7 +575,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
+    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<ClassTypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -584,9 +584,6 @@ interface ClassItem : Item, TypeParameterListOwner {
                 includeParents = false,
                 target = this
             )
-        if (interfaceTypes.isEmpty()) {
-            return interfaceTypes
-        }
 
         return interfaceTypes
     }
@@ -609,11 +606,11 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     private fun filteredInterfaceTypes(
         predicate: Predicate<Item>,
-        types: LinkedHashSet<TypeItem>,
+        types: LinkedHashSet<ClassTypeItem>,
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
-    ): LinkedHashSet<TypeItem> {
+    ): LinkedHashSet<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
             val superClass = superClassType.asClass()
