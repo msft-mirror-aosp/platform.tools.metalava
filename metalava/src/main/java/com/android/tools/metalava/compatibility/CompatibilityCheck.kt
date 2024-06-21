@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
+import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
@@ -1018,8 +1019,9 @@ class CompatibilityCheck(
         @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
-            oldCodebase: Codebase,
+            oldCodebases: MergedCodebase,
             apiType: ApiType,
+            baseApi: Codebase?,
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
         ) {
@@ -1038,14 +1040,24 @@ class CompatibilityCheck(
                     issueConfiguration,
                 )
 
+            val oldFullCodebase =
+                if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
+                    baseApi?.let { MergedCodebase(oldCodebases.children + baseApi) } ?: oldCodebases
+                } else {
+                    // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
+                    // first parameter is master, so we don't change values of oldCodeBase
+                    MergedCodebase(oldCodebases.children + newCodebase)
+                }
+            val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
+
             CodebaseComparator(
                     apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 )
-                .compare(checker, oldCodebase, newCodebase, filter)
+                .compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebases.children.last().location}"
 
             if (checker.foundProblems) {
                 throw MetalavaCliException(exitCode = -1, stderr = message)
