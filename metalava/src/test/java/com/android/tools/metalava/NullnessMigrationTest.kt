@@ -773,7 +773,7 @@ class NullnessMigrationTest : DriverTest() {
                             public PublicClass(@androidx.annotation.RecentlyNullable java.lang.String s) { throw new RuntimeException("Stub!"); }
                             @androidx.annotation.RecentlyNullable
                             public java.lang.String method(@androidx.annotation.RecentlyNonNull java.lang.Integer i) { throw new RuntimeException("Stub!"); }
-                            @android.annotation.Nullable public java.lang.String field;
+                            @androidx.annotation.RecentlyNullable public java.lang.String field;
                             }
                         """
                     ),
