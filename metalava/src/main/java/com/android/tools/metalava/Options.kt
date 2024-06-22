@@ -1063,9 +1063,7 @@ class Options(
         }
 
         // Get all the android.jar. They are in platforms-#
-        var apiLevel = minApi - 1
-        while (true) {
-            apiLevel++
+        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
             try {
                 var jar: File? = null
                 if (apiLevel == currentApiLevel) {
