@@ -151,7 +151,7 @@ internal class PsiTypeItemFactory(
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
+        val typeAnnotations = type.annotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
         // Compute the nullability, factoring in any context nullability, kotlin types and
         // type annotations.
         val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)
@@ -481,16 +481,14 @@ internal class PsiTypeItemFactory(
                         // class declaration, so the resolved [psiType] provides context then.
                         psiType.psiContext ?: psiType.resolve()
                     )
-                (createTypeItem(
-                        psiOuterClassType,
-                        kotlinType?.forOuterClass(),
-                        creatingClassTypeForClass = creatingClassTypeForClass,
-                    )
-                        as PsiClassTypeItem)
-                    .apply {
-                        // An outer class reference can't be null.
-                        modifiers.setNullability(TypeNullability.NONNULL)
-                    }
+                createTypeItem(
+                    psiOuterClassType,
+                    kotlinType?.forOuterClass(),
+                    // An outer class reference can't be null.
+                    contextNullability = ContextNullability.forceNonNull,
+                    creatingClassTypeForClass = creatingClassTypeForClass,
+                )
+                    as PsiClassTypeItem
             }
         }
     }
