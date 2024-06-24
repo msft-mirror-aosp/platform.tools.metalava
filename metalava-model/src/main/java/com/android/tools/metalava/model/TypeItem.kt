@@ -920,10 +920,13 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     /**
      * Duplicates this type (including duplicating the modifiers, so they can be independently
-     * mutated), but substituting in the provided [outerClass] and [arguments] in place of this
-     * instance's [outerClass] and [arguments].
+     * mutated), but substituting in the provided [outerClassType] and [arguments] in place of this
+     * instance's [outerClassType] and [arguments].
      */
-    fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeArgumentTypeItem>): ClassTypeItem
+    fun duplicate(
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): ClassTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return duplicate(
@@ -980,7 +983,7 @@ interface LambdaTypeItem : ClassTypeItem {
         duplicate(outerClassType?.duplicate(), arguments.map { it.duplicate() })
 
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem
 }

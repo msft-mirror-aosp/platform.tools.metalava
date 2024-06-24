@@ -95,7 +95,7 @@ internal open class PsiClassTypeItem(
     override fun asClass() = asClassCache
 
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem =
         PsiClassTypeItem(
@@ -103,7 +103,7 @@ internal open class PsiClassTypeItem(
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = arguments,
-            outerClassType = outerClass,
+            outerClassType = outerClassType,
             className = className,
             modifiers = modifiers.duplicate()
         )
@@ -134,7 +134,7 @@ internal class PsiLambdaTypeItem(
     LambdaTypeItem {
 
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem {
         return PsiLambdaTypeItem(
@@ -142,7 +142,7 @@ internal class PsiLambdaTypeItem(
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = arguments,
-            outerClassType = outerClass,
+            outerClassType = outerClassType,
             className = className,
             modifiers = modifiers.duplicate(),
             isSuspend = isSuspend,

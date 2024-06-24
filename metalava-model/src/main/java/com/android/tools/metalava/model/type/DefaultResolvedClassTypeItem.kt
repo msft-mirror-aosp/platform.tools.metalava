@@ -37,7 +37,7 @@ class DefaultResolvedClassTypeItem(
     override fun asClass() = classItem
 
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
         return DefaultResolvedClassTypeItem(modifiers.duplicate(), classItem, arguments)
