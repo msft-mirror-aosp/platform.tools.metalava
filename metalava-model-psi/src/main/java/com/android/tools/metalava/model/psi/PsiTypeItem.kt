@@ -58,8 +58,8 @@ internal class PsiPrimitiveTypeItem(
     override val kind: PrimitiveTypeItem.Primitive,
     modifiers: TypeModifiers,
 ) : PrimitiveTypeItem, PsiTypeItem(psiType, modifiers) {
-    override fun duplicate(): PsiPrimitiveTypeItem =
-        PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers.duplicate())
+    override fun duplicate(modifiers: TypeModifiers): PsiPrimitiveTypeItem =
+        PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers)
 }
 
 /** A [PsiTypeItem] backed by a [PsiArrayType]. */
@@ -69,12 +69,12 @@ internal class PsiArrayTypeItem(
     override val isVarargs: Boolean,
     modifiers: TypeModifiers,
 ) : ArrayTypeItem, PsiTypeItem(psiType, modifiers) {
-    override fun duplicate(componentType: TypeItem): ArrayTypeItem =
+    override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
             psiType = psiType,
             componentType = componentType,
             isVarargs = isVarargs,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers,
         )
 }
 
@@ -95,6 +95,7 @@ internal open class PsiClassTypeItem(
     override fun asClass() = asClassCache
 
     override fun duplicate(
+        modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem =
@@ -105,7 +106,7 @@ internal open class PsiClassTypeItem(
             arguments = arguments,
             outerClassType = outerClassType,
             className = className,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers,
         )
 }
 
@@ -134,6 +135,7 @@ internal class PsiLambdaTypeItem(
     LambdaTypeItem {
 
     override fun duplicate(
+        modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem {
@@ -144,7 +146,7 @@ internal class PsiLambdaTypeItem(
             arguments = arguments,
             outerClassType = outerClassType,
             className = className,
-            modifiers = modifiers.duplicate(),
+            modifiers = modifiers,
             isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
@@ -162,10 +164,10 @@ internal class PsiVariableTypeItem(
 
     override val name: String = asTypeParameter.name()
 
-    override fun duplicate(): PsiVariableTypeItem =
+    override fun duplicate(modifiers: TypeModifiers): PsiVariableTypeItem =
         PsiVariableTypeItem(
             psiType = psiType,
-            modifiers = modifiers.duplicate(),
+            modifiers = modifiers,
             asTypeParameter = asTypeParameter,
         )
 }
@@ -178,6 +180,7 @@ internal class PsiWildcardTypeItem(
     modifiers: TypeModifiers,
 ) : WildcardTypeItem, PsiTypeItem(psiType, modifiers) {
     override fun duplicate(
+        modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): WildcardTypeItem =
@@ -185,6 +188,6 @@ internal class PsiWildcardTypeItem(
             psiType = psiType,
             extendsBound = extendsBound,
             superBound = superBound,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers,
         )
 }

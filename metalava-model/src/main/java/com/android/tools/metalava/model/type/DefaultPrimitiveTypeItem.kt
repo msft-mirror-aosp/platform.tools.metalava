@@ -25,6 +25,6 @@ class DefaultPrimitiveTypeItem(
     modifiers: TypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, DefaultTypeItem(modifiers) {
-    override fun duplicate(): PrimitiveTypeItem =
-        DefaultPrimitiveTypeItem(modifiers.duplicate(), kind)
+    override fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem =
+        DefaultPrimitiveTypeItem(modifiers, kind)
 }

@@ -28,6 +28,6 @@ class DefaultVariableTypeItem(
 
     override val name: String = asTypeParameter.name()
 
-    override fun duplicate(): VariableTypeItem =
-        DefaultVariableTypeItem(modifiers.duplicate(), asTypeParameter)
+    override fun duplicate(modifiers: TypeModifiers): VariableTypeItem =
+        DefaultVariableTypeItem(modifiers, asTypeParameter)
 }

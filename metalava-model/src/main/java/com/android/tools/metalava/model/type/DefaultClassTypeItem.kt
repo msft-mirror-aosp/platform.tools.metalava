@@ -37,15 +37,10 @@ class DefaultClassTypeItem(
     override fun asClass() = asClassCache
 
     override fun duplicate(
+        modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
-        return DefaultClassTypeItem(
-            codebase,
-            modifiers.duplicate(),
-            qualifiedName,
-            arguments,
-            outerClassType
-        )
+        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, arguments, outerClassType)
     }
 }

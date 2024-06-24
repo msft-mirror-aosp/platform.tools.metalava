@@ -1061,7 +1061,14 @@ class CommonClassItemTest : BaseModelTest() {
 
             val child = codebase.assertClass("test.pkg.Child")
 
-            val erasedParentType = parent.type().duplicate(null, emptyList())
+            val parentType = parent.type()
+            val erasedParentType =
+                parentType.duplicate(
+                    // No need to duplicate the modifiers as they are not changed.
+                    parentType.modifiers,
+                    null,
+                    emptyList(),
+                )
             assertEquals(
                 mapOf(a to tType, b to erasedParentType),
                 parent.mapTypeVariables(grandparent)

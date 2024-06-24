@@ -27,11 +27,12 @@ class DefaultWildcardTypeItem(
     override val superBound: ReferenceTypeItem?,
 ) : WildcardTypeItem, DefaultTypeItem(modifiers) {
     override fun duplicate(
+        modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): WildcardTypeItem {
         return DefaultWildcardTypeItem(
-            modifiers.duplicate(),
+            modifiers,
             extendsBound,
             superBound,
         )
