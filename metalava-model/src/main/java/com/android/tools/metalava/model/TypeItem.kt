@@ -165,7 +165,7 @@ interface TypeItem {
      * Duplicates this type substituting in the provided [modifiers] in place of this instance's
      * [modifiers].
      */
-    fun duplicate(modifiers: TypeModifiers): TypeItem
+    fun substitute(modifiers: TypeModifiers): TypeItem
 
     /**
      * Return a [TypeItem] instance identical to this on except its [modifiers]'s
@@ -176,7 +176,7 @@ interface TypeItem {
      */
     fun substitute(nullability: TypeNullability) =
         if (modifiers.nullability() == nullability) this
-        else duplicate(modifiers.substitute(nullability))
+        else substitute(modifiers.substitute(nullability))
 
     companion object {
         /** Shortens types, if configured */
@@ -720,7 +720,7 @@ interface TypeArgumentTypeItem : TypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem
 
     /** Override to specialize the return type. */
-    override fun duplicate(modifiers: TypeModifiers): TypeArgumentTypeItem
+    override fun substitute(modifiers: TypeModifiers): TypeArgumentTypeItem
 }
 
 /**
@@ -733,7 +733,7 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem
 
     /** Override to specialize the return type. */
-    override fun duplicate(modifiers: TypeModifiers): ReferenceTypeItem
+    override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
 }
 
 /**
@@ -825,7 +825,10 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this, other)
     }
 
-    override fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
+    fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): PrimitiveTypeItem =
+        if (modifiers !== this.modifiers) duplicate(modifiers) else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
         // Primitive type is never affected by a type mapping so always return this.
@@ -857,14 +860,14 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         visitor.visit(this, other)
     }
 
-    override fun duplicate(modifiers: TypeModifiers): ArrayTypeItem =
-        duplicate(modifiers, componentType)
-
     /**
      * Duplicates this type substituting in the provided [modifiers] and [componentType] in place of
      * this instance's [modifiers] and [componentType].
      */
     fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): ArrayTypeItem =
+        substitute(modifiers, componentType)
 
     /**
      * Return an [ArrayTypeItem] instance identical to this one except its [TypeItem.modifiers] and
@@ -942,9 +945,6 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
-    override fun duplicate(modifiers: TypeModifiers): ClassTypeItem =
-        duplicate(modifiers, outerClassType, arguments)
-
     /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
      * [arguments] in place of this instance's [modifiers], [outerClassType] and [arguments].
@@ -954,6 +954,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>,
     ): ClassTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): ClassTypeItem =
+        substitute(modifiers, outerClassType, arguments)
 
     /**
      * Return a [ClassTypeItem] instance identical to this one except its [TypeItem.modifiers],
@@ -1027,14 +1030,21 @@ interface LambdaTypeItem : ClassTypeItem {
     /** The return type. */
     val returnType: TypeItem
 
-    override fun duplicate(modifiers: TypeModifiers): LambdaTypeItem =
-        duplicate(modifiers, outerClassType, arguments)
-
     override fun duplicate(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>,
     ): LambdaTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
+        substitute(modifiers, outerClassType, arguments)
+
+    /** Override to specialize the return type. */
+    override fun substitute(
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ) = super.substitute(modifiers, outerClassType, arguments) as LambdaTypeItem
 }
 
 /** Represents a type variable type. */
@@ -1058,6 +1068,11 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
         visitor.visit(this, other)
     }
+
+    fun duplicate(modifiers: TypeModifiers): VariableTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): VariableTypeItem =
+        if (modifiers !== this.modifiers) duplicate(modifiers) else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
         val nullability = modifiers.nullability()
@@ -1090,8 +1105,6 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
 
-    override fun duplicate(modifiers: TypeModifiers): VariableTypeItem
-
     override fun equalToType(other: TypeItem?): Boolean {
         return (other as? VariableTypeItem)?.name == name
     }
@@ -1118,9 +1131,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         visitor.visit(this, other)
     }
 
-    override fun duplicate(modifiers: TypeModifiers): WildcardTypeItem =
-        duplicate(modifiers, extendsBound, superBound)
-
     /**
      * Duplicates this type substituting in the provided [modifiers], [extendsBound] and
      * [superBound] in place of this instance's [modifiers], [extendsBound] and [superBound].
@@ -1130,6 +1140,9 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?,
     ): WildcardTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): WildcardTypeItem =
+        substitute(modifiers, extendsBound, superBound)
 
     /**
      * Return a [WildcardTypeItem] instance identical to this one except its [TypeItem.modifiers],
