@@ -161,8 +161,11 @@ interface TypeItem {
 
     fun defaultValueString(): String = "null"
 
-    /** Creates an identical type, with a copy of this type's modifiers, so they can be mutated. */
-    fun duplicate(): TypeItem
+    /**
+     * Duplicates this type substituting in the provided [modifiers] in place of this instance's
+     * [modifiers].
+     */
+    fun duplicate(modifiers: TypeModifiers = this.modifiers.duplicate()): TypeItem
 
     /**
      * Creates an identical type, with a copy of this type's modifiers with the specified
@@ -713,7 +716,7 @@ interface TypeArgumentTypeItem : TypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem
 
     /** Override to specialize the return type. */
-    override fun duplicate(): TypeArgumentTypeItem
+    override fun duplicate(modifiers: TypeModifiers): TypeArgumentTypeItem
 }
 
 /**
@@ -726,7 +729,7 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem
 
     /** Override to specialize the return type. */
-    override fun duplicate(): ReferenceTypeItem
+    override fun duplicate(modifiers: TypeModifiers): ReferenceTypeItem
 }
 
 /**
@@ -818,13 +821,7 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this, other)
     }
 
-    override fun duplicate(): PrimitiveTypeItem = duplicate(modifiers.duplicate())
-
-    /**
-     * Duplicates this type substituting in the provided [modifiers] in place of this instance's
-     * [modifiers].
-     */
-    fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
+    override fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
         return duplicate(modifiers.duplicate())
@@ -855,8 +852,8 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         visitor.visit(this, other)
     }
 
-    override fun duplicate(): ArrayTypeItem =
-        duplicate(modifiers.duplicate(), componentType.duplicate())
+    override fun duplicate(modifiers: TypeModifiers): ArrayTypeItem =
+        duplicate(modifiers, componentType.duplicate())
 
     /**
      * Duplicates this type substituting in the provided [modifiers] and [componentType] in place of
@@ -925,9 +922,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
-    override fun duplicate(): ClassTypeItem =
+    override fun duplicate(modifiers: TypeModifiers): ClassTypeItem =
         duplicate(
-            modifiers.duplicate(),
+            modifiers,
             outerClassType?.duplicate(),
             arguments.map { it.duplicate() },
         )
@@ -994,9 +991,9 @@ interface LambdaTypeItem : ClassTypeItem {
     /** The return type. */
     val returnType: TypeItem
 
-    override fun duplicate(): LambdaTypeItem =
+    override fun duplicate(modifiers: TypeModifiers): LambdaTypeItem =
         duplicate(
-            modifiers.duplicate(),
+            modifiers,
             outerClassType?.duplicate(),
             arguments.map { it.duplicate() },
         )
@@ -1053,13 +1050,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
 
-    override fun duplicate(): VariableTypeItem = duplicate(modifiers.duplicate())
-
-    /**
-     * Duplicates this type substituting in the provided [modifiers] in place of this instance's
-     * [modifiers].
-     */
-    fun duplicate(modifiers: TypeModifiers): VariableTypeItem
+    override fun duplicate(modifiers: TypeModifiers): VariableTypeItem
 
     override fun equalToType(other: TypeItem?): Boolean {
         return (other as? VariableTypeItem)?.name == name
@@ -1087,8 +1078,8 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         visitor.visit(this, other)
     }
 
-    override fun duplicate(): WildcardTypeItem =
-        duplicate(modifiers.duplicate(), extendsBound?.duplicate(), superBound?.duplicate())
+    override fun duplicate(modifiers: TypeModifiers): WildcardTypeItem =
+        duplicate(modifiers, extendsBound?.duplicate(), superBound?.duplicate())
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [extendsBound] and
