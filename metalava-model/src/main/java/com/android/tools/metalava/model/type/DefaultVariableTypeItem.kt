@@ -28,6 +28,10 @@ class DefaultVariableTypeItem(
 
     override val name: String = asTypeParameter.name()
 
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers)"),
+    )
     override fun duplicate(modifiers: TypeModifiers): VariableTypeItem =
         DefaultVariableTypeItem(modifiers, asTypeParameter)
 }

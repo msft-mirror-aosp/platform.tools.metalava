@@ -58,6 +58,10 @@ internal class PsiPrimitiveTypeItem(
     override val kind: PrimitiveTypeItem.Primitive,
     modifiers: TypeModifiers,
 ) : PrimitiveTypeItem, PsiTypeItem(psiType, modifiers) {
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers)"),
+    )
     override fun duplicate(modifiers: TypeModifiers): PsiPrimitiveTypeItem =
         PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers)
 }
@@ -69,6 +73,10 @@ internal class PsiArrayTypeItem(
     override val isVarargs: Boolean,
     modifiers: TypeModifiers,
 ) : ArrayTypeItem, PsiTypeItem(psiType, modifiers) {
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
+    )
     override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
             psiType = psiType,
@@ -94,6 +102,10 @@ internal open class PsiClassTypeItem(
 
     override fun asClass() = asClassCache
 
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
+    )
     override fun duplicate(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
@@ -134,6 +146,10 @@ internal class PsiLambdaTypeItem(
     ),
     LambdaTypeItem {
 
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
+    )
     override fun duplicate(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
@@ -164,6 +180,10 @@ internal class PsiVariableTypeItem(
 
     override val name: String = asTypeParameter.name()
 
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers)"),
+    )
     override fun duplicate(modifiers: TypeModifiers): PsiVariableTypeItem =
         PsiVariableTypeItem(
             psiType = psiType,
@@ -179,6 +199,10 @@ internal class PsiWildcardTypeItem(
     override val superBound: ReferenceTypeItem?,
     modifiers: TypeModifiers,
 ) : WildcardTypeItem, PsiTypeItem(psiType, modifiers) {
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)")
+    )
     override fun duplicate(
         modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
