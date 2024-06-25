@@ -28,7 +28,7 @@ interface TypeModifiers {
     fun nullability(): TypeNullability
 
     /** Create a copy of this to which modifications can be made. */
-    fun duplicate(nullability: TypeNullability = this.nullability()): TypeModifiers
+    fun duplicate(nullability: TypeNullability): TypeModifiers
 
     /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
     val isNullable

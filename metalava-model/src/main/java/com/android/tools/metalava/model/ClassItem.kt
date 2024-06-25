@@ -755,7 +755,7 @@ interface ClassItem : Item, TypeParameterListOwner {
             classTypeItem.arguments.map {
                 if (it is ClassTypeItem && it.arguments.isNotEmpty()) {
                     it.duplicate(
-                        it.modifiers.duplicate(),
+                        it.modifiers,
                         it.outerClassType,
                         arguments = emptyList(),
                     )
