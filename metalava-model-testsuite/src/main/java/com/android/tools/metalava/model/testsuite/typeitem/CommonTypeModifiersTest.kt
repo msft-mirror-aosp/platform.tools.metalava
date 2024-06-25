@@ -1555,7 +1555,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             stringType.assertHasNullableNullability(annotations)
 
             // Set to platform
-            val platformStringType = stringType.duplicate(PLATFORM)
+            val platformStringType = stringType.substitute(PLATFORM)
             platformStringType.assertHasPlatformNullability()
             // The annotation was not removed
             if (annotations) {
@@ -1563,7 +1563,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // Set to non-null
-            val nonNullStringType = stringType.duplicate(NONNULL)
+            val nonNullStringType = stringType.substitute(NONNULL)
             assertThat(nonNullStringType.modifiers.nullability()).isEqualTo(NONNULL)
             // The nullable annotation was not removed, a nonnull annotation was not added
             if (annotations) {

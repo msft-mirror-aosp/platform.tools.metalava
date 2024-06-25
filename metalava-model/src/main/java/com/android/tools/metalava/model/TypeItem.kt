@@ -168,11 +168,15 @@ interface TypeItem {
     fun duplicate(modifiers: TypeModifiers): TypeItem
 
     /**
-     * Creates an identical type, with a copy of this type's modifiers with the specified
-     * [withNullability] that can be modified further if needed.
+     * Return a [TypeItem] instance identical to this on except its [modifiers]'s
+     * [TypeModifiers.nullability] property is the same as the [nullability] parameter.
+     *
+     * If the parameter is the same as this instance's [modifiers]'s property then it will just
+     * return this instance, otherwise it will return a new instance with a new [TypeModifiers].
      */
-    fun duplicate(withNullability: TypeNullability) =
-        duplicate(modifiers.duplicate(withNullability))
+    fun substitute(nullability: TypeNullability) =
+        if (modifiers.nullability() == nullability) this
+        else duplicate(modifiers.substitute(nullability))
 
     companion object {
         /** Shortens types, if configured */
@@ -1075,7 +1079,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             if (replacementNullability == null) {
                 replacement
             } else {
-                replacement.duplicate(replacementNullability) as ReferenceTypeItem
+                replacement.substitute(replacementNullability) as ReferenceTypeItem
             }
         }
             ?:

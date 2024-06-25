@@ -33,8 +33,9 @@ class DefaultTypeModifiers(
         return nullability
     }
 
-    override fun duplicate(nullability: TypeNullability) =
-        DefaultTypeModifiers(annotations.toMutableList(), nullability)
+    override fun substitute(nullability: TypeNullability) =
+        if (nullability == this.nullability) this
+        else DefaultTypeModifiers(annotations, nullability)
 
     companion object {
         /** A set of empty, non-null [TypeModifiers] for sharing. */

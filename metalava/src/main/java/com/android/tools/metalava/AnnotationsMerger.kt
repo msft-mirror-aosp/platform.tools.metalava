@@ -841,7 +841,7 @@ class AnnotationsMerger(
         // nullability.
         if (typeItem.modifiers.nullability() != annotationNullability) {
             // Finally, duplicate the type with the new nullability.
-            item.setType(typeItem.duplicate(annotationNullability))
+            item.setType(typeItem.substitute(annotationNullability))
         }
     }
 
