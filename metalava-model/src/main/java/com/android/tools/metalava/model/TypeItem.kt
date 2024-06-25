@@ -165,7 +165,7 @@ interface TypeItem {
      * Duplicates this type substituting in the provided [modifiers] in place of this instance's
      * [modifiers].
      */
-    fun duplicate(modifiers: TypeModifiers = this.modifiers.duplicate()): TypeItem
+    fun duplicate(modifiers: TypeModifiers = this.modifiers): TypeItem
 
     /**
      * Creates an identical type, with a copy of this type's modifiers with the specified
@@ -824,7 +824,7 @@ interface PrimitiveTypeItem : TypeItem {
     override fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
-        return duplicate(modifiers.duplicate())
+        return duplicate(modifiers)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -863,7 +863,7 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
         return duplicate(
-            modifiers.duplicate(),
+            modifiers,
             componentType.convertType(typeParameterBindings),
         )
     }
@@ -941,7 +941,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return duplicate(
-            modifiers.duplicate(),
+            modifiers,
             outerClassType?.convertType(typeParameterBindings),
             arguments.map { it.convertType(typeParameterBindings) },
         )
@@ -1095,7 +1095,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
         return duplicate(
-            modifiers.duplicate(),
+            modifiers,
             extendsBound?.convertType(typeParameterBindings),
             superBound?.convertType(typeParameterBindings)
         )
