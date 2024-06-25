@@ -824,7 +824,8 @@ interface PrimitiveTypeItem : TypeItem {
     override fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
-        return duplicate(modifiers)
+        // Primitive type is never affected by a type mapping so always return this.
+        return this
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -861,10 +862,25 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
      */
     fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem
 
+    /**
+     * Return an [ArrayTypeItem] instance identical to this one except its [TypeItem.modifiers] and
+     * [ArrayTypeItem.componentType] properties are the same as the [modifiers] and [componentType]
+     * parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
+     */
+    fun substitute(
+        modifiers: TypeModifiers = this.modifiers,
+        componentType: TypeItem = this.componentType,
+    ) =
+        if (modifiers !== this.modifiers || componentType !== this.componentType)
+            duplicate(modifiers, componentType)
+        else this
+
     override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
-        return duplicate(
-            modifiers,
-            componentType.convertType(typeParameterBindings),
+        return substitute(
+            componentType = componentType.convertType(typeParameterBindings),
         )
     }
 
@@ -935,11 +951,31 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         arguments: List<TypeArgumentTypeItem>,
     ): ClassTypeItem
 
+    /**
+     * Return a [ClassTypeItem] instance identical to this one except its [TypeItem.modifiers],
+     * [ClassTypeItem.outerClassType] and [ClassTypeItem.arguments] properties are the same as the
+     * [modifiers], [outerClassType] and [arguments] parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
+     */
+    fun substitute(
+        modifiers: TypeModifiers = this.modifiers,
+        outerClassType: ClassTypeItem? = this.outerClassType,
+        arguments: List<TypeArgumentTypeItem> = this.arguments,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                outerClassType !== this.outerClassType ||
+                arguments !== this.arguments
+        )
+            duplicate(modifiers, outerClassType, arguments)
+        else this
+
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
-        return duplicate(
-            modifiers,
-            outerClassType?.convertType(typeParameterBindings),
-            arguments.map { it.convertType(typeParameterBindings) },
+        return substitute(
+            outerClassType = outerClassType?.convertType(typeParameterBindings),
+            arguments = arguments.mapIfNotSame { it.convertType(typeParameterBindings) },
         )
     }
 
@@ -1021,25 +1057,31 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
         val nullability = modifiers.nullability()
-        return (typeParameterBindings[asTypeParameter] ?: this).let { replacement ->
+        return typeParameterBindings[asTypeParameter]?.let { replacement ->
             val replacementNullability =
                 when {
                     // If this use of the type parameter is marked as nullable, then it overrides
-                    // the
-                    // nullability of the substituted type.
+                    // the nullability of the substituted type.
                     nullability == TypeNullability.NULLABLE -> nullability
                     // If the type that is replacing the type parameter has platform nullability,
-                    // i.e.
-                    // carries no information one way or another about whether it is nullable, then
-                    // use the nullability of the use of the type parameter as while at worst it may
-                    // also have no nullability information, it could have some, e.g. from a
+                    // i.e. carries no information one way or another about whether it is nullable,
+                    // then use the nullability of the use of the type parameter as while at worst
+                    // it may also have no nullability information, it could have some, e.g. from a
                     // declaration nullability annotation.
                     replacement.modifiers.nullability() == TypeNullability.PLATFORM -> nullability
-                    else -> replacement.modifiers.nullability()
+                    else -> null
                 }
 
-            replacement.duplicate(replacementNullability) as ReferenceTypeItem
+            if (replacementNullability == null) {
+                replacement
+            } else {
+                replacement.duplicate(replacementNullability) as ReferenceTypeItem
+            }
         }
+            ?:
+            // The type parameter binding does not contain a replacement for this variable so use
+            // this as is.
+            this
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
@@ -1085,8 +1127,29 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         superBound: ReferenceTypeItem?,
     ): WildcardTypeItem
 
+    /**
+     * Return a [WildcardTypeItem] instance identical to this one except its [TypeItem.modifiers],
+     * [WildcardTypeItem.extendsBound] and [WildcardTypeItem.superBound] properties are the same as
+     * the [modifiers], [extendsBound] and [superBound] parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
+     */
+    fun substitute(
+        modifiers: TypeModifiers = this.modifiers,
+        extendsBound: ReferenceTypeItem? = this.extendsBound,
+        superBound: ReferenceTypeItem? = this.superBound,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                extendsBound !== this.extendsBound ||
+                superBound !== this.superBound
+        )
+            duplicate(modifiers, extendsBound, superBound)
+        else this
+
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
-        return duplicate(
+        return substitute(
             modifiers,
             extendsBound?.convertType(typeParameterBindings),
             superBound?.convertType(typeParameterBindings)
@@ -1102,6 +1165,23 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 
     override fun asClass(): ClassItem? = null
+}
+
+/**
+ * Map the items in this list to a new list if [transform] returns at least one item which is not
+ * the same instance as its input, otherwise return this.
+ */
+fun <T> List<T>.mapIfNotSame(transform: (T) -> T): List<T> {
+    if (isEmpty()) return this
+    val newList = map(transform)
+    val i1 = iterator()
+    val i2 = newList.iterator()
+    while (i1.hasNext() && i2.hasNext()) {
+        val t1 = i1.next()
+        val t2 = i2.next()
+        if (t1 !== t2) return newList
+    }
+    return this
 }
 
 /**

@@ -1575,8 +1575,6 @@ class CommonTypeItemTest : BaseModelTest() {
                     append(name).append("\n")
                     append("    original: ${typeToTest.typeInfo()}\n")
 
-                    // TODO(b/325454211): Optimize convertType so it returns the same object when
-                    //  the type parameter bindings are not used in the type.
                     // Map the Unused type variable to java.lang.Long. This should have no effect of
                     // on the test type.
                     typeToTest.convertType(mapOf(unusedTypeVariable to javaLongType)).also { result
@@ -1584,20 +1582,22 @@ class CommonTypeItemTest : BaseModelTest() {
                         append("${"    no change"}: ${result.typeInfo()}\n")
                         val unusedMessage =
                             "conversion of ${unusedTypeVariable.name()} to $javaLongType in $name"
-                        assertWithMessage(unusedMessage)
-                            .that(result)
-                            .isNotSameInstanceAs(typeToTest)
+                        assertWithMessage(unusedMessage).that(result).isSameInstanceAs(typeToTest)
                     }
 
                     // Map the T type variable to java.lang.Long. This should change every type
                     // except the primitive type.
-                    // TODO(b/325454211): Optimize convertType for PrimitiveTypeItem so it always
-                    //  returns the object on which it is called.
                     typeToTest.convertType(mapOf(usedTypeVariable to javaLongType)).also { result ->
                         append("${"    T -> java.lang.Long"}: ${result.typeInfo()}\n")
                         val usedMessage =
                             "conversion of ${usedTypeVariable.name()} to $javaLongType in $name"
-                        assertWithMessage(usedMessage).that(result).isNotSameInstanceAs(typeToTest)
+                        if (name == "primitiveTypeItem") {
+                            assertWithMessage(usedMessage).that(result).isSameInstanceAs(typeToTest)
+                        } else {
+                            assertWithMessage(usedMessage)
+                                .that(result)
+                                .isNotSameInstanceAs(typeToTest)
+                        }
                     }
 
                     append("\n")
