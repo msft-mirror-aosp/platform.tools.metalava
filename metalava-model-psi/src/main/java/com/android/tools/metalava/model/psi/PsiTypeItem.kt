@@ -65,14 +65,14 @@ internal class PsiPrimitiveTypeItem(
 /** A [PsiTypeItem] backed by a [PsiArrayType]. */
 internal class PsiArrayTypeItem(
     psiType: PsiType,
-    override val componentType: PsiTypeItem,
+    override val componentType: TypeItem,
     override val isVarargs: Boolean,
     modifiers: TypeModifiers,
 ) : ArrayTypeItem, PsiTypeItem(psiType, modifiers) {
     override fun duplicate(componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
             psiType = psiType,
-            componentType = componentType as PsiTypeItem,
+            componentType = componentType,
             isVarargs = isVarargs,
             modifiers = modifiers.duplicate()
         )
@@ -84,7 +84,7 @@ internal open class PsiClassTypeItem(
     psiType: PsiType,
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
-    final override val outerClassType: PsiClassTypeItem?,
+    final override val outerClassType: ClassTypeItem?,
     final override val className: String,
     modifiers: TypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(psiType, modifiers) {
@@ -95,7 +95,7 @@ internal open class PsiClassTypeItem(
     override fun asClass() = asClassCache
 
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem =
         PsiClassTypeItem(
@@ -103,7 +103,7 @@ internal open class PsiClassTypeItem(
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = arguments,
-            outerClassType = outerClass as? PsiClassTypeItem,
+            outerClassType = outerClassType,
             className = className,
             modifiers = modifiers.duplicate()
         )
@@ -114,7 +114,7 @@ internal class PsiLambdaTypeItem(
     psiType: PsiType,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
-    outerClassType: PsiClassTypeItem?,
+    outerClassType: ClassTypeItem?,
     className: String,
     modifiers: TypeModifiers,
     override val isSuspend: Boolean,
@@ -134,7 +134,7 @@ internal class PsiLambdaTypeItem(
     LambdaTypeItem {
 
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem {
         return PsiLambdaTypeItem(
@@ -142,7 +142,7 @@ internal class PsiLambdaTypeItem(
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = arguments,
-            outerClassType = outerClass as? PsiClassTypeItem,
+            outerClassType = outerClassType,
             className = className,
             modifiers = modifiers.duplicate(),
             isSuspend = isSuspend,
