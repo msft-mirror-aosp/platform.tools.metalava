@@ -70,12 +70,8 @@ internal class TextTypeItemFactory(
                 forcedComponentNullability != typeItem.componentType.modifiers.nullability()
         ) {
             typeItem =
-                typeItem.duplicate(
-                    // No need to duplicate the type's modifiers as only its componentType's
-                    // nullability is being changed and the original `typeItem` that owned the
-                    // modifiers is being discarded.
-                    typeItem.modifiers,
-                    typeItem.componentType.duplicate(forcedComponentNullability),
+                typeItem.substitute(
+                    componentType = typeItem.componentType.duplicate(forcedComponentNullability),
                 )
         }
 
