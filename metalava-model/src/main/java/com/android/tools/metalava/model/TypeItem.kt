@@ -172,7 +172,7 @@ interface TypeItem {
      * [withNullability] that can be modified further if needed.
      */
     fun duplicate(withNullability: TypeNullability) =
-        duplicate().apply { modifiers.setNullability(withNullability) }
+        duplicate(modifiers.duplicate(withNullability))
 
     companion object {
         /** Shortens types, if configured */
@@ -1043,12 +1043,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
                     // also have no nullability information, it could have some, e.g. from a
                     // declaration nullability annotation.
                     replacement.modifiers.nullability() == TypeNullability.PLATFORM -> nullability
-                    else -> null
+                    else -> replacement.modifiers.nullability()
                 }
 
-            replacement.duplicate().apply {
-                if (replacementNullability != null) modifiers.setNullability(replacementNullability)
-            }
+            replacement.duplicate(replacementNullability) as ReferenceTypeItem
         }
     }
 
