@@ -27,12 +27,6 @@ interface TypeModifiers {
     /** The nullability of the type. */
     fun nullability(): TypeNullability
 
-    /**
-     * Updates the nullability of the type to [newNullability]. Does not add or remove any nullness
-     * annotations.
-     */
-    fun setNullability(newNullability: TypeNullability)
-
     /** Create a copy of this to which modifications can be made. */
     fun duplicate(nullability: TypeNullability = this.nullability()): TypeModifiers
 
