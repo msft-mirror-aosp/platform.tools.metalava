@@ -38,16 +38,6 @@ class DefaultTypeModifiers(
 
     override fun annotations(): List<AnnotationItem> = annotations
 
-    override fun addAnnotation(annotation: AnnotationItem) {
-        ensureMutable()
-        annotations.add(annotation)
-    }
-
-    override fun removeAnnotation(annotation: AnnotationItem) {
-        ensureMutable()
-        annotations.remove(annotation)
-    }
-
     override fun nullability(): TypeNullability {
         return nullability
     }
