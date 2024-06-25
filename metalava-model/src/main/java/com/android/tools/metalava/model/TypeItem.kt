@@ -165,7 +165,7 @@ interface TypeItem {
      * Duplicates this type substituting in the provided [modifiers] in place of this instance's
      * [modifiers].
      */
-    fun duplicate(modifiers: TypeModifiers = this.modifiers): TypeItem
+    fun duplicate(modifiers: TypeModifiers): TypeItem
 
     /**
      * Creates an identical type, with a copy of this type's modifiers with the specified
@@ -853,7 +853,7 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     }
 
     override fun duplicate(modifiers: TypeModifiers): ArrayTypeItem =
-        duplicate(modifiers, componentType.duplicate())
+        duplicate(modifiers, componentType)
 
     /**
      * Duplicates this type substituting in the provided [modifiers] and [componentType] in place of
@@ -923,11 +923,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
     override fun duplicate(modifiers: TypeModifiers): ClassTypeItem =
-        duplicate(
-            modifiers,
-            outerClassType?.duplicate(),
-            arguments.map { it.duplicate() },
-        )
+        duplicate(modifiers, outerClassType, arguments)
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
@@ -992,11 +988,7 @@ interface LambdaTypeItem : ClassTypeItem {
     val returnType: TypeItem
 
     override fun duplicate(modifiers: TypeModifiers): LambdaTypeItem =
-        duplicate(
-            modifiers,
-            outerClassType?.duplicate(),
-            arguments.map { it.duplicate() },
-        )
+        duplicate(modifiers, outerClassType, arguments)
 
     override fun duplicate(
         modifiers: TypeModifiers,
@@ -1081,7 +1073,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     }
 
     override fun duplicate(modifiers: TypeModifiers): WildcardTypeItem =
-        duplicate(modifiers, extendsBound?.duplicate(), superBound?.duplicate())
+        duplicate(modifiers, extendsBound, superBound)
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [extendsBound] and

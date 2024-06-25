@@ -102,7 +102,6 @@ internal open class TurbineMethodItem(
     override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
-        val retType = returnType.duplicate()
         val mods = modifiers.duplicate()
         val duplicated =
             TurbineMethodItem(
@@ -110,7 +109,7 @@ internal open class TurbineMethodItem(
                 fileLocation,
                 methodSymbol,
                 targetContainingClass,
-                retType,
+                returnType,
                 mods,
                 typeParameterList,
                 documentation,

@@ -64,7 +64,7 @@ internal class TurbineFieldItem(
                 fileLocation,
                 name(),
                 targetContainingClass,
-                type.duplicate(),
+                type,
                 modifiers.duplicate(),
                 documentation,
                 isEnumConstant,
