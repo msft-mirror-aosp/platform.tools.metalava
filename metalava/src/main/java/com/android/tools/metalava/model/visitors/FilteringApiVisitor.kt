@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -46,6 +47,17 @@ class FilteringApiVisitor(
     nestInnerClasses: Boolean = false,
     inlineInheritedFields: Boolean = true,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+    /**
+     * Responsible for returning a filtered, sorted list of interfaces from a [ClassItem] filtered
+     * by the [Predicate].
+     *
+     * Each interface is represented as a [ClassTypeItem] and the caller will filter out any
+     * unwanted type use annotations from them using the same [Predicate].
+     *
+     * The [Boolean] parameter is set to [preFiltered] so if `true` the [Predicate] can be assumed
+     * to be `{ true }`.
+     */
+    private val interfaceListAccessor: (ClassItem, Predicate<Item>, Boolean) -> List<ClassTypeItem>,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
@@ -153,6 +165,12 @@ class FilteringApiVisitor(
         override fun superClassType() =
             if (preFiltered) delegate.superClassType()
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
+
+        override fun interfaceTypes() =
+            interfaceListAccessor(delegate, filterReference, preFiltered).map {
+                // Filter any inaccessible annotations from the interfaces, if needed.
+                if (preFiltered) it else it.transform(typeAnnotationFilter)
+            }
     }
 
     /**

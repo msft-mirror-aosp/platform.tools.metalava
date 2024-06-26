@@ -72,6 +72,7 @@ class SignatureWriter(
             nestInnerClasses = false,
             inlineInheritedFields = true,
             methodComparator = fileFormat.overloadedMethodOrder.comparator,
+            interfaceListAccessor = ::interfaceListAccessor,
             filterEmit = filterEmit,
             filterReference = filterReference,
             preFiltered = preFiltered,
@@ -261,24 +262,33 @@ class SignatureWriter(
             typeItem.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                filter = filterReference
             )
         write(" ")
         write(superClassString)
     }
+
+    /**
+     * Provides the interface list in an order suitable for use in the signature file that this is
+     * writing.
+     */
+    private fun interfaceListAccessor(
+        classItem: ClassItem,
+        filterReference: Predicate<Item>,
+        preFiltered: Boolean,
+    ) =
+        getInterfacesInOrder(
+            classItem = classItem,
+            sortWholeExtendsList = fileFormat.sortWholeExtendsList,
+            preFiltered = preFiltered,
+            filterReference = filterReference,
+        )
 
     private fun writeInterfaceList(cls: ClassItem) {
         if (cls.isAnnotationType()) {
             return
         }
 
-        val orderedInterfaces =
-            getInterfacesInOrder(
-                classItem = cls,
-                sortWholeExtendsList = fileFormat.sortWholeExtendsList,
-                preFiltered = preFiltered,
-                filterReference = filterReference,
-            )
+        val orderedInterfaces = cls.interfaceTypes()
         if (orderedInterfaces.isEmpty()) return
 
         val label = if (cls.isInterface()) " extends" else " implements"
