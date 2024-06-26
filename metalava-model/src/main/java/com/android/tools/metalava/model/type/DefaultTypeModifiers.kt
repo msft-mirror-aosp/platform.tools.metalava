@@ -53,7 +53,7 @@ class DefaultTypeModifiers(
                         .firstOrNull { it.isNullnessAnnotation() }
                         ?.let { TypeNullability.ofAnnotation(it) }
                         ?: TypeNullability.PLATFORM
-            return DefaultTypeModifiers(annotations.toMutableList(), nullability)
+            return DefaultTypeModifiers(annotations, nullability)
         }
     }
 }

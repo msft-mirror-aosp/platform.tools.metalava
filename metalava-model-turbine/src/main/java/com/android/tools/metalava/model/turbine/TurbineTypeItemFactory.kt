@@ -65,7 +65,7 @@ internal class TurbineTypeItemFactory(
         // Compute the nullability, factoring in any context nullability and type annotations.
         // Turbine does not support kotlin so the kotlin nullability is always null.
         val nullability = contextNullability.compute(null, typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations.toMutableList(), nullability)
+        return DefaultTypeModifiers.create(typeAnnotations, nullability)
     }
 
     internal fun createType(

@@ -155,7 +155,7 @@ internal class PsiTypeItemFactory(
         // Compute the nullability, factoring in any context nullability, kotlin types and
         // type annotations.
         val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations.toMutableList(), nullability)
+        return DefaultTypeModifiers.create(typeAnnotations, nullability)
     }
 
     /** Create a [PsiTypeItem]. */
