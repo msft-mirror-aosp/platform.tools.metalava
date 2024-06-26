@@ -86,13 +86,12 @@ class MergeSignaturesCommand :
             createReportFile(progressTracker, codebase, out, description = "Merged file") {
                 SignatureWriter(
                         writer = it,
-                        filterReference = { true },
-                        preFiltered = true,
                         fileFormat = signatureFormat.fileFormat,
                     )
                     .createFilteringVisitor(
                         filterEmit = { true },
                         filterReference = { true },
+                        preFiltered = true,
                         showUnannotated = false,
                         apiVisitorConfig = ApiVisitor.Config(),
                     )

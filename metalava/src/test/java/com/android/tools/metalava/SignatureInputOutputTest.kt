@@ -55,8 +55,6 @@ class SignatureInputOutputTest : Assertions {
                     val signatureWriter =
                         SignatureWriter(
                             writer = printWriter,
-                            filterReference = { true },
-                            preFiltered = true,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = format,
                         )
@@ -64,6 +62,7 @@ class SignatureInputOutputTest : Assertions {
                         signatureWriter.createFilteringVisitor(
                             filterEmit = { true },
                             filterReference = { true },
+                            preFiltered = true,
                             showUnannotated = false,
                             apiVisitorConfig = ApiVisitor.Config(),
                         )

@@ -34,8 +34,6 @@ class SignatureWriterTest {
                     val writer =
                         SignatureWriter(
                             writer = it,
-                            filterReference = { true },
-                            preFiltered = true,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = fileFormat,
                         )

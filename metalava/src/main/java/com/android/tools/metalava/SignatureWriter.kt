@@ -38,8 +38,6 @@ import java.util.function.Predicate
 
 class SignatureWriter(
     private val writer: PrintWriter,
-    private val filterReference: Predicate<Item>,
-    private val preFiltered: Boolean,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
 ) :
@@ -63,6 +61,7 @@ class SignatureWriter(
     fun createFilteringVisitor(
         filterEmit: Predicate<Item>,
         filterReference: Predicate<Item>,
+        preFiltered: Boolean,
         showUnannotated: Boolean,
         apiVisitorConfig: ApiVisitor.Config,
     ): ApiVisitor =

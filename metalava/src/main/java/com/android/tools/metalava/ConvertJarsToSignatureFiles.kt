@@ -144,13 +144,12 @@ class ConvertJarsToSignatureFiles(
             createReportFile(progressTracker, jarCodebase, newApiFile, "API") { printWriter ->
                 SignatureWriter(
                         writer = printWriter,
-                        filterReference = apiReference,
-                        preFiltered = jarCodebase.preFiltered,
                         fileFormat = fileFormat,
                     )
                     .createFilteringVisitor(
                         filterEmit = apiEmit,
                         filterReference = apiReference,
+                        preFiltered = jarCodebase.preFiltered,
                         showUnannotated = false,
                         apiVisitorConfig = ApiVisitor.Config(),
                     )
