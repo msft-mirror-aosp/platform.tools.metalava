@@ -24,10 +24,19 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import java.util.function.Predicate
 
-/** An [ApiVisitor] that filters the input and forwards it to the [delegate] [ItemVisitor]. */
+/**
+ * An [ApiVisitor] that filters the input and forwards it to the [delegate] [ItemVisitor].
+ *
+ * This defines a number of `Filtering*Item` classes that will filter out any [Item] references for
+ * which [filterReference] returns false. They are not suitable for general use. Their sole purpose
+ * is to provide enough functionality for use when writing a representation of the item, e.g. for
+ * signatures, stubs, etc. That means that there may be some methods that are not use by those
+ * writers which will allow access to unfiltered `Item`s.
+ */
 class FilteringApiVisitor(
     val delegate: BaseItemVisitor,
     visitConstructorsAsMethods: Boolean = true,
@@ -61,27 +70,102 @@ class FilteringApiVisitor(
         delegate.afterVisitPackage(pkg)
     }
 
+    /** Stack of the containing classes. */
+    private val containingClassStack = ArrayDeque<FilteringClassItem?>()
+
+    /** The current [ClassItem] being visited, */
+    private var currentClassItem: FilteringClassItem? = null
+
     override fun visitClass(cls: ClassItem) {
-        delegate.visitClass(cls)
+        // Switch the current class, if any, to be a containing class.
+        containingClassStack.addLast(currentClassItem)
+
+        // Create a new FilteringClassItem for the current class and visit it before its contents.
+        currentClassItem = FilteringClassItem(delegate = cls)
+        delegate.visitClass(currentClassItem!!)
     }
 
     override fun afterVisitClass(cls: ClassItem) {
-        delegate.afterVisitClass(cls)
+        // Consistency check to make sure that the visitClass/afterVisitClass are called correctly.
+        if (currentClassItem?.delegate !== cls)
+            throw IllegalStateException("Expected ${currentClassItem?.delegate}, found ${cls}")
+
+        // Visit the class after its contents.
+        delegate.afterVisitClass(currentClassItem!!)
+
+        // Switch back to the containing class, if any.
+        currentClassItem = containingClassStack.removeLast()
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        delegate.visitConstructor(constructor)
+        val filteringConstructor = FilteringConstructorItem(constructor)
+        delegate.visitConstructor(filteringConstructor)
     }
 
     override fun visitMethod(method: MethodItem) {
-        delegate.visitMethod(method)
+        val filteringMethod = FilteringMethodItem(method)
+        delegate.visitMethod(filteringMethod)
     }
 
     override fun visitField(field: FieldItem) {
-        delegate.visitField(field)
+        val filteringField = FilteringFieldItem(field)
+        delegate.visitField(filteringField)
     }
 
     override fun visitProperty(property: PropertyItem) {
-        delegate.visitProperty(property)
+        val filteringProperty = FilteringPropertyItem(property)
+        delegate.visitProperty(filteringProperty)
     }
+
+    /**
+     * [ClassItem] that will filter out anything which is not to be written out by the
+     * [FilteringApiVisitor.delegate].
+     */
+    private inner class FilteringClassItem(
+        val delegate: ClassItem,
+    ) : ClassItem by delegate
+
+    /**
+     * [ParameterItem] that will filter out anything which is not to be written out by the
+     * [FilteringApiVisitor.delegate].
+     */
+    private inner class FilteringParameterItem(private val delegate: ParameterItem) :
+        ParameterItem by delegate
+
+    /** Get the [MethodItem.parameters] and wrap each one in a [FilteringParameterItem]. */
+    fun filteredParameters(methodItem: MethodItem): List<ParameterItem> =
+        methodItem.parameters().map { FilteringParameterItem(it) }
+
+    /**
+     * [ConstructorItem] that will filter out anything which is not to be written out by the
+     * [FilteringApiVisitor.delegate].
+     */
+    private inner class FilteringConstructorItem(private val delegate: ConstructorItem) :
+        ConstructorItem by delegate {
+
+        override fun parameters() = filteredParameters(delegate)
+    }
+
+    /**
+     * [MethodItem] that will filter out anything which is not to be written out by the
+     * [FilteringApiVisitor.delegate].
+     */
+    private inner class FilteringMethodItem(private val delegate: MethodItem) :
+        MethodItem by delegate {
+
+        override fun parameters() = filteredParameters(delegate)
+    }
+
+    /**
+     * [FieldItem] that will filter out anything which is not to be written out by the
+     * [FilteringApiVisitor.delegate].
+     */
+    private inner class FilteringFieldItem(private val delegate: FieldItem) : FieldItem by delegate
+
+    /**
+     * [PropertyItem] that will filter out anything which is not to be written out by the
+     * [FilteringApiVisitor.delegate].
+     */
+    private inner class FilteringPropertyItem(private val delegate: PropertyItem) :
+        PropertyItem by delegate
 }
