@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.hasAnnotation
@@ -833,11 +834,20 @@ class AnnotationsMerger(
         item.mutableModifiers().addAnnotation(annotation)
 
         // Update the type nullability from the annotation, if necessary.
-        // First, check to make sure that the annotation is a nullability annotation.
+
+        // Nullability annotations do not make sense on class definitions or in package-info.java
+        // files and in fact many nullability annotations do not support targeting them at all. Some
+        // nullability checkers do support annotating packages and classes with annotations to set
+        // the default nullability for unannotated types but Metalava does not currently support
+        // them. If it did then they would need special treatment here anyway so, for now we just
+        // ignore them.
+        if (item is ClassItem || item is PackageItem) return
+
+        // Check to make sure that the annotation is a nullability annotation.
         val annotationNullability = annotation.typeNullability ?: return
-        // Second, check to make sure that the item has a type.
+        // Check to make sure that the item has a type.
         val typeItem = item.type() ?: return
-        // Thirdly, check to make sure that the type nullability is different to the annotation's
+        // Check to make sure that the type nullability is different to the annotation's
         // nullability.
         if (typeItem.modifiers.nullability != annotationNullability) {
             // Finally, duplicate the type with the new nullability.

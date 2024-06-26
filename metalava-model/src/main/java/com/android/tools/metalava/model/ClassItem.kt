@@ -205,6 +205,9 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Gets the type for this class */
     override fun type(): ClassTypeItem
 
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on PackageItem: $this")
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
