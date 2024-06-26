@@ -23,15 +23,9 @@ import com.android.tools.metalava.model.TypeNullability
 
 /** Modifiers for a [TypeItem]. */
 class DefaultTypeModifiers(
-    private val annotations: List<AnnotationItem>,
-    private val nullability: TypeNullability,
+    override val annotations: List<AnnotationItem>,
+    override val nullability: TypeNullability,
 ) : TypeModifiers {
-
-    override fun annotations(): List<AnnotationItem> = annotations
-
-    override fun nullability(): TypeNullability {
-        return nullability
-    }
 
     override fun substitute(nullability: TypeNullability) =
         if (nullability == this.nullability) this

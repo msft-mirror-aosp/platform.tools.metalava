@@ -22,10 +22,10 @@ package com.android.tools.metalava.model
  */
 interface TypeModifiers {
     /** The type-use annotations applied to the owning type. */
-    fun annotations(): List<AnnotationItem>
+    val annotations: List<AnnotationItem>
 
     /** The nullability of the type. */
-    fun nullability(): TypeNullability
+    val nullability: TypeNullability
 
     /**
      * Return a [TypeModifiers] instance identical to this on except its [TypeModifiers.nullability]
@@ -38,15 +38,15 @@ interface TypeModifiers {
 
     /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
     val isNullable
-        get() = nullability() == TypeNullability.NULLABLE
+        get() = nullability == TypeNullability.NULLABLE
 
     /** Whether the [nullability] is [TypeNullability.NONNULL]. */
     val isNonNull
-        get() = nullability() == TypeNullability.NONNULL
+        get() = nullability == TypeNullability.NONNULL
 
     /** Whether the [nullability] is [TypeNullability.PLATFORM]. */
     val isPlatformNullability
-        get() = nullability() == TypeNullability.PLATFORM
+        get() = nullability == TypeNullability.PLATFORM
 }
 
 /** An enum representing the possible nullness values of a type. */

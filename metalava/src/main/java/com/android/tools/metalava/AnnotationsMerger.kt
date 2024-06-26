@@ -282,7 +282,7 @@ class AnnotationsMerger(
                     // Do not report missing items if there are no annotations to copy.
                     if (old.modifiers.annotations().isEmpty()) {
                         old.type()?.let { typeItem ->
-                            if (typeItem.modifiers.annotations().isEmpty()) return
+                            if (typeItem.modifiers.annotations.isEmpty()) return
                         }
                             ?: return
                     }
@@ -323,7 +323,7 @@ class AnnotationsMerger(
                 }
 
                 private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
-                    for (annotation in typeItem.modifiers.annotations()) {
+                    for (annotation in typeItem.modifiers.annotations) {
                         mergeAnnotation(annotation, new.modifiers, new)
                     }
                 }
@@ -839,7 +839,7 @@ class AnnotationsMerger(
         val typeItem = item.type() ?: return
         // Thirdly, check to make sure that the type nullability is different to the annotation's
         // nullability.
-        if (typeItem.modifiers.nullability() != annotationNullability) {
+        if (typeItem.modifiers.nullability != annotationNullability) {
             // Finally, duplicate the type with the new nullability.
             item.setType(typeItem.substitute(annotationNullability))
         }
