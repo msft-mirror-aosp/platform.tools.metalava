@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
@@ -258,57 +259,20 @@ class SignatureWriter(
         if (cls.isAnnotationType()) {
             return
         }
-        val isInterface = cls.isInterface()
 
-        val unfilteredInterfaceTypes = cls.interfaceTypes()
-        val interfaces =
-            if (preFiltered) unfilteredInterfaceTypes
-            else cls.filteredInterfaceTypes(filterReference)
-        if (interfaces.isEmpty()) {
-            return
-        }
+        val orderedInterfaces =
+            getInterfacesInOrder(
+                classItem = cls,
+                sortWholeExtendsList = fileFormat.sortWholeExtendsList,
+                preFiltered = preFiltered,
+                filterReference = filterReference,
+            )
+        if (orderedInterfaces.isEmpty()) return
 
-        // Sort before prepending the super class (if this is an interface) as the super class
-        // always comes first because it was previously written out by writeSuperClassStatement.
-        @Suppress("DEPRECATION")
-        val comparator =
-            if (fileFormat.sortWholeExtendsList) TypeItem.totalComparator
-            else TypeItem.partialComparator
-        val sortedInterfaces = interfaces.sortedWith(comparator)
-
-        // Combine the super class and interfaces into a full list of them.
-        val fullInterfaces =
-            if (isInterface && !fileFormat.sortWholeExtendsList) {
-                // Previously, when the first interface in the extends list was stored in
-                // superClass, if that interface was visible in the signature then it would always
-                // be first even though the other interfaces are sorted in alphabetical order. This
-                // implements similar logic.
-                val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
-                val firstFilteredInterfaceType = interfaces.first()
-                if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
-                    buildList {
-                        // The first interface in the interfaces list is also the first interface in
-                        // the filtered interfaces list so add it first.
-                        add(firstFilteredInterfaceType)
-
-                        // Add the remaining interfaces in sorted order.
-                        if (sortedInterfaces.size > 1) {
-                            for (interfaceType in sortedInterfaces) {
-                                if (interfaceType != firstFilteredInterfaceType) {
-                                    add(interfaceType)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    sortedInterfaces
-                }
-            } else sortedInterfaces
-
-        val label = if (isInterface) " extends" else " implements"
+        val label = if (cls.isInterface()) " extends" else " implements"
         write(label)
 
-        fullInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
+        orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
@@ -409,4 +373,69 @@ enum class EmitFileHeader {
     ALWAYS,
     NEVER,
     IF_NONEMPTY_FILE
+}
+
+/**
+ * Get the filtered list of [ClassItem.interfaceTypes], in the correct order.
+ *
+ * Historically, on interface classes its first implemented interface type was stored in the
+ * [ClassItem.superClassType] and if it was not filtered out it was always written out first in the
+ * signature files, while the rest of the interface types were sorted by their [ClassItem.fullName].
+ * That behavior is required when [sortWholeExtendsList] is `false`.
+ *
+ * If [sortWholeExtendsList] is `true` then the interface types are sorted by their full name first
+ * and then if there are any collisions by their qualified name.
+ */
+private fun getInterfacesInOrder(
+    classItem: ClassItem,
+    sortWholeExtendsList: Boolean,
+    preFiltered: Boolean,
+    filterReference: Predicate<Item>,
+): List<ClassTypeItem> {
+
+    val unfilteredInterfaceTypes = classItem.interfaceTypes()
+    val interfaces =
+        if (preFiltered) unfilteredInterfaceTypes
+        else classItem.filteredInterfaceTypes(filterReference)
+    if (interfaces.isEmpty()) {
+        return emptyList()
+    }
+
+    // Sort before prepending the super class (if this is an interface) as the super class
+    // always comes first because it was previously written out by writeSuperClassStatement.
+    @Suppress("DEPRECATION")
+    val comparator =
+        if (sortWholeExtendsList) TypeItem.totalComparator else TypeItem.partialComparator
+    val sortedInterfaces = interfaces.sortedWith(comparator)
+
+    // Combine the super class and interfaces into a full list of them.
+    val fullInterfaces =
+        if (classItem.isInterface() && !sortWholeExtendsList) {
+            // Previously, when the first interface in the extends list was stored in
+            // superClass, if that interface was visible in the signature then it would always
+            // be first even though the other interfaces are sorted in alphabetical order. This
+            // implements similar logic.
+            val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
+            val firstFilteredInterfaceType = interfaces.first()
+            if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
+                buildList {
+                    // The first interface in the interfaces list is also the first interface in
+                    // the filtered interfaces list so add it first.
+                    add(firstFilteredInterfaceType)
+
+                    // Add the remaining interfaces in sorted order.
+                    if (sortedInterfaces.size > 1) {
+                        for (interfaceType in sortedInterfaces) {
+                            if (interfaceType != firstFilteredInterfaceType) {
+                                add(interfaceType)
+                            }
+                        }
+                    }
+                }
+            } else {
+                sortedInterfaces
+            }
+        } else sortedInterfaces
+
+    return fullInterfaces
 }
