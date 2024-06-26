@@ -27,9 +27,13 @@ class DefaultTypeModifiers(
     override val nullability: TypeNullability,
 ) : TypeModifiers {
 
-    override fun substitute(nullability: TypeNullability) =
-        if (nullability == this.nullability) this
-        else DefaultTypeModifiers(annotations, nullability)
+    override fun substitute(
+        nullability: TypeNullability,
+        annotations: List<AnnotationItem>,
+    ): TypeModifiers =
+        if (nullability != this.nullability || annotations != this.annotations)
+            DefaultTypeModifiers(annotations, nullability)
+        else this
 
     companion object {
         /** A set of empty, non-null [TypeModifiers] for sharing. */

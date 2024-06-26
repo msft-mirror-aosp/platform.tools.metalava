@@ -28,13 +28,17 @@ interface TypeModifiers {
     val nullability: TypeNullability
 
     /**
-     * Return a [TypeModifiers] instance identical to this on except its [TypeModifiers.nullability]
-     * property is the same as the [nullability] parameter.
+     * Return a [TypeModifiers] instance identical to this one except its
+     * [TypeModifiers.nullability] and [TypeModifiers.annotations] properties are the same as the
+     * [nullability] and [annotations] parameters respectively.
      *
-     * If the parameter is the same as this instance's property then it will just return this
+     * If the parameters are the same as this instance's properties then it will just return this
      * instance, otherwise it will return a new instance.
      */
-    fun substitute(nullability: TypeNullability): TypeModifiers
+    fun substitute(
+        nullability: TypeNullability = this.nullability,
+        annotations: List<AnnotationItem> = this.annotations,
+    ): TypeModifiers
 
     /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
     val isNullable

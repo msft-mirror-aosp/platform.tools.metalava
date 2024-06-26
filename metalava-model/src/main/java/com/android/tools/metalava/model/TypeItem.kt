@@ -178,6 +178,12 @@ interface TypeItem {
         if (modifiers.nullability == nullability) this
         else substitute(modifiers.substitute(nullability))
 
+    /**
+     * Return a [TypeItem] instance of the same type as this one that was produced by the [TypeItem]
+     * appropriate [TypeTransformer.transform] method.
+     */
+    fun transform(transformer: TypeTransformer): TypeItem
+
     companion object {
         /** Shortens types, if configured */
         fun shortenTypes(type: String): String {
@@ -721,6 +727,9 @@ interface TypeArgumentTypeItem : TypeItem {
 
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): TypeArgumentTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem
 }
 
 /**
@@ -734,6 +743,9 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
 
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ReferenceTypeItem
 }
 
 /**
@@ -749,6 +761,9 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
 sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ExceptionTypeItem
+
     /**
      * Get the erased [ClassItem], if any.
      *
@@ -839,6 +854,10 @@ interface PrimitiveTypeItem : TypeItem {
         return this
     }
 
+    override fun transform(transformer: TypeTransformer): PrimitiveTypeItem {
+        return transformer.transform(this)
+    }
+
     override fun equalToType(other: TypeItem?): Boolean {
         return (other as? PrimitiveTypeItem)?.kind == kind
     }
@@ -897,6 +916,10 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         return substitute(
             componentType = componentType.convertType(typeParameterBindings),
         )
+    }
+
+    override fun transform(transformer: TypeTransformer): ArrayTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -998,6 +1021,10 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         )
     }
 
+    override fun transform(transformer: TypeTransformer): ClassTypeItem {
+        return transformer.transform(this)
+    }
+
     override fun equalToType(other: TypeItem?): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
@@ -1061,6 +1088,10 @@ interface LambdaTypeItem : ClassTypeItem {
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ) = super.substitute(modifiers, outerClassType, arguments) as LambdaTypeItem
+
+    override fun transform(transformer: TypeTransformer): LambdaTypeItem {
+        return transformer.transform(this)
+    }
 }
 
 /** Represents a type variable type. */
@@ -1121,6 +1152,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             // The type parameter binding does not contain a replacement for this variable so use
             // this as is.
             this
+    }
+
+    override fun transform(transformer: TypeTransformer): VariableTypeItem {
+        return transformer.transform(this)
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
@@ -1195,6 +1230,10 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
             extendsBound?.convertType(typeParameterBindings),
             superBound?.convertType(typeParameterBindings)
         )
+    }
+
+    override fun transform(transformer: TypeTransformer): WildcardTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
