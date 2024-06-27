@@ -128,9 +128,7 @@ internal class JavaStubWriter(
             return
         }
 
-        val superClass =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-
+        val superClass = cls.superClassType()
         if (superClass != null && !superClass.isJavaLangObject()) {
             writer.print(" extends ")
             writer.print(superClass.toTypeString())
@@ -143,10 +141,8 @@ internal class JavaStubWriter(
             return
         }
 
-        val interfaces =
-            if (preFiltered) cls.interfaceTypes() else cls.filteredInterfaceTypes(filterReference)
-
-        if (interfaces.any()) {
+        val interfaces = cls.interfaceTypes()
+        if (interfaces.isNotEmpty()) {
             val label = if (cls.isInterface()) " extends" else " implements"
             writer.print(label)
             interfaces.forEachIndexed { index, type ->
@@ -293,7 +289,7 @@ internal class JavaStubWriter(
         generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         val returnType = method.returnType()
-        writer.print(returnType.toTypeString(annotations = false, filter = filterReference))
+        writer.print(returnType.toTypeString(annotations = false))
 
         writer.print(' ')
         writer.print(method.name())
@@ -327,7 +323,7 @@ internal class JavaStubWriter(
 
         appendDocumentation(field, writer, config)
         appendModifiers(field)
-        writer.print(field.type().toTypeString(annotations = false, filter = filterReference))
+        writer.print(field.type().toTypeString(annotations = false))
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
@@ -360,9 +356,7 @@ internal class JavaStubWriter(
                 writer.print(", ")
             }
             appendModifiers(parameter)
-            writer.print(
-                parameter.type().toTypeString(annotations = false, filter = filterReference)
-            )
+            writer.print(parameter.type().toTypeString(annotations = false))
             writer.print(' ')
             val name = parameter.publicName() ?: parameter.name()
             writer.print(name)
@@ -371,14 +365,8 @@ internal class JavaStubWriter(
     }
 
     private fun generateThrowsList(method: MethodItem) {
-        // Note that throws types are already sorted internally to help comparison matching
-        val throws =
-            if (preFiltered) {
-                method.throwsTypes().asSequence()
-            } else {
-                method.filteredThrowsTypes(filterReference).asSequence()
-            }
-        if (throws.any()) {
+        val throws = method.throwsTypes()
+        if (throws.isNotEmpty()) {
             writer.print(" throws ")
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
