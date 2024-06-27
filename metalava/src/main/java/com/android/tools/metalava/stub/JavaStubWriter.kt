@@ -189,12 +189,7 @@ internal class JavaStubWriter(
                 // it will be necessary to include casts in the super call for any non-primitive
                 // as they are passed `null` and without the casts it is possible that the compiler
                 // will not be able to tell which constructor to use.
-                val includeCasts =
-                    superConstructor
-                        .containingClass()
-                        .constructors()
-                        .filter { filterReference.test(it) }
-                        .size > 1
+                val includeCasts = superConstructor.containingClass().constructors().size > 1
                 writer.print("super(")
                 parameters.forEachIndexed { index, parameter ->
                     if (index > 0) {
