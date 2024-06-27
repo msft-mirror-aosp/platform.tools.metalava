@@ -53,6 +53,9 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     override fun parent(): Item? = containingClass() ?: containingPackage()
 
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
+
     /**
      * The qualified name where inner classes use $ as a separator. In class foo.bar.Outer.Inner,
      * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
@@ -92,7 +95,7 @@ interface ClassItem : Item, TypeParameterListOwner {
      *
      * Interfaces always return `null` for this.
      */
-    @MetalavaApi fun superClass(): ClassItem?
+    @MetalavaApi fun superClass() = superClassType()?.asClass()
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -751,7 +754,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         val classTypeArguments =
             classTypeItem.arguments.map {
                 if (it is ClassTypeItem && it.arguments.isNotEmpty()) {
-                    it.duplicate(it.outerClassType, arguments = emptyList())
+                    it.substitute(arguments = emptyList())
                 } else {
                     it
                 }

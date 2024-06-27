@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -38,6 +39,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -55,6 +57,7 @@ class CompatibilityCheck(
     private val apiType: ApiType,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
+    private val apiCompatAnnotations: Set<String>,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
@@ -87,13 +90,37 @@ class CompatibilityCheck(
             }
         }
 
-        compareTypeNullability(old.type(), new.type(), new)
+        // In a final method, you can change a parameter from nonnull to nullable
+        val allowNonNullToNullable =
+            new is ParameterItem && !newMethod!!.canBeExternallyOverridden()
+        // In a final method, you can change a method return from nullable to nonnull
+        val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
+
+        old.type()
+            ?.accept(
+                object : MultipleTypeVisitor() {
+                    override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                        val newType = other.singleOrNull() ?: return
+                        compareTypeNullability(
+                            type,
+                            newType,
+                            new,
+                            allowNonNullToNullable,
+                            allowNullableToNonNull,
+                        )
+                    }
+                },
+                listOfNotNull(new.type())
+            )
     }
 
-    private fun compareTypeNullability(old: TypeItem?, new: TypeItem?, context: Item) {
-        old ?: return
-        new ?: return
-
+    private fun compareTypeNullability(
+        old: TypeItem,
+        new: TypeItem,
+        context: Item,
+        allowNonNullToNullable: Boolean,
+        allowNullableToNonNull: Boolean,
+    ) {
         // Should not remove nullness information
         // Can't change information incompatibly
         val oldNullability = old.modifiers.nullability()
@@ -109,12 +136,6 @@ class CompatibilityCheck(
                 "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
             )
         } else if (oldNullability != newNullability) {
-            // In a final method, you can change a parameter from nonnull to nullable
-            val allowNonNullToNullable =
-                context is ParameterItem && !context.containingMethod().canBeExternallyOverridden()
-            // In a final method, you can change a method return from nullable to nonnull
-            val allowNullableToNonNull =
-                context is MethodItem && !context.canBeExternallyOverridden()
             if (
                 (oldNullability == TypeNullability.NULLABLE &&
                     newNullability == TypeNullability.NONNULL &&
@@ -169,6 +190,25 @@ class CompatibilityCheck(
                 old,
                 "Removed ${describe(old)} from compatibility checked API surface"
             )
+        }
+
+        apiCompatAnnotations.forEach { annotation ->
+            val isOldAnnotated = oldModifiers.isAnnotatedWith(annotation)
+            val newAnnotation = newModifiers.findAnnotation(annotation)
+            if (isOldAnnotated && newAnnotation == null) {
+                report(
+                    Issues.REMOVED_ANNOTATION,
+                    new,
+                    "Cannot remove @$annotation annotation from ${describe(old)}: Incompatible change",
+                )
+            } else if (!isOldAnnotated && newAnnotation != null) {
+                report(
+                    Issues.ADDED_ANNOTATION,
+                    new,
+                    "Cannot add @$annotation annotation to ${describe(old)}: Incompatible change",
+                    newAnnotation.fileLocation,
+                )
+            }
         }
 
         compareItemNullability(old, new)
@@ -940,13 +980,24 @@ class CompatibilityCheck(
                     includeInterfaces = from.isInterface()
                 )
             }
-        if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
+        if (inherited == null || inherited != old && inherited.treatAsRemoved()) {
             val error =
                 if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
                 else Issues.REMOVED_METHOD
             handleRemoved(error, old)
         }
     }
+
+    /**
+     * Check the [Item] to see whether it should be treated as if it was removed.
+     *
+     * An [Item] is treated as it if it was removed if it is hidden/removed and is not an unstable
+     * API that will be reverted. If it is an unstable API then reverting it will replace it with
+     * the old item against which it is being compared in this compatibility check. So, while this
+     * specific item will not appear in the API the old item will and so the old item will not be
+     * removed.
+     */
+    private fun Item.treatAsRemoved() = isHiddenOrRemoved() && !showability.revertUnstableApi()
 
     override fun removed(old: FieldItem, from: ClassItem?) {
         val inherited =
@@ -967,6 +1018,7 @@ class CompatibilityCheck(
         issue: Issue,
         item: Item,
         message: String,
+        location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
         if (item.isCompatibilitySuppressed()) {
@@ -975,7 +1027,7 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, maximumSeverity = maximumSeverity)) {
+        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
@@ -989,11 +1041,11 @@ class CompatibilityCheck(
         @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
-            oldCodebases: MergedCodebase,
+            oldCodebase: Codebase,
             apiType: ApiType,
-            baseApi: Codebase?,
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
+            apiCompatAnnotations: Set<String>,
         ) {
             val filter =
                 apiType
@@ -1008,17 +1060,18 @@ class CompatibilityCheck(
                     apiType,
                     reporter,
                     issueConfiguration,
+                    apiCompatAnnotations,
                 )
 
             val oldFullCodebase =
                 if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-                    baseApi?.let { MergedCodebase(oldCodebases.children + baseApi) } ?: oldCodebases
+                    MergedCodebase(listOf(oldCodebase))
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
                     // first parameter is master, so we don't change values of oldCodeBase
-                    MergedCodebase(oldCodebases.children + newCodebase)
+                    MergedCodebase(listOf(oldCodebase, newCodebase))
                 }
-            val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
+            val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
             CodebaseComparator(
                     apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
@@ -1027,7 +1080,7 @@ class CompatibilityCheck(
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebases.children.last().location}"
+                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
                 throw MetalavaCliException(exitCode = -1, stderr = message)
