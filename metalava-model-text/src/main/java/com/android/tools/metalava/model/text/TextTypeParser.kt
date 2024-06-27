@@ -435,7 +435,6 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         return DefaultTypeModifiers.create(
             annotations,
             nullability,
-            "Type modifiers created by the text model are immutable because they are cached",
         )
     }
 
@@ -449,7 +448,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             trimmed = trimmed.substring(end).trim()
         }
         return Pair(trimmed, annotations)
@@ -490,7 +491,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 break
             }
             val annotationSource = trimmed.substring(start)
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             // Cut this annotation off, so now the next one can end at the last index.
             trimmed = trimmed.substring(0, start).trim()
         }

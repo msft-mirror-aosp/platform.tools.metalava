@@ -23,12 +23,15 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
@@ -519,13 +522,32 @@ class Options(
     private var excludeAnnotations = mutableExcludeAnnotations
 
     /** A signature file to migrate nullness data from */
-    var migrateNullsFrom: File? = null
+    val migrateNullsFrom by
+        option(
+                ARG_MIGRATE_NULLNESS,
+                metavar = "<api file>",
+                help =
+                    """
+                        Compare nullness information with the previous stable API
+                        and mark newly annotated APIs as under migration.
+                    """
+                        .trimIndent()
+            )
+            .existingFile()
+            .multiple()
+            .map {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                    ARG_MIGRATE_NULLNESS,
+                    it,
+                    onlyUseLastForCurrentApiSurface = false
+                )
+            }
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
 
-    /** The API to use a base for the otherwise checked API during compat checks. */
-    val baseApiForCompatCheck by compatibilityCheckOptions::baseApiForCompatCheck
+    /** The set of annotation classes that should be treated as API compatibility important */
+    val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
 
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
@@ -686,13 +708,6 @@ class Options(
                     .trimIndent()
             )
 
-    val encoding by
-        option("-encoding", hidden = true)
-            .deprecated(
-                "WARNING: option `-encoding` is deprecated; it has no effect please remove",
-                tagValue = "please remove"
-            )
-
     fun parse(
         executionEnvironment: ExecutionEnvironment,
         args: Array<String>,
@@ -768,8 +783,7 @@ class Options(
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
-                ARG_STUB_PACKAGES,
-                "-stubpackages" -> {
+                ARG_STUB_PACKAGES -> {
                     val packages = getValue(args, ++index)
                     val filter =
                         stubPackages
@@ -793,9 +807,6 @@ class Options(
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
-                ARG_MIGRATE_NULLNESS -> {
-                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                }
 
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
@@ -852,8 +863,7 @@ class Options(
                 ARG_API_VERSION_NAMES -> {
                     apiVersionNames = getValue(args, ++index).split(' ')
                 }
-                ARG_JAVA_SOURCE,
-                "-source" -> {
+                ARG_JAVA_SOURCE -> {
                     val value = getValue(args, ++index)
                     javaLanguageLevelAsString = value
                 }
@@ -1056,9 +1066,7 @@ class Options(
         }
 
         // Get all the android.jar. They are in platforms-#
-        var apiLevel = minApi - 1
-        while (true) {
-            apiLevel++
+        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
             try {
                 var jar: File? = null
                 if (apiLevel == currentApiLevel) {
@@ -1282,11 +1290,6 @@ object OptionsHelp {
                 "Exclude element documentation (javadoc and kdoc) " +
                     "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                     "Documentation stubs (--doc-stubs) are not affected.)",
-                "",
-                "Diffs and Checks:",
-                "$ARG_MIGRATE_NULLNESS <api file>",
-                "Compare nullness information with the previous stable API " +
-                    "and mark newly annotated APIs as under migration.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
