@@ -45,7 +45,6 @@ import java.util.regex.Pattern
 internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
@@ -54,9 +53,6 @@ internal class StubWriter(
         visitConstructorsAsMethods = false,
         nestInnerClasses = true,
     ) {
-
-    private val filterEmit = FilterPredicate(apiPredicate(docStubs, config))
-    private val filterReference = apiPredicate(docStubs, config)
 
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
@@ -210,14 +206,7 @@ internal class StubWriter(
                 if (kotlin) {
                     error("Generating Kotlin stubs is not supported")
                 } else {
-                    JavaStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterEmit,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    JavaStubWriter(textWriter, modifierListWriter, config)
                 }
 
             // Copyright statements from the original file?
@@ -271,6 +260,12 @@ internal class StubWriter(
         preFiltered: Boolean,
         apiVisitorConfig: ApiVisitor.Config,
     ): ItemVisitor {
+        val filterReference =
+            ApiPredicate(
+                includeDocOnly = docStubs,
+                config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            )
+        val filterEmit = FilterPredicate(filterReference)
         return FilteringApiVisitor(
             delegate = this,
             visitConstructorsAsMethods = false,
@@ -291,12 +286,6 @@ internal class StubWriter(
         )
     }
 }
-
-private fun apiPredicate(docStubs: Boolean, config: StubWriterConfig) =
-    ApiPredicate(
-        includeDocOnly = docStubs,
-        config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
-    )
 
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
     if (config.includeDocumentationInStubs) {

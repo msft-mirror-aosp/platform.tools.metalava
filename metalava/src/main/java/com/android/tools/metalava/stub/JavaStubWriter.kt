@@ -29,14 +29,10 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val modifierListWriter: ModifierListWriter,
-    private val filterEmit: Predicate<Item>,
-    private val filterReference: Predicate<Item>,
-    private val preFiltered: Boolean = true,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
