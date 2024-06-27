@@ -301,14 +301,16 @@ internal fun processFlags(
 
         createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
             SignatureWriter(
-                writer = printWriter,
-                filterEmit = apiEmit,
-                filterReference = apiReference,
-                preFiltered = codebase.preFiltered,
-                fileFormat = options.signatureFileFormat,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig
-            )
+                    writer = printWriter,
+                    fileFormat = options.signatureFileFormat,
+                )
+                .createFilteringVisitor(
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = codebase.preFiltered,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig
+                )
         }
     }
 
@@ -325,15 +327,17 @@ internal fun processFlags(
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
             SignatureWriter(
-                writer = printWriter,
-                filterEmit = removedEmit,
-                filterReference = removedReference,
-                preFiltered = false,
-                emitHeader = options.includeSignatureFormatVersionRemoved,
-                fileFormat = options.signatureFileFormat,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig,
-            )
+                    writer = printWriter,
+                    emitHeader = options.includeSignatureFormatVersionRemoved,
+                    fileFormat = options.signatureFileFormat,
+                )
+                .createFilteringVisitor(
+                    filterEmit = removedEmit,
+                    filterReference = removedReference,
+                    preFiltered = false,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig,
+                )
         }
     }
 

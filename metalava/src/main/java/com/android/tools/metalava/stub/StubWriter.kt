@@ -211,13 +211,7 @@ internal class StubWriter(
 
             stubWriter =
                 if (kotlin) {
-                    KotlinStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    error("Generating Kotlin stubs is not supported")
                 } else {
                     JavaStubWriter(
                         textWriter,
