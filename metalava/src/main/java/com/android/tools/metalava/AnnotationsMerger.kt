@@ -58,7 +58,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
@@ -307,20 +306,19 @@ class AnnotationsMerger(
                         }
                     } else {
                         // TODO: Check for other incompatibilities than nullness?
-                        val qualifiedName = annotation.qualifiedName ?: return
+                        val qualifiedName = annotation.qualifiedName
                         if (newModifiers.findAnnotation(qualifiedName) == null) {
                             addAnnotation = true
                         }
                     }
 
                     if (addAnnotation) {
-                        mergeAnnotation(
-                            new,
-                            new.codebase.createAnnotation(
+                        new.codebase
+                            .createAnnotation(
                                 annotation.toSource(showDefaultAttrs = false),
                                 new,
                             )
-                        )
+                            ?.let { mergeAnnotation(new, it) }
                     }
                 }
 
@@ -374,7 +372,7 @@ class AnnotationsMerger(
                     // Copy the annotations to the main item.
                     val modifiers = mainItem.mutableModifiers()
                     for (annotation in annotationsToCopy) {
-                        if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
+                        if (modifiers.findAnnotation(annotation.qualifiedName) == null) {
                             mergeAnnotation(mainItem, annotation)
                         }
                     }
@@ -568,7 +566,7 @@ class AnnotationsMerger(
         assert(tagName == "annotation") { tagName }
 
         val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName != null && qualifiedName.isNotEmpty())
+        assert(qualifiedName.isNotEmpty())
         return qualifiedName
     }
 
@@ -590,7 +588,7 @@ class AnnotationsMerger(
         var haveNullable = false
         var haveNotNull = false
         for (existing in item.modifiers.annotations()) {
-            val name = existing.qualifiedName ?: continue
+            val name = existing.qualifiedName
             if (isNonNull(name)) {
                 haveNotNull = true
             }
@@ -620,7 +618,7 @@ class AnnotationsMerger(
         val tagName = annotationElement.tagName
         assert(tagName == "annotation") { tagName }
         val name = annotationElement.getAttribute(ATTR_NAME)
-        assert(name != null && name.isNotEmpty())
+        assert(name.isNotEmpty())
         when {
             name == "org.jetbrains.annotations.Range" -> {
                 val children = getChildren(annotationElement)
@@ -833,10 +831,17 @@ class AnnotationsMerger(
 
     private fun mergeAnnotation(item: Item, annotation: AnnotationItem) {
         item.mutableModifiers().addAnnotation(annotation)
-        if (annotation.isNullable()) {
-            item.type()?.modifiers?.setNullability(TypeNullability.NULLABLE)
-        } else if (annotation.isNonNull()) {
-            item.type()?.modifiers?.setNullability(TypeNullability.NONNULL)
+
+        // Update the type nullability from the annotation, if necessary.
+        // First, check to make sure that the annotation is a nullability annotation.
+        val annotationNullability = annotation.typeNullability ?: return
+        // Second, check to make sure that the item has a type.
+        val typeItem = item.type() ?: return
+        // Thirdly, check to make sure that the type nullability is different to the annotation's
+        // nullability.
+        if (typeItem.modifiers.nullability() != annotationNullability) {
+            // Finally, duplicate the type with the new nullability.
+            item.setType(typeItem.substitute(annotationNullability))
         }
     }
 
