@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
@@ -162,11 +163,9 @@ internal open class TurbineClassItem(
         this.superClassType = superClassType
     }
 
-    override fun superClass(): ClassItem? = superClassType?.asClass()
-
     override fun superClassType(): ClassTypeItem? = superClassType
 
-    /** Must only be used by [type] to cache its result. */
+    /** Must only be used by [type] to cache its result, and [setType] to update it. */
     private lateinit var cachedType: ClassTypeItem
 
     override fun type(): ClassTypeItem {
@@ -174,6 +173,10 @@ internal open class TurbineClassItem(
             cachedType = DefaultResolvedClassTypeItem.createForClass(this)
         }
         return cachedType
+    }
+
+    override fun setType(type: TypeItem) {
+        cachedType = type as ClassTypeItem
     }
 
     private fun createVariableType(typeParam: TurbineTypeParameterItem): VariableTypeItem {

@@ -34,7 +34,7 @@ internal open class TextMethodItem(
     name: String,
     containingClass: ClassItem,
     modifiers: DefaultModifierList,
-    private val returnType: TypeItem,
+    private var returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
     fileLocation: FileLocation,
 ) :
@@ -96,6 +96,10 @@ internal open class TextMethodItem(
 
     override fun returnType(): TypeItem = returnType
 
+    override fun setType(type: TypeItem) {
+        returnType = type
+    }
+
     override fun superMethods(): List<MethodItem> {
         return computeSuperMethods()
     }
@@ -132,7 +136,6 @@ internal open class TextMethodItem(
             duplicated.docOnly = true
         }
 
-        duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
         duplicated.throwsTypes = this.throwsTypes
         duplicated.typeParameterList = typeParameterList

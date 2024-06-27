@@ -888,7 +888,7 @@ open class PsiBasedCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): AnnotationItem {
+    ): AnnotationItem? {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
@@ -905,7 +905,7 @@ open class PsiBasedCodebase(
             reporter.report(
                 Issues.DUPLICATE_SOURCE_CLASS,
                 classItem,
-                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.issueLocation.path}"
+                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.fileLocation.path}"
             )
             return
         }

@@ -30,16 +30,17 @@ import com.android.tools.metalava.model.Codebase
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.unique
 import java.io.File
 
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
-const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
 
 const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
 const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
     "--update-baseline:compatibility:released"
+const val ARG_API_COMPAT_ANNOTATION = "--api-compat-annotation"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val COMPATIBILITY_CHECK_GROUP = "Compatibility Checks"
@@ -57,22 +58,6 @@ class CompatibilityCheckOptions(
             """
                 .trimIndent(),
     ) {
-
-    internal val baseApiForCompatCheck: File? by
-        option(
-                ARG_CHECK_COMPATIBILITY_BASE_API,
-                help =
-                    """
-                        When performing a compat check, use the provided signature file as a base
-                        api, which is treated as part of the API being checked. This allows us to
-                        compute the full API surface from a partial API surface (e.g. the current
-                         @SystemApi txt file), which allows us to recognize when an API is moved
-                         from the partial API to the base API and avoid incorrectly flagging this
-                     """
-                        .trimIndent(),
-            )
-            .existingFile()
-            .allowStructuredOptionName()
 
     private val checkReleasedApi: CheckRequest? by
         option(
@@ -111,6 +96,22 @@ class CompatibilityCheckOptions(
             .multiple()
             .allowStructuredOptionName()
             .map { CheckRequest.optionalCheckRequest(it, ApiType.REMOVED) }
+
+    internal val apiCompatAnnotations: Set<String> by
+        option(
+                ARG_API_COMPAT_ANNOTATION,
+                help =
+                    """
+                        Specify an annotation important for API compatibility.
+
+                        Adding/removing this annotation will be considered an incompatible change.
+                        The fully qualified name of the annotation should be passed.
+                    """
+                        .trimIndent(),
+                metavar = "<annotation>",
+            )
+            .multiple()
+            .unique()
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
