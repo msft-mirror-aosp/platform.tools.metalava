@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import java.io.PrintWriter
@@ -139,7 +140,7 @@ internal class JavaStubWriter(
         if (interfaces.isNotEmpty()) {
             val label = if (cls.isInterface()) " extends" else " implements"
             writer.print(label)
-            interfaces.forEachIndexed { index, type ->
+            interfaces.sortedWith(TypeItem.totalComparator).forEachIndexed { index, type ->
                 if (index > 0) {
                     writer.print(",")
                 }
