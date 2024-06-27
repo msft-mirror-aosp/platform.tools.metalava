@@ -89,7 +89,7 @@ internal class JavaStubWriter(
         if (cls.isEnum()) {
             var first = true
             // Enums should preserve the original source order, not alphabetical etc. sort
-            for (field in cls.filteredFields(filterReference, true).sortedBy { it.sortingRank }) {
+            for (field in cls.fields().sortedBy { it.sortingRank }) {
                 if (field.isEnumConstant()) {
                     if (first) {
                         first = false

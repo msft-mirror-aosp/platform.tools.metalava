@@ -191,6 +191,9 @@ class FilteringApiVisitor(
                     it.transform(typeAnnotationFilter)
                 }
         }
+
+        override fun fields(): List<FieldItem> =
+            delegate.filteredFields(filterReference, showUnannotated).map { FilteringFieldItem(it) }
     }
 
     /**
