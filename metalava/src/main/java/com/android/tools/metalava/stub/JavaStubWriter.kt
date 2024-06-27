@@ -108,8 +108,6 @@ internal class JavaStubWriter(
             }
             writer.println(";")
         }
-
-        generateMissingConstructors(cls)
     }
 
     override fun afterVisitClass(cls: ClassItem) {
@@ -263,18 +261,6 @@ internal class JavaStubWriter(
         }
 
         writeThrowStub()
-    }
-
-    private fun generateMissingConstructors(cls: ClassItem) {
-        val clsStubConstructor = cls.stubConstructor
-        val constructors = cls.filteredConstructors(filterEmit)
-        // If the default stub constructor is not publicly visible then it won't be output during
-        // the normal visiting
-        // so visit it specially to ensure that it is output.
-        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            visitConstructor(clsStubConstructor)
-            return
-        }
     }
 
     override fun visitMethod(method: MethodItem) {

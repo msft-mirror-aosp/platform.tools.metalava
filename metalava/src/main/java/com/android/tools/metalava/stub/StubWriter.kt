@@ -284,6 +284,9 @@ internal class StubWriter(
             filterReference = filterReference,
             preFiltered = preFiltered,
             includeEmptyOuterClasses = true,
+            // Make sure that package private constructors that are needed to compile safely are
+            // visited, so they will appear in the stubs.
+            visitStubsConstructorIfNeeded = true,
             config = apiVisitorConfig,
         )
     }
