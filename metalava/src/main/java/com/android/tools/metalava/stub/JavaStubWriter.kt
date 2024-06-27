@@ -165,10 +165,6 @@ internal class JavaStubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        writeConstructor(constructor, constructor.superConstructor)
-    }
-
-    private fun writeConstructor(constructor: MethodItem, superConstructor: MethodItem?) {
         writer.println()
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
@@ -180,17 +176,25 @@ internal class JavaStubWriter(
 
         writer.print(" { ")
 
-        writeConstructorBody(constructor, superConstructor)
+        writeConstructorBody(constructor)
         writer.println(" }")
     }
 
-    private fun writeConstructorBody(constructor: MethodItem, superConstructor: MethodItem?) {
+    private fun writeConstructorBody(constructor: ConstructorItem) {
         // Find any constructor in parent that we can compile against
-        superConstructor?.let { it ->
-            val parameters = it.parameters()
+        constructor.superConstructor?.let { superConstructor ->
+            val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
+                // If the super constructor is in a class that has more than one constructor then
+                // it will be necessary to include casts in the super call for any non-primitive
+                // as they are passed `null` and without the casts it is possible that the compiler
+                // will not be able to tell which constructor to use.
                 val includeCasts =
-                    it.containingClass().constructors().filter { filterReference.test(it) }.size > 1
+                    superConstructor
+                        .containingClass()
+                        .constructors()
+                        .filter { filterReference.test(it) }
+                        .size > 1
                 writer.print("super(")
                 parameters.forEachIndexed { index, parameter ->
                     if (index > 0) {
@@ -234,7 +238,7 @@ internal class JavaStubWriter(
                                 val map =
                                     constructor
                                         .containingClass()
-                                        .mapTypeVariables(it.containingClass())
+                                        .mapTypeVariables(superConstructor.containingClass())
                                 val cast = map[type.asTypeParameter]?.toTypeString() ?: typeString
                                 writer.write(cast)
                             } else {
