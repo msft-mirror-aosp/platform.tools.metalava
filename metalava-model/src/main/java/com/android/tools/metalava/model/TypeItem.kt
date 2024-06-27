@@ -175,8 +175,14 @@ interface TypeItem {
      * return this instance, otherwise it will return a new instance with a new [TypeModifiers].
      */
     fun substitute(nullability: TypeNullability) =
-        if (modifiers.nullability() == nullability) this
+        if (modifiers.nullability == nullability) this
         else substitute(modifiers.substitute(nullability))
+
+    /**
+     * Return a [TypeItem] instance of the same type as this one that was produced by the [TypeItem]
+     * appropriate [TypeTransformer.transform] method.
+     */
+    fun transform(transformer: TypeTransformer): TypeItem
 
     companion object {
         /** Shortens types, if configured */
@@ -468,7 +474,7 @@ abstract class DefaultTypeItem(
                             arrayModifiers.add(deepComponentType.modifiers)
                             deepComponentType = deepComponentType.componentType
                         }
-                        val suffixes = arrayModifiers.map { it.nullability().suffix }.reversed()
+                        val suffixes = arrayModifiers.map { it.nullability.suffix }.reversed()
 
                         // Print the innermost component type.
                         appendTypeString(deepComponentType, configuration)
@@ -495,7 +501,7 @@ abstract class DefaultTypeItem(
                             append("[]")
                         }
                         if (configuration.kotlinStyleNulls) {
-                            append(type.modifiers.nullability().suffix)
+                            append(type.modifiers.nullability.suffix)
                         }
                     }
                 }
@@ -531,7 +537,7 @@ abstract class DefaultTypeItem(
                         append(">")
                     }
                     if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
+                        append(type.modifiers.nullability.suffix)
                     }
                 }
                 is VariableTypeItem -> {
@@ -540,7 +546,7 @@ abstract class DefaultTypeItem(
                     }
                     append(type.name)
                     if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
+                        append(type.modifiers.nullability.suffix)
                     }
                 }
                 is WildcardTypeItem -> {
@@ -587,7 +593,7 @@ abstract class DefaultTypeItem(
 
             // When nullability information is included, excluded bounds imply non-null when
             // kotlinStyleNulls is true and platform when it is false.
-            val nullability = extendsBound.modifiers.nullability()
+            val nullability = extendsBound.modifiers.nullability
             if (configuration.kotlinStyleNulls && nullability == TypeNullability.NONNULL)
                 return false
             if (!configuration.kotlinStyleNulls && nullability == TypeNullability.PLATFORM)
@@ -602,7 +608,7 @@ abstract class DefaultTypeItem(
             trailingSpace: Boolean = true
         ) {
             val annotations =
-                modifiers.annotations().filter { annotation ->
+                modifiers.annotations.filter { annotation ->
                     // If Kotlin-style nulls are printed, nullness annotations shouldn't be.
                     if (configuration.kotlinStyleNulls && annotation.isNullnessAnnotation()) {
                         return@filter false
@@ -721,6 +727,9 @@ interface TypeArgumentTypeItem : TypeItem {
 
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): TypeArgumentTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem
 }
 
 /**
@@ -734,6 +743,9 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
 
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ReferenceTypeItem
 }
 
 /**
@@ -749,6 +761,9 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
 sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ExceptionTypeItem
+
     /**
      * Get the erased [ClassItem], if any.
      *
@@ -839,6 +854,10 @@ interface PrimitiveTypeItem : TypeItem {
         return this
     }
 
+    override fun transform(transformer: TypeTransformer): PrimitiveTypeItem {
+        return transformer.transform(this)
+    }
+
     override fun equalToType(other: TypeItem?): Boolean {
         return (other as? PrimitiveTypeItem)?.kind == kind
     }
@@ -897,6 +916,10 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         return substitute(
             componentType = componentType.convertType(typeParameterBindings),
         )
+    }
+
+    override fun transform(transformer: TypeTransformer): ArrayTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -998,6 +1021,10 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         )
     }
 
+    override fun transform(transformer: TypeTransformer): ClassTypeItem {
+        return transformer.transform(this)
+    }
+
     override fun equalToType(other: TypeItem?): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
@@ -1061,6 +1088,10 @@ interface LambdaTypeItem : ClassTypeItem {
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ) = super.substitute(modifiers, outerClassType, arguments) as LambdaTypeItem
+
+    override fun transform(transformer: TypeTransformer): LambdaTypeItem {
+        return transformer.transform(this)
+    }
 }
 
 /** Represents a type variable type. */
@@ -1095,7 +1126,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
-        val nullability = modifiers.nullability()
+        val nullability = modifiers.nullability
         return typeParameterBindings[asTypeParameter]?.let { replacement ->
             val replacementNullability =
                 when {
@@ -1107,7 +1138,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
                     // then use the nullability of the use of the type parameter as while at worst
                     // it may also have no nullability information, it could have some, e.g. from a
                     // declaration nullability annotation.
-                    replacement.modifiers.nullability() == TypeNullability.PLATFORM -> nullability
+                    replacement.modifiers.nullability == TypeNullability.PLATFORM -> nullability
                     else -> null
                 }
 
@@ -1121,6 +1152,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             // The type parameter binding does not contain a replacement for this variable so use
             // this as is.
             this
+    }
+
+    override fun transform(transformer: TypeTransformer): VariableTypeItem {
+        return transformer.transform(this)
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
@@ -1195,6 +1230,10 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
             extendsBound?.convertType(typeParameterBindings),
             superBound?.convertType(typeParameterBindings)
         )
+    }
+
+    override fun transform(transformer: TypeTransformer): WildcardTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
