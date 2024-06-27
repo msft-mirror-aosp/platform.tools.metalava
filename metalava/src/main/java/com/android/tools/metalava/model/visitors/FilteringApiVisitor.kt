@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -30,8 +29,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeTransformer
+import com.android.tools.metalava.model.typeUseAnnotationFilter
 import java.util.function.Predicate
 
 /**
@@ -92,20 +91,7 @@ class FilteringApiVisitor(
      * A [TypeTransformer] that will remove any type annotations for which [filterReference] returns
      * false when called against the annotation's [ClassItem].
      */
-    private val typeAnnotationFilter =
-        object : BaseTypeTransformer() {
-            override fun transform(modifiers: TypeModifiers): TypeModifiers {
-                if (modifiers.annotations.isEmpty()) return modifiers
-                return modifiers.substitute(
-                    annotations =
-                        modifiers.annotations.filter { annotationItem ->
-                            // If the annotation cannot be resolved then keep it.
-                            val annotationClass = annotationItem.resolve() ?: return@filter true
-                            filterReference.test(annotationClass)
-                        }
-                )
-            }
-        }
+    private val typeAnnotationFilter = typeUseAnnotationFilter(filterReference)
 
     override fun visitPackage(pkg: PackageItem) {
         delegate.visitPackage(pkg)
