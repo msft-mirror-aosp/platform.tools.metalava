@@ -750,7 +750,14 @@ private fun createStubFiles(
             reporter = options.reporter,
             config = stubWriterConfig,
         )
-    codebase.accept(stubWriter)
+
+    val filteringApiVisitor =
+        stubWriter.createFilteringVisitor(
+            preFiltered = codebase.preFiltered,
+            apiVisitorConfig = stubWriterConfig.apiVisitorConfig,
+        )
+
+    codebase.accept(filteringApiVisitor)
 
     if (docStubs) {
         // Overview docs? These are generally in the empty package.
