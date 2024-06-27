@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
@@ -149,12 +150,23 @@ class FilteringApiVisitor(
     }
 
     /**
+     * [SourceFile] that will filter out anything which is not to be written out by the
+     * [FilteringApiVisitor.delegate].
+     */
+    private inner class FilteringSourceFile(val delegate: SourceFile) : SourceFile by delegate {
+
+        override fun getImports() = delegate.getImports(filterReference)
+    }
+
+    /**
      * [ClassItem] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
      */
     private inner class FilteringClassItem(
         val delegate: ClassItem,
     ) : ClassItem by delegate {
+
+        override fun getSourceFile() = delegate.getSourceFile()?.let { FilteringSourceFile(it) }
 
         override fun superClass() = superClassType()?.asClass()
 
