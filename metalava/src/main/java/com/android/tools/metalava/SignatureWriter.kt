@@ -287,6 +287,8 @@ class SignatureWriter(
             return
         }
 
+        // There is no need to sort the interface types as that is done by the `interfaceTypes()`
+        // method, using the `interfaceListAccessor(...)` method.
         val orderedInterfaces = cls.interfaceTypes()
         if (orderedInterfaces.isEmpty()) return
 
