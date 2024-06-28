@@ -1680,8 +1680,8 @@ class CommonTypeItemTest : BaseModelTest() {
                             method public classTypeItem(): @test.annotation.TypeUse java.util.List<@test.annotation.TypeUse T>?;
                             method public primitiveTypeItem(): @test.annotation.TypeUse int;
                             method public variableTypeItem(): @test.annotation.TypeUse T?;
-                            method public wildcardTypeItem_extendsBound(): java.util.List<@test.annotation.TypeUse ? extends T>?;
-                            method public wildcardTypeItem_superBound(): java.util.List<@test.annotation.TypeUse ? super T>?;
+                            method public wildcardTypeItem_extendsBound(): java.util.List<? extends @test.annotation.TypeUse T>?;
+                            method public wildcardTypeItem_superBound(): java.util.List<? super @test.annotation.TypeUse T>?;
                           }
                         }
                         package test.annotation {
@@ -1707,8 +1707,8 @@ class CommonTypeItemTest : BaseModelTest() {
                             @TypeUse @Nullable List<@TypeUse @NonNull T> classTypeItem();
                             @TypeUse int primitiveTypeItem();
                             @TypeUse @Nullable T variableTypeItem();
-                            @Nullable List<@TypeUse ? extends @NonNull T> wildcardTypeItem_extendsBound();
-                            @Nullable List<@TypeUse ? super @NonNull T> wildcardTypeItem_superBound();
+                            @Nullable List<? extends @TypeUse @NonNull T> wildcardTypeItem_extendsBound();
+                            @Nullable List<? super @TypeUse @NonNull T> wildcardTypeItem_superBound();
                         }
                     """
                 ),
@@ -1807,13 +1807,13 @@ class CommonTypeItemTest : BaseModelTest() {
                         discarded annotations: T?
 
                     wildcardTypeItem_extendsBound
-                        original: java.util.List<@test.annotation.TypeUse ? extends T>?
-                        no change: java.util.List<@test.annotation.TypeUse ? extends T>?
+                        original: java.util.List<? extends @test.annotation.TypeUse T>?
+                        no change: java.util.List<? extends @test.annotation.TypeUse T>?
                         discarded annotations: java.util.List<? extends T>?
 
                     wildcardTypeItem_superBound
-                        original: java.util.List<@test.annotation.TypeUse ? super T>?
-                        no change: java.util.List<@test.annotation.TypeUse ? super T>?
+                        original: java.util.List<? super @test.annotation.TypeUse T>?
+                        no change: java.util.List<? super @test.annotation.TypeUse T>?
                         discarded annotations: java.util.List<? super T>?
                 """
                     .trimIndent(),
