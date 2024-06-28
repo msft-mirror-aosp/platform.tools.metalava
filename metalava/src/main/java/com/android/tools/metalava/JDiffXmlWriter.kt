@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -48,11 +48,8 @@ import java.util.function.Predicate
 class JDiffXmlWriter(
     private val writer: PrintWriter,
     private val apiName: String? = null,
-) :
-    BaseItemVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = false,
-    ) {
+) : DelegatedVisitor {
+
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
 
@@ -309,7 +306,6 @@ class JDiffXmlWriter(
     ): ApiVisitor =
         FilteringApiVisitor(
             this,
-            visitConstructorsAsMethods = false,
             nestInnerClasses = false,
             inlineInheritedFields = true,
             interfaceListComparator = TypeItem.totalComparator,

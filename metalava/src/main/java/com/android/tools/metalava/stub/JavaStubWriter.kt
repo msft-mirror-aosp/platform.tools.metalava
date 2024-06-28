@@ -17,9 +17,9 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.actualItem
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -34,7 +34,7 @@ internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val modifierListWriter: ModifierListWriter,
     private val config: StubWriterConfig,
-) : BaseItemVisitor() {
+) : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
