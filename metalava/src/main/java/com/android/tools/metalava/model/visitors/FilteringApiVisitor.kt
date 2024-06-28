@@ -53,6 +53,8 @@ class FilteringApiVisitor(
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
+     * This will only be called if the filtered list contains 2 or more elements.
+     *
      * This is provided primarily to allow usages where the interface order cannot be enforced by
      * [interfaceListComparator]. In that case this should be provided and [interfaceListComparator]
      * should be left unspecified so that the order of the list returned by this is unchanged.
@@ -217,22 +219,20 @@ class FilteringApiVisitor(
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
 
         override fun interfaceTypes(): List<ClassTypeItem> {
-            // Get the filtered and unfiltered lists from the delegate.
-            val delegateInterfaceTypes = delegate.interfaceTypes()
-            val (filtered, unfiltered) =
-                if (preFiltered) {
-                    // If pre-filtered then the filtered and unfiltered are the same.
-                    Pair(delegateInterfaceTypes, delegateInterfaceTypes)
-                } else {
-                    Pair(
-                        delegate.filteredInterfaceTypes(filterReference).toList(),
-                        delegateInterfaceTypes
-                    )
-                }
+            // Get the filtered list from the delegate.
+            val filtered =
+                if (preFiltered) delegate.interfaceTypes()
+                else delegate.filteredInterfaceTypes(filterReference).toList()
+
+            // If the list is empty then nothing else is needed.
+            if (filtered.isEmpty()) return emptyList()
 
             // Order the list.
             val ordered =
                 when {
+                    // 0. If the list only has 1 element then it does not need sorting
+                    filtered.size == 1 -> filtered
+
                     // 1. Use the custom sorter, if available.
                     interfaceListSorter != null -> {
                         // Make sure a interfaceListComparator was not provided as well.
@@ -241,6 +241,15 @@ class FilteringApiVisitor(
                                 "Cannot specify both interfaceListSorter and interfaceListComparator"
                             )
                         }
+
+                        // Get the unfiltered lists from the delegate.
+                        val unfiltered =
+                            if (preFiltered) {
+                                // If pre-filtered then the filtered and unfiltered are the
+                                // same.
+                                filtered
+                            } else delegate.interfaceTypes()
+
                         interfaceListSorter.invoke(delegate, filtered, unfiltered)
                     }
 

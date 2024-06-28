@@ -393,11 +393,6 @@ private fun getInterfacesInOrder(
     filteredInterfaceTypes: List<ClassTypeItem>,
     unfilteredInterfaceTypes: List<ClassTypeItem>,
 ): List<ClassTypeItem> {
-
-    if (filteredInterfaceTypes.isEmpty()) {
-        return emptyList()
-    }
-
     // Sort before prepending the super class (if this is an interface) as the super class
     // always comes first because it was previously written out by writeSuperClassStatement.
     @Suppress("DEPRECATION")
