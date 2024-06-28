@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeTransformer
 import java.util.function.Predicate
@@ -49,8 +50,8 @@ class FilteringApiVisitor(
     inlineInheritedFields: Boolean = true,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
     /**
-     * Responsible for returning a filtered, sorted list of interfaces from a [ClassItem] filtered
-     * by the [Predicate].
+     * Lambda for returning a filtered, list of interfaces from a [ClassItem] filtered by the
+     * [Predicate].
      *
      * Each interface is represented as a [ClassTypeItem] and the caller will filter out any
      * unwanted type use annotations from them using the same [Predicate].
@@ -58,7 +59,15 @@ class FilteringApiVisitor(
      * The [Boolean] parameter is set to [preFiltered] so if `true` the [Predicate] can be assumed
      * to be `{ true }`.
      */
-    private val interfaceListAccessor: (ClassItem, Predicate<Item>, Boolean) -> List<ClassTypeItem>,
+    @Suppress("NAME_SHADOWING")
+    private val interfaceListAccessor:
+        (ClassItem, Predicate<Item>, Boolean) -> List<ClassTypeItem> =
+        { classItem, filterReference, preFiltered ->
+            if (preFiltered) classItem.interfaceTypes()
+            else classItem.filteredInterfaceTypes(filterReference).toList()
+        },
+    /** Optional comparator to use for sorting interface list types. */
+    private val interfaceListComparator: Comparator<TypeItem>? = null,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
@@ -167,11 +176,23 @@ class FilteringApiVisitor(
             if (preFiltered) delegate.superClassType()
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
 
-        override fun interfaceTypes() =
-            interfaceListAccessor(delegate, filterReference, preFiltered).map {
-                // Filter any inaccessible annotations from the interfaces, if needed.
-                if (preFiltered) it else it.transform(typeAnnotationFilter)
-            }
+        override fun interfaceTypes(): List<ClassTypeItem> {
+            // Get the list of filtered by unsorted interface types.
+            val unsorted = interfaceListAccessor(delegate, filterReference, preFiltered)
+
+            // Sort them if required, or use
+            val ordered =
+                if (interfaceListComparator == null) unsorted.toList()
+                else unsorted.sortedWith(interfaceListComparator)
+
+            // If required then filter annotation types from the ordered list before returning.
+            return if (preFiltered) ordered
+            else
+                ordered.map {
+                    // Filter any inaccessible annotations from the interfaces
+                    it.transform(typeAnnotationFilter)
+                }
+        }
     }
 
     /**
