@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
@@ -98,6 +99,18 @@ class FilteringApiVisitor(
      * false when called against the annotation's [ClassItem].
      */
     private val typeAnnotationFilter = typeUseAnnotationFilter(filterReference)
+
+    override fun visitCodebase(codebase: Codebase) {
+        // This does not create a filtering wrapper around the Codebase as the classes to which this
+        // currently delegates do not access any fields within the Codebase.
+        delegate.visitCodebase(codebase)
+    }
+
+    override fun afterVisitCodebase(codebase: Codebase) {
+        // This does not create a filtering wrapper around the Codebase as the classes to which this
+        // currently delegates do not access any fields within the Codebase.
+        delegate.afterVisitCodebase(codebase)
+    }
 
     override fun visitPackage(pkg: PackageItem) {
         delegate.visitPackage(pkg)

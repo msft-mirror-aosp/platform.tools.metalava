@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -30,6 +31,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.utils.XmlUtils
 import java.io.PrintWriter
 import java.util.function.Predicate
@@ -45,21 +47,14 @@ import java.util.function.Predicate
  */
 class JDiffXmlWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
+    private val filterEmit: Predicate<Item>,
+    private val filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
     private val apiName: String? = null,
-    showUnannotated: Boolean,
-    config: Config,
 ) :
-    ApiVisitor(
+    BaseItemVisitor(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
-        inlineInheritedFields = true,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        showUnannotated = showUnannotated,
-        config = config,
     ) {
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
@@ -311,4 +306,26 @@ class JDiffXmlWriter(
             }
         }
     }
+
+    /**
+     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * [JDiffXmlWriter] instance.
+     */
+    fun createFilteringVisitor(
+        showUnannotated: Boolean,
+    ): ApiVisitor =
+        FilteringApiVisitor(
+            this,
+            visitConstructorsAsMethods = false,
+            nestInnerClasses = false,
+            inlineInheritedFields = true,
+            interfaceListComparator = TypeItem.totalComparator,
+            filterEmit = filterEmit,
+            filterReference = filterReference,
+            preFiltered = preFiltered,
+            showUnannotated = showUnannotated,
+            config = ApiVisitor.Config(),
+        )
 }
