@@ -72,7 +72,6 @@ interface TypeItem {
      *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
      * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
      *   "List<String!>?".
-     * @param filter Specifies a filter to apply to the type annotations, if any.
      * @param spaceBetweenParameters Controls whether there should be a space between class type
      *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
      *   "java.util.Map<java.lang.Integer,java.lang.Number>".
@@ -80,7 +79,6 @@ interface TypeItem {
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
-        filter: Predicate<Item>? = null,
         spaceBetweenParameters: Boolean = false
     ): String
 
@@ -389,11 +387,10 @@ abstract class DefaultTypeItem(
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
-        filter: Predicate<Item>?,
         spaceBetweenParameters: Boolean
     ): String {
         return toTypeString(
-            TypeStringConfiguration(annotations, kotlinStyleNulls, filter, spaceBetweenParameters)
+            TypeStringConfiguration(annotations, kotlinStyleNulls, spaceBetweenParameters)
         )
     }
 
@@ -438,17 +435,14 @@ abstract class DefaultTypeItem(
          * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
          *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
          *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
-         * @param filter A filter to apply to the type annotations, if any.
          * @param spaceBetweenParameters Whether to include a space between class type params.
          */
         private data class TypeStringConfiguration(
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
-            val filter: Predicate<Item>? = null,
             val spaceBetweenParameters: Boolean = false,
         ) {
-            val isDefault =
-                !annotations && !kotlinStyleNulls && filter == null && !spaceBetweenParameters
+            val isDefault = !annotations && !kotlinStyleNulls && !spaceBetweenParameters
         }
 
         private fun StringBuilder.appendTypeString(
@@ -610,15 +604,7 @@ abstract class DefaultTypeItem(
             val annotations =
                 modifiers.annotations.filter { annotation ->
                     // If Kotlin-style nulls are printed, nullness annotations shouldn't be.
-                    if (configuration.kotlinStyleNulls && annotation.isNullnessAnnotation()) {
-                        return@filter false
-                    }
-
-                    val filter = configuration.filter ?: return@filter true
-                    val qualifiedName = annotation.qualifiedName
-                    val annotationClass =
-                        annotation.codebase.findClass(qualifiedName) ?: return@filter true
-                    filter.test(annotationClass)
+                    !(configuration.kotlinStyleNulls && annotation.isNullnessAnnotation())
                 }
             if (annotations.isEmpty()) return
 
@@ -1246,6 +1232,26 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     override fun asClass(): ClassItem? = null
 }
+
+/**
+ * Create a [TypeTransformer] that will remove any type annotations for which [filter] returns false
+ * when called against the [AnnotationItem]'s [ClassItem] return by [AnnotationItem.resolve]. If
+ * that returns `null` then the [AnnotationItem] will be kept.
+ */
+fun typeUseAnnotationFilter(filter: Predicate<Item>): TypeTransformer =
+    object : BaseTypeTransformer() {
+        override fun transform(modifiers: TypeModifiers): TypeModifiers {
+            if (modifiers.annotations.isEmpty()) return modifiers
+            return modifiers.substitute(
+                annotations =
+                    modifiers.annotations.filter { annotationItem ->
+                        // If the annotation cannot be resolved then keep it.
+                        val annotationClass = annotationItem.resolve() ?: return@filter true
+                        filter.test(annotationClass)
+                    }
+            )
+        }
+    }
 
 /**
  * Map the items in this list to a new list if [transform] returns at least one item which is not
