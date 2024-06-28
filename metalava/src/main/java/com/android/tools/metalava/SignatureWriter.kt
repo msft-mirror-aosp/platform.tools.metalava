@@ -71,7 +71,7 @@ class SignatureWriter(
             nestInnerClasses = false,
             inlineInheritedFields = true,
             methodComparator = fileFormat.overloadedMethodOrder.comparator,
-            interfaceListAccessor = ::interfaceListAccessor,
+            interfaceListSorter = ::interfaceListSorter,
             filterEmit = filterEmit,
             filterReference = filterReference,
             preFiltered = preFiltered,
@@ -270,16 +270,16 @@ class SignatureWriter(
      * Provides the interface list in an order suitable for use in the signature file that this is
      * writing.
      */
-    private fun interfaceListAccessor(
+    private fun interfaceListSorter(
         classItem: ClassItem,
-        filterReference: Predicate<Item>,
-        preFiltered: Boolean,
+        filteredInterfaceTypes: List<ClassTypeItem>,
+        unfilteredInterfaceTypes: List<ClassTypeItem>,
     ) =
         getInterfacesInOrder(
             classItem = classItem,
             sortWholeExtendsList = fileFormat.sortWholeExtendsList,
-            preFiltered = preFiltered,
-            filterReference = filterReference,
+            filteredInterfaceTypes = filteredInterfaceTypes,
+            unfilteredInterfaceTypes = unfilteredInterfaceTypes,
         )
 
     private fun writeInterfaceList(cls: ClassItem) {
@@ -405,15 +405,11 @@ enum class EmitFileHeader {
 private fun getInterfacesInOrder(
     classItem: ClassItem,
     sortWholeExtendsList: Boolean,
-    preFiltered: Boolean,
-    filterReference: Predicate<Item>,
+    filteredInterfaceTypes: List<ClassTypeItem>,
+    unfilteredInterfaceTypes: List<ClassTypeItem>,
 ): List<ClassTypeItem> {
 
-    val unfilteredInterfaceTypes = classItem.interfaceTypes()
-    val interfaces =
-        if (preFiltered) unfilteredInterfaceTypes
-        else classItem.filteredInterfaceTypes(filterReference)
-    if (interfaces.isEmpty()) {
+    if (filteredInterfaceTypes.isEmpty()) {
         return emptyList()
     }
 
@@ -422,7 +418,7 @@ private fun getInterfacesInOrder(
     @Suppress("DEPRECATION")
     val comparator =
         if (sortWholeExtendsList) TypeItem.totalComparator else TypeItem.partialComparator
-    val sortedInterfaces = interfaces.sortedWith(comparator)
+    val sortedInterfaces = filteredInterfaceTypes.sortedWith(comparator)
 
     // Combine the super class and interfaces into a full list of them.
     val fullInterfaces =
@@ -432,7 +428,7 @@ private fun getInterfacesInOrder(
             // be first even though the other interfaces are sorted in alphabetical order. This
             // implements similar logic.
             val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
-            val firstFilteredInterfaceType = interfaces.first()
+            val firstFilteredInterfaceType = filteredInterfaceTypes.first()
             if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
                 buildList {
                     // The first interface in the interfaces list is also the first interface in

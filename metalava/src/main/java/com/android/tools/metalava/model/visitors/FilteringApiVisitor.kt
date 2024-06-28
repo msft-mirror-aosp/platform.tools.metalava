@@ -51,23 +51,25 @@ class FilteringApiVisitor(
     inlineInheritedFields: Boolean = true,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
     /**
-     * Lambda for returning a filtered, list of interfaces from a [ClassItem] filtered by the
-     * [Predicate].
+     * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
-     * Each interface is represented as a [ClassTypeItem] and the caller will filter out any
-     * unwanted type use annotations from them using the same [Predicate].
+     * This is provided primarily to allow usages where the interface order cannot be enforced by
+     * [interfaceListComparator]. In that case this should be provided and [interfaceListComparator]
+     * should be left unspecified so that the order of the list returned by this is unchanged.
      *
-     * The [Boolean] parameter is set to [preFiltered] so if `true` the [Predicate] can be assumed
-     * to be `{ true }`.
+     * If this is `null` then it will behave as if it just returned the filtered interface types it
+     * was passed.
+     *
+     * This is mutually exclusive with [interfaceListComparator].
      */
-    @Suppress("NAME_SHADOWING")
-    private val interfaceListAccessor:
-        (ClassItem, Predicate<Item>, Boolean) -> List<ClassTypeItem> =
-        { classItem, filterReference, preFiltered ->
-            if (preFiltered) classItem.interfaceTypes()
-            else classItem.filteredInterfaceTypes(filterReference).toList()
-        },
-    /** Optional comparator to use for sorting interface list types. */
+    private val interfaceListSorter:
+        ((ClassItem, List<ClassTypeItem>, List<ClassTypeItem>) -> List<ClassTypeItem>)? =
+        null,
+    /**
+     * Optional comparator to use for sorting interface list types.
+     *
+     * This is mutually exclusive with [interfaceListSorter].
+     */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
@@ -215,13 +217,41 @@ class FilteringApiVisitor(
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
 
         override fun interfaceTypes(): List<ClassTypeItem> {
-            // Get the list of filtered by unsorted interface types.
-            val unsorted = interfaceListAccessor(delegate, filterReference, preFiltered)
+            // Get the filtered and unfiltered lists from the delegate.
+            val delegateInterfaceTypes = delegate.interfaceTypes()
+            val (filtered, unfiltered) =
+                if (preFiltered) {
+                    // If pre-filtered then the filtered and unfiltered are the same.
+                    Pair(delegateInterfaceTypes, delegateInterfaceTypes)
+                } else {
+                    Pair(
+                        delegate.filteredInterfaceTypes(filterReference).toList(),
+                        delegateInterfaceTypes
+                    )
+                }
 
-            // Sort them if required, or use
+            // Order the list.
             val ordered =
-                if (interfaceListComparator == null) unsorted.toList()
-                else unsorted.sortedWith(interfaceListComparator)
+                when {
+                    // 1. Use the custom sorter, if available.
+                    interfaceListSorter != null -> {
+                        // Make sure a interfaceListComparator was not provided as well.
+                        interfaceListComparator?.let {
+                            error(
+                                "Cannot specify both interfaceListSorter and interfaceListComparator"
+                            )
+                        }
+                        interfaceListSorter.invoke(delegate, filtered, unfiltered)
+                    }
+
+                    // 2. Sort using the comparator, if available.
+                    interfaceListComparator != null -> {
+                        filtered.sortedWith(interfaceListComparator)
+                    }
+
+                    // 3. Preserve the input order.
+                    else -> filtered
+                }
 
             // If required then filter annotation types from the ordered list before returning.
             return if (preFiltered) ordered
