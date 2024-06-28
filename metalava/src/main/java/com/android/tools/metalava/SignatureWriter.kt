@@ -405,21 +405,18 @@ private fun getInterfacesInOrder(
         // be first even though the other interfaces are sorted in alphabetical order. This
         // implements similar logic.
         val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
-        val firstFilteredInterfaceType = filteredInterfaceTypes.first()
-        if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
-            return buildList {
-                // The first interface in the interfaces list is also the first interface in
-                // the filtered interfaces list so add it first.
-                add(firstFilteredInterfaceType)
 
-                // Add the remaining interfaces in sorted order.
-                if (sortedInterfaces.size > 1) {
-                    for (interfaceType in sortedInterfaces) {
-                        if (interfaceType != firstFilteredInterfaceType) {
-                            add(interfaceType)
-                        }
-                    }
-                }
+        // Check to see whether the first unfiltered interface type is in the sorted set of
+        // interfaces. If it is, and it is not the first then it needs moving to the beginning.
+        val index = sortedInterfaces.indexOf(firstUnfilteredInterfaceType)
+        if (index > 0) {
+            // Create a mutable list and move the first unfiltered interface type to the beginning.
+            return sortedInterfaces.toMutableList().also { mutable ->
+                // Remove it from its existing position.
+                mutable.removeAt(index)
+
+                // Add it at the beginning.
+                mutable.add(0, firstUnfilteredInterfaceType)
             }
         }
     }
