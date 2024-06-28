@@ -82,11 +82,11 @@ class JarToJDiffCommand :
                 createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
                     JDiffXmlWriter(
                             writer = printWriter,
+                        )
+                        .createFilteringVisitor(
                             filterEmit = apiEmit,
                             filterReference = apiReference,
                             preFiltered = false,
-                        )
-                        .createFilteringVisitor(
                             showUnannotated = false,
                         )
                 }

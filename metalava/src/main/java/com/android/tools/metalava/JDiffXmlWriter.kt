@@ -47,9 +47,6 @@ import java.util.function.Predicate
  */
 class JDiffXmlWriter(
     private val writer: PrintWriter,
-    private val filterEmit: Predicate<Item>,
-    private val filterReference: Predicate<Item>,
-    private val preFiltered: Boolean,
     private val apiName: String? = null,
 ) :
     BaseItemVisitor(
@@ -234,9 +231,7 @@ class JDiffXmlWriter(
     }
 
     private fun writeSuperClassAttribute(cls: ClassItem) {
-        val superClass =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-
+        val superClass = cls.superClassType()
         val superClassString =
             when {
                 cls.isAnnotationType() -> JAVA_LANG_ANNOTATION
@@ -256,12 +251,9 @@ class JDiffXmlWriter(
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
-        val interfaces =
-            if (preFiltered) cls.interfaceTypes().asSequence()
-            else cls.filteredInterfaceTypes(filterReference).asSequence()
-
-        if (interfaces.any()) {
-            interfaces.sortedWith(TypeItem.totalComparator).forEach { item ->
+        val interfaces = cls.interfaceTypes()
+        if (interfaces.isNotEmpty()) {
+            interfaces.forEach { item ->
                 writer.print("<implements name=\"")
                 val type = item.toTypeString()
                 writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
@@ -290,12 +282,8 @@ class JDiffXmlWriter(
     }
 
     private fun writeThrowsList(method: MethodItem) {
-        val throws =
-            when {
-                preFiltered -> method.throwsTypes().asSequence()
-                else -> method.filteredThrowsTypes(filterReference).asSequence()
-            }
-        if (throws.any()) {
+        val throws = method.throwsTypes()
+        if (throws.isNotEmpty()) {
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 @Suppress("DEPRECATION") writer.print(type.fullName())
@@ -314,6 +302,9 @@ class JDiffXmlWriter(
      * [JDiffXmlWriter] instance.
      */
     fun createFilteringVisitor(
+        filterEmit: Predicate<Item>,
+        filterReference: Predicate<Item>,
+        preFiltered: Boolean,
         showUnannotated: Boolean,
     ): ApiVisitor =
         FilteringApiVisitor(

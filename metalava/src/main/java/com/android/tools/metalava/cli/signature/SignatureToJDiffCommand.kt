@@ -161,12 +161,12 @@ class SignatureToJDiffCommand :
         createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
             JDiffXmlWriter(
                     writer = printWriter,
-                    filterEmit = apiEmit,
-                    filterReference = apiReference,
-                    preFiltered = signatureApi.preFiltered && !strip,
                     apiName = apiName,
                 )
                 .createFilteringVisitor(
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = signatureApi.preFiltered && !strip,
                     showUnannotated = false,
                 )
         }
