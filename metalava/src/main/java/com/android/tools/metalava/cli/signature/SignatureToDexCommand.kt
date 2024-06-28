@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.DexApiWriter
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
