@@ -237,17 +237,6 @@ open class ApiVisitor(
         return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
     }
 
-    companion object {
-        /**
-         * Comparator that will order [FieldItem]s such that those for which
-         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
-         */
-        private val fieldComparatorEnumConstantFirst =
-            Comparator.comparing(FieldItem::isEnumConstant)
-                .reversed()
-                .thenComparing(FieldItem.comparator)
-    }
-
     inner class VisitCandidate(val cls: ClassItem) {
         val innerClasses by
             lazy(LazyThreadSafetyMode.NONE) {
@@ -301,7 +290,7 @@ open class ApiVisitor(
                     }
 
                 // Sort the fields so that enum constants come first.
-                fieldSequence.sortedWith(fieldComparatorEnumConstantFirst)
+                fieldSequence.sortedWith(FieldItem.comparatorEnumConstantFirst)
             }
 
         private val properties by
