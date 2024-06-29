@@ -55,8 +55,8 @@ open class ApiVisitor(
 
     /**
      * Whether the visitor should include visiting top-level classes that have nothing other than
-     * non-empty inner classes within. Typically these are not included in signature files, but when
-     * generating stubs we need to include them.
+     * non-empty inner classes within. Typically, these are not included in signature files, but
+     * when generating stubs we need to include them.
      */
     val includeEmptyOuterClasses: Boolean = false,
 
@@ -159,11 +159,11 @@ open class ApiVisitor(
         }
 
         // We build up a separate data structure such that we can compute the
-        // sets of fields, methods, etc even for inner classes (recursively); that way
+        // sets of fields, methods, etc. even for inner classes (recursively); that way
         // we can easily and up front determine whether we have any matches for
         // inner classes (which is vital for computing the removed-api for example, where
         // only something like the appearance of a removed method inside an inner class
-        // results in the outer class being described in the signature file.
+        // results in the outer class being described in the signature file).
         val candidate = VisitCandidate(cls)
         candidate.accept()
     }
@@ -175,9 +175,7 @@ open class ApiVisitor(
 
         // For the API visitor packages are visited lazily; only when we encounter
         // an unfiltered item within the class
-        pkg.topLevelClasses().asSequence().sortedWith(ClassItem.classNameSorter()).forEach {
-            it.accept(this)
-        }
+        pkg.topLevelClasses().sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
 
         if (visitingPackage) {
             visitingPackage = false
@@ -230,7 +228,7 @@ open class ApiVisitor(
     }
 
     /** @return Whether the inner classes of this class will emit anything */
-    fun shouldEmitInnerClasses(vc: VisitCandidate): Boolean {
+    private fun shouldEmitInnerClasses(vc: VisitCandidate): Boolean {
         return vc.innerClasses.any { shouldEmitAnyClass(it) }
     }
 
