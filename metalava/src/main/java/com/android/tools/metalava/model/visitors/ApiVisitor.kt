@@ -153,17 +153,20 @@ open class ApiVisitor(
     // this property keeps track of whether we've already visited the current package
     var visitingPackage = false
 
+    /**
+     * Visit a [List] of [ClassItem]s after sorting it into order using [ClassItem.classNameSorter].
+     */
+    private fun visitClassList(classes: List<ClassItem>) {
+        classes.sortedWith(ClassItem.classNameSorter()).forEach { cls -> cls.accept(this) }
+    }
+
     override fun visit(cls: ClassItem) {
         if (!include(cls)) {
             return
         }
 
-        // We build up a separate data structure such that we can compute the
-        // sets of fields, methods, etc. even for inner classes (recursively); that way
-        // we can easily and up front determine whether we have any matches for
-        // inner classes (which is vital for computing the removed-api for example, where
-        // only something like the appearance of a removed method inside an inner class
-        // results in the outer class being described in the signature file).
+        // We build up a separate data structure such that we can compute the sets of fields,
+        // methods, etc. and check if any of them need to be emitted.
         val candidate = VisitCandidate(cls)
         candidate.accept()
     }
@@ -182,14 +185,16 @@ open class ApiVisitor(
         // by their containing classes. Otherwise, flatten the nested classes and treat them all as
         // top level classes.
         val classesToVisitDirectly =
-            pkg.topLevelClasses().let { topLevelClasses ->
-                if (nestInnerClasses) topLevelClasses
-                else topLevelClasses.flatMap { flattenClassNesting(it) }
-            }
+            pkg.topLevelClasses()
+                .let { topLevelClasses ->
+                    if (nestInnerClasses) topLevelClasses
+                    else topLevelClasses.flatMap { flattenClassNesting(it) }
+                }
+                .toList()
 
         // For the API visitor packages are visited lazily; only when we encounter
         // an unfiltered item within the class
-        classesToVisitDirectly.sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
+        visitClassList(classesToVisitDirectly)
 
         if (visitingPackage) {
             visitingPackage = false
@@ -218,7 +223,7 @@ open class ApiVisitor(
         if (!include(vc.cls)) {
             return false
         }
-        return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
+        return shouldEmitClassBody(vc)
     }
 
     /**
@@ -241,31 +246,7 @@ open class ApiVisitor(
         }
     }
 
-    /** @return Whether the inner classes of this class will emit anything */
-    private fun shouldEmitInnerClasses(vc: VisitCandidate): Boolean {
-        return vc.innerClasses.any { shouldEmitAnyClass(it) }
-    }
-
-    /** @return Whether this class will emit anything */
-    private fun shouldEmitAnyClass(vc: VisitCandidate): Boolean {
-        return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
-    }
-
     inner class VisitCandidate(val cls: ClassItem) {
-        val innerClasses by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsInnerClasses = cls.innerClasses()
-                if (clsInnerClasses.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsInnerClasses
-                        .asSequence()
-                        .sortedWith(ClassItem.classNameSorter())
-                        .map { VisitCandidate(it) }
-                        .toList()
-                }
-            }
-
         private val constructors by
             lazy(LazyThreadSafetyMode.NONE) {
                 val clsConstructors = cls.constructors()
@@ -360,7 +341,7 @@ open class ApiVisitor(
             }
 
             if (nestInnerClasses) { // otherwise done in visit(PackageItem)
-                innerClasses.forEach { it.accept() }
+                visitClassList(cls.innerClasses())
             }
 
             if (emitThis) {
