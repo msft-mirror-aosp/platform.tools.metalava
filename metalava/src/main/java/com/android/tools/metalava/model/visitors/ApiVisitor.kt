@@ -205,7 +205,7 @@ open class ApiVisitor(
             return false
         }
 
-        return cls.emit || cls.codebase.preFiltered
+        return cls.emit
     }
 
     /**
@@ -224,7 +224,7 @@ open class ApiVisitor(
      *   still visit classes that are contained by this one
      */
     open fun shouldEmitClass(vc: VisitCandidate): Boolean {
-        return vc.cls.emit && shouldEmitClassBody(vc)
+        return shouldEmitClassBody(vc)
     }
 
     /**
