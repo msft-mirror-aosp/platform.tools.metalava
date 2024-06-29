@@ -54,13 +54,6 @@ open class ApiVisitor(
     val filterReference: Predicate<Item>,
 
     /**
-     * Whether the visitor should include visiting top-level classes that have nothing other than
-     * non-empty inner classes within. Typically, these are not included in signature files, but
-     * when generating stubs we need to include them.
-     */
-    val includeEmptyOuterClasses: Boolean = false,
-
-    /**
      * Whether this visitor should visit elements that have not been annotated with one of the
      * annotations passed in using the --show-annotation flag. This is normally true, but signature
      * files sometimes sets this to false so the signature file only contains the "diff" of the
@@ -231,7 +224,7 @@ open class ApiVisitor(
      *   still visit classes that are contained by this one
      */
     open fun shouldEmitClass(vc: VisitCandidate): Boolean {
-        return vc.cls.emit && (includeEmptyOuterClasses || shouldEmitClassBody(vc))
+        return vc.cls.emit && shouldEmitClassBody(vc)
     }
 
     /**

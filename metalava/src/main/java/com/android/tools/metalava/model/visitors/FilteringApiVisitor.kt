@@ -76,7 +76,6 @@ class FilteringApiVisitor(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    includeEmptyOuterClasses: Boolean = false,
     showUnannotated: Boolean = true,
     /**
      * If true then this will visit the [ClassItem.stubConstructor] if it would not otherwise be
@@ -92,7 +91,6 @@ class FilteringApiVisitor(
         methodComparator,
         filterEmit,
         filterReference,
-        includeEmptyOuterClasses,
         showUnannotated,
         config,
     ),
