@@ -168,14 +168,28 @@ open class ApiVisitor(
         candidate.accept()
     }
 
+    /** Recursively flatten the class nesting. */
+    private fun flattenClassNesting(cls: ClassItem): Sequence<ClassItem> =
+        sequenceOf(cls) + cls.innerClasses().asSequence().flatMap { flattenClassNesting(it) }
+
     override fun visit(pkg: PackageItem) {
         if (!pkg.emit) {
             return
         }
 
+        // Get the list of classes to visit directly. If nested classes are to appear as nested
+        // then just visit the top level classes directly and then the inner classes will be visited
+        // by their containing classes. Otherwise, flatten the nested classes and treat them all as
+        // top level classes.
+        val classesToVisitDirectly =
+            pkg.topLevelClasses().let { topLevelClasses ->
+                if (nestInnerClasses) topLevelClasses
+                else topLevelClasses.flatMap { flattenClassNesting(it) }
+            }
+
         // For the API visitor packages are visited lazily; only when we encounter
         // an unfiltered item within the class
-        pkg.topLevelClasses().sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
+        classesToVisitDirectly.sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
 
         if (visitingPackage) {
             visitingPackage = false
@@ -345,17 +359,13 @@ open class ApiVisitor(
                 }
             }
 
-            if (nestInnerClasses) { // otherwise done below
+            if (nestInnerClasses) { // otherwise done in visit(PackageItem)
                 innerClasses.forEach { it.accept() }
             }
 
             if (emitThis) {
                 afterVisitClass(cls)
                 afterVisitItem(cls)
-            }
-
-            if (!nestInnerClasses) {
-                innerClasses.forEach { it.accept() }
             }
         }
     }
