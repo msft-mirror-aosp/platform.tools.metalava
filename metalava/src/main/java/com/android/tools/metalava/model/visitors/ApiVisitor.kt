@@ -154,14 +154,8 @@ open class ApiVisitor(
     }
 
     override fun visit(cls: ClassItem) {
-        if (!include(cls)) {
-            return
-        }
-
-        // We build up a separate data structure such that we can compute the sets of fields,
-        // methods, etc. and check if any of them need to be emitted.
-        val candidate = VisitCandidate(cls)
-        candidate.accept()
+        // Get a VisitCandidate and visit it, if needed.
+        getVisitCandidateIfNeeded(cls)?.accept()
     }
 
     /** Recursively flatten the class nesting. */
@@ -218,6 +212,22 @@ open class ApiVisitor(
             vc.nonEmpty() -> filterReference.test(vc.cls)
             else -> false
         }
+    }
+
+    /**
+     * Returns a [VisitCandidate] if the [cls] needs to be visited, otherwise return `null`.
+     *
+     * The [cls] needs to be visited if it passes the various checks that determine whether it
+     * should be emitted as part of an API surface as determined by [filterEmit] and
+     * [filterReference].
+     */
+    private fun getVisitCandidateIfNeeded(cls: ClassItem): VisitCandidate? {
+        if (!include(cls)) return null
+
+        val vc = VisitCandidate(cls)
+        if (!shouldEmitClassBody(vc)) return null
+
+        return vc
     }
 
     inner class VisitCandidate(val cls: ClassItem) {
@@ -282,10 +292,6 @@ open class ApiVisitor(
         }
 
         fun accept() {
-            if (!shouldEmitClassBody(this)) {
-                return
-            }
-
             if (!visitingPackage) {
                 visitingPackage = true
                 val pkg = cls.containingPackage()
