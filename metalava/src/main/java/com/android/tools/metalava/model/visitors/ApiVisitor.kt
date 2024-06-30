@@ -209,14 +209,6 @@ open class ApiVisitor(
     }
 
     /**
-     * @return Whether this class should be visited Note that if [include] returns true then we will
-     *   still visit classes that are contained by this one
-     */
-    open fun shouldEmitClass(vc: VisitCandidate): Boolean {
-        return shouldEmitClassBody(vc)
-    }
-
-    /**
      * @return Whether the body of this class (everything other than the inner classes) emits
      *   anything
      */
@@ -294,42 +286,37 @@ open class ApiVisitor(
                 return
             }
 
-            val emitThis = shouldEmitClass(this)
-            if (emitThis) {
-                if (!visitingPackage) {
-                    visitingPackage = true
-                    val pkg = cls.containingPackage()
-                    visitItem(pkg)
-                    visitPackage(pkg)
-                }
+            if (!visitingPackage) {
+                visitingPackage = true
+                val pkg = cls.containingPackage()
+                visitItem(pkg)
+                visitPackage(pkg)
+            }
 
-                visitItem(cls)
-                visitClass(cls)
+            visitItem(cls)
+            visitClass(cls)
 
-                for (constructor in constructors) {
-                    constructor.accept(this@ApiVisitor)
-                }
+            for (constructor in constructors) {
+                constructor.accept(this@ApiVisitor)
+            }
 
-                for (method in methods) {
-                    method.accept(this@ApiVisitor)
-                }
+            for (method in methods) {
+                method.accept(this@ApiVisitor)
+            }
 
-                for (property in properties) {
-                    property.accept(this@ApiVisitor)
-                }
-                for (field in fields) {
-                    field.accept(this@ApiVisitor)
-                }
+            for (property in properties) {
+                property.accept(this@ApiVisitor)
+            }
+            for (field in fields) {
+                field.accept(this@ApiVisitor)
             }
 
             if (nestInnerClasses) { // otherwise done in visit(PackageItem)
                 visitClassList(cls.innerClasses())
             }
 
-            if (emitThis) {
-                afterVisitClass(cls)
-                afterVisitItem(cls)
-            }
+            afterVisitClass(cls)
+            afterVisitItem(cls)
         }
     }
 }
