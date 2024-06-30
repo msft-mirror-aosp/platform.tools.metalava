@@ -142,15 +142,15 @@ open class ApiVisitor(
         config = config,
     )
 
-    // The API visitor lazily visits packages only when there's a match within at least one class;
-    // this property keeps track of whether we've already visited the current package
-    var visitingPackage = false
-
     /**
-     * Visit a [List] of [ClassItem]s after sorting it into order using [ClassItem.classNameSorter].
+     * Visit a [List] of [VisitCandidate]s after sorting it into order using
+     * [ClassItem.classNameSorter] on [VisitCandidate.cls].
      */
-    private fun visitClassList(classes: List<ClassItem>) {
-        classes.sortedWith(ClassItem.classNameSorter()).forEach { cls -> cls.accept(this) }
+    private fun visitClassList(classes: List<VisitCandidate>) {
+        classes.sortedWith(Comparator.comparing({ it.cls }, ClassItem.classNameSorter())).forEach {
+            vc ->
+            vc.accept()
+        }
     }
 
     override fun visit(cls: ClassItem) {
@@ -177,17 +177,19 @@ open class ApiVisitor(
                     if (nestInnerClasses) topLevelClasses
                     else topLevelClasses.flatMap { flattenClassNesting(it) }
                 }
+                .mapNotNull { getVisitCandidateIfNeeded(it) }
                 .toList()
 
-        // For the API visitor packages are visited lazily; only when we encounter
-        // an unfiltered item within the class
+        // If none of the classes in this package will be visited them ignore the package entirely.
+        if (classesToVisitDirectly.isEmpty()) return
+
+        visitItem(pkg)
+        visitPackage(pkg)
+
         visitClassList(classesToVisitDirectly)
 
-        if (visitingPackage) {
-            visitingPackage = false
-            afterVisitPackage(pkg)
-            afterVisitItem(pkg)
-        }
+        afterVisitPackage(pkg)
+        afterVisitItem(pkg)
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
@@ -230,6 +232,15 @@ open class ApiVisitor(
         return vc
     }
 
+    /**
+     * Encapsulates a [ClassItem] that is being visited and its members, filtered by [filterEmit],
+     * and sorted by various members specific comparators.
+     *
+     * The purpose of this is to store the lists of filtered and sorted members that were created
+     * during filtering of the classes in the [PackageItem] visit method. They need to be stored as
+     * they can take a long time to generate and will be needed again when visiting the class
+     * contents.
+     */
     inner class VisitCandidate(val cls: ClassItem) {
         private val constructors by
             lazy(LazyThreadSafetyMode.NONE) {
@@ -292,13 +303,6 @@ open class ApiVisitor(
         }
 
         fun accept() {
-            if (!visitingPackage) {
-                visitingPackage = true
-                val pkg = cls.containingPackage()
-                visitItem(pkg)
-                visitPackage(pkg)
-            }
-
             visitItem(cls)
             visitClass(cls)
 
@@ -318,7 +322,7 @@ open class ApiVisitor(
             }
 
             if (nestInnerClasses) { // otherwise done in visit(PackageItem)
-                visitClassList(cls.innerClasses())
+                visitClassList(cls.innerClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
             }
 
             afterVisitClass(cls)
