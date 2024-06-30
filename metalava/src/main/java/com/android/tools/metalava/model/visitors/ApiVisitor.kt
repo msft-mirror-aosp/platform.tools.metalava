@@ -209,17 +209,6 @@ open class ApiVisitor(
     }
 
     /**
-     * @return Whether the given VisitCandidate's visitor should recurse into the given
-     *   VisitCandidate's class
-     */
-    fun include(vc: VisitCandidate): Boolean {
-        if (!include(vc.cls)) {
-            return false
-        }
-        return shouldEmitClassBody(vc)
-    }
-
-    /**
      * @return Whether this class should be visited Note that if [include] returns true then we will
      *   still visit classes that are contained by this one
      */
@@ -301,7 +290,7 @@ open class ApiVisitor(
         }
 
         fun accept() {
-            if (!include(this)) {
+            if (!shouldEmitClassBody(this)) {
                 return
             }
 
