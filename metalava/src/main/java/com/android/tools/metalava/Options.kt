@@ -535,13 +535,19 @@ class Options(
             )
             .existingFile()
             .multiple()
-            .map { PreviouslyReleasedApi.optionalPreviouslyReleasedApi(ARG_MIGRATE_NULLNESS, it) }
+            .map {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                    ARG_MIGRATE_NULLNESS,
+                    it,
+                    onlyUseLastForCurrentApiSurface = false
+                )
+            }
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
 
-    /** The API to use a base for the otherwise checked API during compat checks. */
-    val baseApiForCompatCheck by compatibilityCheckOptions::baseApiForCompatCheck
+    /** The set of annotation classes that should be treated as API compatibility important */
+    val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
 
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
@@ -1060,9 +1066,7 @@ class Options(
         }
 
         // Get all the android.jar. They are in platforms-#
-        var apiLevel = minApi - 1
-        while (true) {
-            apiLevel++
+        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
             try {
                 var jar: File? = null
                 if (apiLevel == currentApiLevel) {
