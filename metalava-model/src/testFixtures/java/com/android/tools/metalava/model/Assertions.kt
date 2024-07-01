@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
@@ -79,6 +80,47 @@ interface Assertions {
     }
 
     /**
+     * Check the [Item.originallyDeprecated] and [Item.effectivelyDeprecated] are
+     * [explicitlyDeprecated] and [implicitlyDeprecated] respectively.
+     */
+    private fun Item.assertDeprecatedStatus(
+        explicitlyDeprecated: Boolean,
+        implicitlyDeprecated: Boolean = explicitlyDeprecated,
+    ) {
+        assertEquals(
+            explicitlyDeprecated,
+            originallyDeprecated,
+            message = "$this: originallyDeprecated"
+        )
+        assertEquals(
+            implicitlyDeprecated,
+            effectivelyDeprecated,
+            message = "$this: effectivelyDeprecated"
+        )
+    }
+
+    /** Make sure that the item is not deprecated explicitly, or implicitly. */
+    fun Item.assertNotDeprecated() {
+        assertDeprecatedStatus(explicitlyDeprecated = false)
+    }
+
+    /** Make sure that the item is explicitly deprecated. */
+    fun Item.assertExplicitlyDeprecated() {
+        assertDeprecatedStatus(explicitlyDeprecated = true)
+    }
+
+    /**
+     * Make sure that the item is implicitly deprecated, this will fail if the item is explicitly
+     * deprecated.
+     */
+    fun Item.assertImplicitlyDeprecated() {
+        assertDeprecatedStatus(
+            explicitlyDeprecated = false,
+            implicitlyDeprecated = true,
+        )
+    }
+
+    /**
      * Create a Kotlin like method description. It uses Kotlin structure for a method and Kotlin
      * style nulls but not Kotlin types.
      */
@@ -99,7 +141,7 @@ interface Assertions {
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */
     fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
+        return modifiers.annotations.map { it.qualifiedName }
     }
 
     /** Get the list of fully qualified annotation names associated with the [Item]. */

@@ -37,6 +37,9 @@ interface PackageItem : Item {
 
     override fun type(): TypeItem? = null
 
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on PackageItem: $this")
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
@@ -58,6 +61,9 @@ interface PackageItem : Item {
             null
         }
     }
+
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated
 
     /** Whether this package is empty */
     fun empty() = topLevelClasses().none()

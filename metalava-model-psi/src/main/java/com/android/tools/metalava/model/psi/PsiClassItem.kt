@@ -96,8 +96,6 @@ internal constructor(
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    override fun superClass(): ClassItem? = superClassType?.asClass()
-
     override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null
@@ -180,7 +178,7 @@ internal constructor(
         private set
 
     /** Must only be used by [type] to cache its result. */
-    private lateinit var classTypeItem: PsiClassTypeItem
+    private lateinit var classTypeItem: ClassTypeItem
 
     override fun type(): ClassTypeItem {
         if (!::classTypeItem.isInitialized) {
