@@ -607,20 +607,6 @@ class ApiAnalyzer(
     private fun propagateHiddenRemovedAndDocOnly() {
         packages.accept(
             object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
-                /**
-                 * Mark [item] as deprecated if [Item.parent] is deprecated, and it is not a
-                 * package.
-                 *
-                 * This must be called from the type specific `visit*()` methods after any other
-                 * logic as it will depend on the value of [Item.removed] set in that method.
-                 */
-                private fun markAsDeprecatedIfNonPackageParentIsDeprecated(item: Item) {
-                    val parent = item.parent() ?: return
-                    if (parent !is PackageItem && parent.effectivelyDeprecated) {
-                        item.effectivelyDeprecated = true
-                    }
-                }
-
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
@@ -689,8 +675,6 @@ class ApiAnalyzer(
                             cls.removed = true
                         }
                     }
-
-                    markAsDeprecatedIfNonPackageParentIsDeprecated(cls)
                 }
 
                 override fun visitMethod(method: MethodItem) {
@@ -720,12 +704,6 @@ class ApiAnalyzer(
                             method.removed = true
                         }
                     }
-
-                    markAsDeprecatedIfNonPackageParentIsDeprecated(method)
-                }
-
-                override fun visitParameter(parameter: ParameterItem) {
-                    markAsDeprecatedIfNonPackageParentIsDeprecated(parameter)
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -751,12 +729,6 @@ class ApiAnalyzer(
                             field.removed = true
                         }
                     }
-
-                    markAsDeprecatedIfNonPackageParentIsDeprecated(field)
-                }
-
-                override fun visitProperty(property: PropertyItem) {
-                    markAsDeprecatedIfNonPackageParentIsDeprecated(property)
                 }
 
                 private fun ensureParentVisible(item: Item) {
@@ -969,16 +941,6 @@ class ApiAnalyzer(
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    // Propagate @Deprecated flags down from classes into inner classes, if
-                    // configured.
-                    // Done here rather than in the analyzer which propagates visibility, since we
-                    // want to do it
-                    // after warning
-                    val containingClass = cls.containingClass()
-                    if (containingClass != null && containingClass.deprecated) {
-                        cls.deprecated = true
-                    }
-
                     if (checkSystemApi) {
                         // Look for Android @SystemApi exposed outside the normal SDK; we require
                         // that they're protected with a system permission.
@@ -999,20 +961,10 @@ class ApiAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val containingClass = field.containingClass()
-                    if (containingClass.deprecated) {
-                        field.deprecated = true
-                    }
-
                     checkTypeReferencesHidden(field, field.type())
                 }
 
                 override fun visitProperty(property: PropertyItem) {
-                    val containingClass = property.containingClass()
-                    if (containingClass.deprecated) {
-                        property.deprecated = true
-                    }
-
                     checkTypeReferencesHidden(property, property.type())
                 }
 
@@ -1022,35 +974,6 @@ class ApiAnalyzer(
                             method,
                             method.returnType()
                         ) // returnType is nullable only for constructors
-                    }
-
-                    val containingClass = method.containingClass()
-                    if (containingClass.deprecated) {
-                        method.deprecated = true
-                    }
-
-                    // Make sure we don't annotate findViewById & getSystemService as @Nullable.
-                    // See for example b/68914170.
-                    val name = method.name()
-                    if (
-                        (name == "findViewById" || name == "getSystemService") &&
-                            method.parameters().size == 1 &&
-                            method.returnType().modifiers.isNullable
-                    ) {
-                        reporter.report(
-                            Issues.EXPECTED_PLATFORM_TYPE,
-                            method,
-                            "$method should not be annotated @Nullable; it should be left unspecified to make it a platform type"
-                        )
-                        val annotation = method.modifiers.findAnnotation(AnnotationItem::isNullable)
-                        annotation?.let { method.mutableModifiers().removeAnnotation(it) }
-                        // Have to also clear the annotation out of the return type itself, if it's
-                        // a type use annotation
-                        val typeAnnotation =
-                            method.returnType().modifiers.annotations().singleOrNull {
-                                it.isNullnessAnnotation()
-                            }
-                        typeAnnotation?.let { method.returnType().modifiers.removeAnnotation(it) }
                     }
                 }
 

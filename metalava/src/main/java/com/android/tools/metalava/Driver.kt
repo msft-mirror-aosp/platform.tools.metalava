@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
@@ -43,7 +42,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemVisitor
-import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -303,54 +301,48 @@ internal fun processFlags(
 
         createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
             SignatureWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                codebase.preFiltered,
-                fileFormat = options.signatureFileFormat,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig
-            )
+                    writer = printWriter,
+                    fileFormat = options.signatureFileFormat,
+                )
+                .createFilteringVisitor(
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = codebase.preFiltered,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig
+                )
         }
     }
 
     options.removedApiFile?.let { apiFile ->
-        val unfiltered = codebase.original ?: codebase
-
         val apiType = ApiType.REMOVED
         val removedEmit = apiType.getEmitFilter(options.apiPredicateConfig)
         val removedReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(
             progressTracker,
-            unfiltered,
+            codebase,
             apiFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
             SignatureWriter(
-                printWriter,
-                removedEmit,
-                removedReference,
-                codebase.original != null,
-                options.includeSignatureFormatVersionRemoved,
-                options.signatureFileFormat,
-                options.showUnannotated,
-                options.apiVisitorConfig,
-            )
+                    writer = printWriter,
+                    emitHeader = options.includeSignatureFormatVersionRemoved,
+                    fileFormat = options.signatureFileFormat,
+                )
+                .createFilteringVisitor(
+                    filterEmit = removedEmit,
+                    filterReference = removedReference,
+                    preFiltered = false,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig,
+                )
         }
     }
 
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
     val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-    options.dexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-
-        createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, apiFilter, apiReferenceIgnoreShown, options.apiVisitorConfig)
-        }
-    }
-
     options.proguard?.let { proguard ->
         val apiEmit = FilterPredicate(ApiPredicate())
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
@@ -367,14 +359,13 @@ internal fun processFlags(
         actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
     }
 
-    val previousApiFile = options.migrateNullsFrom
-    if (previousApiFile != null) {
+    val previouslyReleasedApi = options.migrateNullsFrom
+    if (previouslyReleasedApi != null) {
         val previous =
-            if (previousApiFile.path.endsWith(DOT_JAR)) {
-                actionContext.loadFromJarFile(previousApiFile)
-            } else {
-                signatureFileCache.load(signatureFile = SignatureFile.fromFile(previousApiFile))
-            }
+            previouslyReleasedApi.load(
+                jarLoader = { jarFile -> actionContext.loadFromJarFile(jarFile) },
+                signatureFileLoader = { signatureFiles -> signatureFileCache.load(signatureFiles) }
+            )
 
         // If configured, checks for newly added nullness information compared
         // to the previous stable API and marks the newly annotated elements
@@ -506,33 +497,15 @@ private fun ActionContext.checkCompatibility(
             }
         )
 
-    var baseApi: Codebase? = null
-
-    if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-        val baseApiFile = options.baseApiForCompatCheck
-        if (baseApiFile != null) {
-            baseApi = signatureFileCache.load(signatureFile = SignatureFile.fromFile(baseApiFile))
-        }
-    } else if (options.baseApiForCompatCheck != null) {
-        // This option does not make sense with showAnnotation, as the "base" in that case
-        // is the non-annotated APIs.
-        throw MetalavaCliException(
-            "$ARG_CHECK_COMPATIBILITY_BASE_API is not compatible with --showAnnotation."
-        )
-    }
-
-    // Wrap the old Codebase in a [MergedCodebase].
-    val mergedOldCodebases = MergedCodebase(listOf(oldCodebase))
-
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
-        mergedOldCodebases,
+        oldCodebase,
         apiType,
-        baseApi,
         options.reporterCompatibilityReleased,
         options.issueConfiguration,
+        options.apiCompatAnnotations,
     )
 }
 
@@ -772,12 +745,18 @@ private fun createStubFiles(
         StubWriter(
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
-            preFiltered = codebase.preFiltered,
             docStubs = docStubs,
             reporter = options.reporter,
             config = stubWriterConfig,
         )
-    codebase.accept(stubWriter)
+
+    val filteringApiVisitor =
+        stubWriter.createFilteringVisitor(
+            preFiltered = codebase.preFiltered,
+            apiVisitorConfig = stubWriterConfig.apiVisitorConfig,
+        )
+
+    codebase.accept(filteringApiVisitor)
 
     if (docStubs) {
         // Overview docs? These are generally in the empty package.

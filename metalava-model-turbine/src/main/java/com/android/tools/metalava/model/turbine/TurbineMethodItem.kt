@@ -32,13 +32,15 @@ internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
-    private val containingClass: ClassItem,
-    protected var returnType: TypeItem,
+    containingClass: ClassItem,
+    private var returnType: TypeItem,
     modifiers: DefaultModifierList,
     override val typeParameterList: TypeParameterList,
     documentation: String,
     private val defaultValue: String,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), MethodItem {
+) :
+    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     internal lateinit var throwableTypes: List<ExceptionTypeItem>
@@ -52,13 +54,15 @@ internal open class TurbineMethodItem(
 
     override fun returnType(): TypeItem = returnType
 
+    override fun setType(type: TypeItem) {
+        returnType = type
+    }
+
     override fun throwsTypes(): List<ExceptionTypeItem> = throwableTypes
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
     override fun isConstructor(): Boolean = false
-
-    override fun containingClass(): ClassItem = containingClass
 
     /**
      * Super methods for a given method M with containing class C are calculated as follows:
@@ -98,15 +102,14 @@ internal open class TurbineMethodItem(
     override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
-        val retType = returnType.duplicate()
         val mods = modifiers.duplicate()
-        val duplicateMethod =
+        val duplicated =
             TurbineMethodItem(
                 codebase,
                 fileLocation,
                 methodSymbol,
                 targetContainingClass,
-                retType,
+                returnType,
                 mods,
                 typeParameterList,
                 documentation,
@@ -114,30 +117,25 @@ internal open class TurbineMethodItem(
             )
         // Duplicate the parameters
         val params =
-            parameters.map {
-                TurbineParameterItem.duplicate(codebase, duplicateMethod, it, emptyMap())
-            }
-        duplicateMethod.parameters = params
-        duplicateMethod.inheritedFrom = containingClass
-        duplicateMethod.throwableTypes = throwableTypes
+            parameters.map { TurbineParameterItem.duplicate(codebase, duplicated, it, emptyMap()) }
+        duplicated.parameters = params
+        duplicated.inheritedFrom = containingClass()
+        duplicated.throwableTypes = throwableTypes
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
-            duplicateMethod.hidden = true
+            duplicated.hidden = true
         }
         if (targetContainingClass.removed) {
-            duplicateMethod.removed = true
+            duplicated.removed = true
         }
         if (targetContainingClass.docOnly) {
-            duplicateMethod.docOnly = true
-        }
-        if (targetContainingClass.deprecated) {
-            duplicateMethod.deprecated = true
+            duplicated.docOnly = true
         }
 
-        duplicateMethod.updateCopiedMethodState()
+        duplicated.updateCopiedMethodState()
 
-        return duplicateMethod
+        return duplicated
     }
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
