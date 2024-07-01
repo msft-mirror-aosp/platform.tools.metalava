@@ -248,32 +248,39 @@ open class ApiVisitor(
      * contents.
      */
     inner class VisitCandidate(val cls: ClassItem) {
-        private val constructors by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsConstructors = cls.constructors()
-                if (clsConstructors.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsConstructors
-                        .asSequence()
-                        .filter { filterEmit.test(it) }
-                        .sortedWith(methodComparator)
-                        .toList()
+
+        /**
+         * If the list this is called upon is empty then just return [emptyList], else apply the
+         * [transform] to the list and return that.
+         */
+        private inline fun <T> List<T>.mapIfNotEmpty(transform: List<T>.() -> List<T>) =
+            if (isEmpty()) emptyList() else transform(this)
+
+        /**
+         * Sort the sequence into a [List].
+         *
+         * The standard [Sequence.sortedWith] will sort it into a list and then return a sequence
+         * wrapper which would then have to be converted back into a list. Instead, this just sorts
+         * it into a [List] and returns that.
+         */
+        private fun <T> Sequence<T>.sortToList(comparator: Comparator<in T>) =
+            if (none()) emptyList()
+            else
+                toMutableList().let {
+                    // Sort the list in place.
+                    it.sortWith(comparator)
+                    // Return the sorter list.
+                    it
                 }
+
+        private val constructors =
+            cls.constructors().mapIfNotEmpty {
+                asSequence().filter { filterEmit.test(it) }.sortToList(methodComparator)
             }
 
-        private val methods by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsMethods = cls.methods()
-                if (clsMethods.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsMethods
-                        .asSequence()
-                        .filter { filterEmit.test(it) }
-                        .sortedWith(methodComparator)
-                        .toList()
-                }
+        private val methods =
+            cls.methods().mapIfNotEmpty {
+                asSequence().filter { filterEmit.test(it) }.sortToList(methodComparator)
             }
 
         private val fields by
@@ -286,26 +293,17 @@ open class ApiVisitor(
                     }
 
                 // Sort the fields so that enum constants come first.
-                fieldSequence.sortedWith(FieldItem.comparatorEnumConstantFirst)
+                fieldSequence.sortToList(FieldItem.comparatorEnumConstantFirst)
             }
 
-        private val properties by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsProperties = cls.properties()
-                if (clsProperties.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsProperties
-                        .asSequence()
-                        .filter { filterEmit.test(it) }
-                        .sortedWith(PropertyItem.comparator)
-                        .toList()
-                }
+        private val properties =
+            cls.properties().mapIfNotEmpty {
+                asSequence().filter { filterEmit.test(it) }.sortToList(PropertyItem.comparator)
             }
 
         /** Whether the class body contains any emmittable [MemberItem]s. */
         fun containsNoEmittableMembers() =
-            constructors.none() && methods.none() && fields.none() && properties.none()
+            constructors.isEmpty() && methods.isEmpty() && fields.isEmpty() && properties.isEmpty()
 
         fun accept() {
             visitItem(cls)
