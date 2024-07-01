@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -205,18 +206,6 @@ open class ApiVisitor(
     }
 
     /**
-     * @return Whether the body of this class (everything other than the inner classes) emits
-     *   anything
-     */
-    private fun shouldEmitClassBody(vc: VisitCandidate): Boolean {
-        return when {
-            filterEmit.test(vc.cls) -> true
-            vc.nonEmpty() -> filterReference.test(vc.cls)
-            else -> false
-        }
-    }
-
-    /**
      * Returns a [VisitCandidate] if the [cls] needs to be visited, otherwise return `null`.
      *
      * The [cls] needs to be visited if it passes the various checks that determine whether it
@@ -226,9 +215,26 @@ open class ApiVisitor(
     private fun getVisitCandidateIfNeeded(cls: ClassItem): VisitCandidate? {
         if (!include(cls)) return null
 
-        val vc = VisitCandidate(cls)
-        if (!shouldEmitClassBody(vc)) return null
+        // Check to see whether this class should be emitted in its entirety. If not then it may
+        // still be emitted if it contains emittable members.
+        val emit = filterEmit.test(cls)
 
+        // If the class is emitted then create a VisitCandidate immediately.
+        if (emit) return VisitCandidate(cls)
+
+        // Check to see if the class could be emitted if it contains emittable members. If not then
+        // return `null` to ignore this class. This will happen for a hidden class, e.g. package
+        // private, that implements/overrides methods from the API.
+        if (!filterReference.test(cls)) return null
+
+        // Create a VisitCandidate to encapsulate the emittable members, if any.
+        val vc = VisitCandidate(cls)
+
+        // Check to see if the class has any emittable members, if not return `null` to ignore this
+        // class.
+        if (vc.containsNoEmittableMembers()) return null
+
+        // The class is emittable so return it.
         return vc
     }
 
@@ -297,10 +303,9 @@ open class ApiVisitor(
                 }
             }
 
-        /** Whether the class body contains any Item's (other than inner Classes) */
-        fun nonEmpty(): Boolean {
-            return !(constructors.none() && methods.none() && fields.none() && properties.none())
-        }
+        /** Whether the class body contains any emmittable [MemberItem]s. */
+        fun containsNoEmittableMembers() =
+            constructors.none() && methods.none() && fields.none() && properties.none()
 
         fun accept() {
             visitItem(cls)
