@@ -38,7 +38,7 @@ class PsiFieldItem(
     name: String,
     modifiers: DefaultModifierList,
     documentation: String,
-    private val fieldType: TypeItem,
+    private var fieldType: TypeItem,
     private val isEnumConstant: Boolean,
     private val fieldValue: PsiFieldValue?,
 ) :
@@ -55,6 +55,10 @@ class PsiFieldItem(
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
+
+    override fun setType(type: TypeItem) {
+        fieldType = type
+    }
 
     override fun initialValue(requireConstant: Boolean): Any? {
         return fieldValue?.initialValue(requireConstant)
@@ -83,9 +87,6 @@ class PsiFieldItem(
         }
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
-        }
-        if (targetContainingClass.deprecated) {
-            duplicated.deprecated = true
         }
 
         return duplicated

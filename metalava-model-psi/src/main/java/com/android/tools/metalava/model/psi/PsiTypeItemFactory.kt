@@ -151,11 +151,11 @@ internal class PsiTypeItemFactory(
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
+        val typeAnnotations = type.annotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
         // Compute the nullability, factoring in any context nullability, kotlin types and
         // type annotations.
         val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations.toMutableList(), nullability)
+        return DefaultTypeModifiers.create(typeAnnotations, nullability)
     }
 
     /** Create a [PsiTypeItem]. */
@@ -481,16 +481,14 @@ internal class PsiTypeItemFactory(
                         // class declaration, so the resolved [psiType] provides context then.
                         psiType.psiContext ?: psiType.resolve()
                     )
-                (createTypeItem(
-                        psiOuterClassType,
-                        kotlinType?.forOuterClass(),
-                        creatingClassTypeForClass = creatingClassTypeForClass,
-                    )
-                        as PsiClassTypeItem)
-                    .apply {
-                        // An outer class reference can't be null.
-                        modifiers.setNullability(TypeNullability.NONNULL)
-                    }
+                createTypeItem(
+                    psiOuterClassType,
+                    kotlinType?.forOuterClass(),
+                    // An outer class reference can't be null.
+                    contextNullability = ContextNullability.forceNonNull,
+                    creatingClassTypeForClass = creatingClassTypeForClass,
+                )
+                    as PsiClassTypeItem
             }
         }
     }
@@ -513,7 +511,7 @@ internal class PsiTypeItemFactory(
     /** If the type item is not nullable and is a boxed type then map it to the unboxed type. */
     private fun unboxTypeWherePossible(typeItem: TypeItem): TypeItem {
         if (
-            typeItem is ClassTypeItem && typeItem.modifiers.nullability() == TypeNullability.NONNULL
+            typeItem is ClassTypeItem && typeItem.modifiers.nullability == TypeNullability.NONNULL
         ) {
             boxedToPsiPrimitiveType[typeItem.qualifiedName]?.let { psiPrimitiveType ->
                 return createPrimitiveTypeItem(psiPrimitiveType, null)

@@ -280,7 +280,10 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
                 return false
             }
 
-            if (method.deprecated != superMethod.deprecated && !method.deprecated) {
+            if (
+                method.effectivelyDeprecated != superMethod.effectivelyDeprecated &&
+                    !method.effectivelyDeprecated
+            ) {
                 return false
             }
 
@@ -686,10 +689,5 @@ fun MethodItem.updateCopiedMethodState() {
     val mutableModifiers = mutableModifiers()
     if (mutableModifiers.isDefault() && !containingClass().isInterface()) {
         mutableModifiers.setDefault(false)
-    }
-
-    val containingClass = containingClass()
-    if (containingClass.deprecated) {
-        deprecated = true
     }
 }
