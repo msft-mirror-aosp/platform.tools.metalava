@@ -28,10 +28,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.ClassSymbol
@@ -162,8 +159,6 @@ internal open class TurbineClassItem(
         this.superClassType = superClassType
     }
 
-    override fun superClass(): ClassItem? = superClassType?.asClass()
-
     override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Must only be used by [type] to cache its result. */
@@ -174,11 +169,6 @@ internal open class TurbineClassItem(
             cachedType = DefaultResolvedClassTypeItem.createForClass(this)
         }
         return cachedType
-    }
-
-    private fun createVariableType(typeParam: TurbineTypeParameterItem): VariableTypeItem {
-        val mods = DefaultTypeModifiers.create(typeParam.modifiers.annotations())
-        return DefaultVariableTypeItem(mods, typeParam)
     }
 
     override fun hashCode(): Int = qualifiedName.hashCode()
