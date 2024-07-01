@@ -230,24 +230,12 @@ internal class StubWriter(
         stubWriter?.visitConstructor(constructor)
     }
 
-    override fun afterVisitConstructor(constructor: ConstructorItem) {
-        stubWriter?.afterVisitConstructor(constructor)
-    }
-
     override fun visitMethod(method: MethodItem) {
         stubWriter?.visitMethod(method)
     }
 
-    override fun afterVisitMethod(method: MethodItem) {
-        stubWriter?.afterVisitMethod(method)
-    }
-
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
-    }
-
-    override fun afterVisitField(field: FieldItem) {
-        stubWriter?.afterVisitField(field)
     }
 
     /**
