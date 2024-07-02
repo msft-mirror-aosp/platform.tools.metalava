@@ -169,7 +169,7 @@ open class ApiVisitor(
         // by their containing classes. Otherwise, flatten the nested classes and treat them all as
         // top level classes.
         val classesToVisitDirectly =
-            (if (nestInnerClasses) pkg.topLevelClasses() else pkg.allClasses())
+            (if (nestInnerClasses) pkg.topLevelClasses().asSequence() else pkg.allClasses())
                 .mapNotNull { getVisitCandidateIfNeeded(it) }
                 .toList()
 

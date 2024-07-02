@@ -79,7 +79,7 @@ internal class TurbinePackageItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): Sequence<ClassItem> = topClasses.asSequence()
+    override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
 
     internal fun addTopClass(classItem: TurbineClassItem) {
         topClasses.add(classItem)
