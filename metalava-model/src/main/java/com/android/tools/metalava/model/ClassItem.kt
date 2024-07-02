@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.ArrayList
 import java.util.LinkedHashSet
 import java.util.function.Predicate
 
@@ -657,26 +656,6 @@ interface ClassItem : Item, TypeParameterListOwner {
             }
         }
         return types
-    }
-
-    fun allInnerClasses(includeSelf: Boolean = false): Sequence<ClassItem> {
-        if (!includeSelf && innerClasses().isEmpty()) {
-            return emptySequence()
-        }
-
-        val list = ArrayList<ClassItem>()
-        if (includeSelf) {
-            list.add(this)
-        }
-        addInnerClasses(list, this)
-        return list.asSequence()
-    }
-
-    private fun addInnerClasses(list: MutableList<ClassItem>, cls: ClassItem) {
-        for (innerClass in cls.innerClasses()) {
-            list.add(innerClass)
-            addInnerClasses(list, innerClass)
-        }
     }
 
     /**
