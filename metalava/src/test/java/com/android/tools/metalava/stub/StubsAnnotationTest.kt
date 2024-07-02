@@ -489,7 +489,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     method public abstract char[] letters2() default {'a', 'b', 'c'};
                     method public abstract int math() default 7;
                     method public abstract short medium() default 1;
-                    method public abstract Class<? extends java.lang.Number> myCls() default java.lang.Integer.class;
+                    method public abstract Class<? extends java.lang.Number!> myCls() default java.lang.Integer.class;
                     method public abstract String prefix() default "";
                     method public abstract boolean resolveId() default false;
                     method public abstract byte small() default 1;
@@ -687,6 +687,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @Deprecated
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
+                    @Deprecated
                     Foo() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -758,6 +759,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @test.pkg.MyClassRetentionAnnotation
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
+                    @Deprecated
                     Foo() { throw new RuntimeException("Stub!"); }
                     @Deprecated
                     public void bar() { throw new RuntimeException("Stub!"); }

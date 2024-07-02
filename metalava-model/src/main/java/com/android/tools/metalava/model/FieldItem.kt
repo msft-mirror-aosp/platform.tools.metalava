@@ -27,6 +27,12 @@ interface FieldItem : MemberItem {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
+
     /**
      * The initial/constant value, if any. If [requireConstant] the initial value will only be
      * returned if it's constant.
@@ -40,36 +46,19 @@ interface FieldItem : MemberItem {
     fun isEnumConstant(): Boolean
 
     /**
-     * If this field is inherited from a hidden super class, this property is set. This is necessary
-     * because these fields should not be listed in signature files, whereas in stub files it's
-     * necessary for them to be included.
+     * Duplicates this field item.
+     *
+     * Override to specialize the return type.
      */
-    var inheritedField: Boolean
+    override fun duplicate(targetContainingClass: ClassItem): FieldItem
 
-    /**
-     * If this field is copied from a super class (typically via [duplicate]) this field points to
-     * the original class it was copied from
-     */
-    var inheritedFrom: ClassItem?
-
-    /**
-     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
-     */
-    fun duplicate(targetContainingClass: ClassItem): FieldItem
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = type()
-        visitor.visitType(type, this)
-        visitor.afterVisitType(type, this)
-    }
+    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
 
     /**
      * Check the declared value with a typed comparison, not a string comparison, to accommodate
@@ -105,46 +94,17 @@ interface FieldItem : MemberItem {
         return false
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        if (type() is PrimitiveTypeItem) {
-            return false
-        }
-
-        if (modifiers.isFinal() && initialValue(true) != null) {
-            return false
-        }
-
-        return true
-    }
-
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // Constant field not initialized to null?
-        if (isEnumConstant() || modifiers.isFinal() && initialValue(false) != null) {
-            // Assigned to constant: not nullable
-            return false
-        }
-
-        return null
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
         }
+
+        /**
+         * Comparator that will order [FieldItem]s such that those for which
+         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
+         */
+        val comparatorEnumConstantFirst =
+            Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 
     /**
@@ -203,6 +163,11 @@ interface FieldItem : MemberItem {
                         value == Float.POSITIVE_INFINITY -> writer.print("(1.0f/0.0f);")
                         value == Float.NEGATIVE_INFINITY -> writer.print("(-1.0f/0.0f);")
                         java.lang.Float.isNaN(value) -> writer.print("(0.0f/0.0f);")
+                        // Force MIN_NORMAL to use the String representation created by
+                        // java.lang.Float.toString() before the bug fix in JDK 19  - see
+                        // https://inside.java/2022/09/23/quality-heads-up/ for details.
+                        value == java.lang.Float.MIN_NORMAL ->
+                            writer.format("1.17549435E-38f;", value)
                         else -> {
                             writer.print(canonicalizeFloatingPointString(value.toString()))
                             writer.print("f;")

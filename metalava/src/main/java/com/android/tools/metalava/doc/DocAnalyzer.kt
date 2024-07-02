@@ -24,7 +24,7 @@ import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
-import com.android.tools.metalava.isUnderTest
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -39,17 +39,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.getAttributeValue
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiMethod
 import java.io.File
 import java.nio.file.Files
 import java.util.regex.Pattern
@@ -74,10 +69,13 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
  *   (It works around this by replacing the space with &nbsp;.)
  */
 class DocAnalyzer(
+    private val executionEnvironment: ExecutionEnvironment,
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
 ) {
+
+    private val apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig
 
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
@@ -107,7 +105,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -136,9 +134,7 @@ class DocAnalyzer(
                     for (annotation in annotations) {
                         val name = annotation.qualifiedName
                         if (
-                            name != null &&
-                                name.endsWith("Thread") &&
-                                name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
+                            name.endsWith("Thread") && name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
                         ) {
                             if (result == null) {
                                 result = mutableListOf()
@@ -178,7 +174,7 @@ class DocAnalyzer(
                     visitedClasses: MutableSet<String> = mutableSetOf()
                 ) {
                     val name = annotation.qualifiedName
-                    if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
+                    if (name.startsWith(JAVA_LANG_PREFIX)) {
                         // Ignore java.lang.Retention etc.
                         return
                     }
@@ -676,7 +672,7 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
                     var doc = item.documentation
                     if (doc.isBlank()) {
@@ -695,27 +691,37 @@ class DocAnalyzer(
     }
 
     fun applyApiLevels(applyApiLevelsXml: File) {
-        val apiLookup = getApiLookup(applyApiLevelsXml)
+        val apiLookup =
+            getApiLookup(
+                xmlFile = applyApiLevelsXml,
+                underTest = executionEnvironment.isUnderTest(),
+            )
         val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(applyApiLevelsXml)
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
         codebase.accept(
-            object : ApiVisitor(visitConstructorsAsMethods = true) {
+            object :
+                ApiVisitor(
+                    visitConstructorsAsMethods = true,
+                    config = apiVisitorConfig,
+                ) {
                 override fun visitMethod(method: MethodItem) {
-                    val psiMethod = (method as PsiMethodItem).psi()
-                    if (psiMethod.containingClass == null) {
+                    // Do not add API information to implicit constructor. It is not clear exactly
+                    // why this is needed but without it some existing tests break.
+                    // TODO(b/302290849): Investigate this further.
+                    if (method.isImplicitConstructor()) {
                         return
                     }
-                    addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
-                    elementToSdkExtSinceMap[
-                            "${psiMethod.containingClass!!.qualifiedName}#${psiMethod.name}"]
-                        ?.let { addApiExtensionsDocumentation(it, method) }
-                    addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(psiMethod), method)
+                    addApiLevelDocumentation(apiLookup.getMethodVersion(method), method)
+                    val methodName = method.name()
+                    val key = "${method.containingClass().qualifiedName()}#$methodName"
+                    elementToSdkExtSinceMap[key]?.let { addApiExtensionsDocumentation(it, method) }
+                    addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(method), method)
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val psiClass = (cls as PsiClassItem).psi()
-                    val since = apiLookup.getClassVersion(psiClass)
+                    val qualifiedName = cls.qualifiedName()
+                    val since = apiLookup.getClassVersion(cls)
                     if (since != -1) {
                         addApiLevelDocumentation(since, cls)
 
@@ -724,29 +730,25 @@ class DocAnalyzer(
                         val pkg = cls.containingPackage()
                         pkgApi[pkg] = min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
                     }
-                    elementToSdkExtSinceMap["${psiClass.qualifiedName}"]?.let {
+                    elementToSdkExtSinceMap[qualifiedName]?.let {
                         addApiExtensionsDocumentation(it, cls)
                     }
-                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(psiClass), cls)
+                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(cls), cls)
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val psiField = (field as PsiFieldItem).psi()
-                    addApiLevelDocumentation(apiLookup.getFieldVersion(psiField), field)
+                    addApiLevelDocumentation(apiLookup.getFieldVersion(field), field)
                     elementToSdkExtSinceMap[
-                            "${psiField.containingClass!!.qualifiedName}#${psiField.name}"]
+                            "${field.containingClass().qualifiedName()}#${field.name()}"]
                         ?.let { addApiExtensionsDocumentation(it, field) }
-                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(psiField), field)
+                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(field), field)
                 }
             }
         )
 
-        val packageDocs = codebase.getPackageDocs()
-        if (packageDocs != null) {
-            for ((pkg, api) in pkgApi.entries) {
-                val code = api ?: 1
-                addApiLevelDocumentation(code, pkg)
-            }
+        for ((pkg, api) in pkgApi.entries) {
+            val code = api ?: 1
+            addApiLevelDocumentation(code, pkg)
         }
     }
 
@@ -860,51 +862,62 @@ fun ApiConstraint.minApiLevel(): Int {
         ?: -1
 }
 
-fun ApiLookup.getClassVersion(cls: PsiClass): Int {
-    val owner = cls.qualifiedName ?: return -1
+fun ApiLookup.getClassVersion(cls: ClassItem): Int {
+    val owner = cls.qualifiedName()
     return getClassVersions(owner).minApiLevel()
 }
 
 val defaultEvaluator = DefaultJavaEvaluator(null, null)
 
-fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
-    val containingClass = method.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    val desc =
-        defaultEvaluator.getMethodDescription(method, includeName = false, includeReturn = false)
-    return getMethodVersions(owner, if (method.isConstructor) "<init>" else method.name, desc)
-        .minApiLevel()
+fun ApiLookup.getMethodVersion(method: MethodItem): Int {
+    val containingClass = method.containingClass()
+    val owner = containingClass.qualifiedName()
+    val desc = method.getApiLookupMethodDescription()
+    // Metalava uses the class name as the name of the constructor but the ApiLookup uses <init>.
+    val name = if (method.isConstructor()) "<init>" else method.name()
+    return getMethodVersions(owner, name, desc).minApiLevel()
 }
 
-fun ApiLookup.getFieldVersion(field: PsiField): Int {
-    val containingClass = field.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    return getFieldVersions(owner, field.name).minApiLevel()
+fun ApiLookup.getFieldVersion(field: FieldItem): Int {
+    val containingClass = field.containingClass()
+    val owner = containingClass.qualifiedName()
+    return getFieldVersions(owner, field.name()).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getClassDeprecatedIn(cls: PsiClass): Int {
-    val owner = cls.qualifiedName ?: return -1
-    return getClassDeprecatedIn(owner)
+fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): Int {
+    val owner = cls.qualifiedName()
+    return getClassDeprecatedInVersions(owner).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getMethodDeprecatedIn(method: PsiMethod): Int {
-    val containingClass = method.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    val desc =
-        defaultEvaluator.getMethodDescription(method, includeName = false, includeReturn = false)
-    return getMethodDeprecatedIn(owner, method.name, desc)
+fun ApiLookup.getMethodDeprecatedIn(method: MethodItem): Int {
+    val containingClass = method.containingClass()
+    val owner = containingClass.qualifiedName()
+    val desc = method.getApiLookupMethodDescription() ?: return -1
+    return getMethodDeprecatedInVersions(owner, method.name(), desc).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getFieldDeprecatedIn(field: PsiField): Int {
-    val containingClass = field.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    return getFieldDeprecatedIn(owner, field.name)
+/** Get the method description suitable for use in [ApiLookup.getMethodVersions]. */
+fun MethodItem.getApiLookupMethodDescription(): String? {
+    val psiMethodItem = this as PsiMethodItem
+    val psiMethod = psiMethodItem.psiMethod
+    return defaultEvaluator.getMethodDescription(
+        psiMethod,
+        includeName = false,
+        includeReturn = false
+    )
 }
 
-fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
+fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): Int {
+    val containingClass = field.containingClass()
+    val owner = containingClass.qualifiedName()
+    return getFieldDeprecatedInVersions(owner, field.name()).minApiLevel()
+}
+
+fun getApiLookup(
+    xmlFile: File,
+    cacheDir: File? = null,
+    underTest: Boolean = true,
+): ApiLookup {
     val client =
         object : LintCliClient(PROGRAM_NAME) {
             override fun getCacheDir(name: String?, create: Boolean): File? {
@@ -912,7 +925,7 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
                     return cacheDir
                 }
 
-                if (create && isUnderTest()) {
+                if (create && underTest) {
                     // Pick unique directory during unit tests
                     return Files.createTempDirectory(PROGRAM_NAME).toFile()
                 }

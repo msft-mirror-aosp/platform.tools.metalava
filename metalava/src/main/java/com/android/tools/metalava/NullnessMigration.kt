@@ -29,13 +29,13 @@ import com.android.tools.metalava.model.hasAnnotation
 
 /**
  * Performs null migration analysis, looking at previous API signature files and new signature
- * files, and replacing new @Nullable and @NonNull annotations with @RecentlyNullable
- * and @RecentlyNonNull.
+ * files, and replacing @Nullable and @NonNull annotations added to APIs that have previously been
+ * released with @RecentlyNullable and @RecentlyNonNull.
  *
  * TODO: Enforce compatibility across type use annotations, e.g. changing parameter value from
  *   {@code @NonNull List<@Nullable String>} to {@code @NonNull List<@NonNull String>} is forbidden.
  */
-class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
+class NullnessMigration : ComparisonVisitor() {
     override fun compare(old: Item, new: Item) {
         if (hasNullnessInformation(new) && !hasNullnessInformation(old)) {
             new.markRecent()
@@ -73,31 +73,30 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun hasNullnessInformation(type: TypeItem): Boolean {
-        @Suppress("ConstantConditionIf")
         return if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-            val typeString = type.toTypeString(outerAnnotations = false, innerAnnotations = true)
-            typeString.contains(".Nullable") || typeString.contains(".NonNull")
+            // TODO: support type use
+            false
         } else {
             false
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun checkType(old: TypeItem, new: TypeItem) {
         if (hasNullnessInformation(new)) {
             assert(SUPPORT_TYPE_USE_ANNOTATIONS)
-            if (
-                old.toTypeString(outerAnnotations = false, innerAnnotations = true) !=
-                    new.toTypeString(outerAnnotations = false, innerAnnotations = true)
-            ) {
-                new.markRecent()
-            }
+            // TODO: support type use
         }
     }
 
     companion object {
         fun migrateNulls(codebase: Codebase, previous: Codebase) {
-            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
+                .compare(NullnessMigration(), previous, codebase)
         }
 
         fun hasNullnessInformation(item: Item): Boolean {
@@ -108,7 +107,7 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
             return item.modifiers.findAnnotation(AnnotationItem::isNullnessAnnotation)
         }
 
-        fun isNullable(item: Item): Boolean {
+        private fun isNullable(item: Item): Boolean {
             return item.modifiers.hasAnnotation(AnnotationItem::isNullable)
         }
 

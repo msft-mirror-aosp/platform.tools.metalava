@@ -37,6 +37,8 @@ interface MutableModifierList : ModifierList {
 
     fun setDefault(default: Boolean)
 
+    fun setDeprecated(deprecated: Boolean)
+
     fun setSealed(sealed: Boolean)
 
     fun setFunctional(functional: Boolean)
@@ -53,7 +55,15 @@ interface MutableModifierList : ModifierList {
 
     fun setData(data: Boolean)
 
-    fun addAnnotation(annotation: AnnotationItem)
+    fun setSuspend(suspend: Boolean)
+
+    fun setCompanion(companion: Boolean)
+
+    fun setExpect(expect: Boolean)
+
+    fun setActual(actual: Boolean)
+
+    fun addAnnotation(annotation: AnnotationItem?)
 
     fun removeAnnotation(annotation: AnnotationItem)
 

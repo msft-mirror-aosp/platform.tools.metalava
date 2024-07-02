@@ -17,15 +17,19 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.reporter.FileLocation
 
-class TurbinePackageItem(
-    override val codebase: Codebase,
+internal class TurbinePackageItem(
+    codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val qualifiedName: String,
-    override val modifiers: TurbineModifierItem,
-) : PackageItem, TurbineItem(codebase, modifiers) {
+    modifiers: DefaultModifierList,
+    documentation: String,
+    isInitiallyHidden: Boolean,
+) : TurbineItem(codebase, fileLocation, modifiers, documentation, isInitiallyHidden), PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 
@@ -33,19 +37,36 @@ class TurbinePackageItem(
 
     companion object {
         fun create(
-            codebase: Codebase,
+            codebase: TurbineBasedCodebase,
+            fileLocation: FileLocation,
             qualifiedName: String,
-            modifiers: TurbineModifierItem,
+            modifiers: DefaultModifierList,
+            documentation: String,
         ): TurbinePackageItem {
+            val isHidden = codebase.isPackageHidden(qualifiedName)
             if (modifiers.isPackagePrivate()) {
-                // packages are always public (if not hidden explicitly with private)
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
             }
-            return TurbinePackageItem(codebase, qualifiedName, modifiers)
+            return TurbinePackageItem(
+                codebase,
+                fileLocation,
+                qualifiedName,
+                modifiers,
+                documentation,
+                isHidden,
+            )
         }
     }
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
+
+    fun updateOriginallyHiddenStatus(documentation: String) {
+        this.originallyHidden =
+            this.originallyHidden ||
+                documentation.contains("@hide") ||
+                documentation.contains("@pending") ||
+                hasHideAnnotation()
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -58,7 +79,7 @@ class TurbinePackageItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): Sequence<ClassItem> = topClasses.asSequence()
+    override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
 
     internal fun addTopClass(classItem: TurbineClassItem) {
         topClasses.add(classItem)

@@ -277,119 +277,6 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Add nonessential overrides classes -- Does not emit override with identical signature`() {
-
-        // This test demonstrates how `--add-nonessential-overrides-classes` flag can be used to
-        // inject additional overriding methods that would not be added with
-        // `--add-additional-overrides` flag. Class passed with the flag emits all visible
-        // overriding methods to the signature file, regardless of they are abstract or not. Note
-        // that `Activity.startActivityAsUser()` is not shown in the signature file even when class
-        // Activity is passed with the flag, as it is marked hide and thus not visible.
-        checkAddAdditionalOverrides(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    public class Activity extends ContextThemeWrapper {
-                        @Override
-                        public void startActivity(Intent intent) {}
-
-                        /** @hide */
-                        @Override
-                        public void startActivityAsUser(Intent intent, UserHandle user) {}
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    public class ContextThemeWrapper extends ContextWrapper {
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    public class ContextWrapper extends Context {
-                        @Override
-                        public void startActivity(Intent intent) {}
-
-                        /** @hide */
-                        @Override
-                        public void startActivityAsUser(Intent intent, UserHandle user) {}
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-
-                    import android.annotation.SystemApi;
-
-                    public abstract class Context {
-                        public abstract void startActivity(Intent intent);
-
-                        /** @hide */
-                        @SystemApi
-                        public void startActivityAsUser(Intent intent, UserHandle user) {}
-                    }
-                    """
-                    ),
-                    systemApiSource
-                ),
-            apiOriginal =
-                """
-            // Signature format: 2.0
-            package test.pkg {
-              public class Activity extends test.pkg.ContextThemeWrapper {
-                ctor public Activity();
-              }
-              public abstract class Context {
-                ctor public Context();
-                method public abstract void startActivity(Intent);
-              }
-              public class ContextThemeWrapper extends test.pkg.ContextWrapper {
-                ctor public ContextThemeWrapper();
-              }
-              public class ContextWrapper extends test.pkg.Context {
-                ctor public ContextWrapper();
-                method public void startActivity(Intent);
-              }
-            }
-        """,
-            apiWithAdditionalOverrides =
-                """
-            // Signature format: 2.0
-            package test.pkg {
-              public class Activity extends test.pkg.ContextThemeWrapper {
-                ctor public Activity();
-                method public void startActivity(Intent);
-              }
-              public abstract class Context {
-                ctor public Context();
-                method public abstract void startActivity(Intent);
-              }
-              public class ContextThemeWrapper extends test.pkg.ContextWrapper {
-                ctor public ContextThemeWrapper();
-              }
-              public class ContextWrapper extends test.pkg.Context {
-                ctor public ContextWrapper();
-                method public void startActivity(Intent);
-              }
-            }
-        """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                    ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES,
-                    "test.pkg.Activity",
-                )
-        )
-    }
-
-    @Test
     fun `Method with multiple interface parent methods in same hierarchy not elided`() {
         checkAddAdditionalOverrides(
             sourceFiles =
@@ -680,6 +567,175 @@ class AddAdditionalOverridesTest : DriverTest() {
                     method public T hasGenericReturnType();
                   }
                 }
+                """,
+        )
+    }
+
+    @Test
+    fun `Do not elide overriding method of a default method`() {
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public interface ParentInterface {
+                            public default void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass implements ParentInterface {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass implements test.pkg.ParentInterface {
+                    ctor public ChildClass();
+                  }
+                  public interface ParentInterface {
+                    method public default void bar();
+                  }
+                }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass implements test.pkg.ParentInterface {
+                    ctor public ChildClass();
+                    method public void bar();
+                  }
+                  public interface ParentInterface {
+                    method public default void bar();
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Do not elide method inherited from inaccessible class and default method from interface`() {
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public interface ParentInterface {
+                            default void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass implements ParentInterface {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass extends InaccessibleClass implements ParentInterface {
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class ChildClass implements test.pkg.ParentInterface {
+                        ctor public ChildClass();
+                      }
+                      public interface ParentInterface {
+                        method public default void bar();
+                      }
+                    }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class ChildClass implements test.pkg.ParentInterface {
+                        ctor public ChildClass();
+                        method public void bar();
+                      }
+                      public interface ParentInterface {
+                        method public default void bar();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Elide methods inherited from one inaccessible class if they override method inherited from another inaccessible class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass1 {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class PublicClass1 extends InaccessibleClass1 {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass2 extends PublicClass1 {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class PublicClass2 extends InaccessibleClass2 {
+                        }
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicClass1 {
+                        ctor public PublicClass1();
+                        method public void bar();
+                      }
+                      public class PublicClass2 extends test.pkg.PublicClass1 {
+                        ctor public PublicClass2();
+                      }
+                    }
                 """,
         )
     }

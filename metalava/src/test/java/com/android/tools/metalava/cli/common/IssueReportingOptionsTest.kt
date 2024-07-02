@@ -38,14 +38,20 @@ Issue Reporting:
   See `metalava help issues` for more help including a table of the available issues and their category and default
   severity.
 
-  --error <id>                               Report issues of the given id as errors
-  --warning <id>                             Report issues of the given id as warnings
-  --lint <id>                                Report issues of the given id as having lint-severity
-  --hide <id>                                Hide/skip issues of the given id
-  --error-category <name>                    Report all issues in the given category as errors
-  --warning-category <name>                  Report all issues in the given category as warnings
-  --lint-category <name>                     Report all issues in the given category as having lint-severity
-  --hide-category <name>                     Hide/skip all issues in the given category
+  --error <id>                               Report issues of the given id as errors.
+  --error-when-new <id>                      Report issues of the given id as warnings in existing code and errors in
+                                             new code. The latter behavior relies on infrastructure that handles
+                                             checking changes to the code detecting the (ErrorWhenNew) text in the
+                                             output and preventing the change from being made.
+  --warning <id>                             Report issues of the given id as warnings.
+  --hide <id>                                Hide/skip issues of the given id.
+  --error-category <name>                    Report all issues in the given category as errors.
+  --error-when-new-category <name>           Report all issues in the given category as errors-when-new.
+  --warning-category <name>                  Report all issues in the given category as warnings.
+  --hide-category <name>                     Hide/skip all issues in the given category.
+  --warnings-as-errors                       Promote all warnings to errors.
+  --report-even-if-suppressed <file>         Write all issues into the given file, even if suppressed (via annotation or
+                                             baseline) but not if hidden (by '--hide' or '--hide-category').
   --repeat-errors-max <n>                    When specified, repeat at most N errors before finishing. (default: 0)
     """
         .trimIndent()
@@ -122,8 +128,6 @@ class IssueReportingOptionsTest :
         runTest(
             "--hide",
             "StartWithLower",
-            "--lint",
-            "EndsWithImpl",
             "--warning",
             "StartWithUpper",
             "--error",
@@ -132,7 +136,6 @@ class IssueReportingOptionsTest :
             val issueConfiguration = options.issueConfiguration
 
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
-            assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
             assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
         }

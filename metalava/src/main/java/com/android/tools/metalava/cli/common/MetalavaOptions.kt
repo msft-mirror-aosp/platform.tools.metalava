@@ -74,6 +74,11 @@ fun RawArgument.newDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToNewDir)
 }
 
+/** Convert the option to a [File] that represents a new or existing file. */
+fun RawOption.newOrExistingFile(): NullableOption<File, File> {
+    return fileConversion(::stringToNewOrExistingFile)
+}
+
 /** Convert the option to a [File] using the supplied conversion function.. */
 private fun RawOption.fileConversion(conversion: (String) -> File): NullableOption<File, File> {
     return convert({ localization.pathMetavar() }, CompletionCandidates.Path) { str ->
@@ -201,6 +206,27 @@ internal fun stringToNewFile(value: String): File {
     }
 
     return output
+}
+
+/**
+ * Convert a string representing a new or existing file to a [File].
+ *
+ * This will fail if:
+ * * the file is a directory.
+ * * the parent directory does not exist, and cannot be created.
+ */
+internal fun stringToNewOrExistingFile(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.exists()) {
+        val parentFile = file.parentFile
+        if (parentFile != null && !parentFile.isDirectory) {
+            val ok = parentFile.mkdirs()
+            if (!ok) {
+                throw MetalavaCliException("Could not create $parentFile")
+            }
+        }
+    }
+    return file
 }
 
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
@@ -503,5 +529,45 @@ internal fun Option.decompose(): Sequence<Option> {
         val metavar = if (name.endsWith("-category")) "<name>" else "<id>"
         val help = lines[i]
         copy(names = setOf(name), metavar = metavar, help = help)
+    }
+}
+
+/**
+ * Clikt does not allow `:` in option names but Metalava uses that for creating structured option
+ * names, e.g. --part1:part2:part3.
+ *
+ * This method can be used to circumvent the built-in check and use a custom check that allows for
+ * structure option names. Call it at the end of the `option(...)....allowStructureOptionName()`
+ * call chain.
+ */
+fun <T> OptionWithValues<T, *, *>.allowStructuredOptionName(): OptionDelegate<T> {
+    return StructuredOptionName(this)
+}
+
+/** Allows the same format for option names as Clikt with the addition of the ':' character. */
+private fun checkStructuredOptionNames(names: Set<String>) {
+    val invalidName = names.find { !it.matches(Regex("""[\-@/+]{1,2}[\w\-_:]+""")) }
+    require(invalidName == null) { "Invalid option name \"$invalidName\"" }
+}
+
+/** Circumvents the usual Clikt name format check and substitutes its own name format check. */
+class StructuredOptionName<T>(private val delegate: OptionDelegate<T>) :
+    OptionDelegate<T> by delegate {
+
+    override fun provideDelegate(
+        thisRef: ParameterHolder,
+        prop: KProperty<*>
+    ): ReadOnlyProperty<ParameterHolder, T> {
+        // If no names are provided then delegate this to the built-in method to infer the option
+        // name as that name is guaranteed not to contain a ':'.
+        if (names.isEmpty()) {
+            return delegate.provideDelegate(thisRef, prop)
+        }
+        require(secondaryNames.isEmpty()) {
+            "Secondary option names are only allowed on flag options."
+        }
+        checkStructuredOptionNames(names)
+        thisRef.registerOption(delegate)
+        return this
     }
 }

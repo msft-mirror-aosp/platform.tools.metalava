@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.model.Location
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
@@ -55,9 +54,6 @@ private constructor(
         /** Configuration for the issues that will be stored in the baseline file. */
         val issueConfiguration: IssueConfiguration,
 
-        /** True if this should only store errors in the baseline, false otherwise. */
-        val baselineErrorsOnly: Boolean,
-
         /** True if this should delete empty baseline files, false otherwise. */
         val deleteEmptyBaselines: Boolean,
 
@@ -77,6 +73,9 @@ private constructor(
     /** Map from issue id to element id to message */
     private val map = HashMap<Issues.Issue, MutableMap<String, String>>()
 
+    /** Count of the number of issues read in. */
+    private var readCount = 0
+
     init {
         if (file?.isFile == true && !silentUpdate) {
             // We've set a baseline from an existing file: read it
@@ -85,10 +84,17 @@ private constructor(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(location: Location, message: String, issue: Issues.Issue): Boolean {
-        val elementId =
-            location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
+    fun mark(key: BaselineKey, message: String, issue: Issues.Issue): Boolean {
+        val elementId = key.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
+    }
+
+    private fun MutableMap<String, String>.findOldMessageByElementId(elementId: String): String? {
+        get(elementId)?.let {
+            return it
+        }
+
+        return null
     }
 
     private fun mark(elementId: String, message: String, issue: Issues.Issue): Boolean {
@@ -96,12 +102,6 @@ private constructor(
             map[issue]
                 ?: run {
                     if (updateFile != null) {
-                        if (
-                            config.baselineErrorsOnly &&
-                                config.issueConfiguration.getSeverity(issue) != Severity.ERROR
-                        ) {
-                            return true
-                        }
                         val new = HashMap<String, String>()
                         map[issue] = new
                         new
@@ -110,10 +110,9 @@ private constructor(
                     }
                 }
 
-        val oldMessage: String? = idMap?.get(elementId)
-        if (oldMessage != null) {
-            // for now not matching messages; the ids are unique enough and allows us
-            // to tweak issue messages compatibly without recording all the deltas here
+        idMap?.findOldMessageByElementId(elementId)?.let {
+            // Do not match the error messages; the ids are unique enough and allows us
+            // to tweak issue messages compatibly without recording all the deltas here.
             return true
         }
 
@@ -189,6 +188,7 @@ private constructor(
                 newIdMap[elementId] = message
             }
         }
+        readCount = map.values.sumOf { it.size }
     }
 
     private fun write(): Boolean {
@@ -222,7 +222,10 @@ private constructor(
         } else {
             updateFile.delete()
         }
-        return true
+        // Only output a message saying that the baseline file has been written if the map has had
+        // extra issues added to it since it was read in.
+        val totalCount = map.values.sumOf { it.size }
+        return totalCount > readCount
     }
 
     fun dumpStats(writer: PrintWriter) {

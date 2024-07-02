@@ -16,56 +16,47 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UClass
 import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
-    private val name: String,
-    modifiers: PsiModifierItem,
+    containingClass: PsiClassItem,
+    name: String,
+    modifiers: DefaultModifierList,
     documentation: String,
-    private val fieldType: PsiTypeItem,
+    private var fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
     override val setter: PsiMethodItem?,
     override val constructorParameter: PsiParameterItem?,
     override val backingField: PsiFieldItem?
 ) :
-    PsiItem(
+    PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiMethod
+        element = psiMethod,
+        containingClass = containingClass,
+        name = name,
     ),
     PropertyItem {
 
     override fun type(): TypeItem = fieldType
 
-    override fun name(): String = name
-
-    override fun containingClass(): PsiClassItem = containingClass
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = containingClass().psi()
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
+    override fun setType(type: TypeItem) {
+        fieldType = type as PsiTypeItem
     }
+
+    override fun psi() = psiMethod
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -79,8 +70,6 @@ private constructor(
     override fun hashCode(): Int {
         return name.hashCode()
     }
-
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
 
     companion object {
         /**
@@ -102,7 +91,7 @@ private constructor(
          * Most properties on classes without a custom getter have a [backingField] to hold their
          * value. This is private except for [JvmField] properties.
          */
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             name: String,
@@ -115,8 +104,9 @@ private constructor(
             val psiMethod = getter.psiMethod
             val documentation =
                 when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor -> javadoc(sourcePsi.property)
-                    else -> javadoc(sourcePsi ?: psiMethod)
+                    is KtPropertyAccessor ->
+                        javadoc(sourcePsi.property, codebase.allowReadingComments)
+                    else -> javadoc(sourcePsi ?: psiMethod, codebase.allowReadingComments)
                 }
             val modifiers = modifiers(codebase, psiMethod, documentation)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
@@ -135,7 +125,8 @@ private constructor(
                         } else null
                     }
                 annotations?.forEach { uAnnotation ->
-                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                    val annotationItem =
+                        UAnnotationItem.create(codebase, uAnnotation) ?: return@forEach
                     if (annotationItem !in modifiers.annotations()) {
                         modifiers.addAnnotation(annotationItem)
                     }
@@ -159,7 +150,6 @@ private constructor(
             setter?.property = property
             constructorParameter?.property = property
             backingField?.property = property
-            property.modifiers.setOwner(property)
             return property
         }
     }

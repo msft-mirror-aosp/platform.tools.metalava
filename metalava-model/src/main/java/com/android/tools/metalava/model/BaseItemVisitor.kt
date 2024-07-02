@@ -72,16 +72,10 @@ open class BaseItemVisitor(
             for (innerCls in cls.innerClasses()) {
                 innerCls.accept(this)
             }
-        } // otherwise done below
+        } // otherwise done in visit(PackageItem)
 
         afterVisitClass(cls)
         afterVisitItem(cls)
-
-        if (!nestInnerClasses) {
-            for (innerCls in cls.innerClasses()) {
-                innerCls.accept(this)
-            }
-        }
     }
 
     override fun visit(field: FieldItem) {
@@ -91,8 +85,6 @@ open class BaseItemVisitor(
 
         visitItem(field)
         visitField(field)
-
-        afterVisitField(field)
         afterVisitItem(field)
     }
 
@@ -112,13 +104,19 @@ open class BaseItemVisitor(
             parameter.accept(this)
         }
 
-        if (method.isConstructor()) {
-            afterVisitConstructor(method as ConstructorItem)
-        } else {
-            afterVisitMethod(method)
-        }
         afterVisitItem(method)
     }
+
+    /**
+     * Get the package's classes to visit directly.
+     *
+     * If nested classes are to appear as nested within their containing classes then this will just
+     * return the package's top level classes. It will then be the responsibility of
+     * `visit(ClassItem)` to visit the nested classes. Otherwise, this will return a flattened
+     * sequence of each class followed by its nested classes.
+     */
+    protected fun packageClassesAsSequence(pkg: PackageItem) =
+        if (nestInnerClasses) pkg.topLevelClasses().asSequence() else pkg.allClasses()
 
     override fun visit(pkg: PackageItem) {
         if (skip(pkg)) {
@@ -128,7 +126,7 @@ open class BaseItemVisitor(
         visitItem(pkg)
         visitPackage(pkg)
 
-        for (cls in pkg.topLevelClasses()) {
+        for (cls in packageClassesAsSequence(pkg)) {
             cls.accept(this)
         }
 
@@ -149,8 +147,6 @@ open class BaseItemVisitor(
 
         visitItem(parameter)
         visitParameter(parameter)
-
-        afterVisitParameter(parameter)
         afterVisitItem(parameter)
     }
 
@@ -161,21 +157,7 @@ open class BaseItemVisitor(
 
         visitItem(property)
         visitProperty(property)
-
-        afterVisitProperty(property)
         afterVisitItem(property)
-    }
-
-    override fun visit(sourceFile: SourceFileItem) {
-        if (skip(sourceFile)) return
-
-        visitItem(sourceFile)
-        visitSourceFile(sourceFile)
-
-        sourceFile.classes().forEach { it.accept(this) }
-
-        afterVisitSourceFile(sourceFile)
-        afterVisitItem(sourceFile)
     }
 
     open fun skip(item: Item): Boolean = false
@@ -189,8 +171,6 @@ open class BaseItemVisitor(
     open fun visitCodebase(codebase: Codebase) {}
 
     open fun visitPackage(pkg: PackageItem) {}
-
-    open fun visitSourceFile(sourceFile: SourceFileItem) {}
 
     open fun visitClass(cls: ClassItem) {}
 
@@ -214,21 +194,5 @@ open class BaseItemVisitor(
 
     open fun afterVisitPackage(pkg: PackageItem) {}
 
-    open fun afterVisitSourceFile(sourceFile: SourceFileItem) {}
-
     open fun afterVisitClass(cls: ClassItem) {}
-
-    open fun afterVisitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            afterVisitMethod(constructor)
-        }
-    }
-
-    open fun afterVisitField(field: FieldItem) {}
-
-    open fun afterVisitMethod(method: MethodItem) {}
-
-    open fun afterVisitParameter(parameter: ParameterItem) {}
-
-    open fun afterVisitProperty(property: PropertyItem) {}
 }

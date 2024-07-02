@@ -20,20 +20,17 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
-class TextFieldItem(
+internal class TextFieldItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    private val type: TextTypeItem,
+    private var type: TypeItem,
     private val constantValue: Any?,
-    position: SourcePositionInfo
-) : TextMemberItem(codebase, name, containingClass, position, modifiers), FieldItem {
-
-    init {
-        modifiers.setOwner(this)
-    }
+    fileLocation: FileLocation
+) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), FieldItem {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -50,9 +47,11 @@ class TextFieldItem(
 
     override fun type(): TypeItem = type
 
-    override fun initialValue(requireConstant: Boolean): Any? = constantValue
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
 
-    override fun toString(): String = "field ${containingClass().fullName()}.${name()}"
+    override fun initialValue(requireConstant: Boolean): Any? = constantValue
 
     override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
         val duplicated =
@@ -63,10 +62,9 @@ class TextFieldItem(
                 modifiers.duplicate(),
                 type,
                 constantValue,
-                position
+                fileLocation
             )
         duplicated.inheritedFrom = containingClass()
-        duplicated.inheritedField = inheritedField
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -83,7 +81,6 @@ class TextFieldItem(
     }
 
     override var inheritedFrom: ClassItem? = null
-    override var inheritedField: Boolean = false
 
     private var isEnumConstant = false
 

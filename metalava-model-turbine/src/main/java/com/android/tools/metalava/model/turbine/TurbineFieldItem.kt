@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,49 +17,87 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
-class TurbineFieldItem(
-    override val codebase: Codebase,
+internal class TurbineFieldItem(
+    codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val name: String,
-    private val containingClass: TurbineClassItem,
-    override val modifiers: TurbineModifierItem,
-) : TurbineItem(codebase, modifiers), FieldItem {
+    containingClass: ClassItem,
+    private var type: TypeItem,
+    modifiers: DefaultModifierList,
+    documentation: String,
+    private val isEnumConstant: Boolean,
+    private val fieldValue: TurbineFieldValue?,
+) :
+    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    FieldItem {
 
     override var inheritedFrom: ClassItem? = null
 
-    override var inheritedField: Boolean = false
-
     override fun name(): String = name
-
-    override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
         }
         return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
+            name() == other.name() &&
+            containingClass() == other.containingClass()
     }
 
-    override fun hashCode(): Int = name.hashCode()
+    override fun hashCode(): Int = name().hashCode()
 
-    override fun type(): TypeItem {
-        TODO("b/295800205")
+    override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type
     }
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        TODO("b/295800205")
+        val duplicated =
+            TurbineFieldItem(
+                codebase,
+                fileLocation,
+                name(),
+                targetContainingClass,
+                type,
+                modifiers.duplicate(),
+                documentation,
+                isEnumConstant,
+                fieldValue,
+            )
+        duplicated.inheritedFrom = containingClass()
+
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (targetContainingClass.hidden) {
+            duplicated.hidden = true
+        }
+        if (targetContainingClass.removed) {
+            duplicated.removed = true
+        }
+        if (targetContainingClass.docOnly) {
+            duplicated.docOnly = true
+        }
+
+        return duplicated
     }
 
-    override fun initialValue(requireConstant: Boolean): Any? {
-        TODO("b/295800205")
-    }
+    override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
 
-    override fun isEnumConstant(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isEnumConstant(): Boolean = isEnumConstant
+}
+
+/** Provides access to the initial values of a field. */
+class TurbineFieldValue(
+    private var initialValueWithRequiredConstant: Any?,
+    private var initialValueWithoutRequiredConstant: Any?,
+) {
+
+    fun initialValue(requireConstant: Boolean) =
+        if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
 }

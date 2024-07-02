@@ -16,17 +16,38 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.internalName
+import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
+import java.util.function.Predicate
 
-/** Visits the API codebase and inserts into the [Api] the classes, methods and fields */
-fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternalNames: Boolean) {
+/**
+ * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
+ * [providedFilterEmit] and [providedFilterReference] are non-null, they are used to determine which
+ * [Item]s should be added to the [api]. Otherwise, the [ApiVisitor] default filters are used.
+ */
+fun addApisFromCodebase(
+    api: Api,
+    apiLevel: Int,
+    codebase: Codebase,
+    useInternalNames: Boolean,
+    providedFilterEmit: Predicate<Item>? = null,
+    providedFilterReference: Predicate<Item>? = null
+) {
     codebase.accept(
-        object : ApiVisitor(visitConstructorsAsMethods = true, nestInnerClasses = false) {
+        object :
+            ApiVisitor(
+                visitConstructorsAsMethods = true,
+                nestInnerClasses = false,
+                filterEmit = providedFilterEmit,
+                filterReference = providedFilterReference,
+                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+            ) {
 
             var currentClass: ApiClass? = null
 
@@ -34,8 +55,15 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 currentClass = null
             }
 
+            /**
+             * Get the value of [Item.originallyDeprecated] from the [Item.actualItem], i.e. the
+             * item that would actually be written out.
+             */
+            private val Item.actualDeprecated
+                get() = actualItem.effectivelyDeprecated
+
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.deprecated)
+                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
@@ -133,15 +161,14 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 if (method.isPrivate || method.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(method.nameInApi(), apiLevel, method.deprecated)
+                currentClass?.addMethod(method.nameInApi(), apiLevel, method.actualDeprecated)
             }
 
             override fun visitField(field: FieldItem) {
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-
-                currentClass?.addField(field.nameInApi(), apiLevel, field.deprecated)
+                currentClass?.addField(field.nameInApi(), apiLevel, field.actualDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */
@@ -163,7 +190,7 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                         internalDesc(voidConstructorTypes = true)
                 } else {
                     val paramString = parameters().joinToString(",") { it.type().toTypeString() }
-                    name() + typeParameterList() + "(" + paramString + ")"
+                    name() + typeParameterList + "(" + paramString + ")"
                 }
             }
 
@@ -215,7 +242,7 @@ fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
             containingClass().containingClass() != null &&
             !containingClass().modifiers.isStatic()
     ) {
-        sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
+        sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
     }
 
     for (parameter in parameters()) {

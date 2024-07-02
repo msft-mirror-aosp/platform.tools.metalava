@@ -21,7 +21,9 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.java
@@ -65,6 +67,7 @@ class ApiFileTest : DriverTest() {
       - Test recursive package filtering.
     */
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin language level`() {
         // static method in interface is not overridable.
@@ -202,6 +205,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
@@ -278,6 +282,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
@@ -345,7 +350,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V?> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -359,6 +364,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Basic Kotlin class`() {
         check(
@@ -434,6 +440,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
@@ -442,16 +449,19 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     kotlin(
                         """
-                    @file:Suppress("NOTHING_TO_INLINE", "RedundantVisibilityModifier", "unused")
+                    @file:Suppress("All", "RedundantVisibilityModifier")
 
                     package test.pkg
+                    import kotlin.collections.List
 
-                    inline fun <T> a(t: T) { }
-                    inline fun <reified T> b(t: T) { }
-                    private inline fun <reified T> c(t: T) { } // hide
-                    internal inline fun <reified T> d(t: T) { } // hide
-                    public inline fun <reified T> e(t: T) { }
-                    inline fun <reified T> T.f(t: T) { }
+                    inline fun <T> inlineNoReified(t: T): T { return t }
+                    inline fun <reified T> inlineReified(t: T) { }
+                    private inline fun <reified T> privateInlineReified(t: T) { } // hide
+                    internal inline fun <reified T> internalInlineReified(t: T) { } // hide
+                    public inline fun <reified T> publicInlineReified(t: T): T { return t }
+                    inline fun <reified T> T.inlineReifiedExtension(t: T) { this }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsArray(t: Array<T>): Array<T> { return t }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsList(t: List<T>): List<T> { return t }
                     """
                     )
                 ),
@@ -459,16 +469,19 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void a(T t);
-                    method public static inline <reified T> void b(T t);
-                    method public static inline <reified T> void e(T t);
-                    method public static inline <reified T> void f(T, T t);
+                    method public static inline <T> T inlineNoReified(T t);
+                    method public static inline <reified T> void inlineReified(T t);
+                    method public static inline <reified T> void inlineReifiedExtension(T, T t);
+                    method @NonNull public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(@NonNull T[] t);
+                    method @NonNull public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(@NonNull java.util.List<? extends T> t);
+                    method public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
                 """
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Suspend functions`() {
         check(
@@ -499,6 +512,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Var properties with private setters`() {
         check(
@@ -535,6 +549,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin Generics`() {
         check(
@@ -568,6 +583,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in reified signatures`() {
         check(
@@ -635,6 +651,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in varargs`() {
         check(
@@ -739,7 +756,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 3.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -747,7 +764,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
+                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -758,8 +775,8 @@ class ApiFileTest : DriverTest() {
                 }
                 package androidx.core.app {
                   public class ActivityOptionsCompat {
-                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...);
-                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...);
+                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...!);
+                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...!);
                   }
                 }
                 """,
@@ -778,6 +795,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in type parameters`() {
         check(
@@ -843,6 +861,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in type parameter -- suspend fun`() {
         check(
@@ -881,6 +900,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in type parameter -- property and accessor`() {
         check(
@@ -917,6 +937,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
@@ -1046,6 +1067,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Known nullness`() {
         // Don't emit platform types for some unannotated elements that we know the
@@ -1187,8 +1209,6 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -1209,6 +1229,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun JvmOverloads() {
         // Regression test for https://github.com/android/android-ktx/issues/366
@@ -1262,6 +1283,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test JvmStatic`() {
         check(
@@ -1300,6 +1322,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test JvmField`() {
         check(
@@ -1335,6 +1358,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test JvmName`() {
         check(
@@ -1372,6 +1396,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test RequiresOptIn and OptIn`() {
         check(
@@ -1656,6 +1681,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Enum class -- kt`() {
         check(
@@ -1674,8 +1700,6 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public enum Foo {
-                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -1741,6 +1765,7 @@ class ApiFileTest : DriverTest() {
                 """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1780,7 +1805,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -1792,6 +1817,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Annotation retention`() {
         // For annotations where the java.lang.annotation classes themselves are not
@@ -2029,6 +2055,7 @@ class ApiFileTest : DriverTest() {
                 src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             api =
                 """
                     package test.pkg {
@@ -2048,47 +2075,6 @@ class ApiFileTest : DriverTest() {
                         method @Deprecated public static void method4(int);
                       }
                     }
-                """
-        )
-    }
-
-    @Test
-    fun `Warn about findViewById`() {
-        // Include as many modifiers as possible to see which ones are included
-        // in the signature files, and the expected sorting order.
-        // Note that the signature files treat "deprecated" as a fake modifier.
-        // Note also how the "protected" modifier on the interface method gets
-        // promoted to public.
-        check(
-            format = FileFormat.V2,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import android.annotation.Nullable;
-
-                    @SuppressWarnings("ALL")
-                    public abstract class Foo {
-                        @Nullable public String findViewById(int id) { return ""; }
-                    }
-                    """
-                    ),
-                    nullableSource
-                ),
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
-                """,
-            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
-            api =
-                """
-                package test.pkg {
-                  public abstract class Foo {
-                    ctor public Foo();
-                    method public String findViewById(int);
-                  }
-                }
                 """
         )
     }
@@ -2374,8 +2360,6 @@ class ApiFileTest : DriverTest() {
             """
             package java.nio.file.attribute {
               public enum AclEntryPermission {
-                method public static java.nio.file.attribute.AclEntryPermission valueOf(String);
-                method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE_CHILD;
@@ -3044,18 +3028,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                     """,
-            dexApi =
-                """
-                Ltest/pkg/Child;
-                Ltest/pkg/Child;-><init>()V
-                Ltest/pkg/Child;->toString()Ljava/lang/String;
-                Ltest/pkg/Parent;
-                Ltest/pkg/Parent;-><init>()V
-                Ltest/pkg/Parent;->toString()Ljava/lang/String;
-            """
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test invalid class name`() {
         // Regression test for b/73018978
@@ -3200,6 +3176,122 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test whether partial or total ordering`() {
+        check(
+            format = FileFormat.V2,
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends other.Bar mine.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends mine.Bar other.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
@@ -3248,6 +3340,74 @@ class ApiFileTest : DriverTest() {
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
+                    method public void close();
+                  }
+                }
+                package android.util {
+                  public interface AttributeSet {
+                  }
+                }
+                package my {
+                  public interface AutoCloseable {
+                  }
+                }
+                package org.xmlpull.v1 {
+                  public interface XmlPullParser {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
+        // Real-world example: XmlResourceParser
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.content.res;
+                    import android.util.AttributeSet;
+                    import org.xmlpull.v1.XmlPullParser;
+                    import my.AutoCloseable;
+
+                    @SuppressWarnings("UnnecessaryInterfaceModifier")
+                    public interface XmlResourceParser extends XmlPullParser, AttributeSet, AutoCloseable {
+                        public void close();
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.util;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface AttributeSet {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package my;
+                    public interface AutoCloseable {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package org.xmlpull.v1;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface XmlPullParser {
+                    }
+                    """
+                    )
+                ),
+            api =
+                """
+                package android.content.res {
+                  public interface XmlResourceParser extends android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
                     method public void close();
                   }
                 }
@@ -3523,6 +3683,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Visible For Testing`() {
         // Use the otherwise= visibility in signatures
@@ -3617,12 +3778,12 @@ class ApiFileTest : DriverTest() {
                 arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
             expectedIssues =
                 """
-            src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3701,6 +3862,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `FooKt class constructors are not public`() {
         check(
@@ -3963,8 +4125,8 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -4029,6 +4191,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test tracking of @Composable annotation from classpath`() {
         check(
@@ -4104,6 +4267,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test for experimental annotations from classpath`() {
         check(
@@ -4179,6 +4343,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Inline suppress compatibility metadata for experimental annotations from classpath`() {
         check(
@@ -4253,6 +4418,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@IntRange value in kotlin`() {
         check(
@@ -4325,6 +4491,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin properties with overriding get`() {
         check(
@@ -4362,6 +4529,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Constructor property tracking`() {
         check(
@@ -4450,6 +4618,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Concise default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
@@ -4526,6 +4695,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Concise default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
@@ -4593,7 +4763,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V?> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved);
                   }
                 }
                 """,
@@ -4607,31 +4777,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Test type erasure and dexApi from signature`() {
-        check(
-            signatureSources =
-                arrayOf(
-                    """
-                package android.widget {
-
-                  @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
-                    method protected <T extends android.view.View> T findViewTraversal(@IdRes int);
-                    method protected long tryAcquireShared(long);
-                  }
-
-                }
-                """
-                ),
-            dexApi =
-                """
-            Landroid/widget/ListView;
-            Landroid/widget/ListView;->findViewTraversal(I)Landroid/view/View;
-            Landroid/widget/ListView;->tryAcquireShared(J)J
-            """
-        )
-    }
-
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Functional interface in signature`() {
         check(
@@ -4665,6 +4811,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Inline class`() {
         check(
@@ -4703,6 +4850,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Value class`() {
         check(
@@ -4751,6 +4899,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin doesn't expand java named constants`() {
         check(
@@ -4777,6 +4926,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin constructors with JvmOverloads`() {
         check(
@@ -4837,6 +4987,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads`() {
         check(
@@ -4916,6 +5067,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin public methods with DeprecationLevel HIDDEN are public API`() {
         check(
@@ -4961,6 +5113,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         // Regression test for http://b/219792969
@@ -5009,6 +5162,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Constants in a file scope annotation`() {
         check(
@@ -5041,6 +5195,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `RestrictTo on a file hiding it`() {
         check(
@@ -5069,6 +5224,7 @@ class ApiFileTest : DriverTest() {
     }
 
     /** Regression test for b/202968090 */
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `annotation arrays should be non-null`() {
         check(
@@ -5100,6 +5256,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `property setter parameters are unnamed`() {
         check(
@@ -5126,6 +5283,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `implements kotlin collection`() {
         check(
@@ -5152,6 +5310,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `companion object in annotation`() {
         check(
@@ -5191,6 +5350,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
         val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
@@ -5244,6 +5404,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs before and after @Deprecated(HIDDEN) on constructors`() {
         check(
@@ -5301,6 +5462,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@Deprecated sealed interface and its members`() {
         check(
@@ -5332,6 +5494,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@Repeatable annotation`() {
         check(
@@ -5370,6 +5533,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Don't print empty facade classes`() {
         check(
@@ -5440,6 +5604,50 @@ class ApiFileTest : DriverTest() {
                         private fun shouldBePrivate() {}
                     """
                     ),
+                    kotlin(
+                        "test/pkg/Path1.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path1(): Path1
+
+                        interface Path1 {
+                          infix fun xor(path: Path1): Path1
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/Path2.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path2(): Path2
+
+                        fun Path2.copy(): Path2 = TODO()
+
+                        interface Path2 {
+                          infix fun xor(path: Path2): Path2
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/LazyLayoutItemProvider.kt",
+                        """
+                        package test.pkg
+
+                        interface LazyLayoutItemProvider {
+                          val itemCount: Int
+                          fun getIndex(): Int = -1
+                        }
+
+                        internal fun LazyLayoutItemProvider.findIndexByKey(
+                          key: Any?,
+                          lastKnownIndex: Int,
+                        ): Int = TODO()
+
+                        expect fun getDefaultLazyLayoutKey(index: Int): Any
+                        """
+                    ),
                     restrictToSource,
                     visibleForTestingSource,
                 ),
@@ -5461,6 +5669,20 @@ class ApiFileTest : DriverTest() {
                   public final class Bar {
                     ctor public Bar();
                   }
+                  public interface LazyLayoutItemProvider {
+                    method public default int getIndex();
+                    method public int getItemCount();
+                    property public abstract int itemCount;
+                  }
+                  public interface Path1 {
+                    method public infix test.pkg.Path1 xor(test.pkg.Path1 path);
+                  }
+                  public interface Path2 {
+                    method public infix test.pkg.Path2 xor(test.pkg.Path2 path);
+                  }
+                  public final class Path2Kt {
+                    method public static test.pkg.Path2 copy(test.pkg.Path2);
+                  }
                   public final class TestKt {
                     method @kotlin.PublishedApi internal static void internalYetPublished();
                   }
@@ -5474,6 +5696,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test @JvmMultifileClass appears only once`() {
         check(
@@ -5516,6 +5739,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@JvmName on @Deprecated hidden`() {
         check(
@@ -5557,6 +5781,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Ordering of methods`() {
         check(
@@ -5815,93 +6040,190 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `FlaggedApi annotated items can be hidden if requested via command line`() {
-        fun checkFlaggedApi(api: String, extraArguments: Array<String>) {
-            check(
-                format = FileFormat.V2,
-                sourceFiles =
-                    arrayOf(
-                        java(
-                            """
-                        package test.pkg;
-
-                        import android.annotation.FlaggedApi;
-                        import android.annotation.SystemApi;
-
-                        public class Foo {
-                            @FlaggedApi("foo/bar")
-                            public void flaggedPublicApi() {}
-
-                            /** @hide */
-                            @SystemApi
-                            @FlaggedApi("foo/bar")
-                            public void flaggedSystemApi() {}
-                        }
-                    """
-                        ),
-                        systemApiSource,
-                        flaggedApiSource
-                    ),
-                api = api,
-                extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation") + extraArguments
-            )
-        }
-
-        // public api scope, including flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
-                  }
-                }
-            """,
-            extraArguments = arrayOf()
-        )
-
-        // public api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                  }
-                }
-            """,
-            extraArguments = arrayOf(ARG_HIDE_ANNOTATION, "android.annotation.FlaggedApi")
-        )
-
-        // system api scope, including flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
-                  }
-                }
-            """,
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "android.annotation.SystemApi")
-        )
-
-        // system api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api = """
-                // Signature format: 2.0
-            """,
-            extraArguments =
+    fun `Type-use annotations can be included in signature files`() {
+        check(
+            sourceFiles =
                 arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_ANNOTATION,
-                    "android.annotation.FlaggedApi"
-                )
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                            public @interface TypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
+                            public @interface MethodAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE})
+                            public @interface MethodAndTypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                @MethodAnnotation
+                                @MethodAndTypeAnnotation
+                                public @TypeAnnotation List<@TypeAnnotation String> foo() {}
+                            }
+                        """
+                    )
+                ),
+            format =
+                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.pkg.MethodAndTypeAnnotation @test.pkg.MethodAnnotation public foo(): java.util.@test.pkg.MethodAndTypeAnnotation @test.pkg.TypeAnnotation List<java.lang.@test.pkg.TypeAnnotation String!>!;
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE}) public @interface MethodAndTypeAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD) public @interface MethodAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
+                      }
+                    }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test signature including parameterized converted type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface VisibleInterface<V> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.RestrictTo;
+                            @RestrictTo(RestrictTo.Scope.LIBRARY)
+                            public interface HiddenInterface<H> extends VisibleInterface<H> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo<F> implements HiddenInterface<List<F>> {}
+                        """
+                    ),
+                    restrictToSource
+                ),
+            // When `HiddenInterface` is hidden, the implements clause for `Foo` is converted to
+            // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
+            // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
+            // `List` for legacy reasons.
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List!> {
+                        ctor public Foo();
+                      }
+                      public interface VisibleInterface<V> {
+                      }
+                    }
+                """,
+            skipEmitPackages = listOf("androidx.annotation"),
+            hideAnnotations = arrayOf("androidx.annotation.RestrictTo"),
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: Public class test.pkg.Foo stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]"
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `sealed class with internal setter`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            sealed class TransitionState<S> {
+                              abstract var currentState: S
+                                internal set
+                            }
+
+                            class SeekableTransitionState<S>(
+                                initialState: S
+                            ) : TransitionState<S>() {
+                              override var currentState: S = initialState
+                                internal set
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
+                    ctor public SeekableTransitionState(S initialState);
+                    method public S getCurrentState();
+                    property public S currentState;
+                  }
+                  public abstract sealed class TransitionState<S> {
+                    method public abstract S getCurrentState();
+                    property public abstract S currentState;
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Usage of NullableType annotation`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                public List<@NullableType String> foo(@NullableType Number nullableNumber, Number otherNumber) { return null; }
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            @Target(AnnotationTarget.TYPE)
+                            annotation class NullableType
+                        """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public java.util.List<java.lang.String?>! foo(Number?, Number!);
+                      }
+                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      }
+                    }
+                """
         )
     }
 }

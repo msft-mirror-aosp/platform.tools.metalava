@@ -39,31 +39,34 @@ interface PropertyItem : MemberItem {
     /** The type of this property */
     override fun type(): TypeItem
 
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
+        containingClass().findCorrespondingItemIn(codebase)?.properties()?.find {
+            it.name() == name()
+        }
+
+    /** [PropertyItem]s are never inherited. */
+    override val inheritedFrom: ClassItem?
+        get() = null
+
+    /**
+     * Duplicates this property item.
+     *
+     * Override to specialize the return type.
+     */
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem =
+        codebase.unsupported("Not needed yet")
+
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = type()
-        visitor.visitType(type, this)
-        visitor.afterVisitType(type, this)
-    }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
-    }
+    override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
 
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
