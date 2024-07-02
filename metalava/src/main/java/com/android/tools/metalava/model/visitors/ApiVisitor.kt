@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -144,19 +145,25 @@ open class ApiVisitor(
     )
 
     /**
-     * Visit a [List] of [VisitCandidate]s after sorting it into order using
-     * [ClassItem.classNameSorter] on [VisitCandidate.cls].
+     * Visit a [List] of [ClassItem]s after sorting it into order defined by
+     * [ClassItem.classNameSorter].
      */
-    private fun visitClassList(classes: List<VisitCandidate>) {
-        classes.sortedWith(Comparator.comparing({ it.cls }, ClassItem.classNameSorter())).forEach {
-            vc ->
-            vc.accept()
-        }
+    private fun visitClassList(classes: List<ClassItem>) {
+        classes.sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
     }
 
+    /**
+     * Implement to redirect to [VisitCandidate.accept] if necessary,
+     *
+     * This is not called by this [ApiVisitor]. Instead, it calls [VisitCandidate.accept] which does
+     * not delegate to this method but visits the class and its members itself so that it can access
+     * the filtered and sorted members. However, this may be called by some other code calling
+     * [ClassItem.accept] directly on this [ApiVisitor]. In that case this creates and then
+     * delegates through to the [VisitCandidate.visitWrappedClassAndFilteredMembers]
+     */
     override fun visit(cls: ClassItem) {
         // Get a VisitCandidate and visit it, if needed.
-        getVisitCandidateIfNeeded(cls)?.accept()
+        getVisitCandidateIfNeeded(cls)?.visitWrappedClassAndFilteredMembers()
     }
 
     override fun visit(pkg: PackageItem) {
@@ -168,7 +175,7 @@ open class ApiVisitor(
         // then just visit the top level classes directly and then the inner classes will be visited
         // by their containing classes. Otherwise, flatten the nested classes and treat them all as
         // top level classes.
-        val classesToVisitDirectly =
+        val classesToVisitDirectly: List<ClassItem> =
             (if (nestInnerClasses) pkg.topLevelClasses().asSequence() else pkg.allClasses())
                 .mapNotNull { getVisitCandidateIfNeeded(it) }
                 .toList()
@@ -238,8 +245,12 @@ open class ApiVisitor(
      * during filtering of the classes in the [PackageItem] visit method. They need to be stored as
      * they can take a long time to generate and will be needed again when visiting the class
      * contents.
+     *
+     * Note: This implements [ClassItem] to allow visiting code to be more easily shared between
+     * this and [BaseItemVisitor]. It must not escape out of this class, e.g. be passed to
+     * `visitClass(...)`.
      */
-    inner class VisitCandidate(val cls: ClassItem) {
+    private inner class VisitCandidate(val cls: ClassItem) : ClassItem by cls {
 
         /**
          * If the list this is called upon is empty then just return [emptyList], else apply the
@@ -297,7 +308,19 @@ open class ApiVisitor(
         fun containsNoEmittableMembers() =
             constructors.isEmpty() && methods.isEmpty() && fields.isEmpty() && properties.isEmpty()
 
-        fun accept() {
+        /**
+         * Intercepts the call to visit this class and instead of using the default implementation
+         * which delegate to the appropriate method in [visitor] calls
+         */
+        override fun accept(visitor: ItemVisitor) {
+            if (visitor !== this@ApiVisitor)
+                error(
+                    "VisitCandidate instance must only be visited by its creating ApiVisitor, not $visitor"
+                )
+            visitWrappedClassAndFilteredMembers()
+        }
+
+        internal fun visitWrappedClassAndFilteredMembers() {
             visitItem(cls)
             visitClass(cls)
 
