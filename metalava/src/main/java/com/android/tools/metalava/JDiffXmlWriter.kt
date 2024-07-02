@@ -295,7 +295,7 @@ class JDiffXmlWriter(
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
      * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * classes. It will delegate any visitor calls that pass through its filter to this
      * [JDiffXmlWriter] instance.
      */
     fun createFilteringVisitor(
@@ -306,7 +306,7 @@ class JDiffXmlWriter(
     ): ApiVisitor =
         FilteringApiVisitor(
             this,
-            nestInnerClasses = false,
+            preserveClassNesting = false,
             inlineInheritedFields = true,
             interfaceListComparator = TypeItem.totalComparator,
             filterEmit = filterEmit,

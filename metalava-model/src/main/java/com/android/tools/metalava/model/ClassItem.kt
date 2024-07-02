@@ -39,15 +39,26 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     @MetalavaApi fun qualifiedName(): String
 
-    /** Is this an innerclass? */
-    @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
+    /** Is this a nested class? */
+    @MetalavaApi fun isNestedClass() = containingClass() != null
+
+    /** Is this an inner class? */
+    @Deprecated(
+        """
+            This does not check if this is an inner class, i.e. a non-static nested class, it just
+            checks if this is a nested class.
+        """,
+        ReplaceWith("isNestedClass()")
+    )
+    @MetalavaApi
+    fun isInnerClass() = isNestedClass()
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
-    /** This [ClassItem] and all of its inner classes, recursively */
+    /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
-        return sequenceOf(this).plus(innerClasses().asSequence().flatMap { it.allClasses() })
+        return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
     }
 
     override fun parent(): Item? = containingClass() ?: containingPackage()
@@ -56,11 +67,11 @@ interface ClassItem : Item, TypeParameterListOwner {
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
 
     /**
-     * The qualified name where inner classes use $ as a separator. In class foo.bar.Outer.Inner,
+     * The qualified name where nested classes use $ as a separator. In class foo.bar.Outer.Inner,
      * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
      * files for example.)
      */
-    fun qualifiedNameWithDollarInnerClasses(): String {
+    fun qualifiedNameWithDollarNestedClasses(): String {
         var curr: ClassItem? = this
         while (curr?.containingClass() != null) {
             curr = curr.containingClass()
@@ -158,8 +169,11 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     fun allInterfaces(): Sequence<ClassItem>
 
-    /** Any inner classes of this class */
-    fun innerClasses(): List<ClassItem>
+    /**
+     * Any classes nested in this class, that includes inner classes which are just non-static
+     * nested classes.
+     */
+    fun nestedClasses(): List<ClassItem>
 
     /** The constructors in this class */
     @MetalavaApi fun constructors(): List<ConstructorItem>
@@ -195,7 +209,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Whether this class is a regular class (not an interface, not an enum, etc) */
     fun isClass() = classKind == ClassKind.CLASS
 
-    /** The containing class, for inner classes */
+    /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */

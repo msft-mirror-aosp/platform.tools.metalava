@@ -186,8 +186,8 @@ internal class TextCodebase(
 
         val fullName = stubClass.fullName()
         if (fullName.contains('.')) {
-            // We created a new inner class stub. We need to fully initialize it with outer classes,
-            // themselves possibly stubs
+            // We created a new nested class stub. We need to fully initialize it with outer
+            // classes, themselves possibly stubs
             val outerName = name.substring(0, name.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
             val outerClass = getOrCreateClass(outerName, isOuterClass = true)
@@ -206,7 +206,7 @@ internal class TextCodebase(
             outerClass as TextClassItem
 
             stubClass.containingClass = outerClass
-            outerClass.addInnerClass(stubClass)
+            outerClass.addNestedClass(stubClass)
         } else {
             // Add to package
             val endIndex = name.lastIndexOf('.')

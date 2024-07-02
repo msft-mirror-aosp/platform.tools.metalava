@@ -47,7 +47,7 @@ import java.util.function.Predicate
  */
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
-    nestInnerClasses: Boolean = false,
+    preserveClassNesting: Boolean = false,
     inlineInheritedFields: Boolean = true,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
     /**
@@ -89,7 +89,7 @@ class FilteringApiVisitor(
         // afterVisitConstructor(...) methods and FilteringApiVisitor overrides them. Set it to
         // false anyway as that is the behavior that this provides.
         visitConstructorsAsMethods = false,
-        nestInnerClasses = nestInnerClasses,
+        preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = inlineInheritedFields,
         methodComparator = methodComparator,
         filterEmit = filterEmit,

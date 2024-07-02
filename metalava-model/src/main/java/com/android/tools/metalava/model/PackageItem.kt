@@ -36,7 +36,7 @@ interface PackageItem : Item {
     fun topLevelClasses(): List<ClassItem>
 
     /**
-     * All top level classes **and inner classes** in this package flattened into a single
+     * All top level classes **and nested classes** in this package flattened into a single
      * [Sequence].
      */
     fun allClasses(): Sequence<ClassItem> {

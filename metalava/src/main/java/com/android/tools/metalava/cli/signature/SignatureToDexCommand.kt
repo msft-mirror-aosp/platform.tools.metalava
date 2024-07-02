@@ -77,7 +77,7 @@ class SignatureToDexCommand :
                 .let { dexApiWriter ->
                     FilteringApiVisitor(
                         dexApiWriter,
-                        nestInnerClasses = false,
+                        preserveClassNesting = false,
                         inlineInheritedFields = true,
                         filterEmit = apiEmit,
                         filterReference = apiReference,

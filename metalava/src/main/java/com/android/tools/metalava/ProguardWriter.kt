@@ -33,7 +33,7 @@ class ProguardWriter(
 
     override fun visitClass(cls: ClassItem) {
         writer.print("-keep class ")
-        writer.print(cls.qualifiedNameWithDollarInnerClasses())
+        writer.print(cls.qualifiedNameWithDollarNestedClasses())
         writer.print(" {\n")
     }
 
@@ -120,6 +120,6 @@ class ProguardWriter(
         t ?: return ""
         if (t is ArrayTypeItem) return getCleanTypeName(t.componentType) + "[]"
         val cls = t.asClass() ?: return t.toCanonicalType()
-        return cls.qualifiedNameWithDollarInnerClasses()
+        return cls.qualifiedNameWithDollarNestedClasses()
     }
 }

@@ -37,11 +37,11 @@ open class ApiVisitor(
      */
     visitConstructorsAsMethods: Boolean = true,
     /**
-     * Whether inner classes should be visited "inside" a class; when this property is true, inner
+     * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
      * afterwards. Defaults to false.
      */
-    nestInnerClasses: Boolean = false,
+    preserveClassNesting: Boolean = false,
 
     /** Whether to include inherited fields too */
     val inlineInheritedFields: Boolean = true,
@@ -65,7 +65,7 @@ open class ApiVisitor(
 
     /** Configuration that may come from the command line. */
     config: Config,
-) : BaseItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
+) : BaseItemVisitor(visitConstructorsAsMethods, preserveClassNesting) {
 
     private val packageFilter: PackageFilter? = config.packageFilter
 
@@ -88,11 +88,11 @@ open class ApiVisitor(
          */
         visitConstructorsAsMethods: Boolean = true,
         /**
-         * Whether inner classes should be visited "inside" a class; when this property is true,
-         * inner classes are visited before the [#afterVisitClass] method is called; when false,
+         * Whether nested classes should be visited "inside" a class; when this property is true,
+         * nested classes are visited before the [#afterVisitClass] method is called; when false,
          * it's done afterwards. Defaults to false.
          */
-        nestInnerClasses: Boolean = false,
+        preserveClassNesting: Boolean = false,
 
         /** Whether to ignore APIs with annotations in the --show-annotations list */
         ignoreShown: Boolean = true,
@@ -127,7 +127,7 @@ open class ApiVisitor(
         config: Config,
     ) : this(
         visitConstructorsAsMethods = visitConstructorsAsMethods,
-        nestInnerClasses = nestInnerClasses,
+        preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = true,
         methodComparator = methodComparator,
         filterEmit = filterEmit
@@ -172,7 +172,8 @@ open class ApiVisitor(
         }
 
         // Get the list of classes to visit directly. If nested classes are to appear as nested
-        // then just visit the top level classes directly and then the inner classes will be visited
+        // then just visit the top level classes directly and then the nested classes will be
+        // visited
         // by their containing classes. Otherwise, flatten the nested classes and treat them all as
         // top level classes.
         val classesToVisitDirectly: List<ClassItem> =
@@ -337,8 +338,8 @@ open class ApiVisitor(
                 field.accept(this@ApiVisitor)
             }
 
-            if (nestInnerClasses) { // otherwise done in visit(PackageItem)
-                visitClassList(cls.innerClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
+            if (preserveClassNesting) { // otherwise done in visit(PackageItem)
+                visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
             }
 
             afterVisitClass(cls)

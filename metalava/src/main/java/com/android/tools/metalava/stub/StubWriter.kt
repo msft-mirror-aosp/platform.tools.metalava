@@ -237,8 +237,8 @@ internal class StubWriter(
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
      * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
-     * [StubWriter] instance.
+     * classes. It will delegate any visitor calls that pass through its filter to this [StubWriter]
+     * instance.
      */
     fun createFilteringVisitor(
         preFiltered: Boolean,
@@ -252,7 +252,7 @@ internal class StubWriter(
         val filterEmit = FilterPredicate(filterReference)
         return FilteringApiVisitor(
             delegate = this,
-            nestInnerClasses = true,
+            preserveClassNesting = true,
             inlineInheritedFields = true,
             // Methods are by default sorted in source order in stubs, to encourage methods
             // that are near each other in the source to show up near each other in the

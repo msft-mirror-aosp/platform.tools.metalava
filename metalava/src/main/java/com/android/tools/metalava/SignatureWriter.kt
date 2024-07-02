@@ -52,7 +52,7 @@ class SignatureWriter(
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
      * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * nested classes. It will delegate any visitor calls that pass through its filter to this
      * [SignatureWriter] instance.
      */
     fun createFilteringVisitor(
@@ -67,7 +67,7 @@ class SignatureWriter(
             else Pair(::getInterfacesInOrder, null)
         return FilteringApiVisitor(
             delegate = this,
-            nestInnerClasses = false,
+            preserveClassNesting = false,
             inlineInheritedFields = true,
             methodComparator = fileFormat.overloadedMethodOrder.comparator,
             interfaceListSorter = interfaceListSorter,
