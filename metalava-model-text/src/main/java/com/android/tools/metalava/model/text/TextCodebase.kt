@@ -201,6 +201,10 @@ internal class TextCodebase(
                 )
             }
 
+            // As outerClass and stubClass are from the same codebase the outerClass must be a
+            // TextClassItem so cast it to one so that the code below can use TextClassItem methods.
+            outerClass as TextClassItem
+
             stubClass.containingClass = outerClass
             outerClass.addInnerClass(stubClass)
         } else {

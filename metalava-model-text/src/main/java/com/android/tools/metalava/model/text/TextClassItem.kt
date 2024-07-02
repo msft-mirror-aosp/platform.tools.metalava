@@ -170,7 +170,7 @@ internal open class TextClassItem(
         fields += field
     }
 
-    override fun addInnerClass(cls: ClassItem) {
+    fun addInnerClass(cls: ClassItem) {
         innerClasses.add(cls)
     }
 

@@ -756,7 +756,7 @@ private constructor(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
-        val outerClass: ClassItem?,
+        val outerClass: TextClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
         /**
@@ -807,6 +807,7 @@ private constructor(
                 // always precedes its nested classes.
                 val outerClass =
                     codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
+                        as TextClassItem
 
                 val innerClassName = fullName.substring(nestedClassIndex + 1)
                 Pair(outerClass, innerClassName)
