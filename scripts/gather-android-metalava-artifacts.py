@@ -93,6 +93,15 @@ def default_jdiff_files():
     ]
 
 
+def default_dex_writer_files():
+    """:return: A representative sample list of dex writer related files created by the Android build using Metalava."""
+    return [
+        # This is not actually a dex writer file but it contains information derived from lots of dex writer files so
+        # any differences in the dex writer files will affect this file.
+        "out/soong/hiddenapi/hiddenapi-flags.csv",
+    ]
+
+
 def construct_target_list(args):
     """Generate a list of targets from the supplied arguments
 
@@ -108,6 +117,7 @@ def construct_target_list(args):
         targets += default_stub_files()
         targets += default_jdiff_files()
         targets += default_api_version_files()
+        targets += default_dex_writer_files()
     return targets
 
 
