@@ -102,7 +102,25 @@ def default_dex_writer_files():
     ]
 
 
-def construct_target_list(args):
+def default_custom_files(top):
+    """Returns a representative sample list of custom files created by the Android build using a custom tool based, at
+
+    least in part, on Metalava.
+    :return: A list of custom files.
+    """
+    product_out = Path(os.environ.get("ANDROID_PRODUCT_OUT")).relative_to(top)
+    return [
+        f"{product_out}/obj/ETC/flag-api-mapping-{surface}_intermediates/flag-api-mapping-{surface}"
+        for surface in [
+            "PublicApi",
+            "SystemApi",
+            "ModuleLibApi",
+            "SystemServerApi",
+        ]
+    ]
+
+
+def construct_target_list(args, top):
     """Generate a list of targets from the supplied arguments
 
     :param args: the command line arguments.
@@ -118,6 +136,7 @@ def construct_target_list(args):
         targets += default_jdiff_files()
         targets += default_api_version_files()
         targets += default_dex_writer_files()
+        targets += default_custom_files(top)
     return targets
 
 
@@ -136,7 +155,7 @@ def main(args):
         raise Exception(f"{output_dir} exists, please delete or change")
 
     # Construct the list of targets to build, using defaults where required.
-    targets = construct_target_list(args)
+    targets = construct_target_list(args, top)
 
     # Build the targets.
     build_targets(targets)
