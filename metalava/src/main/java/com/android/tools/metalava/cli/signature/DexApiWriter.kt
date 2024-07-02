@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
-class DexApiWriter(
+internal class DexApiWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
@@ -39,10 +39,8 @@ class DexApiWriter(
         config = config,
     ) {
     override fun visitClass(cls: ClassItem) {
-        if (filterEmit.test(cls)) {
-            writer.print(cls.type().internalName())
-            writer.print("\n")
-        }
+        writer.print(cls.type().internalName())
+        writer.print("\n")
     }
 
     override fun visitMethod(method: MethodItem) {
