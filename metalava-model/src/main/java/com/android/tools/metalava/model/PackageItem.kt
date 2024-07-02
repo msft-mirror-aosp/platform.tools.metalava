@@ -30,7 +30,10 @@ interface PackageItem : Item {
     /** All top level classes in this package */
     fun topLevelClasses(): Sequence<ClassItem>
 
-    /** All top level classes **and inner classes** in this package */
+    /**
+     * All top level classes **and inner classes** in this package flattened into a single
+     * [Sequence].
+     */
     fun allClasses(): Sequence<ClassItem> {
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }

@@ -159,10 +159,6 @@ open class ApiVisitor(
         getVisitCandidateIfNeeded(cls)?.accept()
     }
 
-    /** Recursively flatten the class nesting. */
-    private fun flattenClassNesting(cls: ClassItem): Sequence<ClassItem> =
-        sequenceOf(cls) + cls.innerClasses().asSequence().flatMap { flattenClassNesting(it) }
-
     override fun visit(pkg: PackageItem) {
         if (!pkg.emit) {
             return
@@ -173,11 +169,7 @@ open class ApiVisitor(
         // by their containing classes. Otherwise, flatten the nested classes and treat them all as
         // top level classes.
         val classesToVisitDirectly =
-            pkg.topLevelClasses()
-                .let { topLevelClasses ->
-                    if (nestInnerClasses) topLevelClasses
-                    else topLevelClasses.flatMap { flattenClassNesting(it) }
-                }
+            (if (nestInnerClasses) pkg.topLevelClasses() else pkg.allClasses())
                 .mapNotNull { getVisitCandidateIfNeeded(it) }
                 .toList()
 
