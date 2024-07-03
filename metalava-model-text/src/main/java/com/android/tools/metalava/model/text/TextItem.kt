@@ -23,7 +23,6 @@ import com.android.tools.metalava.reporter.FileLocation
 internal abstract class TextItem(
     override val codebase: TextCodebase,
     fileLocation: FileLocation,
-    override var docOnly: Boolean = false,
     modifiers: DefaultModifierList,
 ) :
     DefaultItem(
@@ -36,7 +35,6 @@ internal abstract class TextItem(
         get() = false
 
     override var hidden = false
-    override var removed = false
 
     override fun findTagDocumentation(tag: String, value: String?): String? = null
 

@@ -45,10 +45,6 @@ internal constructor(
         documentation = documentation,
     ) {
 
-    // Documentation can change, but we don't want to pick up subsequent @docOnly mutations
-    override var docOnly = documentation.contains("@doconly")
-    override var removed = documentation.contains("@removed")
-
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 

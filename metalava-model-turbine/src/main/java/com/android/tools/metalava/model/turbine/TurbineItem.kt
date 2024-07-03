@@ -33,8 +33,6 @@ internal abstract class TurbineItem(
         documentation = documentation,
     ) {
 
-    override var docOnly: Boolean = documentation.contains("@doconly")
-
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     override val originallyHidden by
@@ -43,8 +41,6 @@ internal abstract class TurbineItem(
                 documentation.contains("@pending") ||
                 hasHideAnnotation()
         }
-
-    override var removed: Boolean = documentation.contains("@removed")
 
     override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         TODO("b/295800205")

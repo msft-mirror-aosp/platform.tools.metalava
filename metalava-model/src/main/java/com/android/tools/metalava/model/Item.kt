@@ -428,6 +428,9 @@ abstract class DefaultItem(
         modifiers.owner = this
     }
 
+    final override var docOnly = documentation.contains("@doconly")
+    final override var removed = documentation.contains("@removed")
+
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
     final override val originallyDeprecated
