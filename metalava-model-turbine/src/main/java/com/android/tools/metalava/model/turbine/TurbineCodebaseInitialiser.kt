@@ -257,7 +257,7 @@ internal open class TurbineCodebaseInitialiser(
                 continue
             }
 
-            // Ignore inner classes, they will be created when the outer class is created.
+            // Ignore nested classes, they will be created when the outer class is created.
             if (sourceBoundClass.owner() != null) {
                 continue
             }
@@ -272,7 +272,7 @@ internal open class TurbineCodebaseInitialiser(
         get() = !binaryName().contains('$')
 
     /**
-     * Create top level classes, their inner classes and all the other members.
+     * Create top level classes, their nested classes and all the other members.
      *
      * All the classes are registered by name and so can be found by [findOrCreateClass].
      */
@@ -286,20 +286,20 @@ internal open class TurbineCodebaseInitialiser(
         var classItem = codebase.findClass(name)
 
         if (classItem == null) {
-            // This will get the symbol for the top class even if the class name is for an inner
+            // This will get the symbol for the top class even if the class name is for a nested
             // class.
             val topClassSym = getClassSymbol(name)
 
-            // Create the top level class, if needed, along with any inner classes and register them
-            // all by name.
+            // Create the top level class, if needed, along with any nested classes and register
+            // them all by name.
             topClassSym?.let {
                 // It is possible that the top level class has already been created but just did not
-                // contain the requested inner class so check to make sure it exists before creating
-                // it.
+                // contain the requested nested class so check to make sure it exists before
+                // creating it.
                 val topClassName = getQualifiedName(topClassSym.binaryName())
                 codebase.findClass(topClassName)
                     ?: let {
-                        // Create tand register he top level class and its inner classes.
+                        // Create and register the top level class and its nested classes.
                         createTopLevelClassAndContents(topClassSym)
 
                         // Now try and find the actual class that was requested by name. If it
@@ -421,7 +421,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Create InnerClasses.
         val children = cls.children()
-        createInnerClasses(classItem, children.values.asList(), classTypeItemFactory)
+        createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)
 
         return classItem
     }
@@ -648,14 +648,14 @@ internal open class TurbineCodebaseInitialiser(
         return typeBounds.toList()
     }
 
-    /** This method sets up the inner class hierarchy. */
-    private fun createInnerClasses(
+    /** This method sets up the nested class hierarchy. */
+    private fun createNestedClasses(
         classItem: TurbineClassItem,
-        innerClasses: ImmutableList<ClassSymbol>,
+        nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        classItem.innerClasses =
-            innerClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
+        classItem.nestedClasses =
+            nestedClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
     }
 
     /** This methods creates and sets the fields of a class */
@@ -890,7 +890,7 @@ internal open class TurbineCodebaseInitialiser(
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method
      * returns only top-level classes, this method will return the ClassSymbol of outermost class
-     * for inner classes.
+     * for nested classes.
      */
     private fun getClassSymbol(name: String): ClassSymbol? {
         val result = index.scope().lookup(createLookupKey(name))
