@@ -1,7 +1,6 @@
 com.android.tools.metalava.model.testsuite.CommonModelTest
   Test iterate and resolve unknown interface classes
   Test iterate and resolve unknown super classes
-  empty file
   test findCorrespondingItemIn check all, no super methods
   test findCorrespondingItemIn does duplicate super methods
   test findCorrespondingItemIn does find super methods

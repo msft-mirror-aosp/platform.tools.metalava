@@ -16,13 +16,22 @@
 
 package com.android.tools.metalava.model.snapshot
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
+import com.android.tools.metalava.model.DelegatedVisitor
 
-/** A [CodebaseTransformer] that will return a snapshot of the supplied [Codebase]. */
-// @AutoService(CodebaseTransformer.class)
-class SnapshotCodebaseTransformer : CodebaseTransformer {
-    override fun transform(codebase: Codebase): Codebase {
-        return CodebaseSnapshotTaker.takeSnapshot(codebase)
+/**
+ * A [BaseItemVisitor] that will delegate to [delegate].
+ *
+ * Always preserves class nesting while visiting.
+ */
+class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
+    BaseItemVisitor(preserveClassNesting = true) {
+    override fun visitCodebase(codebase: Codebase) {
+        delegate.visitCodebase(codebase)
+    }
+
+    override fun afterVisitCodebase(codebase: Codebase) {
+        delegate.afterVisitCodebase(codebase)
     }
 }
