@@ -64,7 +64,7 @@ class CommonClassItemTest : BaseModelTest() {
             assertEquals("Test", testClass.fullName())
             assertEquals("test/pkg/Test", testClass.internalName())
             assertEquals("test.pkg.Test", testClass.qualifiedName())
-            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarInnerClasses())
+            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarNestedClasses())
             assertEquals(1, testClass.constructors().size)
             assertEquals(emptyList(), testClass.methods())
             assertEquals(emptyList(), testClass.fields())
@@ -763,7 +763,6 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.deprecated)
             assertEquals(true, barClass.originallyDeprecated)
             assertEquals(true, barClass.effectivelyDeprecated)
         }
@@ -799,7 +798,6 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.deprecated)
             assertEquals(true, barClass.originallyDeprecated)
             assertEquals(true, barClass.effectivelyDeprecated)
         }
@@ -833,7 +831,6 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.deprecated)
             assertEquals(false, barClass.originallyDeprecated)
             assertEquals(false, barClass.effectivelyDeprecated)
         }
@@ -1064,7 +1061,12 @@ class CommonClassItemTest : BaseModelTest() {
 
             val child = codebase.assertClass("test.pkg.Child")
 
-            val erasedParentType = parent.type().duplicate(null, emptyList())
+            val parentType = parent.type()
+            val erasedParentType =
+                parentType.substitute(
+                    outerClassType = null,
+                    arguments = emptyList(),
+                )
             assertEquals(
                 mapOf(a to tType, b to erasedParentType),
                 parent.mapTypeVariables(grandparent)
@@ -1455,7 +1457,7 @@ class CommonClassItemTest : BaseModelTest() {
                     .isEqualTo(expectedType)
 
                 assertWithMessage("testing type nullability of $name")
-                    .that(returnType.modifiers.nullability())
+                    .that(returnType.modifiers.nullability)
                     .isEqualTo(expectedNullability)
             }
         }
@@ -1620,10 +1622,10 @@ class CommonClassItemTest : BaseModelTest() {
             val modifiers = classType.modifiers
 
             // Class types are always non-null without needing an annotation
-            assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NONNULL)
+            assertThat(modifiers.nullability).isEqualTo(TypeNullability.NONNULL)
 
             // Class types do not have any annotations.
-            assertThat(modifiers.annotations()).isEmpty()
+            assertThat(modifiers.annotations).isEmpty()
         }
     }
 }

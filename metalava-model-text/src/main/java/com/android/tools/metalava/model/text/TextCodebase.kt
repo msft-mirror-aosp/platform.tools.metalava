@@ -82,7 +82,7 @@ internal class TextCodebase(
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
             error(
-                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
             )
         }
 
@@ -186,8 +186,8 @@ internal class TextCodebase(
 
         val fullName = stubClass.fullName()
         if (fullName.contains('.')) {
-            // We created a new inner class stub. We need to fully initialize it with outer classes,
-            // themselves possibly stubs
+            // We created a new nested class stub. We need to fully initialize it with outer
+            // classes, themselves possibly stubs
             val outerName = name.substring(0, name.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
             val outerClass = getOrCreateClass(outerName, isOuterClass = true)
@@ -201,8 +201,12 @@ internal class TextCodebase(
                 )
             }
 
+            // As outerClass and stubClass are from the same codebase the outerClass must be a
+            // TextClassItem so cast it to one so that the code below can use TextClassItem methods.
+            outerClass as TextClassItem
+
             stubClass.containingClass = outerClass
-            outerClass.addInnerClass(stubClass)
+            outerClass.addNestedClass(stubClass)
         } else {
             // Add to package
             val endIndex = name.lastIndexOf('.')
@@ -234,7 +238,7 @@ internal class TextCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): AnnotationItem {
+    ): AnnotationItem? {
         return DefaultAnnotationItem.create(this, source)
     }
 

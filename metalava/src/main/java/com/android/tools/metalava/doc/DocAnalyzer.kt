@@ -134,9 +134,7 @@ class DocAnalyzer(
                     for (annotation in annotations) {
                         val name = annotation.qualifiedName
                         if (
-                            name != null &&
-                                name.endsWith("Thread") &&
-                                name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
+                            name.endsWith("Thread") && name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
                         ) {
                             if (result == null) {
                                 result = mutableListOf()
@@ -176,7 +174,7 @@ class DocAnalyzer(
                     visitedClasses: MutableSet<String> = mutableSetOf()
                 ) {
                     val name = annotation.qualifiedName
-                    if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
+                    if (name.startsWith(JAVA_LANG_PREFIX)) {
                         // Ignore java.lang.Retention etc.
                         return
                     }
@@ -213,7 +211,7 @@ class DocAnalyzer(
 
                     // TODO: Resource type annotations
 
-                    // Handle inner annotations
+                    // Handle nested annotations
                     annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
@@ -1050,7 +1048,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     // Nomenclature differences:
                     //   - constructors are named "<init>()V" in api-versions.xml, but
                     //     "ClassName()V" in PsiItems
-                    //   - inner classes are named "Outer#Inner" in api-versions.xml, but
+                    //   - nested classes are named "Outer#Inner" in api-versions.xml, but
                     //     "Outer.Inner" in PsiItems
                     when (qualifiedName) {
                         "class" -> {

@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
@@ -71,13 +70,13 @@ internal open class TextClassItem(
             .flatten()
     }
 
-    private var innerClasses: MutableList<ClassItem> = mutableListOf()
+    private var nestedClasses: MutableList<ClassItem> = mutableListOf()
 
     override var stubConstructor: ConstructorItem? = null
 
     override var hasPrivateConstructor: Boolean = false
 
-    override fun innerClasses(): List<ClassItem> = innerClasses
+    override fun nestedClasses(): List<ClassItem> = nestedClasses
 
     override fun hasImplicitDefaultConstructor(): Boolean {
         return false
@@ -99,8 +98,6 @@ internal open class TextClassItem(
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     private var superClassType: ClassTypeItem? = null
-
-    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
@@ -144,6 +141,22 @@ internal open class TextClassItem(
         methods += method
     }
 
+    /**
+     * Replace an existing method with [method], if no such method exists then just add [method] to
+     * the list of methods.
+     */
+    fun replaceOrAddMethod(method: TextMethodItem) {
+        val iterator = methods.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == method) {
+                iterator.set(method)
+                return
+            }
+        }
+        methods += method
+    }
+
     fun addField(field: TextFieldItem) {
         fields += field
     }
@@ -157,15 +170,15 @@ internal open class TextClassItem(
         fields += field
     }
 
-    override fun addInnerClass(cls: ClassItem) {
-        innerClasses.add(cls)
+    fun addNestedClass(cls: ClassItem) {
+        nestedClasses.add(cls)
     }
 
     fun addAnnotation(annotation: AnnotationItem) {
         modifiers.addAnnotation(annotation)
     }
 
-    override fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
+    override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
         // No filtering in signature files: we assume signature APIs
         // have already been filtered and all items should match.
         // This lets us load signature files and rewrite them using updated
