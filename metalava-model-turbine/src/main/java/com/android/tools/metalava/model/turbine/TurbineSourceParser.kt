@@ -48,13 +48,15 @@ internal class TurbineSourceParser(
         val codebase =
             TurbineBasedCodebase(rootDir, description, annotationManager, allowReadingComments)
 
-        // Scan the files looking for package.html files and check to see if they have @hide
-        // annotations.
-        val hiddenPackages = identifyHiddenPackages(sourceSet.sources)
+        val sources = sourceSet.sources
 
-        val sourceFiles = getSourceFiles(sourceSet.sources)
+        // Scan the files looking for package.html files and return a map from name to file just in
+        // case they are needed to create packages.
+        val packageHtmlByPackageName = findPackageHtmlFileByPackageName(sources)
+
+        val sourceFiles = getSourceFiles(sources)
         val units = sourceFiles.map { Parser.parse(it) }
-        codebase.initialize(units, classPath, hiddenPackages)
+        codebase.initialize(units, classPath, packageHtmlByPackageName)
 
         return codebase
     }
@@ -70,30 +72,20 @@ internal class TurbineSourceParser(
     }
 
     /**
-     * Identifies directories and packages that should be hidden based on the contents of
-     * package.html files.
+     * Finds `package.html` files in the source and returns a mapping from the package name,
+     * obtained from the file path, to the file.
      */
-    private fun identifyHiddenPackages(files: List<File>): Set<String> {
-        val hiddenPackages = mutableSetOf<String>()
-        files
+    private fun findPackageHtmlFileByPackageName(files: List<File>): Map<String, File> {
+        return files
             .filter { it.isFile && it.name == "package.html" }
-            .forEach { file ->
-                val content = file.readText()
-                if (content.contains("@hide")) {
-                    val packageName = findPackageName(file)
-                    if (packageName != null) {
-                        hiddenPackages.add(packageName)
-                    }
-                }
-            }
-        return hiddenPackages
+            .associateBy({ findPackageName(it) }) { it }
     }
 
     /**
      * Attempts to find the package name by looking for any Java class files in the same directory,
      * if unsuccessful, it will guess based on the directory structure.
      */
-    private fun findPackageName(file: File): String? {
+    private fun findPackageName(file: File): String {
         // First try to find a package name using the utility method which might analyze the java
         // file
         file.parentFile

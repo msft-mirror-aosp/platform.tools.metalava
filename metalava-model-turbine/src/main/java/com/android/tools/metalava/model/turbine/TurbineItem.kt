@@ -26,7 +26,6 @@ internal abstract class TurbineItem(
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     final override var documentation: String,
-    initialHiddenStatus: Boolean = false,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
@@ -41,8 +40,7 @@ internal abstract class TurbineItem(
         lazy(LazyThreadSafetyMode.NONE) {
             documentation.contains("@hide") ||
                 documentation.contains("@pending") ||
-                hasHideAnnotation() ||
-                initialHiddenStatus
+                hasHideAnnotation()
         }
 
     override var removed: Boolean = false

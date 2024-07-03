@@ -267,7 +267,6 @@ com.android.tools.metalava.stub.StubsInterfaceTest
 
 com.android.tools.metalava.stub.StubsPackageInfoTest
   Check writing package info file[turbine]
-  Check writing package info from package html file[turbine]
   Test package-info documentation in doc stubs[turbine]
   Test package-info documentation in stubs[turbine]
 

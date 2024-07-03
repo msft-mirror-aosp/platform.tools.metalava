@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -128,7 +129,7 @@ internal open class TurbineCodebaseInitialiser(
      * Then creates the packages, classes and their members, as well as sets up various class
      * hierarchies using the binder's output
      */
-    fun initialize() {
+    fun initialize(packageHtmlByPackageName: Map<String, File>) {
         // Bind the units
         try {
             val procInfo =
@@ -172,7 +173,7 @@ internal open class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        createAllPackages()
+        createAllPackages(packageHtmlByPackageName)
         createAllClasses()
     }
 
@@ -207,7 +208,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun CompUnit.isPackageInfo() =
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
-    private fun createAllPackages() {
+    private fun createAllPackages(packageHtmlByPackageName: Map<String, File>) {
         // First, find all package-info.java files and create packages for them.
         for (unit in units) {
             // Only process package-info.java files in this loop.
@@ -219,12 +220,19 @@ internal open class TurbineCodebaseInitialiser(
             createPackage(getPackageName(unit), sourceFile, doc)
         }
 
-        // Second, find all classes and create or find a package for them.
+        // Secondly, create package items for package.html files.
+        for ((name, file) in packageHtmlByPackageName.entries) {
+            codebase.findPackage(name)
+                ?: createPackage(name, null, packageHtmlToJavadoc(file.readText()))
+        }
+
+        // Thirdly, find all classes and create or find a package for them.
         for (unit in units) {
             // Ignore package-info.java files in this loop.
             if (unit.isPackageInfo()) continue
 
-            findOrCreatePackage(getPackageName(unit))
+            val name = getPackageName(unit)
+            findOrCreatePackage(name)
             unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
         }
 
