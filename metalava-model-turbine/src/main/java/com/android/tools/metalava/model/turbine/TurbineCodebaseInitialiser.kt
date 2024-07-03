@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -202,6 +203,10 @@ internal open class TurbineCodebaseInitialiser(
         turbineSourceFiles[sourceFile.path()]
             ?: error("unrecognized source file: ${sourceFile.path()}")
 
+    /** Check if this is for a `package-info.java` file or not. */
+    private fun CompUnit.isPackageInfo() =
+        source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
+
     private fun createAllPackages() {
         // Root package
         findOrCreatePackage("", null, "")
@@ -209,8 +214,7 @@ internal open class TurbineCodebaseInitialiser(
         for (unit in units) {
             var doc = ""
             var sourceFile: TurbineSourceFile? = null
-            // No class declarations. Will be a case of package-info file
-            if (unit.decls().isEmpty()) {
+            if (unit.isPackageInfo()) {
                 val source = unit.source().source()
                 sourceFile = createTurbineSourceFile(unit)
                 doc = getHeaderComments(source)
