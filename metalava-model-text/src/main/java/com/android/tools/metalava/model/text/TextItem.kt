@@ -24,12 +24,12 @@ internal abstract class TextItem(
     override val codebase: TextCodebase,
     fileLocation: FileLocation,
     override var docOnly: Boolean = false,
-    override var documentation: String = "",
     modifiers: DefaultModifierList,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
+        documentation = "",
     ) {
 
     override val originallyHidden

@@ -37,18 +37,17 @@ internal constructor(
     element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
-    override var documentation: String,
+    documentation: String,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
+        documentation = documentation,
     ) {
 
-    @Suppress(
-        "LeakingThis"
-    ) // Documentation can change, but we don't want to pick up subsequent @docOnly mutations
+    // Documentation can change, but we don't want to pick up subsequent @docOnly mutations
     override var docOnly = documentation.contains("@doconly")
-    @Suppress("LeakingThis") override var removed = documentation.contains("@removed")
+    override var removed = documentation.contains("@removed")
 
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi

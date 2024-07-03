@@ -25,11 +25,12 @@ internal abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    final override var documentation: String,
+    documentation: String,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
+        documentation = documentation,
     ) {
 
     override var docOnly: Boolean = documentation.contains("@doconly")
