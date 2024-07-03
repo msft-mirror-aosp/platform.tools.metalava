@@ -31,8 +31,6 @@ internal class TurbineSourceParser(
     private val allowReadingComments: Boolean
 ) : SourceParser {
 
-    private val hiddenPackages = mutableSetOf<String>()
-
     override fun getClassResolver(classPath: List<File>): ClassResolver {
         TODO("implement it")
     }
@@ -50,7 +48,9 @@ internal class TurbineSourceParser(
         val codebase =
             TurbineBasedCodebase(rootDir, description, annotationManager, allowReadingComments)
 
-        identifyHiddenPackages(sourceSet.sources)
+        // Scan the files looking for package.html files and check to see if they have @hide
+        // annotations.
+        val hiddenPackages = identifyHiddenPackages(sourceSet.sources)
 
         val sourceFiles = getSourceFiles(sourceSet.sources)
         val units = sourceFiles.map { Parser.parse(it) }
@@ -73,7 +73,8 @@ internal class TurbineSourceParser(
      * Identifies directories and packages that should be hidden based on the contents of
      * package.html files.
      */
-    private fun identifyHiddenPackages(files: List<File>) {
+    private fun identifyHiddenPackages(files: List<File>): Set<String> {
+        val hiddenPackages = mutableSetOf<String>()
         files
             .filter { it.isFile && it.name == "package.html" }
             .forEach { file ->
@@ -85,6 +86,7 @@ internal class TurbineSourceParser(
                     }
                 }
             }
+        return hiddenPackages
     }
 
     /**
