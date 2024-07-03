@@ -44,7 +44,7 @@ internal abstract class TurbineItem(
                 hasHideAnnotation()
         }
 
-    override var removed: Boolean = false
+    override var removed: Boolean = documentation.contains("@removed")
 
     override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         TODO("b/295800205")
