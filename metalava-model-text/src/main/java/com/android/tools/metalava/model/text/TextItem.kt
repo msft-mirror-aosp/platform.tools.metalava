@@ -32,7 +32,9 @@ internal abstract class TextItem(
         modifiers = modifiers,
     ) {
 
-    override var originallyHidden = false
+    override val originallyHidden
+        get() = false
+
     override var hidden = false
     override var removed = false
 

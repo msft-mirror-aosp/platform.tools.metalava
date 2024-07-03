@@ -53,13 +53,14 @@ internal constructor(
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 
-    override var originallyHidden: Boolean by LazyDelegate {
-        documentation.contains('@') &&
-            (documentation.contains("@hide") ||
-                documentation.contains("@pending") ||
-                // KDoc:
-                documentation.contains("@suppress")) || hasHideAnnotation()
-    }
+    override val originallyHidden by
+        lazy(LazyThreadSafetyMode.NONE) {
+            documentation.contains('@') &&
+                (documentation.contains("@hide") ||
+                    documentation.contains("@pending") ||
+                    // KDoc:
+                    documentation.contains("@suppress")) || hasHideAnnotation()
+        }
 
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 

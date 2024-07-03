@@ -42,7 +42,7 @@ interface Item : Reportable {
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
      * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
      */
-    var originallyHidden: Boolean
+    val originallyHidden: Boolean
 
     /**
      * Whether this element has been hidden with @hide/@Hide (or after propagation, in some

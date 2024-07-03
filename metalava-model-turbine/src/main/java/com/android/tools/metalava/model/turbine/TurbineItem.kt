@@ -37,12 +37,13 @@ internal abstract class TurbineItem(
 
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
-    override var originallyHidden: Boolean by LazyDelegate {
-        documentation.contains("@hide") ||
-            documentation.contains("@pending") ||
-            hasHideAnnotation() ||
-            initialHiddenStatus
-    }
+    override val originallyHidden by
+        lazy(LazyThreadSafetyMode.NONE) {
+            documentation.contains("@hide") ||
+                documentation.contains("@pending") ||
+                hasHideAnnotation() ||
+                initialHiddenStatus
+        }
 
     override var removed: Boolean = false
 
