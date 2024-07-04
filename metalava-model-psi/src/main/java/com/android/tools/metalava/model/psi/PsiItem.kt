@@ -79,7 +79,7 @@ internal constructor(
         // We can't just use element.docComment here because we may have modified
         // the comment and then the comment snapshot in PSI isn't up to date with our
         // latest changes
-        val docComment = codebase.getComment(documentation)
+        val docComment = codebase.getComment(documentation.text)
         val tagComment =
             if (value == null) {
                 docComment.findTagByName(tag)
@@ -148,11 +148,14 @@ internal constructor(
                 tagSection == "@deprecatedSince" ||
                 tagSection == "@sdkExtSince"
         ) {
-            documentation = addUniqueTag(documentation, tagSection, comment)
+            documentation =
+                addUniqueTag(documentation.text, tagSection, comment).toItemDocumentation()
             return
         }
 
-        documentation = mergeDocumentation(documentation, psi(), comment.trim(), tagSection, append)
+        documentation =
+            mergeDocumentation(documentation.text, psi(), comment.trim(), tagSection, append)
+                .toItemDocumentation()
     }
 
     private fun addUniqueTag(
@@ -216,7 +219,7 @@ internal constructor(
     }
 
     final override fun fullyQualifiedDocumentation(): String {
-        return fullyQualifiedDocumentation(documentation)
+        return fullyQualifiedDocumentation(documentation.text)
     }
 
     final override fun fullyQualifiedDocumentation(documentation: String): String {

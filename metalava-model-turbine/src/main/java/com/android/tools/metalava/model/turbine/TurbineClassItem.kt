@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -199,7 +198,7 @@ internal open class TurbineClassItem(
                 retType,
                 mods,
                 method.typeParameterList,
-                method.documentation.toItemDocumentation(),
+                method.documentation,
                 method.defaultValue(),
             )
 

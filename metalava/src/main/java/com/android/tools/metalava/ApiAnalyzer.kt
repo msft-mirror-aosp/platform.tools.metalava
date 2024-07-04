@@ -1363,8 +1363,9 @@ private fun Item.isApiCandidate(): Boolean {
  * also looks at any inherited documentation.
  */
 private fun Item.documentationContainsDeprecated(): Boolean {
-    if (documentation.contains("@deprecated")) return true
-    if (this is MethodItem && (documentation == "" || documentation.contains("@inheritDoc"))) {
+    val text = documentation.text
+    if (text.contains("@deprecated")) return true
+    if (this is MethodItem && (text == "" || text.contains("@inheritDoc"))) {
         return superMethods().any { it.documentationContainsDeprecated() }
     }
     return false

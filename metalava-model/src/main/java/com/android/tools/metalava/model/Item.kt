@@ -105,7 +105,7 @@ interface Item : Reportable {
      * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
      * references to classes.
      */
-    var documentation: String
+    var documentation: ItemDocumentation
 
     /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
@@ -199,7 +199,7 @@ interface Item : Reportable {
      * for continuing to display the relative text, e.g. instead of {@link java.util.List}, use
      * {@link java.util.List List}.
      */
-    fun fullyQualifiedDocumentation(): String = documentation
+    fun fullyQualifiedDocumentation(): String = documentation.text
 
     /** Expands the given documentation comment in the current name context */
     fun fullyQualifiedDocumentation(documentation: String): String = documentation
@@ -413,22 +413,8 @@ interface Item : Reportable {
 abstract class DefaultItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
-    final override var documentation: String,
+    final override var documentation: ItemDocumentation,
 ) : Item {
-
-    /**
-     * A temporary constructor to ease migration of [documentation] from [String] to
-     * [ItemDocumentation]
-     */
-    protected constructor(
-        fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
-    ) : this(
-        fileLocation,
-        modifiers,
-        documentation.text,
-    )
 
     init {
         @Suppress("LeakingThis")

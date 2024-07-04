@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -105,9 +104,10 @@ open class PsiMethodItem(
     }
 
     override fun findMainDocumentation(): String {
-        if (documentation == "") return documentation
-        val comment = codebase.getComment(documentation)
-        val end = findFirstTag(comment)?.textRange?.startOffset ?: documentation.length
+        val text = documentation.text
+        if (text == "") return text
+        val comment = codebase.getComment(text)
+        val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
         return comment.text.substring(0, end)
     }
 
@@ -397,7 +397,7 @@ open class PsiMethodItem(
                     psiMethod = original.psiMethod,
                     containingClass = containingClass,
                     name = original.name(),
-                    documentation = original.documentation.toItemDocumentation(),
+                    documentation = original.documentation,
                     modifiers = original.modifiers.duplicate(),
                     returnType = returnType,
                     parameters =

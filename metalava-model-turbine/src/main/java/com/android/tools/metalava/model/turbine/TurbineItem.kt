@@ -31,7 +31,7 @@ internal abstract class TurbineItem(
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
-        documentation = documentation.text,
+        documentation = documentation,
     ) {
 
     final override val originallyHidden by

@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -68,7 +67,7 @@ internal class TurbineFieldItem(
                 targetContainingClass,
                 type,
                 modifiers.duplicate(),
-                documentation.toItemDocumentation(),
+                documentation,
                 isEnumConstant,
                 fieldValue,
             )
