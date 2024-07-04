@@ -33,14 +33,16 @@ internal abstract class TurbineItem(
         documentation = documentation,
     ) {
 
-    final override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
-
     final override val originallyHidden by
         lazy(LazyThreadSafetyMode.NONE) {
-            documentation.contains("@hide") ||
-                documentation.contains("@pending") ||
-                hasHideAnnotation()
+            documentation.contains('@') &&
+                (documentation.contains("@hide") ||
+                    documentation.contains("@pending") ||
+                    // KDoc:
+                    documentation.contains("@suppress")) || hasHideAnnotation()
         }
+
+    final override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         TODO("b/295800205")
