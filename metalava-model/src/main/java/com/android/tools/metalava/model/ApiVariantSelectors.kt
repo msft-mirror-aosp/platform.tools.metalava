@@ -122,21 +122,16 @@ sealed interface ApiVariantSelectors {
 
         override val originallyHidden by
             lazy(LazyThreadSafetyMode.NONE) {
-                val documentation = item.documentation
-                documentation.contains('@') &&
-                    (documentation.contains("@hide") ||
-                        documentation.contains("@pending") ||
-                        // KDoc:
-                        documentation.contains("@suppress")) || item.hasHideAnnotation()
+                item.documentation.isHidden || item.hasHideAnnotation()
             }
 
         override var hidden: Boolean by LazyDelegate {
             originallyHidden && !item.hasShowAnnotation()
         }
 
-        override var docOnly = item.documentation.contains("@doconly")
+        override var docOnly = item.documentation.isDocOnly
 
-        override var removed = item.documentation.contains("@removed")
+        override var removed = item.documentation.isRemoved
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
     }
