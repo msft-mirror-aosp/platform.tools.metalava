@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.android.tools.metalava.reporter.FileLocation
@@ -37,7 +39,7 @@ internal constructor(
     element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
@@ -231,9 +233,24 @@ internal constructor(
 
     companion object {
 
+        /**
+         * Get the javadoc for the [element] as an [ItemDocumentation] instance.
+         *
+         * If [allowReadingComments] is `false` then this will return [ItemDocumentation.NONE].
+         */
+        internal fun javadocAsItemDocumentation(
+            element: PsiElement,
+            codebase: PsiBasedCodebase,
+            extraDocs: String? = null,
+        ): ItemDocumentation {
+            return javadoc(element, codebase.allowReadingComments)
+                .let { if (extraDocs != null) it + "\n$extraDocs" else it }
+                .toItemDocumentation()
+        }
+
         // Gets the javadoc of the current element, unless reading comments is
         // disabled via allowReadingComments
-        internal fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
+        private fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
             if (!allowReadingComments) {
                 return ""
             }
@@ -271,7 +288,7 @@ internal constructor(
         internal fun modifiers(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            documentation: String? = null,
+            documentation: ItemDocumentation? = null,
         ): DefaultModifierList {
             return PsiModifierItem.create(codebase, element, documentation)
         }

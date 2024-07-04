@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -55,7 +57,7 @@ open class PsiMethodItem(
     containingClass: ClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private var returnType: TypeItem,
     private val parameters: List<PsiParameterItem>,
     override val typeParameterList: TypeParameterList,
@@ -316,7 +318,7 @@ open class PsiMethodItem(
                 } else {
                     psiMethod.name
                 }
-            val commentText = javadoc(psiMethod, codebase.allowReadingComments)
+            val commentText = javadocAsItemDocumentation(psiMethod, codebase)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
@@ -395,7 +397,7 @@ open class PsiMethodItem(
                     psiMethod = original.psiMethod,
                     containingClass = containingClass,
                     name = original.name(),
-                    documentation = original.documentation,
+                    documentation = original.documentation.toItemDocumentation(),
                     modifiers = original.modifiers.duplicate(),
                     returnType = returnType,
                     parameters =
