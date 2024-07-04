@@ -634,9 +634,23 @@ class ApiAnalyzer(
 
             // If this package is hidden then hide its classes. This is done here to avoid ordering
             // issues when a class with a show annotation unhides its containing package.
-            if (pkg.hidden) {
+            val hidden = pkg.hidden
+            val docOnly = pkg.docOnly
+            val removed = pkg.removed
+            if (hidden || docOnly || removed) {
                 for (topLevelClass in pkg.topLevelClasses()) {
-                    topLevelClass.hidden = true
+                    val showability = topLevelClass.showability
+                    if (!showability.show() && !showability.hide()) {
+                        if (hidden) {
+                            topLevelClass.hidden = true
+                        }
+                        if (hidden) {
+                            topLevelClass.docOnly = true
+                        }
+                        if (removed) {
+                            topLevelClass.removed = true
+                        }
+                    }
                 }
             }
         }
@@ -676,14 +690,6 @@ class ApiAnalyzer(
                             cls.docOnly = true
                         }
                         if (containingClass.removed) {
-                            cls.removed = true
-                        }
-                    } else {
-                        val containingPackage = cls.containingPackage()
-                        if (containingPackage.docOnly && !containingPackage.isDefault) {
-                            cls.docOnly = true
-                        }
-                        if (containingPackage.removed) {
                             cls.removed = true
                         }
                     }
