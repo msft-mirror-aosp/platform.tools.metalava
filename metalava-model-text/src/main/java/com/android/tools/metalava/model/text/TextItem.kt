@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextItem(
@@ -28,7 +29,7 @@ internal abstract class TextItem(
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
-        documentation = "",
+        documentation = ItemDocumentation.NONE,
     ) {
 
     final override val originallyHidden

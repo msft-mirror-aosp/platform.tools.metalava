@@ -416,6 +416,20 @@ abstract class DefaultItem(
     final override var documentation: String,
 ) : Item {
 
+    /**
+     * A temporary constructor to ease migration of [documentation] from [String] to
+     * [ItemDocumentation]
+     */
+    protected constructor(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentation: ItemDocumentation,
+    ) : this(
+        fileLocation,
+        modifiers,
+        documentation.text,
+    )
+
     init {
         @Suppress("LeakingThis")
         modifiers.owner = this
