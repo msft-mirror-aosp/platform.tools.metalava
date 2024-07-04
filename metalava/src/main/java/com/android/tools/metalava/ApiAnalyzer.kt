@@ -667,7 +667,7 @@ class ApiAnalyzer(
                             cls.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.hasShowSingleAnnotation()
+                                containingClass.showability.showNonRecursive()
                         ) {
                             // See explanation in visitMethod
                             cls.hidden = true
@@ -702,7 +702,7 @@ class ApiAnalyzer(
                             method.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.hasShowSingleAnnotation()
+                                containingClass.showability.showNonRecursive()
                         ) {
                             // This is a member in a class that was hidden but then unhidden;
                             // but it was unhidden by a non-recursive (single) show annotation, so
@@ -729,7 +729,7 @@ class ApiAnalyzer(
                         val containingClass = field.containingClass()
                         if (
                             containingClass.originallyHidden &&
-                                containingClass.hasShowSingleAnnotation()
+                                containingClass.showability.showNonRecursive()
                         ) {
                             // See explanation in visitMethod
                             field.hidden = true
@@ -932,7 +932,7 @@ class ApiAnalyzer(
                         checkHiddenShowAnnotations &&
                             item.hasShowAnnotation() &&
                             !item.originallyHidden &&
-                            !item.hasShowSingleAnnotation()
+                            !item.showability.showNonRecursive()
                     ) {
                         item.modifiers
                             .annotations()

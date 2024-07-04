@@ -171,13 +171,6 @@ interface Item : Reportable {
      */
     fun hasShowAnnotation(): Boolean = showability.show()
 
-    /**
-     * Returns true if this has any show single annotations.
-     *
-     * See [Showability.recursive]
-     */
-    fun hasShowSingleAnnotation(): Boolean = showability.showNonRecursive()
-
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean =
         modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
