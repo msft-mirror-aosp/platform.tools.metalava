@@ -252,7 +252,6 @@ class ApiAnalyzer(
                 // supported.
                 cls.createDefaultConstructor().also {
                     it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
-                    it.hidden = false
                     it.superConstructor = superDefaultConstructor
                 }
             } else {
