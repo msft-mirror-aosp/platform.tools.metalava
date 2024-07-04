@@ -763,4 +763,91 @@ class ApiAnalyzerTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test propagation of @hide through package and class nesting`() {
+        //
+        check(
+            // Include system API annotations as a show annotation overrides hidden on a class that
+            // is in a hidden package.
+            includeSystemApiAnnotations = true,
+            // This is set to true so any class that is incorrectly unhidden will be included in the
+            // generated API and fail the test.
+            showUnannotated = true,
+            sourceFiles =
+                arrayOf(
+                    // Package "test.a" is hidden but "test.a.B" os marked with a show annotation so
+                    // that should cause "test.a" to be unhidden. However, "test.a.C" should still
+                    // be hidden as it inherits that from "test.a".
+                    java(
+                        """
+                            /** @hide */
+                            package test.a;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a;
+                            public class A {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a;
+                            /** @hide */
+                            @android.annotation.SystemApi
+                            public class B {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a;
+                            public class C {}
+                        """
+                    ),
+                    // Package "test.a.b" is not hidden itself but should inherit the hidden status
+                    // of the containing package "test.a" even though test.a has been unhidden
+                    // because of "test.a.B" having a show annotation. This should then be unhidden
+                    // because "test.a.b.B" has a show annotation but "test.a.b.C" should still be
+                    // hidden as it inherits it from "test.a".
+                    java(
+                        """
+                            package test.a.b;
+                            public class A {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a.b;
+                            /** @hide */
+                            @android.annotation.SystemApi
+                            public class B {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a.b;
+                            public class C {}
+                        """
+                    ),
+                ),
+            api =
+                // TODO(b/351118278): test.a.b.C should not be present.
+                """
+                    package test.a {
+                      public class B {
+                        ctor public B();
+                      }
+                    }
+                    package test.a.b {
+                      public class B {
+                        ctor public B();
+                      }
+                      public class C {
+                        ctor public C();
+                      }
+                    }
+                """,
+        )
+    }
 }
