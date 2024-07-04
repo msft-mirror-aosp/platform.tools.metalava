@@ -16,8 +16,20 @@
 
 package com.android.tools.metalava.model
 
-/** The documentation associated with an [Item]. */
-class ItemDocumentation private constructor(val text: String) {
+/**
+ * The documentation associated with an [Item].
+ *
+ * This implements [CharSequence] to simplify migration.
+ */
+class ItemDocumentation private constructor(val text: String) : CharSequence {
+    override val length
+        get() = text.length
+
+    override fun get(index: Int) = text.get(index)
+
+    override fun subSequence(startIndex: Int, endIndex: Int) =
+        text.subSequence(startIndex, endIndex)
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -26,5 +38,8 @@ class ItemDocumentation private constructor(val text: String) {
          * parameters.
          */
         val NONE: ItemDocumentation = ItemDocumentation("")
+
+        /** Wrap a [String] in an [ItemDocumentation]. */
+        fun String.toItemDocumentation() = if (this == "") NONE else ItemDocumentation(this)
     }
 }

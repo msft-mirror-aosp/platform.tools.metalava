@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -25,12 +26,12 @@ internal abstract class TurbineItem(
     final override val codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
-        documentation = documentation,
+        documentation = documentation.text,
     ) {
 
     final override val originallyHidden by

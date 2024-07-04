@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -36,7 +38,7 @@ internal open class TurbineMethodItem(
     private var returnType: TypeItem,
     modifiers: DefaultModifierList,
     override val typeParameterList: TypeParameterList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private val defaultValue: String,
 ) :
     TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
@@ -112,7 +114,7 @@ internal open class TurbineMethodItem(
                 returnType,
                 mods,
                 typeParameterList,
-                documentation,
+                documentation.toItemDocumentation(),
                 defaultValue,
             )
         // Duplicate the parameters
