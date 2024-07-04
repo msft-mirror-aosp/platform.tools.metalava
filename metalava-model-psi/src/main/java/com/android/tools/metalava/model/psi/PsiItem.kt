@@ -33,7 +33,7 @@ import org.jetbrains.uast.sourcePsiElement
 
 abstract class PsiItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    final override val codebase: PsiBasedCodebase,
     element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
@@ -48,7 +48,7 @@ internal constructor(
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 
-    override val originallyHidden by
+    final override val originallyHidden by
         lazy(LazyThreadSafetyMode.NONE) {
             documentation.contains('@') &&
                 (documentation.contains("@hide") ||
@@ -57,7 +57,7 @@ internal constructor(
                     documentation.contains("@suppress")) || hasHideAnnotation()
         }
 
-    override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
+    final override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
@@ -66,7 +66,7 @@ internal constructor(
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
-    override fun findTagDocumentation(tag: String, value: String?): String? {
+    final override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi() is PsiCompiledElement) {
             return null
         }
@@ -107,7 +107,7 @@ internal constructor(
         }
     }
 
-    override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
+    final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         if (comment.isBlank()) {
             return
         }
@@ -213,19 +213,19 @@ internal constructor(
             " */"
     }
 
-    override fun fullyQualifiedDocumentation(): String {
+    final override fun fullyQualifiedDocumentation(): String {
         return fullyQualifiedDocumentation(documentation)
     }
 
-    override fun fullyQualifiedDocumentation(documentation: String): String {
+    final override fun fullyQualifiedDocumentation(documentation: String): String {
         return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
     }
 
-    override fun isJava(): Boolean {
+    final override fun isJava(): Boolean {
         return !isKotlin()
     }
 
-    override fun isKotlin(): Boolean {
+    final override fun isKotlin(): Boolean {
         return psi().isKotlin()
     }
 

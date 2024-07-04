@@ -433,19 +433,19 @@ abstract class DefaultItem(
 
     final override fun mutableModifiers(): MutableModifierList = modifiers
 
-    override val isPublic: Boolean
+    final override val isPublic: Boolean
         get() = modifiers.isPublic()
 
-    override val isProtected: Boolean
+    final override val isProtected: Boolean
         get() = modifiers.isProtected()
 
-    override val isInternal: Boolean
+    final override val isInternal: Boolean
         get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
 
-    override val isPackagePrivate: Boolean
+    final override val isPackagePrivate: Boolean
         get() = modifiers.isPackagePrivate()
 
-    override val isPrivate: Boolean
+    final override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
     final override var emit = true
@@ -454,11 +454,11 @@ abstract class DefaultItem(
         private var nextRank = AtomicInteger()
     }
 
-    override val showability: Showability by lazy {
+    final override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
 
-    override fun suppressedIssues(): Set<String> {
+    final override fun suppressedIssues(): Set<String> {
         return buildSet {
             for (annotation in modifiers.annotations()) {
                 val annotationName = annotation.qualifiedName

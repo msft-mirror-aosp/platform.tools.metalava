@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TurbineItem(
-    override val codebase: TurbineBasedCodebase,
+    final override val codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     documentation: String,
@@ -33,20 +33,20 @@ internal abstract class TurbineItem(
         documentation = documentation,
     ) {
 
-    override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
+    final override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
-    override val originallyHidden by
+    final override val originallyHidden by
         lazy(LazyThreadSafetyMode.NONE) {
             documentation.contains("@hide") ||
                 documentation.contains("@pending") ||
                 hasHideAnnotation()
         }
 
-    override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
+    final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         TODO("b/295800205")
     }
 
-    override fun findTagDocumentation(tag: String, value: String?): String? {
+    final override fun findTagDocumentation(tag: String, value: String?): String? {
         TODO("b/295800205")
     }
 }
