@@ -832,7 +832,6 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             api =
-                // TODO(b/351118278): test.a.b.C should not be present.
                 """
                     package test.a {
                       public class B {
@@ -842,9 +841,6 @@ class ApiAnalyzerTest : DriverTest() {
                     package test.a.b {
                       public class B {
                         ctor public B();
-                      }
-                      public class C {
-                        ctor public C();
                       }
                     }
                 """,

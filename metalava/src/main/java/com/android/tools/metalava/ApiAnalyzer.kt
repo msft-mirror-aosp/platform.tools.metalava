@@ -631,6 +631,14 @@ class ApiAnalyzer(
                     pkg.docOnly = true
                 }
             }
+
+            // If this package is hidden then hide its classes. This is done here to avoid ordering
+            // issues when a class with a show annotation unhides its containing package.
+            if (pkg.hidden) {
+                for (topLevelClass in pkg.topLevelClasses()) {
+                    topLevelClass.hidden = true
+                }
+            }
         }
 
         // Create a visitor to propagate the propagate hidden and docOnly from the containing
@@ -672,14 +680,6 @@ class ApiAnalyzer(
                         }
                     } else {
                         val containingPackage = cls.containingPackage()
-                        if (containingPackage.hidden && !containingPackage.isDefault) {
-                            cls.hidden = true
-                        } else if (containingPackage.originallyHidden) {
-                            // Package was marked hidden; it's been unhidden by some other
-                            // classes (marked with show annotations) but this class
-                            // should continue to default.
-                            cls.hidden = true
-                        }
                         if (containingPackage.docOnly && !containingPackage.isDefault) {
                             cls.docOnly = true
                         }
