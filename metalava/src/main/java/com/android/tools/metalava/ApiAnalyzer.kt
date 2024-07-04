@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
@@ -605,30 +604,41 @@ class ApiAnalyzer(
      * methods and fields are hidden etc
      */
     private fun propagateHiddenRemovedAndDocOnly() {
-        packages.accept(
-            object :
-                BaseItemVisitor(visitConstructorsAsMethods = true, preserveClassNesting = true) {
-                override fun visitPackage(pkg: PackageItem) {
+        // Iterate over the packages first and propagate hidden and docOnly down the package nesting
+        // structure, from containing to contained packages. This relies on the packages being kept
+        // in nesting order (i.e. containing package before any contained package).
+        //
+        // This must be done separate to the updating of the classes as that can change the hidden
+        // status of the containing package which would preventing it being propagated correctly
+        // onto its contained packages.
+        for (pkg in packages.packages) {
+            when {
+                config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
+                else -> {
+                    val showability = pkg.showability
                     when {
-                        config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                        else -> {
-                            val showability = pkg.showability
-                            when {
-                                showability.show() -> pkg.hidden = false
-                                showability.hide() -> pkg.hidden = true
-                            }
-                        }
-                    }
-                    val containingPackage = pkg.containingPackage()
-                    if (containingPackage != null) {
-                        if (containingPackage.hidden && !containingPackage.isDefault) {
-                            pkg.hidden = true
-                        }
-                        if (containingPackage.docOnly) {
-                            pkg.docOnly = true
-                        }
+                        showability.show() -> pkg.hidden = false
+                        showability.hide() -> pkg.hidden = true
                     }
                 }
+            }
+            val containingPackage = pkg.containingPackage()
+            if (containingPackage != null) {
+                if (containingPackage.hidden && !containingPackage.isDefault) {
+                    pkg.hidden = true
+                }
+                if (containingPackage.docOnly) {
+                    pkg.docOnly = true
+                }
+            }
+        }
+
+        // Create a visitor to propagate the propagate hidden and docOnly from the containing
+        // package onto the top level classes and then propagate them, and removed status, down onto
+        // the nested classes and members.
+        val visitor =
+            object :
+                BaseItemVisitor(visitConstructorsAsMethods = true, preserveClassNesting = true) {
 
                 override fun visitClass(cls: ClassItem) {
                     val containingClass = cls.containingClass()
@@ -636,7 +646,8 @@ class ApiAnalyzer(
                     if (showability.show()) {
                         cls.hidden = false
                         // Make containing package non-hidden if it contains a show-annotation
-                        // class. Doclava does this in PackageInfo.isHidden().
+                        // class. Doclava does this in PackageInfo.isHidden(). This logic is why it
+                        // is necessary to visit packages before visiting any of their classes.
                         cls.containingPackage().hidden = false
                         if (containingClass != null) {
                             ensureParentVisible(cls)
@@ -748,7 +759,11 @@ class ApiAnalyzer(
                     }
                 }
             }
-        )
+
+        // Just visit the top level classes as packages have already been dealt with.
+        for (topLevelClass in packages.allTopLevelClasses()) {
+            topLevelClass.accept(visitor)
+        }
     }
 
     private fun checkSystemPermissions(method: MethodItem) {

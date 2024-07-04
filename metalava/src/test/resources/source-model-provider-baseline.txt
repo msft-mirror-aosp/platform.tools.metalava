@@ -10,7 +10,6 @@ com.android.tools.metalava.AnnotationsMergerTest
 
 com.android.tools.metalava.ApiAnalyzerTest
   Test PrivateSuperclass for inner class[turbine]
-  Test propagation of @hide through package and class nesting[turbine]
   Test references deprecated errors do not apply to inner class of deprecated class[turbine]
   Test that usage of effectively deprecated class is flagged[turbine]
 
