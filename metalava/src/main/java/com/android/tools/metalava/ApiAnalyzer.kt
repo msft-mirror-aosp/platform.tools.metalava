@@ -683,7 +683,7 @@ class ApiAnalyzer(
                         if (containingPackage.docOnly && !containingPackage.isDefault) {
                             cls.docOnly = true
                         }
-                        if (containingPackage.removed && !showability.show()) {
+                        if (containingPackage.removed) {
                             cls.removed = true
                         }
                     }
