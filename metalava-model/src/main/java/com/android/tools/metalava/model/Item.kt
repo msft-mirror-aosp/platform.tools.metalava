@@ -414,7 +414,7 @@ abstract class DefaultItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
     final override var documentation: ItemDocumentation,
-    variantSelectorsFactory: ApiVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
 
     init {
@@ -434,11 +434,11 @@ abstract class DefaultItem(
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
      * expensive.
      */
-    override val originallyHidden
+    final override val originallyHidden
         get() = variantSelectors.originallyHidden
 
     /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    override var hidden
+    final override var hidden
         get() = variantSelectors.hidden
         set(value) {
             variantSelectors.hidden = value

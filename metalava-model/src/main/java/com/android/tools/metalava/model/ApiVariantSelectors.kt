@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
+
 /** A factory that will create an [ApiVariantSelectors] for a specific [Item]. */
 typealias ApiVariantSelectorsFactory = (Item) -> ApiVariantSelectors
 
@@ -42,6 +45,12 @@ sealed interface ApiVariantSelectors {
          * on any attempt to set a property.
          */
         val IMMUTABLE_FACTORY: ApiVariantSelectorsFactory = { Immutable }
+
+        /**
+         * An [ApiVariantSelectors] factory that will return a new, mutable, [ApiVariantSelectors]
+         * for each [Item].
+         */
+        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = { Mutable(it) }
     }
 
     /**
@@ -61,5 +70,48 @@ sealed interface ApiVariantSelectors {
             }
 
         override fun toString() = "Immutable"
+    }
+
+    /**
+     * A mutable [ApiVariantSelectors].
+     *
+     * [originallyHidden] will be `true` if it's [item]'s documentation contains one of `@hide`,
+     * `@pending` or `@suppress` or its [Item] has a hide annotation associated with it.
+     *
+     * Unless [hidden] is written before reading then it will default to `true` if
+     * [originallyHidden] is `true` and it does not have any show annotations.
+     */
+    private class Mutable(private val item: Item) : ApiVariantSelectors {
+
+        override val originallyHidden by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val documentation = item.documentation
+                documentation.contains('@') &&
+                    (documentation.contains("@hide") ||
+                        documentation.contains("@pending") ||
+                        // KDoc:
+                        documentation.contains("@suppress")) || item.hasHideAnnotation()
+            }
+
+        override var hidden: Boolean by LazyDelegate {
+            originallyHidden && !item.hasShowAnnotation()
+        }
+    }
+}
+
+// a property with a lazily calculated default value
+internal class LazyDelegate<T>(val defaultValueProvider: () -> T) : ReadWriteProperty<Any, T> {
+    private var currentValue: T? = null
+
+    override operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
+        currentValue = value
+    }
+
+    override operator fun getValue(thisRef: Any, property: KProperty<*>): T {
+        if (currentValue == null) {
+            currentValue = defaultValueProvider()
+        }
+
+        return currentValue!!
     }
 }

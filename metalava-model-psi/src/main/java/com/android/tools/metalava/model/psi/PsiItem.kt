@@ -16,12 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
@@ -45,21 +45,11 @@ internal constructor(
         fileLocation = fileLocation,
         modifiers = modifiers,
         documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ) {
 
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
-
-    final override val originallyHidden by
-        lazy(LazyThreadSafetyMode.NONE) {
-            documentation.contains('@') &&
-                (documentation.contains("@hide") ||
-                    documentation.contains("@pending") ||
-                    // KDoc:
-                    documentation.contains("@suppress")) || hasHideAnnotation()
-        }
-
-    final override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
