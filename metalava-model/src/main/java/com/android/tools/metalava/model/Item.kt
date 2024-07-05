@@ -412,7 +412,8 @@ interface Item : Reportable {
     }
 }
 
-abstract class DefaultItem(
+/** Base [Item] implementation that is common to all models. */
+abstract class AbstractItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
     final override val documentation: ItemDocumentation,
@@ -544,3 +545,20 @@ abstract class DefaultItem(
 
     final override fun toString() = toStringForItem()
 }
+
+/**
+ * Base class that is common to models that do not incorporate their underlying model, if any, into
+ * their [Item] implementations.
+ */
+abstract class DefaultItem(
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
+) :
+    AbstractItem(
+        fileLocation,
+        modifiers,
+        documentation,
+        variantSelectorsFactory,
+    )

@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
@@ -34,7 +34,7 @@ internal constructor(
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
 ) :
-    DefaultItem(
+    AbstractItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
         documentation = documentation,
