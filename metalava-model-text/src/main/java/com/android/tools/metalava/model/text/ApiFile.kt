@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -38,6 +39,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
@@ -1483,7 +1485,7 @@ private constructor(
                 scopeDescription,
                 typeParameterStrings,
                 // Create a `TextTypeParameterItem` from the type parameter string.
-                { TextTypeParameterItem.create(codebase, it) },
+                { createTypeParameterItem(codebase, it) },
                 // Create, set and return the [BoundsTypeItem] list.
                 { typeItemFactory, item, typeParameterString ->
                     val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
@@ -1494,6 +1496,48 @@ private constructor(
             )
 
         return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
+    }
+
+    /**
+     * Create a partially initialized [TextTypeParameterItem].
+     *
+     * This extracts the [TypeParameterItem.isReified] and [TypeParameterItem.name] from the
+     * [typeParameterString] and creates a [TextTypeParameterItem] with those properties initialized
+     * but the [TextTypeParameterItem.bounds] is not.
+     */
+    private fun createTypeParameterItem(
+        codebase: DefaultCodebase,
+        typeParameterString: String,
+    ): TextTypeParameterItem {
+        val length = typeParameterString.length
+        var nameEnd = length
+
+        val isReified = typeParameterString.startsWith("reified ")
+        val nameStart =
+            if (isReified) {
+                8 // "reified ".length
+            } else {
+                0
+            }
+
+        for (i in nameStart until length) {
+            val c = typeParameterString[i]
+            if (!Character.isJavaIdentifierPart(c)) {
+                nameEnd = i
+                break
+            }
+        }
+        val name = typeParameterString.substring(nameStart, nameEnd)
+
+        // TODO: Type use annotations support will need to handle annotations on the parameter.
+        val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
+
+        return TextTypeParameterItem(
+            codebase = codebase,
+            modifiers = modifiers,
+            name = name,
+            isReified = isReified,
+        )
     }
 
     /**

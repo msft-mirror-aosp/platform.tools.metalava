@@ -31,6 +31,7 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextTypeParameterItem(
     codebase: DefaultCodebase,
+    modifiers: DefaultModifierList,
     private val name: String,
     private val isReified: Boolean,
 ) :
@@ -38,7 +39,7 @@ internal class TextTypeParameterItem(
         codebase = codebase,
         fileLocation = FileLocation.UNKNOWN,
         itemLanguage = ItemLanguage.UNKNOWN,
-        modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
+        modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
@@ -46,9 +47,7 @@ internal class TextTypeParameterItem(
 
     lateinit var bounds: List<BoundsTypeItem>
 
-    override fun name(): String {
-        return name
-    }
+    override fun name() = name
 
     override fun type(): VariableTypeItem {
         return DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
@@ -67,48 +66,5 @@ internal class TextTypeParameterItem(
 
     override fun hashCode(): Int {
         return name.hashCode()
-    }
-
-    companion object {
-
-        /**
-         * Create a partially initialized [TextTypeParameterItem].
-         *
-         * This extracts the [isReified] and [name] from the [typeParameterString] and creates a
-         * [TextTypeParameterItem] with those properties initialized but the [bounds] is not.
-         *
-         * This must ONLY be used by [ApiFile.createTypeParameterList] as that will complete the
-         * initialization of the [bounds] property.
-         */
-        fun create(
-            codebase: DefaultCodebase,
-            typeParameterString: String,
-        ): TextTypeParameterItem {
-            val length = typeParameterString.length
-            var nameEnd = length
-
-            val isReified = typeParameterString.startsWith("reified ")
-            val nameStart =
-                if (isReified) {
-                    8 // "reified ".length
-                } else {
-                    0
-                }
-
-            for (i in nameStart until length) {
-                val c = typeParameterString[i]
-                if (!Character.isJavaIdentifierPart(c)) {
-                    nameEnd = i
-                    break
-                }
-            }
-            val name = typeParameterString.substring(nameStart, nameEnd)
-
-            return TextTypeParameterItem(
-                codebase = codebase,
-                name = name,
-                isReified = isReified,
-            )
-        }
     }
 }
