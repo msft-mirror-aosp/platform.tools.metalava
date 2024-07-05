@@ -21,7 +21,9 @@ package com.android.tools.metalava.model
  *
  * This implements [CharSequence] to simplify migration.
  */
-class ItemDocumentation private constructor(val text: String) : CharSequence {
+interface ItemDocumentation : CharSequence {
+    val text: String
+
     override val length
         get() = text.length
 
@@ -35,7 +37,10 @@ class ItemDocumentation private constructor(val text: String) : CharSequence {
      *
      * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
      */
-    fun duplicate(): ItemDocumentation = this
+    fun duplicate(): ItemDocumentation
+
+    /** Work around javadoc cutting off the summary line after the first ". ". */
+    fun workAroundJavaDocSummaryTruncationIssue() {}
 
     companion object {
         /**
@@ -44,9 +49,44 @@ class ItemDocumentation private constructor(val text: String) : CharSequence {
          * Used where there is no documentation possible, e.g. text model, type parameters,
          * parameters.
          */
-        val NONE: ItemDocumentation = ItemDocumentation("")
+        val NONE: ItemDocumentation = EmptyItemDocumentation()
 
         /** Wrap a [String] in an [ItemDocumentation]. */
-        fun String.toItemDocumentation(): ItemDocumentation = ItemDocumentation(this)
+        fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
     }
+
+    /** An empty [ItemDocumentation] that can never contain any text. */
+    private class EmptyItemDocumentation : ItemDocumentation {
+        override val text
+            get() = ""
+
+        // This is ok to share as it is immutable.
+        override fun duplicate() = this
+    }
+}
+
+/**
+ * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
+ */
+abstract class AbstractItemDocumentation : ItemDocumentation {
+
+    /**
+     * The mutable text contents of the documentation. This is abstract to allow the implementations
+     * of this to optimize how it is accessed, e.g. initialize it lazily.
+     */
+    abstract override var text: String
+
+    override fun workAroundJavaDocSummaryTruncationIssue() {
+        // Work around javadoc cutting off the summary line after the first ". ".
+        val firstDot = text.indexOf(".")
+        if (firstDot > 0 && text.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
+            text = text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
+        }
+    }
+}
+
+/** A default [ItemDocumentation] containing JavaDoc/KDoc. */
+internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
+
+    override fun duplicate() = DefaultItemDocumentation(text)
 }

@@ -105,7 +105,7 @@ interface Item : Reportable {
      * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
      * references to classes.
      */
-    var documentation: ItemDocumentation
+    val documentation: ItemDocumentation
 
     /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
