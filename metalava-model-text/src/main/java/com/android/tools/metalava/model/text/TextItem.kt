@@ -36,9 +36,6 @@ internal abstract class TextItem(
 
     final override fun findTagDocumentation(tag: String, value: String?): String? = null
 
-    final override fun appendDocumentation(comment: String, tagSection: String?) =
-        codebase.unsupported()
-
     final override fun isJava(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 

@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
@@ -92,27 +91,6 @@ internal constructor(
         } else {
             return text
         }
-    }
-
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
-
-        // TODO: Figure out if an annotation should go on the return value, or on the method.
-        // For example; threading: on the method, range: on the return value.
-        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
-
-        if (this is ParameterItem) {
-            // For parameters, the documentation goes into the surrounding method's documentation!
-            // Find the right parameter location!
-            val parameterName = name()
-            val target = containingMethod()
-            target.appendDocumentation(comment, parameterName)
-            return
-        }
-
-        documentation.appendDocumentation(comment, tagSection)
     }
 
     final override fun fullyQualifiedDocumentation(): String {
