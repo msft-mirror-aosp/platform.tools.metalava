@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
@@ -25,8 +26,10 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.util.ArrayList
@@ -44,6 +47,18 @@ internal class TextCodebase(
     private val allClassesByName = HashMap<String, TextClassItem>(30000)
 
     private val externalClassesByName = HashMap<String, ClassItem>()
+
+    /** Creates [Item] instances for this. */
+    internal val itemFactory =
+        DefaultItemFactory(
+            codebase = this,
+            // Signature files do not contain information about whether an item was originally
+            // created from Java or Kotlin.
+            defaultItemLanguage = ItemLanguage.UNKNOWN,
+            // Signature files have already been separated by API surface variants, so they can use
+            // the same immutable ApiVariantSelectors.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        )
 
     override fun trustedApi(): Boolean = true
 

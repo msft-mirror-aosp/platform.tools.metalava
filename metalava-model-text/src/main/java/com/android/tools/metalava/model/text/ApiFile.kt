@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -103,6 +104,9 @@ private constructor(
      */
     private val globalTypeItemFactory by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
+
+    /** Creates [Item] instances for [codebase]. */
+    private val itemFactory = codebase.itemFactory
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -1499,16 +1503,16 @@ private constructor(
     }
 
     /**
-     * Create a partially initialized [TextTypeParameterItem].
+     * Create a partially initialized [DefaultTypeParameterItem].
      *
      * This extracts the [TypeParameterItem.isReified] and [TypeParameterItem.name] from the
-     * [typeParameterString] and creates a [TextTypeParameterItem] with those properties initialized
-     * but the [TextTypeParameterItem.bounds] is not.
+     * [typeParameterString] and creates a [DefaultTypeParameterItem] with those properties
+     * initialized but the [DefaultTypeParameterItem.bounds] is not.
      */
     private fun createTypeParameterItem(
         codebase: DefaultCodebase,
         typeParameterString: String,
-    ): TextTypeParameterItem {
+    ): DefaultTypeParameterItem {
         val length = typeParameterString.length
         var nameEnd = length
 
@@ -1532,8 +1536,7 @@ private constructor(
         // TODO: Type use annotations support will need to handle annotations on the parameter.
         val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
 
-        return TextTypeParameterItem(
-            codebase = codebase,
+        return itemFactory.createTypeParameterItem(
             modifiers = modifiers,
             name = name,
             isReified = isReified,

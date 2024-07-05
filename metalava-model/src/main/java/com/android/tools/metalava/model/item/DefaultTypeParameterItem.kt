@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
@@ -29,19 +29,22 @@ import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TextTypeParameterItem(
+/** A [TypeParameterItem] implementation suitable for use by multiple models. */
+class DefaultTypeParameterItem(
     codebase: DefaultCodebase,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val isReified: Boolean,
 ) :
     DefaultItem(
         codebase = codebase,
         fileLocation = FileLocation.UNKNOWN,
-        itemLanguage = ItemLanguage.UNKNOWN,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        variantSelectorsFactory = variantSelectorsFactory,
     ),
     TypeParameterItem {
 
