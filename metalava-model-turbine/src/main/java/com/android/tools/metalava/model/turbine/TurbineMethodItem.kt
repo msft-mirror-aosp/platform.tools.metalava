@@ -113,7 +113,7 @@ internal open class TurbineMethodItem(
                 returnType,
                 mods,
                 typeParameterList,
-                documentation,
+                documentation.duplicate(),
                 defaultValue,
             )
         // Duplicate the parameters

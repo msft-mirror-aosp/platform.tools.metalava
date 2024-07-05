@@ -30,6 +30,13 @@ class ItemDocumentation private constructor(val text: String) : CharSequence {
     override fun subSequence(startIndex: Int, endIndex: Int) =
         text.subSequence(startIndex, endIndex)
 
+    /**
+     * Return a duplicate of this instance.
+     *
+     * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
+     */
+    fun duplicate(): ItemDocumentation = this
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -40,6 +47,6 @@ class ItemDocumentation private constructor(val text: String) : CharSequence {
         val NONE: ItemDocumentation = ItemDocumentation("")
 
         /** Wrap a [String] in an [ItemDocumentation]. */
-        fun String.toItemDocumentation() = if (this == "") NONE else ItemDocumentation(this)
+        fun String.toItemDocumentation(): ItemDocumentation = ItemDocumentation(this)
     }
 }

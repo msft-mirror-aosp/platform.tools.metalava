@@ -198,7 +198,7 @@ internal open class TurbineClassItem(
                 retType,
                 mods,
                 method.typeParameterList,
-                method.documentation,
+                method.documentation.duplicate(),
                 method.defaultValue(),
             )
 

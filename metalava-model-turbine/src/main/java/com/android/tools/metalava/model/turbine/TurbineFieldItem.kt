@@ -67,7 +67,7 @@ internal class TurbineFieldItem(
                 targetContainingClass,
                 type,
                 modifiers.duplicate(),
-                documentation,
+                documentation.duplicate(),
                 isEnumConstant,
                 fieldValue,
             )
