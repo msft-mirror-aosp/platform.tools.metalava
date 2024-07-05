@@ -551,6 +551,7 @@ abstract class AbstractItem(
  * their [Item] implementations.
  */
 abstract class DefaultItem(
+    final override val codebase: DefaultCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,

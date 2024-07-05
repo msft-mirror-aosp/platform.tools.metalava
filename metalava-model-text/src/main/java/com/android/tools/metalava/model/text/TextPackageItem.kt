@@ -17,12 +17,13 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextPackageItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     private val name: String,
     modifiers: DefaultModifierList,
     fileLocation: FileLocation

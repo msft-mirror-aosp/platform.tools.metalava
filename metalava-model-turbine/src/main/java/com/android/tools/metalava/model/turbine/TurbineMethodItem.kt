@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -30,7 +31,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineMethodItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
     containingClass: ClassItem,

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.PackageItem
@@ -24,7 +25,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbinePackageItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
@@ -37,7 +38,7 @@ internal class TurbinePackageItem(
 
     companion object {
         fun create(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             fileLocation: FileLocation,
             qualifiedName: String,
             modifiers: DefaultModifierList,

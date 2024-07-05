@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
@@ -28,7 +29,7 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineParameterItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val name: String,
     private val containingMethod: MethodItem,
@@ -79,7 +80,7 @@ internal class TurbineParameterItem(
 
     companion object {
         internal fun duplicate(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             containingMethod: MethodItem,
             parameter: ParameterItem,
             typeParameterBindings: TypeParameterBindings,

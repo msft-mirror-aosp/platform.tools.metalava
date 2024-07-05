@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
@@ -23,7 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextPropertyItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,

@@ -17,17 +17,19 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextItem(
-    final override val codebase: TextCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
 ) :
     DefaultItem(
+        codebase = codebase,
         fileLocation = fileLocation,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,

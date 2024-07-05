@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ItemDocumentation
@@ -26,7 +27,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal class TurbineConstructorItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val name: String,
     methodSymbol: MethodSymbol,
@@ -58,7 +59,7 @@ internal class TurbineConstructorItem(
 
     companion object {
         fun createDefaultConstructor(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             containingClass: TurbineClassItem,
             symbol: MethodSymbol
         ): TurbineConstructorItem {

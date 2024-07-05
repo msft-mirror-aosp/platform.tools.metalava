@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -25,7 +26,7 @@ import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextTypeParameterItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     private val name: String,
     private val isReified: Boolean,
 ) :
@@ -73,7 +74,7 @@ internal class TextTypeParameterItem(
          * initialization of the [bounds] property.
          */
         fun create(
-            codebase: TextCodebase,
+            codebase: DefaultCodebase,
             typeParameterString: String,
         ): TextTypeParameterItem {
             val length = typeParameterString.length

@@ -17,13 +17,14 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextFieldItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,

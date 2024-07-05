@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -34,7 +35,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextClassItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,

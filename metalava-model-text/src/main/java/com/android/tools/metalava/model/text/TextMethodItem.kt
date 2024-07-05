@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
@@ -30,7 +31,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextMethodItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     name: String,
     containingClass: ClassItem,
     modifiers: DefaultModifierList,

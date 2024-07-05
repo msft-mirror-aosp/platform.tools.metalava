@@ -17,18 +17,20 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TurbineItem(
-    final override val codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
 ) :
     DefaultItem(
+        codebase = codebase,
         fileLocation = fileLocation,
         modifiers = modifiers,
         documentation = documentation,

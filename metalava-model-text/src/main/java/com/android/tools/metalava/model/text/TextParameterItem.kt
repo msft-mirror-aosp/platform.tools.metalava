@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -26,7 +27,7 @@ import com.android.tools.metalava.reporter.FileLocation
 const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
 internal class TextParameterItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     private var name: String,
     private var publicName: String?,
     private val hasDefaultValue: Boolean,
