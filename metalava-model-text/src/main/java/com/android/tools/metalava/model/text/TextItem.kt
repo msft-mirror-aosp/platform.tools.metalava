@@ -34,8 +34,6 @@ internal abstract class TextItem(
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ) {
 
-    final override fun findTagDocumentation(tag: String, value: String?): String? = null
-
     final override fun isJava(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 

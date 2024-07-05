@@ -518,6 +518,9 @@ abstract class DefaultItem(
         }
     }
 
+    final override fun findTagDocumentation(tag: String, value: String?): String? =
+        documentation.findTagDocumentation(tag, value)
+
     final override fun appendDocumentation(comment: String, tagSection: String?) {
         if (comment.isBlank()) {
             return

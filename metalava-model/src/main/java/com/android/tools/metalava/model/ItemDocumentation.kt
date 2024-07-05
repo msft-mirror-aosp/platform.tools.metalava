@@ -52,6 +52,12 @@ interface ItemDocumentation : CharSequence {
      */
     fun appendDocumentation(comment: String, tagSection: String?)
 
+    /**
+     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
+     * provided value (e.g. parameter name).
+     */
+    fun findTagDocumentation(tag: String, value: String? = null): String?
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -72,6 +78,8 @@ interface ItemDocumentation : CharSequence {
 
         // This is ok to share as it is immutable.
         override fun duplicate() = this
+
+        override fun findTagDocumentation(tag: String, value: String?): String? = null
 
         override fun appendDocumentation(comment: String, tagSection: String?) {
             error("cannot modify documentation on an item that does not support documentation")
@@ -96,6 +104,10 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
         if (firstDot > 0 && text.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
             text = text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
         }
+    }
+
+    override fun findTagDocumentation(tag: String, value: String?): String? {
+        TODO("Not yet implemented")
     }
 
     override fun appendDocumentation(comment: String, tagSection: String?) {

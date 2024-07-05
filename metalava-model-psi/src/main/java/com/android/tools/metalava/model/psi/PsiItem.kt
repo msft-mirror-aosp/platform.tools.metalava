@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
-import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import org.jetbrains.kotlin.idea.KotlinLanguage
@@ -50,47 +49,6 @@ internal constructor(
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
-    }
-
-    final override fun findTagDocumentation(tag: String, value: String?): String? {
-        if (psi() is PsiCompiledElement) {
-            return null
-        }
-        if (documentation.isBlank()) {
-            return null
-        }
-
-        // We can't just use element.docComment here because we may have modified
-        // the comment and then the comment snapshot in PSI isn't up to date with our
-        // latest changes
-        val docComment = codebase.getComment(documentation.text)
-        val tagComment =
-            if (value == null) {
-                docComment.findTagByName(tag)
-            } else {
-                docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
-            }
-
-        if (tagComment == null) {
-            return null
-        }
-
-        val text = tagComment.text
-        // Trim trailing next line (javadoc *)
-        var index = text.length - 1
-        while (index > 0) {
-            val c = text[index]
-            if (!(c == '*' || c.isWhitespace())) {
-                break
-            }
-            index--
-        }
-        index++
-        if (index < text.length) {
-            return text.substring(0, index)
-        } else {
-            return text
-        }
     }
 
     final override fun fullyQualifiedDocumentation(): String {

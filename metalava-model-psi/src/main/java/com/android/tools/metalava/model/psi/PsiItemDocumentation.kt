@@ -53,6 +53,47 @@ internal class PsiItemDocumentation(
 
     override fun duplicate() = PsiItemDocumentation(psi, codebase, extraDocs)
 
+    final override fun findTagDocumentation(tag: String, value: String?): String? {
+        if (psi is PsiCompiledElement) {
+            return null
+        }
+        if (text.isBlank()) {
+            return null
+        }
+
+        // We can't just use element.docComment here because we may have modified
+        // the comment and then the comment snapshot in PSI isn't up to date with our
+        // latest changes
+        val docComment = codebase.getComment(text)
+        val tagComment =
+            if (value == null) {
+                docComment.findTagByName(tag)
+            } else {
+                docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
+            }
+
+        if (tagComment == null) {
+            return null
+        }
+
+        val text = tagComment.text
+        // Trim trailing next line (javadoc *)
+        var index = text.length - 1
+        while (index > 0) {
+            val c = text[index]
+            if (!(c == '*' || c.isWhitespace())) {
+                break
+            }
+            index--
+        }
+        index++
+        if (index < text.length) {
+            return text.substring(0, index)
+        } else {
+            return text
+        }
+    }
+
     override fun mergeDocumentation(comment: String, tagSection: String?) {
         text = mergeDocumentation(text, psi, comment, tagSection, append = true)
     }

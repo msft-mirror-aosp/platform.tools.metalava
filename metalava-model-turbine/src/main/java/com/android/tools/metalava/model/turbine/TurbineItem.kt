@@ -33,9 +33,4 @@ internal abstract class TurbineItem(
         modifiers = modifiers,
         documentation = documentation,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-    ) {
-
-    final override fun findTagDocumentation(tag: String, value: String?): String? {
-        TODO("b/295800205")
-    }
-}
+    )
