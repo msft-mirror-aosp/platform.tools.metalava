@@ -16,9 +16,13 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
@@ -30,10 +34,13 @@ internal class TextTypeParameterItem(
     private val name: String,
     private val isReified: Boolean,
 ) :
-    TextItem(
+    DefaultItem(
         codebase = codebase,
         fileLocation = FileLocation.UNKNOWN,
+        itemLanguage = ItemLanguage.UNKNOWN,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     TypeParameterItem {
 

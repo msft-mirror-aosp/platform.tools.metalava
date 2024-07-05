@@ -16,9 +16,13 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -28,7 +32,16 @@ internal abstract class TextMemberItem(
     private val containingClass: ClassItem,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList
-) : TextItem(codebase, fileLocation = fileLocation, modifiers = modifiers), MemberItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.UNKNOWN,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+    ),
+    MemberItem {
 
     override fun name(): String = name
 

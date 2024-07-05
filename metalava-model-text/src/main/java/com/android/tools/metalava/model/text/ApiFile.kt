@@ -155,8 +155,8 @@ private constructor(
          * Read API signature files into a [TextCodebase].
          *
          * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [com.android.tools.metalava.model.text.TextItem.fileLocation]
-         * would correctly point out the source file of each item.
+         * first file specified. each [Item.fileLocation] would correctly point out the source file
+         * of each item.
          *
          * @param signatureFiles input signature files
          */
