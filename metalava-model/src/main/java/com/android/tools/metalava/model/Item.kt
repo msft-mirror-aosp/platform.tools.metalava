@@ -414,12 +414,35 @@ abstract class DefaultItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
     final override var documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
 ) : Item {
 
     init {
         @Suppress("LeakingThis")
         modifiers.owner = this
     }
+
+    /**
+     * Create a [ApiVariantSelectors] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not do access anything that has not
+     * been initialized.
+     */
+    private val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+
+    /**
+     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
+     * expensive.
+     */
+    override val originallyHidden
+        get() = variantSelectors.originallyHidden
+
+    /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
+    override var hidden
+        get() = variantSelectors.hidden
+        set(value) {
+            variantSelectors.hidden = value
+        }
 
     final override var docOnly = documentation.contains("@doconly")
     final override var removed = documentation.contains("@removed")

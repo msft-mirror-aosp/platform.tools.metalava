@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
@@ -30,12 +31,8 @@ internal abstract class TextItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ) {
-
-    final override val originallyHidden
-        get() = false
-
-    final override var hidden = false
 
     final override fun findTagDocumentation(tag: String, value: String?): String? = null
 
