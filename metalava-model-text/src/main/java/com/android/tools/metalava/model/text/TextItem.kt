@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextItem(
@@ -31,14 +32,8 @@ internal abstract class TextItem(
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.UNKNOWN,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
-    ) {
-
-    final override fun isJava(): Boolean =
-        codebase.unsupported() // source language not recorded in signature files
-
-    final override fun isKotlin(): Boolean =
-        codebase.unsupported() // source language not recorded in signature files
-}
+    )

@@ -553,6 +553,7 @@ abstract class AbstractItem(
 abstract class DefaultItem(
     final override val codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    private val itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -562,4 +563,13 @@ abstract class DefaultItem(
         modifiers,
         documentation,
         variantSelectorsFactory,
-    )
+    ) {
+
+    final override fun isJava(): Boolean {
+        return itemLanguage.isJava()
+    }
+
+    final override fun isKotlin(): Boolean {
+        return itemLanguage.isKotlin()
+    }
+}
