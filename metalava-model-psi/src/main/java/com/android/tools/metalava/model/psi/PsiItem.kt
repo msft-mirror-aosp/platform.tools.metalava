@@ -23,14 +23,10 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiCompiledElement
-import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import org.jetbrains.kotlin.idea.KotlinLanguage
-import org.jetbrains.kotlin.kdoc.psi.api.KDoc
-import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
-import org.jetbrains.uast.sourcePsiElement
 
 abstract class PsiItem
 internal constructor(
@@ -147,46 +143,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             extraDocs: String? = null,
         ): ItemDocumentation {
-            return javadoc(element, codebase.allowReadingComments)
-                .let { if (extraDocs != null) it + "\n$extraDocs" else it }
-                .let { text -> PsiItemDocumentation(text, element) }
-        }
-
-        // Gets the javadoc of the current element, unless reading comments is
-        // disabled via allowReadingComments
-        private fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
-            if (!allowReadingComments) {
-                return ""
-            }
-            if (element is PsiCompiledElement) {
-                return ""
-            }
-
-            if (element is KtDeclaration) {
-                return element.docComment?.text.orEmpty()
-            }
-
-            if (element is UElement) {
-                val comments = element.comments
-                if (comments.isNotEmpty()) {
-                    val sb = StringBuilder()
-                    comments.asSequence().joinTo(buffer = sb, separator = "\n") { it.text }
-                    return sb.toString()
-                } else {
-                    // Temporary workaround: UAST seems to not return document nodes
-                    // https://youtrack.jetbrains.com/issue/KT-22135
-                    val first = element.sourcePsiElement?.firstChild
-                    if (first is KDoc) {
-                        return first.text
-                    }
-                }
-            }
-
-            if (element is PsiDocCommentOwner && element.docComment !is PsiCompiledElement) {
-                return element.docComment?.text ?: ""
-            }
-
-            return ""
+            return PsiItemDocumentation(element, codebase, extraDocs)
         }
 
         internal fun modifiers(
