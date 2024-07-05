@@ -444,8 +444,19 @@ abstract class DefaultItem(
             variantSelectors.hidden = value
         }
 
-    final override var docOnly = documentation.contains("@doconly")
-    final override var removed = documentation.contains("@removed")
+    /** Manually delegate to [ApiVariantSelectors.docOnly] as property delegates are expensive. */
+    final override var docOnly: Boolean
+        get() = variantSelectors.docOnly
+        set(value) {
+            variantSelectors.docOnly = value
+        }
+
+    /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
+    final override var removed: Boolean
+        get() = variantSelectors.removed
+        set(value) {
+            variantSelectors.removed = value
+        }
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 

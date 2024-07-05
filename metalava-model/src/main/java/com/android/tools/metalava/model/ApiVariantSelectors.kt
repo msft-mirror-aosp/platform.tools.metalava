@@ -38,6 +38,22 @@ sealed interface ApiVariantSelectors {
      */
     var hidden: Boolean
 
+    /**
+     * Indicates whether the [Item] should be included in the doc only API surface variant.
+     *
+     * Initially set to `true` if the [Item.documentation] contains `@doconly` but updated due to
+     * inheritance.
+     */
+    var docOnly: Boolean
+
+    /**
+     * Indicates whether the [Item] should be in the removed API surface variant.
+     *
+     * Initially set to `true` if the [Item.documentation] contains `@removed` but updated due to
+     * inheritance.
+     */
+    var removed: Boolean
+
     companion object {
         /**
          * An [ApiVariantSelectors] factory that will always return an immutable
@@ -69,6 +85,18 @@ sealed interface ApiVariantSelectors {
                 error("Cannot set `hidden` to $value")
             }
 
+        override var docOnly: Boolean
+            get() = false
+            set(value) {
+                error("Cannot set `docOnly` to $value")
+            }
+
+        override var removed: Boolean
+            get() = false
+            set(value) {
+                error("Cannot set `removed` to $value")
+            }
+
         override fun toString() = "Immutable"
     }
 
@@ -80,6 +108,10 @@ sealed interface ApiVariantSelectors {
      *
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
+     *
+     * [docOnly] will be initialized to `true` if it's [item]'s documentation contains `@doconly`.
+     *
+     * [removed] will be initialized to `true` if it's [item]'s documentation contains `@removed`.
      */
     private class Mutable(private val item: Item) : ApiVariantSelectors {
 
@@ -96,6 +128,10 @@ sealed interface ApiVariantSelectors {
         override var hidden: Boolean by LazyDelegate {
             originallyHidden && !item.hasShowAnnotation()
         }
+
+        override var docOnly = item.documentation.contains("@doconly")
+
+        override var removed = item.documentation.contains("@removed")
     }
 }
 
