@@ -42,6 +42,16 @@ interface ItemDocumentation : CharSequence {
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
 
+    /**
+     * Add the given text to the documentation.
+     *
+     * If the [tagSection] is null, add the comment to the initial text block of the description.
+     * Otherwise, if it is "@return", add the comment to the return value. Otherwise, the
+     * [tagSection] is taken to be the parameter name, and the comment added as parameter
+     * documentation for the given parameter.
+     */
+    fun appendDocumentation(comment: String, tagSection: String?)
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -62,6 +72,10 @@ interface ItemDocumentation : CharSequence {
 
         // This is ok to share as it is immutable.
         override fun duplicate() = this
+
+        override fun appendDocumentation(comment: String, tagSection: String?) {
+            error("cannot modify documentation on an item that does not support documentation")
+        }
     }
 }
 
@@ -82,6 +96,10 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
         if (firstDot > 0 && text.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
             text = text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
         }
+    }
+
+    override fun appendDocumentation(comment: String, tagSection: String?) {
+        TODO("Not yet implemented")
     }
 }
 

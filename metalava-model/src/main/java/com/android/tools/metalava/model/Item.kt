@@ -415,7 +415,7 @@ interface Item : Reportable {
 abstract class DefaultItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
-    final override var documentation: ItemDocumentation,
+    final override val documentation: ItemDocumentation,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
 
