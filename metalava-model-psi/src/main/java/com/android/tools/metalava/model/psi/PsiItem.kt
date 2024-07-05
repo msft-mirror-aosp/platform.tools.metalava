@@ -99,7 +99,7 @@ internal constructor(
         }
     }
 
-    final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
+    final override fun appendDocumentation(comment: String, tagSection: String?) {
         if (comment.isBlank()) {
             return
         }
@@ -144,7 +144,7 @@ internal constructor(
         }
 
         documentation =
-            mergeDocumentation(documentation.text, psi(), comment.trim(), tagSection, append)
+            mergeDocumentation(documentation.text, psi(), comment.trim(), tagSection, append = true)
                 .toItemDocumentation()
     }
 
