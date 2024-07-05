@@ -669,7 +669,14 @@ internal open class TurbineCodebaseInitialiser(
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): TurbineTypeParameterItem {
         val modifiers =
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
-        val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, name = sym.name())
+        val typeParamItem =
+            TurbineTypeParameterItem(
+                codebase,
+                modifiers,
+                name = sym.name(),
+                // Java does not supports reified generics
+                isReified = false,
+            )
         return typeParamItem
     }
 

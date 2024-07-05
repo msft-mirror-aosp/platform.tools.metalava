@@ -33,6 +33,7 @@ internal class TurbineTypeParameterItem(
     codebase: DefaultCodebase,
     modifiers: DefaultModifierList,
     private val name: String,
+    private val isReified: Boolean,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -48,14 +49,13 @@ internal class TurbineTypeParameterItem(
 
     override fun name() = name
 
-    // Java does not supports reified generics
-    override fun isReified(): Boolean = false
-
-    override fun typeBounds(): List<BoundsTypeItem> = bounds
-
     override fun type(): VariableTypeItem {
         return DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
     }
+
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
+
+    override fun isReified(): Boolean = isReified
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
