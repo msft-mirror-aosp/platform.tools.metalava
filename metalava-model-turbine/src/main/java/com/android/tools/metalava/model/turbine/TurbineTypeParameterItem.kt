@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
@@ -31,11 +34,13 @@ internal class TurbineTypeParameterItem(
     modifiers: DefaultModifierList,
     private val name: String,
 ) :
-    TurbineItem(
-        codebase,
-        FileLocation.UNKNOWN,
-        modifiers,
-        ItemDocumentation.NONE,
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = FileLocation.UNKNOWN,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ),
     TypeParameterItem {
 

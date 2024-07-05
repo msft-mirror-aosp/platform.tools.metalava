@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -29,7 +32,16 @@ internal abstract class TurbineMemberItem(
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     private val containingClass: ClassItem,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), MemberItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    MemberItem {
 
     final override fun containingClass(): ClassItem = containingClass
 }

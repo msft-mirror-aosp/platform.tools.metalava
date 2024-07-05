@@ -17,14 +17,17 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -48,7 +51,16 @@ internal open class TurbineClassItem(
     override val typeParameterList: TypeParameterList,
     documentation: ItemDocumentation,
     private val source: SourceFile?
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), ClassItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    ClassItem {
 
     override var artifact: String? = null
 

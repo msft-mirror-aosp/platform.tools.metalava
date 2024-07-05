@@ -17,9 +17,12 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -36,7 +39,16 @@ internal class TurbineParameterItem(
     override val parameterIndex: Int,
     private var type: TypeItem,
     modifiers: DefaultModifierList,
-) : TurbineItem(codebase, fileLocation, modifiers, ItemDocumentation.NONE), ParameterItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    ParameterItem {
 
     override fun name(): String = name
 
