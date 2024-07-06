@@ -27,7 +27,7 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class TurbineFieldItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val name: String,
+    name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
     modifiers: DefaultModifierList,
@@ -35,12 +35,10 @@ internal class TurbineFieldItem(
     private val isEnumConstant: Boolean,
     private val fieldValue: TurbineFieldValue?,
 ) :
-    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, name, containingClass),
     FieldItem {
 
     override var inheritedFrom: ClassItem? = null
-
-    override fun name(): String = name
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {

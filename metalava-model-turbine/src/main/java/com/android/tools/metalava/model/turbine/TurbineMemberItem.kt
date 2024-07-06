@@ -31,6 +31,7 @@ internal abstract class TurbineMemberItem(
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    private val name: String,
     private val containingClass: ClassItem,
 ) :
     DefaultItem(
@@ -43,5 +44,7 @@ internal abstract class TurbineMemberItem(
     ),
     MemberItem {
 
-    final override fun containingClass(): ClassItem = containingClass
+    final override fun name() = name
+
+    final override fun containingClass() = containingClass
 }

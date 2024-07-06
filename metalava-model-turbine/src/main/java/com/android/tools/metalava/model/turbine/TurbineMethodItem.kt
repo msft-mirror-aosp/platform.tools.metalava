@@ -34,6 +34,7 @@ internal open class TurbineMethodItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
+    name: String = methodSymbol.name(),
     containingClass: ClassItem,
     private var returnType: TypeItem,
     modifiers: DefaultModifierList,
@@ -41,7 +42,7 @@ internal open class TurbineMethodItem(
     documentation: ItemDocumentation,
     private val defaultValue: String,
 ) :
-    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, name, containingClass),
     MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
@@ -49,8 +50,6 @@ internal open class TurbineMethodItem(
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
-
-    override fun name(): String = methodSymbol.name()
 
     override fun parameters(): List<ParameterItem> = parameters
 

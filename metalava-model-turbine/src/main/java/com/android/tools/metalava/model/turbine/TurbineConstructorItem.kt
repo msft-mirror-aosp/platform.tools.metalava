@@ -29,7 +29,7 @@ import com.google.turbine.binder.sym.MethodSymbol
 internal class TurbineConstructorItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val name: String,
+    name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
     returnType: ClassTypeItem,
@@ -42,6 +42,7 @@ internal class TurbineConstructorItem(
         codebase = codebase,
         fileLocation = fileLocation,
         methodSymbol = methodSymbol,
+        name = name,
         containingClass = containingClass,
         returnType = returnType,
         modifiers = modifiers,
@@ -50,8 +51,6 @@ internal class TurbineConstructorItem(
         defaultValue = defaultValue,
     ),
     ConstructorItem {
-
-    override fun name(): String = name
 
     override var superConstructor: ConstructorItem? = null
 
