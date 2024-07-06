@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
@@ -26,21 +26,23 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal abstract class TurbineMemberItem(
+abstract class DefaultMemberItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val containingClass: ClassItem,
 ) :
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = ItemLanguage.JAVA,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentation = documentation,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        variantSelectorsFactory = variantSelectorsFactory,
     ),
     MemberItem {
 

@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineFieldItem(
@@ -35,7 +38,16 @@ internal class TurbineFieldItem(
     private val isEnumConstant: Boolean,
     private val fieldValue: TurbineFieldValue?,
 ) :
-    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, name, containingClass),
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        ItemLanguage.JAVA,
+        modifiers,
+        documentation,
+        ApiVariantSelectors.MUTABLE_FACTORY,
+        name,
+        containingClass,
+    ),
     FieldItem {
 
     override var inheritedFrom: ClassItem? = null
