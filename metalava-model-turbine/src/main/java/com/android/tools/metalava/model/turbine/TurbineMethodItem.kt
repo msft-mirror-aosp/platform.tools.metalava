@@ -107,15 +107,15 @@ internal open class TurbineMethodItem(
         val mods = modifiers.duplicate()
         val duplicated =
             TurbineMethodItem(
-                codebase,
-                fileLocation,
-                methodSymbol,
-                targetContainingClass,
-                returnType,
-                mods,
-                typeParameterList,
-                documentation.duplicate(),
-                defaultValue,
+                codebase = codebase,
+                fileLocation = fileLocation,
+                methodSymbol = methodSymbol,
+                containingClass = targetContainingClass,
+                returnType = returnType,
+                modifiers = mods,
+                typeParameterList = typeParameterList,
+                documentation = documentation.duplicate(),
+                defaultValue = defaultValue,
             )
         // Duplicate the parameters
         val params =

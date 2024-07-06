@@ -39,15 +39,15 @@ internal class TurbineConstructorItem(
     private val defaultValue: String,
 ) :
     TurbineMethodItem(
-        codebase,
-        fileLocation,
-        methodSymbol,
-        containingClass,
-        returnType,
-        modifiers,
-        typeParameters,
-        documentation,
-        defaultValue,
+        codebase = codebase,
+        fileLocation = fileLocation,
+        methodSymbol = methodSymbol,
+        containingClass = containingClass,
+        returnType = returnType,
+        modifiers = modifiers,
+        typeParameterList = typeParameters,
+        documentation = documentation,
+        defaultValue = defaultValue,
     ),
     ConstructorItem {
 
@@ -70,18 +70,18 @@ internal class TurbineConstructorItem(
 
             val ctorItem =
                 TurbineConstructorItem(
-                    codebase,
+                    codebase = codebase,
                     // Use the location of the containing class for the implicit default
                     // constructor.
-                    containingClass.fileLocation,
-                    name,
-                    symbol,
-                    containingClass,
-                    containingClass.type(),
-                    modifiers,
-                    typeParameterList,
-                    ItemDocumentation.NONE,
-                    "",
+                    fileLocation = containingClass.fileLocation,
+                    name = name,
+                    methodSymbol = symbol,
+                    containingClass = containingClass,
+                    returnType = containingClass.type(),
+                    modifiers = modifiers,
+                    typeParameters = typeParameterList,
+                    documentation = ItemDocumentation.NONE,
+                    defaultValue = "",
                 )
             ctorItem.parameters = emptyList()
             ctorItem.throwableTypes = emptyList()

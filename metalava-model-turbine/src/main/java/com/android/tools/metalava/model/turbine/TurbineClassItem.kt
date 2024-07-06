@@ -204,15 +204,15 @@ internal open class TurbineClassItem(
 
         val duplicateMethod =
             TurbineMethodItem(
-                codebase,
-                FileLocation.UNKNOWN,
-                method.getSymbol(),
-                this,
-                retType,
-                mods,
-                method.typeParameterList,
-                method.documentation.duplicate(),
-                method.defaultValue(),
+                codebase = codebase,
+                fileLocation = FileLocation.UNKNOWN,
+                methodSymbol = method.getSymbol(),
+                containingClass = this,
+                returnType = retType,
+                modifiers = mods,
+                typeParameterList = method.typeParameterList,
+                documentation = method.documentation.duplicate(),
+                defaultValue = method.defaultValue(),
             )
 
         val params =
