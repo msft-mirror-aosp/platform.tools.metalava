@@ -30,7 +30,7 @@ internal class TextPropertyItem(
     modifiers: DefaultModifierList,
     private var type: TypeItem,
     fileLocation: FileLocation
-) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), PropertyItem {
+) : TextMemberItem(codebase, fileLocation, modifiers, name, containingClass), PropertyItem {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

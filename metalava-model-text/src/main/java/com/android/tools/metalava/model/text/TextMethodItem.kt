@@ -39,7 +39,7 @@ internal open class TextMethodItem(
     private val parameters: List<TextParameterItem>,
     fileLocation: FileLocation,
 ) :
-    TextMemberItem(codebase, name, containingClass, fileLocation, modifiers = modifiers),
+    TextMemberItem(codebase, fileLocation, modifiers = modifiers, name, containingClass),
     MethodItem {
     init {
         parameters.forEach { it.containingMethod = this }

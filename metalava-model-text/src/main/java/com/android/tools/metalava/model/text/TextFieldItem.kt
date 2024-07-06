@@ -31,7 +31,7 @@ internal class TextFieldItem(
     private var type: TypeItem,
     private val constantValue: Any?,
     fileLocation: FileLocation
-) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), FieldItem {
+) : TextMemberItem(codebase, fileLocation, modifiers, name, containingClass), FieldItem {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

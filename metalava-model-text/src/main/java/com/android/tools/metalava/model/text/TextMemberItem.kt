@@ -28,10 +28,10 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextMemberItem(
     codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     private val name: String,
     private val containingClass: ClassItem,
-    fileLocation: FileLocation,
-    modifiers: DefaultModifierList
 ) :
     DefaultItem(
         codebase = codebase,
@@ -43,7 +43,7 @@ internal abstract class TextMemberItem(
     ),
     MemberItem {
 
-    override fun name(): String = name
+    final override fun name() = name
 
-    override fun containingClass(): ClassItem = containingClass
+    final override fun containingClass() = containingClass
 }
