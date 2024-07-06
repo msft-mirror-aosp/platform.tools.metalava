@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
@@ -24,24 +25,25 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TextPropertyItem(
+internal class DefaultPropertyItem(
     codebase: DefaultCodebase,
-    name: String,
-    containingClass: TextClassItem,
+    fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
+    apiVariantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: DefaultModifierList,
+    name: String,
+    containingClass: ClassItem,
     private var type: TypeItem,
-    fileLocation: FileLocation
 ) :
     DefaultMemberItem(
         codebase,
         fileLocation,
-        ItemLanguage.UNKNOWN,
+        itemLanguage,
         modifiers,
         ItemDocumentation.NONE,
-        ApiVariantSelectors.IMMUTABLE_FACTORY,
+        apiVariantSelectorsFactory,
         name,
         containingClass,
     ),

@@ -17,10 +17,14 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
 /** A factory for creating [Item] instances suitable for use by many models. */
 class DefaultItemFactory(
@@ -33,6 +37,25 @@ class DefaultItemFactory(
     /** The default [ApiVariantSelectorsFactory] for [Item]s created by this. */
     private val defaultVariantSelectorsFactory: ApiVariantSelectorsFactory,
 ) {
+
+    /** Create a [PropertyItem]. */
+    fun createPropertyItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        name: String,
+        containingClass: ClassItem,
+        type: TypeItem,
+    ): PropertyItem =
+        DefaultPropertyItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            defaultVariantSelectorsFactory,
+            modifiers,
+            name,
+            containingClass,
+            type,
+        )
 
     /**
      * Create a [DefaultTypeParameterItem].

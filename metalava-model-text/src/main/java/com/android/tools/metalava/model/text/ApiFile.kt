@@ -1427,7 +1427,7 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val property =
-            TextPropertyItem(codebase, name, cl, modifiers, type, tokenizer.fileLocation())
+            itemFactory.createPropertyItem(tokenizer.fileLocation(), modifiers, name, cl, type)
         property.markForCurrentApiSurface()
         cl.addProperty(property)
     }

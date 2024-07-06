@@ -175,7 +175,7 @@ internal open class TextClassItem(
         fields += field
     }
 
-    fun addProperty(property: TextPropertyItem) {
+    fun addProperty(property: PropertyItem) {
         properties += property
     }
 
