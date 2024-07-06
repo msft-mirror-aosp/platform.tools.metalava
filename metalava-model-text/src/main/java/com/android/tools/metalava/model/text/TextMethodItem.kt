@@ -34,14 +34,24 @@ import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
+/**
+ * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
+ *
+ * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
+ * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
+ * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
+ * [MethodItem.parameters] as that will not yet have been initialized when this is called.
+ */
+internal typealias ParameterItemsFactory = (TextMethodItem) -> List<TextParameterItem>
+
 internal open class TextMethodItem(
     codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     name: String,
     containingClass: ClassItem,
-    modifiers: DefaultModifierList,
     private var returnType: TypeItem,
-    private val parameters: List<TextParameterItem>,
-    fileLocation: FileLocation,
+    parameterItemsFactory: ParameterItemsFactory,
 ) :
     DefaultMemberItem(
         codebase,
@@ -54,9 +64,15 @@ internal open class TextMethodItem(
         containingClass,
     ),
     MethodItem {
-    init {
-        parameters.forEach { it.containingMethod = this }
-    }
+
+    /**
+     * Create the [ParameterItem] list during initialization of this method to allow them to contain
+     * an immutable reference to this object.
+     *
+     * The leaking of `this` to `parameterItemsFactory` is ok as implementations follow the rules
+     * explained in the documentation of [ParameterItemsFactory].
+     */
+    @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
 
     override fun equals(other: Any?) = equalsToItem(other)
 
@@ -85,13 +101,15 @@ internal open class TextMethodItem(
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
             TextMethodItem(
-                codebase,
-                name(),
-                targetContainingClass,
-                modifiers.duplicate(),
-                returnType.convertType(typeVariableMap),
-                parameters.map { it.duplicate(typeVariableMap) },
-                fileLocation
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = modifiers.duplicate(),
+                name = name(),
+                containingClass = targetContainingClass,
+                returnType = returnType.convertType(typeVariableMap),
+                parameterItemsFactory = { methodItem ->
+                    parameters.map { it.duplicate(methodItem, typeVariableMap) }
+                },
             )
         duplicated.inheritedFrom = containingClass()
 

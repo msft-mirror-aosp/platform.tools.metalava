@@ -953,6 +953,23 @@ private constructor(
         return annotations
     }
 
+    /**
+     * Create [TextParameterItem]s for the [containingMethod] from the [parameters] using the
+     * [typeItemFactory] to create types.
+     *
+     * This is called from within the constructor of the [containingMethod] so must only access its
+     * `name` and its reference. In particularly it must not access its [TextMethodItem.parameters]
+     * property as this is called during its initialization.
+     */
+    private fun createParameterItems(
+        containingMethod: TextMethodItem,
+        parameters: List<ParameterInfo>,
+        typeItemFactory: TextTypeItemFactory
+    ): List<TextParameterItem> {
+        val methodFingerprint = MethodFingerprint(containingMethod.name(), parameters.size)
+        return parameters.map { it.create(containingMethod, typeItemFactory, methodFingerprint) }
+    }
+
     private fun parseConstructor(
         tokenizer: Tokenizer,
         containingClass: TextClassItem,
@@ -983,7 +1000,7 @@ private constructor(
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For nested classes, strip outer classes from name
-        val parameters = parseParameterList(tokenizer, typeItemFactory, name)
+        val parameters = parseParameterList(tokenizer)
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()
         if ("throws" == token) {
@@ -996,13 +1013,15 @@ private constructor(
 
         method =
             TextConstructorItem(
-                codebase,
-                name,
-                containingClass,
-                modifiers,
-                containingClass.type(),
-                parameters,
-                tokenizer.fileLocation()
+                codebase = codebase,
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                name = name,
+                containingClass = containingClass,
+                returnType = containingClass.type(),
+                parameterItemsFactory = { methodItem ->
+                    createParameterItems(methodItem, parameters, typeItemFactory)
+                },
             )
         method.markForCurrentApiSurface()
         method.typeParameterList = typeParameterList
@@ -1041,12 +1060,12 @@ private constructor(
         tokenizer.assertIdent(token)
 
         val returnTypeString: String
-        val parameters: List<TextParameterItem>
+        val parameters: List<ParameterInfo>
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
-            parameters = parseParameterList(tokenizer, typeItemFactory, name)
+            parameters = parseParameterList(tokenizer)
             token = tokenizer.requireToken()
             if (token != ":") {
                 throw ApiParseException(
@@ -1064,7 +1083,7 @@ private constructor(
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
-            parameters = parseParameterList(tokenizer, typeItemFactory, name)
+            parameters = parseParameterList(tokenizer)
             token = tokenizer.requireToken()
         }
 
@@ -1100,13 +1119,15 @@ private constructor(
 
         method =
             TextMethodItem(
-                codebase,
-                name,
-                cl,
-                modifiers,
-                returnType,
-                parameters,
-                tokenizer.fileLocation()
+                codebase = codebase,
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                name = name,
+                containingClass = cl,
+                returnType = returnType,
+                parameterItemsFactory = { methodItem ->
+                    createParameterItems(methodItem, parameters, typeItemFactory)
+                },
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add
@@ -1537,9 +1558,7 @@ private constructor(
      */
     private fun parseParameterList(
         tokenizer: Tokenizer,
-        typeItemFactory: TextTypeItemFactory,
-        methodName: String,
-    ): List<TextParameterItem> {
+    ): List<ParameterInfo> {
         val parameters = mutableListOf<ParameterInfo>()
         var token: String = tokenizer.requireToken()
         if ("(" != token) {
@@ -1549,9 +1568,8 @@ private constructor(
         var index = 0
         while (true) {
             if (")" == token) {
-                // All parameters are parsed, create the actual TextParameterItems
-                val methodFingerprint = MethodFingerprint(methodName, parameters.size)
-                return parameters.map { it.create(codebase, typeItemFactory, methodFingerprint) }
+                // All parameters are parsed, return them.
+                return parameters
             }
 
             // Each item can be
@@ -1690,7 +1708,7 @@ private constructor(
     ) {
         /** Turn this [ParameterInfo] into a [TextParameterItem] by parsing the [typeString]. */
         fun create(
-            codebase: TextCodebase,
+            containingMethod: TextMethodItem,
             typeItemFactory: TextTypeItemFactory,
             methodFingerprint: MethodFingerprint
         ): TextParameterItem {
@@ -1707,14 +1725,15 @@ private constructor(
             val parameter =
                 TextParameterItem(
                     codebase,
+                    location,
+                    modifiers,
                     name,
                     publicName,
+                    containingMethod,
                     hasDefaultValue,
                     defaultValue,
                     index,
                     type,
-                    modifiers,
-                    location
                 )
 
             parameter.markForCurrentApiSurface()

@@ -32,14 +32,15 @@ const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
 internal class TextParameterItem(
     codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     private var name: String,
     private var publicName: String?,
+    private val containingMethod: MethodItem,
     private val hasDefaultValue: Boolean,
     private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    modifiers: DefaultModifierList,
-    fileLocation: FileLocation
 ) :
     DefaultItem(
         codebase = codebase,
@@ -50,8 +51,6 @@ internal class TextParameterItem(
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     ParameterItem {
-
-    internal lateinit var containingMethod: TextMethodItem
 
     override fun isVarArgs(): Boolean {
         return modifiers.isVarArg()
@@ -84,17 +83,21 @@ internal class TextParameterItem(
 
     override fun hashCode(): Int = parameterIndex
 
-    internal fun duplicate(typeVariableMap: TypeParameterBindings): TextParameterItem {
+    internal fun duplicate(
+        containingMethod: MethodItem,
+        typeVariableMap: TypeParameterBindings,
+    ): TextParameterItem {
         return TextParameterItem(
             codebase,
+            fileLocation,
+            modifiers.duplicate(),
             name,
             publicName,
+            containingMethod,
             hasDefaultValue,
             defaultValueBody,
             parameterIndex,
             type.convertType(typeVariableMap),
-            modifiers.duplicate(),
-            fileLocation
         )
     }
 }

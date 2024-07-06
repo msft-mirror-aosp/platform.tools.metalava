@@ -24,21 +24,21 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextConstructorItem(
     codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     name: String,
     containingClass: TextClassItem,
-    modifiers: DefaultModifierList,
     returnType: ClassTypeItem,
-    parameters: List<TextParameterItem>,
-    fileLocation: FileLocation
+    parameterItemsFactory: ParameterItemsFactory,
 ) :
     TextMethodItem(
         codebase,
+        fileLocation,
+        modifiers,
         name,
         containingClass,
-        modifiers,
         returnType,
-        parameters,
-        fileLocation
+        parameterItemsFactory,
     ),
     ConstructorItem {
 
@@ -61,12 +61,12 @@ internal class TextConstructorItem(
             val item =
                 TextConstructorItem(
                     codebase = codebase,
+                    fileLocation = fileLocation,
+                    modifiers = modifiers,
                     name = name,
                     containingClass = containingClass,
-                    modifiers = modifiers,
                     returnType = containingClass.type(),
-                    parameters = emptyList(),
-                    fileLocation = fileLocation,
+                    parameterItemsFactory = { emptyList() },
                 )
             return item
         }
