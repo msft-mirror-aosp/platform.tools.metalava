@@ -58,53 +58,9 @@ internal open class TextMethodItem(
         parameters.forEach { it.containingMethod = this }
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is MethodItem) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        if (name() != other.name()) {
-            return false
-        }
-
-        if (containingClass() != other.containingClass()) {
-            return false
-        }
-
-        val parameters1 = parameters()
-        val parameters2 = other.parameters()
-
-        if (parameters1.size != parameters2.size) {
-            return false
-        }
-
-        for (i in parameters1.indices) {
-            val parameter1 = parameters1[i]
-            val parameter2 = parameters2[i]
-            if (parameter1.type() != parameter2.type()) {
-                return false
-            }
-        }
-
-        val typeParameters1 = typeParameterList
-        val typeParameters2 = other.typeParameterList
-
-        if (typeParameters1.size != typeParameters2.size) {
-            return false
-        }
-
-        for (i in typeParameters1.indices) {
-            val typeParameter1 = typeParameters1[i]
-            val typeParameter2 = typeParameters2[i]
-            if (typeParameter1.typeBounds() != typeParameter2.typeBounds()) {
-                return false
-            }
-        }
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return name().hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun isConstructor(): Boolean = false
 

@@ -96,20 +96,9 @@ internal open class TurbineMethodItem(
         return superMethodList
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        other as TurbineMethodItem
-
-        if (methodSymbol != other.methodSymbol) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return methodSymbol.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
