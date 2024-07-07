@@ -24,13 +24,11 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
@@ -230,12 +228,7 @@ internal class TextCodebase(
                 findPackage(pkgPath)
                     ?: run {
                         val newPkg =
-                            TextPackageItem(
-                                this,
-                                FileLocation.UNKNOWN,
-                                DefaultModifierList(this, DefaultModifierList.PUBLIC),
-                                pkgPath
-                            )
+                            TextPackageItem.create(codebase = this, qualifiedName = pkgPath)
                         addPackage(newPkg)
                         newPkg.emit = false
                         newPkg

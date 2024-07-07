@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextPackageItem(
@@ -71,5 +72,22 @@ internal class TextPackageItem(
 
     override fun hashCode(): Int {
         return qualifiedName.hashCode()
+    }
+
+    companion object {
+        fun create(
+            codebase: DefaultCodebase,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+            modifiers: DefaultModifierList = DefaultModifierList(codebase),
+            qualifiedName: String,
+        ): TextPackageItem {
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            return TextPackageItem(
+                codebase,
+                fileLocation,
+                modifiers,
+                qualifiedName,
+            )
+        }
     }
 }

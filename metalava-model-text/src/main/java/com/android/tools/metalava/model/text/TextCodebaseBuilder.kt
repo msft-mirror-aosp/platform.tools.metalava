@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -63,13 +62,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         if (pkg != null) {
             return pkg
         }
-        val newPkg =
-            TextPackageItem(
-                codebase,
-                FileLocation.UNKNOWN,
-                DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                pkgName
-            )
+        val newPkg = TextPackageItem.create(codebase = codebase, qualifiedName = pkgName)
         codebase.addPackage(newPkg)
         return newPkg
     }
