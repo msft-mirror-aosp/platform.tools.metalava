@@ -797,7 +797,7 @@ private constructor(
                     declaredClassType.substring(paramIndex)
                 )
             }
-        val pkgName = pkg.name()
+        val pkgName = pkg.qualifiedName()
         val qualifiedName = qualifiedName(pkgName, fullName)
 
         // Split the full name into an optional outer class and a simple name.

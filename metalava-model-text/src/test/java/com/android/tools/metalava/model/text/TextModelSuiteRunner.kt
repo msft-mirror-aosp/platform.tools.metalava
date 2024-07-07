@@ -111,7 +111,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                                 codebase = codebase,
                                 fileLocation = FileLocation.UNKNOWN,
                                 modifiers = DefaultModifierList(codebase),
-                                name = packageName,
+                                qualifiedName = packageName,
                             )
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 

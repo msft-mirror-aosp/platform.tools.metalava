@@ -30,7 +30,7 @@ internal class TextPackageItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    private val name: String,
+    private val qualifiedName: String,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -46,9 +46,7 @@ internal class TextPackageItem(
 
     private val classesNames = HashSet<String>(100)
 
-    fun name() = name
-
-    override fun qualifiedName(): String = name
+    override fun qualifiedName(): String = qualifiedName
 
     override fun topLevelClasses(): List<ClassItem> = classes
 
@@ -68,10 +66,10 @@ internal class TextPackageItem(
         if (this === other) return true
         if (other !is PackageItem) return false
 
-        return name == other.qualifiedName()
+        return qualifiedName == other.qualifiedName()
     }
 
     override fun hashCode(): Int {
-        return name.hashCode()
+        return qualifiedName.hashCode()
     }
 }
