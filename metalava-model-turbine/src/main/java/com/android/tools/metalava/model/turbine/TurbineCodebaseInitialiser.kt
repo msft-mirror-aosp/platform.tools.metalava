@@ -31,10 +31,12 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -127,7 +129,7 @@ internal open class TurbineCodebaseInitialiser(
      * Then creates the packages, classes and their members, as well as sets up various class
      * hierarchies using the binder's output
      */
-    fun initialize() {
+    fun initialize(packageHtmlByPackageName: Map<String, File>) {
         // Bind the units
         try {
             val procInfo =
@@ -171,7 +173,7 @@ internal open class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        createAllPackages()
+        createAllPackages(packageHtmlByPackageName)
         createAllClasses()
     }
 
@@ -202,50 +204,78 @@ internal open class TurbineCodebaseInitialiser(
         turbineSourceFiles[sourceFile.path()]
             ?: error("unrecognized source file: ${sourceFile.path()}")
 
-    private fun createAllPackages() {
-        // Root package
-        findOrCreatePackage("", null, "")
+    /** Check if this is for a `package-info.java` file or not. */
+    private fun CompUnit.isPackageInfo() =
+        source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
+    private fun createAllPackages(packageHtmlByPackageName: Map<String, File>) {
+        // First, find all package-info.java files and create packages for them.
         for (unit in units) {
-            var doc = ""
-            var sourceFile: TurbineSourceFile? = null
-            // No class declarations. Will be a case of package-info file
-            if (unit.decls().isEmpty()) {
-                val source = unit.source().source()
-                sourceFile = createTurbineSourceFile(unit)
-                doc = getHeaderComments(source)
-            }
-            findOrCreatePackage(getPackageName(unit), sourceFile, doc)
+            // Only process package-info.java files in this loop.
+            if (!unit.isPackageInfo()) continue
+
+            val source = unit.source().source()
+            val sourceFile = createTurbineSourceFile(unit)
+            val doc = getHeaderComments(source)
+            createPackage(getPackageName(unit), sourceFile, doc)
+        }
+
+        // Secondly, create package items for package.html files.
+        for ((name, file) in packageHtmlByPackageName.entries) {
+            codebase.findPackage(name)
+                ?: createPackage(name, null, packageHtmlToJavadoc(file.readText()))
+        }
+
+        // Thirdly, find all classes and create or find a package for them.
+        for (unit in units) {
+            // Ignore package-info.java files in this loop.
+            if (unit.isPackageInfo()) continue
+
+            val name = getPackageName(unit)
+            findOrCreatePackage(name)
             unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
         }
+
+        // Finally, make sure that there is a root package.
+        findOrCreatePackage("")
+    }
+
+    /**
+     * Creates a package and registers it in the codebase's package map.
+     *
+     * Fails if there is a duplicate.
+     */
+    private fun createPackage(
+        name: String,
+        sourceFile: TurbineSourceFile?,
+        document: String
+    ): TurbinePackageItem {
+        codebase.findPackage(name)?.let {
+            error("Duplicate package-info.java files found for $name")
+        }
+
+        val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
+        val fileLocation = TurbineFileLocation.forTree(sourceFile)
+        val turbinePkgItem =
+            TurbinePackageItem.create(codebase, fileLocation, name, modifiers, document)
+        codebase.addPackage(turbinePkgItem)
+        return turbinePkgItem
     }
 
     /**
      * Searches for the package with supplied name in the codebase's package map and if not found
      * creates the corresponding TurbinePackageItem and adds it to the package map.
      */
-    private fun findOrCreatePackage(
-        name: String,
-        sourceFile: TurbineSourceFile?,
-        document: String
-    ): TurbinePackageItem {
-        val pkgItem = codebase.findPackage(name)
-        if (pkgItem != null) {
-            val turbinePkgItem = pkgItem as TurbinePackageItem
-            // Update originallyHidden status based on the documentation.
-            if (document.isNotEmpty()) {
-                turbinePkgItem.updateOriginallyHiddenStatus(document)
-            }
-            // The hidden status will be updated automatically based on originallyHidden
-            return turbinePkgItem
-        } else {
-            val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
-            val fileLocation = TurbineFileLocation.forTree(sourceFile)
-            val turbinePkgItem =
-                TurbinePackageItem.create(codebase, fileLocation, name, modifiers, document)
-            codebase.addPackage(turbinePkgItem)
-            return turbinePkgItem
+    private fun findOrCreatePackage(name: String): TurbinePackageItem {
+        codebase.findPackage(name)?.let {
+            return it as TurbinePackageItem
         }
+
+        val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
+        val fileLocation = TurbineFileLocation.forTree(null)
+        val turbinePkgItem = TurbinePackageItem.create(codebase, fileLocation, name, modifiers, "")
+        codebase.addPackage(turbinePkgItem)
+        return turbinePkgItem
     }
 
     private fun createAllClasses() {
@@ -328,7 +358,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName, null, "")
+        val pkgItem = findOrCreatePackage(pkgName)
 
         // Create the sourcefile
         val sourceFile =
