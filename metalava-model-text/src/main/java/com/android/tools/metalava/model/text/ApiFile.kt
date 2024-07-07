@@ -1202,13 +1202,18 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val field =
-            TextFieldItem(codebase, name, cl, modifiers, type, value, tokenizer.fileLocation())
+            TextFieldItem(
+                codebase = codebase,
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                name = name,
+                containingClass = cl,
+                type = type,
+                isEnumConstant = isEnumConstant,
+                constantValue = value,
+            )
         field.markForCurrentApiSurface()
-        if (isEnumConstant) {
-            cl.addEnumConstant(field)
-        } else {
-            cl.addField(field)
-        }
+        cl.addField(field)
     }
 
     private fun parseModifiers(

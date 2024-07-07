@@ -170,11 +170,6 @@ internal open class TextClassItem(
         properties += property
     }
 
-    fun addEnumConstant(field: TextFieldItem) {
-        field.setEnumConstant(true)
-        fields += field
-    }
-
     fun addNestedClass(cls: ClassItem) {
         nestedClasses.add(cls)
     }

@@ -29,22 +29,23 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextFieldItem(
     codebase: DefaultCodebase,
-    name: String,
-    containingClass: TextClassItem,
+    fileLocation: FileLocation,
     modifiers: DefaultModifierList,
+    name: String,
+    containingClass: ClassItem,
     private var type: TypeItem,
+    private val isEnumConstant: Boolean,
     private val constantValue: Any?,
-    fileLocation: FileLocation
 ) :
     DefaultMemberItem(
-        codebase,
-        fileLocation,
-        ItemLanguage.UNKNOWN,
-        modifiers,
-        ItemDocumentation.NONE,
-        ApiVariantSelectors.IMMUTABLE_FACTORY,
-        name,
-        containingClass,
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.UNKNOWN,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        name = name,
+        containingClass = containingClass,
     ),
     FieldItem {
 
@@ -72,13 +73,14 @@ internal class TextFieldItem(
     override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
         val duplicated =
             TextFieldItem(
-                codebase,
-                name(),
-                targetContainingClass as TextClassItem,
-                modifiers.duplicate(),
-                type,
-                constantValue,
-                fileLocation
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = modifiers.duplicate(),
+                name = name(),
+                containingClass = targetContainingClass,
+                type = type,
+                isEnumConstant = isEnumConstant,
+                constantValue = constantValue,
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -98,11 +100,5 @@ internal class TextFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    private var isEnumConstant = false
-
     override fun isEnumConstant(): Boolean = isEnumConstant
-
-    fun setEnumConstant(isEnumConstant: Boolean) {
-        this.isEnumConstant = isEnumConstant
-    }
 }
