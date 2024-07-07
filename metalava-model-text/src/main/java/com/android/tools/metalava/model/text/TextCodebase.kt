@@ -58,6 +58,12 @@ internal class TextCodebase(
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
+    init {
+        // Make sure that it has a root package.
+        val rootPackage = TextPackageItem.create(codebase = this, qualifiedName = "")
+        addPackage(rootPackage)
+    }
+
     override fun trustedApi(): Boolean = true
 
     override fun getPackages(): PackageList {

@@ -82,7 +82,8 @@ interface PackageItem : Item {
         visitor.visit(this)
     }
 
-    override fun toStringForItem() = "package ${qualifiedName()}"
+    override fun toStringForItem() =
+        "package ${qualifiedName().let { if (it == "") "<root>" else it}}"
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->
