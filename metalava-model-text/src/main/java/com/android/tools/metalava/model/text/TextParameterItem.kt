@@ -72,14 +72,9 @@ internal class TextParameterItem(
 
     override fun defaultValue(): String? = defaultValueBody
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is ParameterItem) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        return parameterIndex == other.parameterIndex
-    }
-
-    override fun hashCode(): Int = parameterIndex
+    override fun hashCode() = hashCodeForItem()
 
     internal fun duplicate(
         containingMethod: MethodItem,

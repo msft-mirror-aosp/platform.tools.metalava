@@ -79,16 +79,9 @@ internal class TurbineParameterItem(
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ParameterItem &&
-            parameterIndex == other.parameterIndex &&
-            containingMethod == other.containingMethod()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode(): Int = parameterIndex
+    override fun hashCode() = hashCodeForItem()
 
     companion object {
         internal fun duplicate(
