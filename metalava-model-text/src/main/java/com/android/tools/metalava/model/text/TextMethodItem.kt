@@ -50,8 +50,11 @@ internal open class TextMethodItem(
     modifiers: DefaultModifierList,
     name: String,
     containingClass: ClassItem,
+    override val typeParameterList: TypeParameterList,
     private var returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
+    private val throwsTypes: List<ExceptionTypeItem>,
+    private val annotationDefault: String = "",
 ) :
     DefaultMemberItem(
         codebase,
@@ -94,9 +97,6 @@ internal open class TextMethodItem(
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
-        internal set
-
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
@@ -106,10 +106,13 @@ internal open class TextMethodItem(
                 modifiers = modifiers.duplicate(),
                 name = name(),
                 containingClass = targetContainingClass,
+                typeParameterList = typeParameterList,
                 returnType = returnType.convertType(typeVariableMap),
                 parameterItemsFactory = { methodItem ->
                     parameters.map { it.duplicate(methodItem, typeVariableMap) }
                 },
+                throwsTypes = throwsTypes,
+                annotationDefault = annotationDefault,
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -124,22 +127,12 @@ internal open class TextMethodItem(
             duplicated.docOnly = true
         }
 
-        duplicated.annotationDefault = annotationDefault
-        duplicated.throwsTypes = this.throwsTypes
-        duplicated.typeParameterList = typeParameterList
-
         duplicated.updateCopiedMethodState()
 
         return duplicated
     }
 
-    private var throwsTypes: List<ExceptionTypeItem> = emptyList()
-
     override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
-
-    fun setThrowsTypes(throwsClasses: List<ExceptionTypeItem>) {
-        this.throwsTypes = throwsClasses
-    }
 
     override fun parameters(): List<ParameterItem> = parameters
 
@@ -149,12 +142,6 @@ internal open class TextMethodItem(
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
-
-    private var annotationDefault = ""
-
-    fun setAnnotationDefault(default: String) {
-        annotationDefault = default
-    }
 
     override fun defaultValue(): String {
         return annotationDefault

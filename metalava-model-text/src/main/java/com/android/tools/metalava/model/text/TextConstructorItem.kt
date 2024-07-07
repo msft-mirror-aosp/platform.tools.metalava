@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextConstructorItem(
@@ -28,8 +30,10 @@ internal class TextConstructorItem(
     modifiers: DefaultModifierList,
     name: String,
     containingClass: TextClassItem,
+    typeParameterList: TypeParameterList,
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
+    throwsTypes: List<ExceptionTypeItem>,
 ) :
     TextMethodItem(
         codebase,
@@ -37,8 +41,10 @@ internal class TextConstructorItem(
         modifiers,
         name,
         containingClass,
+        typeParameterList,
         returnType,
         parameterItemsFactory,
+        throwsTypes,
     ),
     ConstructorItem {
 
@@ -65,8 +71,10 @@ internal class TextConstructorItem(
                     modifiers = modifiers,
                     name = name,
                     containingClass = containingClass,
+                    typeParameterList = TypeParameterList.NONE,
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
+                    throwsTypes = emptyList(),
                 )
             return item
         }

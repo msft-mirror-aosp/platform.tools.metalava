@@ -1018,14 +1018,14 @@ private constructor(
                 modifiers = modifiers,
                 name = name,
                 containingClass = containingClass,
+                typeParameterList = typeParameterList,
                 returnType = containingClass.type(),
                 parameterItemsFactory = { methodItem ->
                     createParameterItems(methodItem, parameters, typeItemFactory)
                 },
+                throwsTypes = throwsList,
             )
         method.markForCurrentApiSurface()
-        method.typeParameterList = typeParameterList
-        method.setThrowsTypes(throwsList)
 
         if (!containingClass.constructors().contains(method)) {
             containingClass.addConstructor(method)
@@ -1124,10 +1124,13 @@ private constructor(
                 modifiers = modifiers,
                 name = name,
                 containingClass = cl,
+                typeParameterList = typeParameterList,
                 returnType = returnType,
                 parameterItemsFactory = { methodItem ->
                     createParameterItems(methodItem, parameters, typeItemFactory)
                 },
+                throwsTypes = throwsList,
+                annotationDefault = defaultAnnotationMethodValue,
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add
@@ -1136,9 +1139,6 @@ private constructor(
         if (method.isEnumSyntheticMethod()) return
 
         method.markForCurrentApiSurface()
-        method.typeParameterList = typeParameterList
-        method.setThrowsTypes(throwsList)
-        method.setAnnotationDefault(defaultAnnotationMethodValue)
 
         // If the method already exists in the class item because it was defined in a previous
         // signature file then replace it with this one, otherwise just add this method.
