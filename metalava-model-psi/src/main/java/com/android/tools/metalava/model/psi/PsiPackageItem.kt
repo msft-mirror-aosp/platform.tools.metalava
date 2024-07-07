@@ -95,14 +95,9 @@ internal constructor(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is PackageItem && qualifiedName == other.qualifiedName()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode(): Int = qualifiedName.hashCode()
+    override fun hashCode() = hashCodeForItem()
 
     override fun isFromClassPath(): Boolean = fromClassPath
 

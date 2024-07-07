@@ -69,16 +69,9 @@ internal class TextPackageItem(
         topClasses.add(classItem)
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is PackageItem) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        return qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int {
-        return qualifiedName.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     companion object {
         fun create(
