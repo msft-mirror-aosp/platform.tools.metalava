@@ -35,6 +35,7 @@ internal class TurbineConstructorItem(
     containingClass: TurbineClassItem,
     typeParameters: TypeParameterList,
     returnType: ClassTypeItem,
+    parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
 ) :
     TurbineMethodItem(
@@ -46,6 +47,7 @@ internal class TurbineConstructorItem(
         containingClass = containingClass,
         typeParameterList = typeParameters,
         returnType = returnType,
+        parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
     ),
     ConstructorItem {
@@ -76,9 +78,9 @@ internal class TurbineConstructorItem(
                     containingClass = containingClass,
                     typeParameters = typeParameterList,
                     returnType = containingClass.type(),
+                    parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
                 )
-            ctorItem.parameters = emptyList()
             return ctorItem
         }
     }

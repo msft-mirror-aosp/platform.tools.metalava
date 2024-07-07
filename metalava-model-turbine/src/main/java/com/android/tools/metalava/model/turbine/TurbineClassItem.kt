@@ -194,6 +194,7 @@ internal open class TurbineClassItem(
         val replacementMap = mapTypeVariables(method.containingClass())
         val retType = method.returnType().convertType(replacementMap)
         val mods = method.modifiers.duplicate()
+        val parameters = method.parameters()
 
         val duplicateMethod =
             TurbineMethodItem(
@@ -205,15 +206,15 @@ internal open class TurbineClassItem(
                 containingClass = this,
                 typeParameterList = method.typeParameterList,
                 returnType = retType,
+                parameterItemsFactory = { methodItem ->
+                    parameters.map {
+                        TurbineParameterItem.duplicate(codebase, methodItem, it, replacementMap)
+                    }
+                },
                 annotationDefault = method.defaultValue(),
                 throwsTypes = method.throwsTypes(),
             )
 
-        val params =
-            method.parameters().map {
-                TurbineParameterItem.duplicate(codebase, duplicateMethod, it, replacementMap)
-            }
-        duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = method.containingClass()
 
         duplicateMethod.updateCopiedMethodState()

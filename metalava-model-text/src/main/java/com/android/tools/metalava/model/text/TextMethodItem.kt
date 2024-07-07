@@ -109,6 +109,7 @@ internal open class TextMethodItem(
                 typeParameterList = typeParameterList,
                 returnType = returnType.convertType(typeVariableMap),
                 parameterItemsFactory = { methodItem ->
+                    // Duplicate the parameters
                     parameters.map { it.duplicate(methodItem, typeVariableMap) }
                 },
                 throwsTypes = throwsTypes,

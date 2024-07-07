@@ -808,26 +808,26 @@ internal open class TurbineCodebaseInitialiser(
                             isAnnotationElement = isAnnotationElement,
                         )
 
-                    val methodItem =
-                        TurbineMethodItem(
-                            codebase = codebase,
-                            fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                            modifiers = methodModifierItem,
-                            documentation = getCommentedDoc(documentation),
-                            name = name,
-                            containingClass = classItem,
-                            typeParameterList = typeParams,
-                            returnType = returnType,
-                            throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
-                            annotationDefault = defaultValue,
-                        )
-                    createParameters(
-                        methodItem,
-                        decl?.params(),
-                        parameters,
-                        methodTypeItemFactory,
+                    TurbineMethodItem(
+                        codebase = codebase,
+                        fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                        modifiers = methodModifierItem,
+                        documentation = getCommentedDoc(documentation),
+                        name = name,
+                        containingClass = classItem,
+                        typeParameterList = typeParams,
+                        returnType = returnType,
+                        parameterItemsFactory = { methodItem ->
+                            createParameters(
+                                methodItem,
+                                decl?.params(),
+                                parameters,
+                                methodTypeItemFactory,
+                            )
+                        },
+                        throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                        annotationDefault = defaultValue,
                     )
-                    methodItem
                 }
         // Ignore enum synthetic methods
         classItem.methods = methodItems.filter { !it.isEnumSyntheticMethod() }.toMutableList()
@@ -838,7 +838,7 @@ internal open class TurbineCodebaseInitialiser(
         parameterDecls: List<Tree.VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
-    ) {
+    ): List<TurbineParameterItem> {
         val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total
@@ -847,37 +847,36 @@ internal open class TurbineCodebaseInitialiser(
         // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
         // of the implicit parameters.
         val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
-        methodItem.parameters =
-            parameters.mapIndexed { idx, parameter ->
-                val annotations = createAnnotations(parameter.annotations())
-                val parameterModifierItem =
-                    TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
-                val type =
-                    typeItemFactory.getMethodParameterType(
-                        underlyingParameterType = parameter.type(),
-                        itemAnnotations = annotations,
-                        fingerprint = fingerprint,
-                        parameterIndex = idx,
-                        isVarArg = parameterModifierItem.isVarArg(),
-                    )
-                // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
-                val decl =
-                    if (parameterDecls != null && idx >= declaredParameterOffset)
-                        parameterDecls.get(idx - declaredParameterOffset)
-                    else null
+        return parameters.mapIndexed { idx, parameter ->
+            val annotations = createAnnotations(parameter.annotations())
+            val parameterModifierItem =
+                TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
+            val type =
+                typeItemFactory.getMethodParameterType(
+                    underlyingParameterType = parameter.type(),
+                    itemAnnotations = annotations,
+                    fingerprint = fingerprint,
+                    parameterIndex = idx,
+                    isVarArg = parameterModifierItem.isVarArg(),
+                )
+            // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
+            val decl =
+                if (parameterDecls != null && idx >= declaredParameterOffset)
+                    parameterDecls.get(idx - declaredParameterOffset)
+                else null
 
-                val parameterItem =
-                    TurbineParameterItem(
-                        codebase,
-                        TurbineFileLocation.forTree(methodItem.containingClass(), decl),
-                        parameter.name(),
-                        methodItem,
-                        idx,
-                        type,
-                        parameterModifierItem,
-                    )
-                parameterItem
-            }
+            val parameterItem =
+                TurbineParameterItem(
+                    codebase,
+                    TurbineFileLocation.forTree(methodItem.containingClass(), decl),
+                    parameter.name(),
+                    methodItem,
+                    idx,
+                    type,
+                    parameterModifierItem,
+                )
+            parameterItem
+        }
     }
 
     private fun createConstructors(
@@ -922,15 +921,17 @@ internal open class TurbineCodebaseInitialiser(
                             containingClass = classItem,
                             typeParameters = typeParams,
                             returnType = classItem.type(),
+                            parameterItemsFactory = { constructorItem ->
+                                createParameters(
+                                    constructorItem,
+                                    decl?.params(),
+                                    constructor.parameters(),
+                                    constructorTypeItemFactory,
+                                )
+                            },
                             throwsTypes =
                                 getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
                         )
-                    createParameters(
-                        constructorItem,
-                        decl?.params(),
-                        constructor.parameters(),
-                        constructorTypeItemFactory,
-                    )
                     constructorItem
                 }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor

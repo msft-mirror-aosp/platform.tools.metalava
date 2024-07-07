@@ -32,6 +32,16 @@ import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
+/**
+ * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
+ *
+ * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
+ * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
+ * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
+ * [MethodItem.parameters] as that will not yet have been initialized when this is called.
+ */
+internal typealias ParameterItemsFactory = (TurbineMethodItem) -> List<TurbineParameterItem>
+
 internal open class TurbineMethodItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
@@ -41,6 +51,7 @@ internal open class TurbineMethodItem(
     containingClass: ClassItem,
     override val typeParameterList: TypeParameterList,
     private var returnType: TypeItem,
+    parameterItemsFactory: ParameterItemsFactory,
     private val throwsTypes: List<ExceptionTypeItem>,
     private val annotationDefault: String = "",
 ) :
@@ -56,8 +67,16 @@ internal open class TurbineMethodItem(
     ),
     MethodItem {
 
+    /**
+     * Create the [ParameterItem] list during initialization of this method to allow them to contain
+     * an immutable reference to this object.
+     *
+     * The leaking of `this` to `parameterItemsFactory` is ok as implementations follow the rules
+     * explained in the documentation of [ParameterItemsFactory].
+     */
+    @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
+
     private lateinit var superMethodList: List<MethodItem>
-    internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
 
@@ -113,13 +132,15 @@ internal open class TurbineMethodItem(
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
                 returnType = returnType,
+                parameterItemsFactory = { methodItem ->
+                    // Duplicate the parameters
+                    parameters.map {
+                        TurbineParameterItem.duplicate(codebase, methodItem, it, emptyMap())
+                    }
+                },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,
             )
-        // Duplicate the parameters
-        val params =
-            parameters.map { TurbineParameterItem.duplicate(codebase, duplicated, it, emptyMap()) }
-        duplicated.parameters = params
         duplicated.inheritedFrom = containingClass()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
