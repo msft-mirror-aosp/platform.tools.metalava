@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextPackageItem(
@@ -53,6 +54,18 @@ internal class TextPackageItem(
 
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
+
+    private lateinit var containingPackageField: PackageItem
+
+    override fun containingPackage(): PackageItem? {
+        return if (qualifiedName.isEmpty()) null
+        else {
+            if (!::containingPackageField.isInitialized) {
+                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
+            }
+            containingPackageField
+        }
+    }
 
     fun addClass(classInfo: ClassItem) {
         val classFullName = classInfo.fullName()

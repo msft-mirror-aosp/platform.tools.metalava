@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbinePackageItem(
@@ -46,8 +47,6 @@ internal class TurbinePackageItem(
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 
-    private var containingPackage: PackageItem? = null
-
     override fun qualifiedName(): String = qualifiedName
 
     override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
@@ -55,20 +54,15 @@ internal class TurbinePackageItem(
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
+    private lateinit var containingPackageField: PackageItem
+
     override fun containingPackage(): PackageItem? {
-        // if this package is root package, then return null
         return if (qualifiedName.isEmpty()) null
         else {
-            if (containingPackage == null) {
-                // If package is of the form A.B then the containing package is A
-                // If package is top level, then containing package is the root package
-                val name = qualifiedName()
-                val lastDot = name.lastIndexOf('.')
-                containingPackage =
-                    if (lastDot != -1) codebase.findPackage(name.substring(0, lastDot))
-                    else codebase.findPackage("")
+            if (!::containingPackageField.isInitialized) {
+                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
             }
-            return containingPackage
+            containingPackageField
         }
     }
 
