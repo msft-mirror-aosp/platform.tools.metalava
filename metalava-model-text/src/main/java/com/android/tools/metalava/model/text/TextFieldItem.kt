@@ -51,18 +51,9 @@ internal class TextFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FieldItem) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        if (name() != other.name()) {
-            return false
-        }
-
-        return containingClass() == other.containingClass()
-    }
-
-    override fun hashCode(): Int = name().hashCode()
+    override fun hashCode() = hashCodeForItem()
 
     override fun type(): TypeItem = type
 
