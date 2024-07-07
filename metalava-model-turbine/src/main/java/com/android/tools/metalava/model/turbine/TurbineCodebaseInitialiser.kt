@@ -21,11 +21,8 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BoundsTypeItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -37,8 +34,6 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultItemFactory
@@ -834,9 +829,8 @@ internal open class TurbineCodebaseInitialiser(
                         getThrowsList(method.exceptions(), methodTypeItemFactory)
                     methodItem
                 }
-        // Ignore default enum methods
-        classItem.methods =
-            methodItems.filter { !isDefaultEnumMethod(classItem, it) }.toMutableList()
+        // Ignore enum synthetic methods
+        classItem.methods = methodItems.filter { !it.isEnumSyntheticMethod() }.toMutableList()
     }
 
     private fun createParameters(
@@ -1027,31 +1021,6 @@ internal open class TurbineCodebaseInitialiser(
 
         return TurbineFieldValue(constantValue, initialValueWithoutRequiredConstant)
     }
-
-    /** Determines whether the given method is a default enum method ("values" or "valueOf"). */
-    private fun isDefaultEnumMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
-        classItem.isEnum() &&
-            (methodItem.name() == "values" && isValuesMethod(classItem, methodItem) ||
-                methodItem.name() == "valueOf" && isValueOfMethod(classItem, methodItem))
-
-    /** Checks if the given method matches the signature of the "values" enum method. */
-    private fun isValuesMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
-        methodItem.returnType().let { returnType ->
-            returnType is ArrayTypeItem &&
-                matchType(returnType.componentType, classItem) &&
-                methodItem.parameters().isEmpty()
-        }
-
-    /** Checks if the given method matches the signature of the "valueOf" enum method. */
-    private fun isValueOfMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
-        matchType(methodItem.returnType(), classItem) &&
-            methodItem.parameters().singleOrNull()?.type()?.let {
-                it is ClassTypeItem && it.qualifiedName == "java.lang.String"
-            }
-                ?: false
-
-    private fun matchType(typeItem: TypeItem, classItem: ClassItem): Boolean =
-        typeItem is ClassTypeItem && typeItem.qualifiedName == classItem.qualifiedName()
 
     /**
      * Extracts the expression corresponding to the default value of a given annotation method. If

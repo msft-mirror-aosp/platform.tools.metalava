@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -1014,23 +1013,6 @@ private constructor(
         }
     }
 
-    /**
-     * Check whether the method is a synthetic enum method.
-     *
-     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
-     * Kotlin.
-     */
-    private fun isEnumSyntheticMethod(
-        containingClass: ClassItem,
-        name: String,
-        parameters: List<ParameterItem>
-    ): Boolean {
-        if (!containingClass.isEnum()) return false
-        val parameterCount = parameters.size
-        return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
-            (parameterCount == 1 && name == "valueOf" && parameters[0].type().isString())
-    }
-
     private fun parseMethod(
         tokenizer: Tokenizer,
         cl: TextClassItem,
@@ -1116,9 +1098,6 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
 
-        // Ignore enum synthetic methods.
-        if (isEnumSyntheticMethod(cl, name, parameters)) return
-
         method =
             TextMethodItem(
                 codebase,
@@ -1129,6 +1108,12 @@ private constructor(
                 parameters,
                 tokenizer.fileLocation()
             )
+
+        // Ignore enum synthetic methods. They are no longer included in signature files as they add
+        // no information. However, they did use to be included and so this filters them out to
+        // ensure that the resulting Codebase is consistent with the original source Codebase.
+        if (method.isEnumSyntheticMethod()) return
+
         method.markForCurrentApiSurface()
         method.typeParameterList = typeParameterList
         method.setThrowsTypes(throwsList)

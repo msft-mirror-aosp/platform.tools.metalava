@@ -37,7 +37,6 @@ import com.android.tools.metalava.model.updateCopiedMethodState
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
@@ -402,12 +401,12 @@ internal constructor(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classKind == ClassKind.ENUM && psiMethod.isSyntheticEnumMethod()) {
-                    // skip
                 } else {
                     val method =
                         PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
-                    methods.add(method)
+                    if (!method.isEnumSyntheticMethod()) {
+                        methods.add(method)
+                    }
                 }
             }
 
@@ -685,19 +684,4 @@ internal constructor(
             return false
         }
     }
-}
-
-/**
- * Check whether the method is a synthetic enum method.
- *
- * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and Kotlin.
- */
-private fun PsiMethod.isSyntheticEnumMethod(): Boolean {
-    if (containingClass?.isEnum != true) return false
-    val parameterCount = parameterList.parametersCount
-    return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
-        (parameterCount == 1 &&
-            name == "valueOf" &&
-            (parameterList.parameters[0].type as? PsiClassType)?.computeQualifiedName() ==
-                "java.lang.String")
 }

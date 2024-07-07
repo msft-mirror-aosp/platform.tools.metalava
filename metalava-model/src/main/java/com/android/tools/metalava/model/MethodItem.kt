@@ -358,6 +358,22 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     }
 
     /**
+     * Check whether this method is a synthetic enum method.
+     *
+     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
+     * Kotlin.
+     */
+    fun isEnumSyntheticMethod(): Boolean {
+        if (!containingClass().isEnum()) return false
+        val parameters = parameters()
+        return when (parameters.size) {
+            0 -> name().let { name -> name == JAVA_ENUM_VALUES || name == "getEntries" }
+            1 -> name() == JAVA_ENUM_VALUE_OF && parameters[0].type().isString()
+            else -> false
+        }
+    }
+
+    /**
      * Finds uncaught exceptions actually thrown inside this method (as opposed to ones declared in
      * the signature)
      */
