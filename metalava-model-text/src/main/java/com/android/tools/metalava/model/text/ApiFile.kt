@@ -1737,10 +1737,10 @@ private constructor(
                     name,
                     publicName,
                     containingMethod,
-                    hasDefaultValue,
-                    defaultValue,
                     index,
                     type,
+                    hasDefaultValue,
+                    defaultValue,
                 )
 
             parameter.markForCurrentApiSurface()

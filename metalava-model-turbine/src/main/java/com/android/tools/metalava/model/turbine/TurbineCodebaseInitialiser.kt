@@ -868,11 +868,11 @@ internal open class TurbineCodebaseInitialiser(
                 TurbineParameterItem(
                     codebase,
                     TurbineFileLocation.forTree(methodItem.containingClass(), decl),
+                    parameterModifierItem,
                     parameter.name(),
                     methodItem,
                     idx,
                     type,
-                    parameterModifierItem,
                 )
             parameterItem
         }

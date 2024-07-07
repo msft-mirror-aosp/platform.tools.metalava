@@ -34,13 +34,13 @@ internal class TextParameterItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    private var name: String,
-    private var publicName: String?,
+    private val name: String,
+    private val publicName: String?,
     private val containingMethod: MethodItem,
-    private val hasDefaultValue: Boolean,
-    private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
     override val parameterIndex: Int,
     private var type: TypeItem,
+    private val hasDefaultValue: Boolean,
+    private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -52,9 +52,13 @@ internal class TextParameterItem(
     ),
     ParameterItem {
 
-    override fun isVarArgs(): Boolean {
-        return modifiers.isVarArg()
-    }
+    override fun name(): String = name
+
+    override fun publicName(): String? = publicName
+
+    override fun containingMethod(): MethodItem = containingMethod
+
+    override fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     override fun type(): TypeItem = type
 
@@ -62,17 +66,11 @@ internal class TextParameterItem(
         this.type = type
     }
 
-    override fun name(): String = name
-
-    override fun publicName(): String? = publicName
-
     override fun hasDefaultValue(): Boolean = hasDefaultValue
 
     override fun isDefaultValueKnown(): Boolean = defaultValueBody != UNKNOWN_DEFAULT_VALUE
 
     override fun defaultValue(): String? = defaultValueBody
-
-    override fun containingMethod(): MethodItem = containingMethod
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -94,10 +92,10 @@ internal class TextParameterItem(
             name,
             publicName,
             containingMethod,
-            hasDefaultValue,
-            defaultValueBody,
             parameterIndex,
             type.convertType(typeVariableMap),
+            hasDefaultValue,
+            defaultValueBody,
         )
     }
 }

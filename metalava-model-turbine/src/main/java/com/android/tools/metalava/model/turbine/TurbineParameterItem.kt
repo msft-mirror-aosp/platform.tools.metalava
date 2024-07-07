@@ -34,11 +34,11 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class TurbineParameterItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     private val name: String,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    modifiers: DefaultModifierList,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -59,6 +59,14 @@ internal class TurbineParameterItem(
     }
 
     override fun containingMethod(): MethodItem = containingMethod
+
+    override fun isVarArgs(): Boolean = modifiers.isVarArg()
+
+    override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
 
     override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
 
@@ -82,14 +90,6 @@ internal class TurbineParameterItem(
 
     override fun hashCode(): Int = parameterIndex
 
-    override fun type(): TypeItem = type
-
-    override fun setType(type: TypeItem) {
-        this.type = type
-    }
-
-    override fun isVarArgs(): Boolean = modifiers.isVarArg()
-
     companion object {
         internal fun duplicate(
             codebase: DefaultCodebase,
@@ -102,11 +102,11 @@ internal class TurbineParameterItem(
             return TurbineParameterItem(
                 codebase,
                 FileLocation.UNKNOWN,
+                mods,
                 parameter.name(),
                 containingMethod,
                 parameter.parameterIndex,
-                type,
-                mods
+                type
             )
         }
     }
