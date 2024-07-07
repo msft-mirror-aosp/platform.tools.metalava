@@ -31,13 +31,11 @@ import com.android.tools.metalava.model.computeSuperMethods
 import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
-import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineMethodItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val methodSymbol: MethodSymbol,
-    name: String = methodSymbol.name(),
+    name: String,
     containingClass: ClassItem,
     private var returnType: TypeItem,
     modifiers: DefaultModifierList,
@@ -109,7 +107,7 @@ internal open class TurbineMethodItem(
             TurbineMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
-                methodSymbol = methodSymbol,
+                name = name(),
                 containingClass = targetContainingClass,
                 returnType = returnType,
                 modifiers = mods,
@@ -145,8 +143,6 @@ internal open class TurbineMethodItem(
     internal fun setThrowsTypes(throwsList: List<ExceptionTypeItem>) {
         throwableTypes = throwsList
     }
-
-    internal fun getSymbol(): MethodSymbol = methodSymbol
 
     override fun defaultValue(): String = defaultValue
 }

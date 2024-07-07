@@ -782,11 +782,12 @@ internal open class TurbineCodebaseInitialiser(
                             annotations,
                             isDeprecated(javadoc(decl))
                         )
+                    val name = method.name()
                     val (typeParams, methodTypeItemFactory) =
                         createTypeParameters(
                             method.tyParams(),
                             enclosingClassTypeItemFactory,
-                            method.name(),
+                            name,
                         )
                     val documentation = javadoc(decl)
                     val defaultValueExpr = getAnnotationDefaultExpression(method)
@@ -796,7 +797,7 @@ internal open class TurbineCodebaseInitialiser(
                         else ""
 
                     val parameters = method.parameters()
-                    val fingerprint = MethodFingerprint(method.name(), parameters.size)
+                    val fingerprint = MethodFingerprint(name, parameters.size)
                     val isAnnotationElement =
                         classItem.isAnnotationType() && !methodModifierItem.isStatic()
                     val returnType =
@@ -811,7 +812,7 @@ internal open class TurbineCodebaseInitialiser(
                         TurbineMethodItem(
                             codebase = codebase,
                             fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                            methodSymbol = method.sym(),
+                            name = name,
                             containingClass = classItem,
                             returnType = returnType,
                             modifiers = methodModifierItem,
@@ -914,7 +915,6 @@ internal open class TurbineCodebaseInitialiser(
                             codebase = codebase,
                             fileLocation = TurbineFileLocation.forTree(classItem, decl),
                             name = name,
-                            methodSymbol = constructor.sym(),
                             containingClass = classItem,
                             // Turbine's Binder gives return type of constructors as void but the
                             // model expects it to the type of object being created. So, use the

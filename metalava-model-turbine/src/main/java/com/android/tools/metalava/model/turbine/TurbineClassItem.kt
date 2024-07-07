@@ -37,7 +37,6 @@ import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.ClassSymbol
-import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineClassItem(
     codebase: DefaultCodebase,
@@ -141,8 +140,7 @@ internal open class TurbineClassItem(
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     override fun createDefaultConstructor(): ConstructorItem {
-        val sym = MethodSymbol(0, classSymbol, name)
-        return TurbineConstructorItem.createDefaultConstructor(codebase, this, sym)
+        return TurbineConstructorItem.createDefaultConstructor(codebase, this)
     }
 
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
@@ -201,7 +199,7 @@ internal open class TurbineClassItem(
             TurbineMethodItem(
                 codebase = codebase,
                 fileLocation = FileLocation.UNKNOWN,
-                methodSymbol = method.getSymbol(),
+                name = method.name(),
                 containingClass = this,
                 returnType = retType,
                 modifiers = mods,
