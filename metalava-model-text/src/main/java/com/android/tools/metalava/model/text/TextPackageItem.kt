@@ -28,9 +28,9 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextPackageItem(
     codebase: DefaultCodebase,
-    private val name: String,
+    fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    fileLocation: FileLocation
+    private val name: String,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -48,6 +48,13 @@ internal class TextPackageItem(
 
     fun name() = name
 
+    override fun qualifiedName(): String = name
+
+    override fun topLevelClasses(): List<ClassItem> = classes
+
+    // N.A. a package cannot be contained in a class
+    override fun containingClass(): ClassItem? = null
+
     fun addClass(classInfo: ClassItem) {
         val classFullName = classInfo.fullName()
         if (classFullName in classesNames) {
@@ -56,12 +63,6 @@ internal class TextPackageItem(
         classes.add(classInfo)
         classesNames.add(classFullName)
     }
-
-    override fun topLevelClasses(): List<ClassItem> = classes
-
-    override fun qualifiedName(): String = name
-
-    override fun containingClass(): ClassItem? = null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

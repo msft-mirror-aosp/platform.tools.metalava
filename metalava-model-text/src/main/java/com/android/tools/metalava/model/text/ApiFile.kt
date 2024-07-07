@@ -441,7 +441,7 @@ private constructor(
                 existing
             } else {
                 val newPackageItem =
-                    TextPackageItem(codebase, name, modifiers, tokenizer.fileLocation())
+                    TextPackageItem(codebase, tokenizer.fileLocation(), modifiers, name)
                 newPackageItem.markForCurrentApiSurface()
                 codebase.addPackage(newPackageItem)
                 newPackageItem

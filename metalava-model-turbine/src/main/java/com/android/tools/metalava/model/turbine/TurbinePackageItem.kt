@@ -30,9 +30,9 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class TurbinePackageItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val qualifiedName: String,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    private val qualifiedName: String,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -48,45 +48,12 @@ internal class TurbinePackageItem(
 
     private var containingPackage: PackageItem? = null
 
-    companion object {
-        fun create(
-            codebase: DefaultCodebase,
-            fileLocation: FileLocation,
-            qualifiedName: String,
-            modifiers: DefaultModifierList,
-            documentation: ItemDocumentation,
-        ): TurbinePackageItem {
-            if (modifiers.isPackagePrivate()) {
-                modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-            }
-            return TurbinePackageItem(
-                codebase,
-                fileLocation,
-                qualifiedName,
-                modifiers,
-                documentation,
-            )
-        }
-    }
-    // N.A. a package cannot be contained in a class
-    override fun containingClass(): ClassItem? = null
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is PackageItem && qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int = qualifiedName.hashCode()
-
     override fun qualifiedName(): String = qualifiedName
 
     override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
 
-    internal fun addTopClass(classItem: TurbineClassItem) {
-        topClasses.add(classItem)
-    }
+    // N.A. a package cannot be contained in a class
+    override fun containingClass(): ClassItem? = null
 
     override fun containingPackage(): PackageItem? {
         // if this package is root package, then return null
@@ -102,6 +69,38 @@ internal class TurbinePackageItem(
                     else codebase.findPackage("")
             }
             return containingPackage
+        }
+    }
+
+    internal fun addTopClass(classItem: TurbineClassItem) {
+        topClasses.add(classItem)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        return other is PackageItem && qualifiedName == other.qualifiedName()
+    }
+
+    override fun hashCode(): Int = qualifiedName.hashCode()
+
+    companion object {
+        fun create(
+            codebase: DefaultCodebase,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+            modifiers: DefaultModifierList = DefaultModifierList(codebase),
+            documentation: ItemDocumentation = ItemDocumentation.NONE,
+            qualifiedName: String,
+        ): TurbinePackageItem {
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            return TurbinePackageItem(
+                codebase,
+                fileLocation,
+                modifiers,
+                documentation,
+                qualifiedName,
+            )
         }
     }
 }

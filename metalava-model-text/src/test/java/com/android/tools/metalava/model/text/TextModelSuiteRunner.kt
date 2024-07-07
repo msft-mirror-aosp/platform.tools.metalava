@@ -109,9 +109,9 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                     codebase.findPackage(packageName)
                         ?: TextPackageItem(
                                 codebase = codebase,
-                                name = packageName,
-                                modifiers = DefaultModifierList(codebase),
                                 fileLocation = FileLocation.UNKNOWN,
+                                modifiers = DefaultModifierList(codebase),
+                                name = packageName,
                             )
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 

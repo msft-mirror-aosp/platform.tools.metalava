@@ -232,9 +232,9 @@ internal class TextCodebase(
                         val newPkg =
                             TextPackageItem(
                                 this,
-                                pkgPath,
+                                FileLocation.UNKNOWN,
                                 DefaultModifierList(this, DefaultModifierList.PUBLIC),
-                                FileLocation.UNKNOWN
+                                pkgPath
                             )
                         addPackage(newPkg)
                         newPkg.emit = false

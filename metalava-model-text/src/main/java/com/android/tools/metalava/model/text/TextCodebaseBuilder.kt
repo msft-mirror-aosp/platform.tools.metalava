@@ -66,9 +66,9 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         val newPkg =
             TextPackageItem(
                 codebase,
-                pkgName,
+                FileLocation.UNKNOWN,
                 DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                FileLocation.UNKNOWN
+                pkgName
             )
         codebase.addPackage(newPkg)
         return newPkg

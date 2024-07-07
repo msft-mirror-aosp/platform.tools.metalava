@@ -270,7 +270,7 @@ internal open class TurbineCodebaseInitialiser(
         val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
         val fileLocation = TurbineFileLocation.forTree(sourceFile)
         val turbinePkgItem =
-            TurbinePackageItem.create(codebase, fileLocation, name, modifiers, documentation)
+            TurbinePackageItem.create(codebase, fileLocation, modifiers, documentation, name)
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }
@@ -284,16 +284,7 @@ internal open class TurbineCodebaseInitialiser(
             return it as TurbinePackageItem
         }
 
-        val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
-        val fileLocation = TurbineFileLocation.forTree(null)
-        val turbinePkgItem =
-            TurbinePackageItem.create(
-                codebase,
-                fileLocation,
-                name,
-                modifiers,
-                ItemDocumentation.NONE
-            )
+        val turbinePkgItem = TurbinePackageItem.create(codebase = codebase, qualifiedName = name)
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }
