@@ -116,7 +116,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                     )
                     .also { newClassItem ->
                         codebase.registerClass(newClassItem)
-                        packageItem.addClass(newClassItem)
+                        packageItem.addTopClass(newClassItem)
                     }
             }
     }

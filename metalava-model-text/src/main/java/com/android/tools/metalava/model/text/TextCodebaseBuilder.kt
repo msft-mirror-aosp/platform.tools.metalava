@@ -73,7 +73,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     fun addClass(cls: ClassItem) {
         val pkg = getOrAddPackage(cls.containingPackage().qualifiedName())
-        pkg.addClass(cls as TextClassItem)
+        pkg.addTopClass(cls)
     }
 
     fun addConstructor(ctor: ConstructorItem) {
@@ -117,7 +117,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         newClass.setSuperClassType(textClass.superClassType())
 
         val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
-        pkg.addClass(newClass)
+        pkg.addTopClass(newClass)
         newClass.setContainingPackage(pkg)
         codebase.registerClass(newClass)
         return newClass

@@ -240,7 +240,7 @@ internal class TextCodebase(
                         newPkg
                     }
             stubClass.setContainingPackage(pkg)
-            pkg.addClass(stubClass)
+            pkg.addTopClass(stubClass)
         }
         return stubClass
     }

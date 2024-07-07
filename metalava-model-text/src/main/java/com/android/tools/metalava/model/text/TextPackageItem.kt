@@ -44,13 +44,11 @@ internal class TextPackageItem(
     ),
     PackageItem {
 
-    private val classes = ArrayList<ClassItem>(100)
-
-    private val classesNames = HashSet<String>(100)
+    private val topClasses = mutableListOf<ClassItem>()
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): List<ClassItem> = classes
+    override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
 
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
@@ -67,13 +65,8 @@ internal class TextPackageItem(
         }
     }
 
-    fun addClass(classInfo: ClassItem) {
-        val classFullName = classInfo.fullName()
-        if (classFullName in classesNames) {
-            return
-        }
-        classes.add(classInfo)
-        classesNames.add(classFullName)
+    internal fun addTopClass(classItem: ClassItem) {
+        topClasses.add(classItem)
     }
 
     override fun equals(other: Any?): Boolean {

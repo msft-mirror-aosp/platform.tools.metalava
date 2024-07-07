@@ -622,7 +622,7 @@ private constructor(
         if (outerClass == null) {
             // Add the class to the package, it will only be added to the TextCodebase once the
             // package body has been parsed.
-            pkg.addClass(cl)
+            pkg.addTopClass(cl)
         } else {
             outerClass.addNestedClass(cl)
         }

@@ -45,7 +45,7 @@ internal class TurbinePackageItem(
     ),
     PackageItem {
 
-    private var topClasses = mutableListOf<TurbineClassItem>()
+    private val topClasses = mutableListOf<ClassItem>()
 
     override fun qualifiedName(): String = qualifiedName
 
@@ -66,7 +66,7 @@ internal class TurbinePackageItem(
         }
     }
 
-    internal fun addTopClass(classItem: TurbineClassItem) {
+    internal fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
     }
 
