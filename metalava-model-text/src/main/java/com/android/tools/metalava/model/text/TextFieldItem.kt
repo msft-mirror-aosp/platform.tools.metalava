@@ -35,7 +35,7 @@ internal class TextFieldItem(
     containingClass: ClassItem,
     private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    private val constantValue: Any?,
+    private val fieldValue: TextFieldValue? = null,
 ) :
     DefaultMemberItem(
         codebase = codebase,
@@ -48,6 +48,8 @@ internal class TextFieldItem(
         containingClass = containingClass,
     ),
     FieldItem {
+
+    override var inheritedFrom: ClassItem? = null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -68,9 +70,7 @@ internal class TextFieldItem(
         this.type = type
     }
 
-    override fun initialValue(requireConstant: Boolean): Any? = constantValue
-
-    override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
+    override fun duplicate(targetContainingClass: ClassItem): FieldItem {
         val duplicated =
             TextFieldItem(
                 codebase = codebase,
@@ -80,7 +80,7 @@ internal class TextFieldItem(
                 containingClass = targetContainingClass,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                constantValue = constantValue,
+                fieldValue = fieldValue,
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -98,7 +98,7 @@ internal class TextFieldItem(
         return duplicated
     }
 
-    override var inheritedFrom: ClassItem? = null
+    override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
 
     override fun isEnumConstant(): Boolean = isEnumConstant
 }

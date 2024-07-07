@@ -1196,7 +1196,8 @@ private constructor(
         synchronizeNullability(type, modifiers)
 
         // Parse the value string.
-        val value = valueString?.let { parseValue(type, valueString, tokenizer) }
+        val fieldValue =
+            valueString?.let { TextFieldValue(parseValue(type, valueString, tokenizer)) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1210,7 +1211,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                constantValue = value,
+                fieldValue = fieldValue,
             )
         field.markForCurrentApiSurface()
         cl.addField(field)

@@ -102,14 +102,3 @@ internal class TurbineFieldItem(
 
     override fun isEnumConstant(): Boolean = isEnumConstant
 }
-
-/** Provides access to the initial values of a field. */
-class TurbineFieldValue(
-    private var initialValueWithRequiredConstant: Any?,
-    private var initialValueWithoutRequiredConstant: Any?,
-) {
-
-    fun initialValue(requireConstant: Boolean) =
-        if (requireConstant) initialValueWithRequiredConstant
-        else initialValueWithoutRequiredConstant
-}
