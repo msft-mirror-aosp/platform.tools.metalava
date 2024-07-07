@@ -95,7 +95,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     fun addField(field: FieldItem) {
         val cls = getOrAddClass(field.containingClass())
-        cls.addField(field as TextFieldItem)
+        cls.addField(field)
     }
 
     fun addProperty(property: PropertyItem) {

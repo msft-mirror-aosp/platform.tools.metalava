@@ -75,7 +75,7 @@ internal open class TurbineClassItem(
 
     internal lateinit var containingPackage: TurbinePackageItem
 
-    internal lateinit var fields: List<TurbineFieldItem>
+    internal lateinit var fields: List<FieldItem>
 
     internal lateinit var methods: MutableList<TurbineMethodItem>
 

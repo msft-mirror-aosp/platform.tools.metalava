@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -37,6 +39,31 @@ class DefaultItemFactory(
     /** The default [ApiVariantSelectorsFactory] for [Item]s created by this. */
     private val defaultVariantSelectorsFactory: ApiVariantSelectorsFactory,
 ) {
+
+    /** Create a [FieldItem]. */
+    fun createFieldItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentation: ItemDocumentation,
+        name: String,
+        containingClass: ClassItem,
+        type: TypeItem,
+        isEnumConstant: Boolean,
+        fieldValue: FieldValue?,
+    ): FieldItem =
+        DefaultFieldItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            defaultVariantSelectorsFactory,
+            modifiers,
+            documentation,
+            name,
+            containingClass,
+            type,
+            isEnumConstant,
+            fieldValue,
+        )
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(

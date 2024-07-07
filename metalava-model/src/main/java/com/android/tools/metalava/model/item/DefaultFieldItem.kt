@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -24,27 +24,28 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TurbineFieldItem(
+class DefaultFieldItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    private val fieldValue: TurbineFieldValue?,
+    private val fieldValue: FieldValue?,
 ) :
     DefaultMemberItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = ItemLanguage.JAVA,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentation = documentation,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
     ),
@@ -64,9 +65,11 @@ internal class TurbineFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
         val duplicated =
-            TurbineFieldItem(
+            DefaultFieldItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
+                itemLanguage = itemLanguage,
+                variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers.duplicate(),
                 documentation = documentation.duplicate(),
                 name = name(),

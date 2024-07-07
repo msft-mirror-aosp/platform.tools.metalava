@@ -162,7 +162,7 @@ internal open class TextClassItem(
         methods += method
     }
 
-    fun addField(field: TextFieldItem) {
+    fun addField(field: FieldItem) {
         fields += field
     }
 

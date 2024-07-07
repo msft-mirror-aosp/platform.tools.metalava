@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -1203,10 +1204,10 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val field =
-            TextFieldItem(
-                codebase = codebase,
+            itemFactory.createFieldItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
+                documentation = ItemDocumentation.NONE,
                 name = name,
                 containingClass = cl,
                 type = type,

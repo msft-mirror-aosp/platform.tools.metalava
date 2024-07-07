@@ -749,8 +749,7 @@ internal open class TurbineCodebaseInitialiser(
 
                 val documentation = javadoc(decl)
                 val fieldItem =
-                    TurbineFieldItem(
-                        codebase = codebase,
+                    itemFactory.createFieldItem(
                         fileLocation = TurbineFileLocation.forTree(classItem, decl),
                         modifiers = fieldModifierItem,
                         documentation = getCommentedDoc(documentation),
