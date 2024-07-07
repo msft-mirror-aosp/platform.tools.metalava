@@ -35,13 +35,14 @@ import com.android.tools.metalava.reporter.FileLocation
 internal open class TurbineMethodItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
     name: String,
     containingClass: ClassItem,
-    private var returnType: TypeItem,
-    modifiers: DefaultModifierList,
     override val typeParameterList: TypeParameterList,
-    documentation: ItemDocumentation,
-    private val defaultValue: String,
+    private var returnType: TypeItem,
+    private val throwsTypes: List<ExceptionTypeItem>,
+    private val annotationDefault: String = "",
 ) :
     DefaultMemberItem(
         codebase,
@@ -56,7 +57,6 @@ internal open class TurbineMethodItem(
     MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
-    internal lateinit var throwableTypes: List<ExceptionTypeItem>
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
@@ -69,7 +69,7 @@ internal open class TurbineMethodItem(
         returnType = type
     }
 
-    override fun throwsTypes(): List<ExceptionTypeItem> = throwableTypes
+    override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -107,20 +107,20 @@ internal open class TurbineMethodItem(
             TurbineMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
+                modifiers = mods,
+                documentation = documentation.duplicate(),
                 name = name(),
                 containingClass = targetContainingClass,
-                returnType = returnType,
-                modifiers = mods,
                 typeParameterList = typeParameterList,
-                documentation = documentation.duplicate(),
-                defaultValue = defaultValue,
+                returnType = returnType,
+                throwsTypes = throwsTypes,
+                annotationDefault = annotationDefault,
             )
         // Duplicate the parameters
         val params =
             parameters.map { TurbineParameterItem.duplicate(codebase, duplicated, it, emptyMap()) }
         duplicated.parameters = params
         duplicated.inheritedFrom = containingClass()
-        duplicated.throwableTypes = throwableTypes
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -140,9 +140,5 @@ internal open class TurbineMethodItem(
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
-    internal fun setThrowsTypes(throwsList: List<ExceptionTypeItem>) {
-        throwableTypes = throwsList
-    }
-
-    override fun defaultValue(): String = defaultValue
+    override fun defaultValue(): String = annotationDefault
 }

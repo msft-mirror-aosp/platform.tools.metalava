@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
@@ -28,24 +29,24 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class TurbineConstructorItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
     name: String,
     containingClass: TurbineClassItem,
-    returnType: ClassTypeItem,
-    modifiers: DefaultModifierList,
     typeParameters: TypeParameterList,
-    documentation: ItemDocumentation,
-    private val defaultValue: String,
+    returnType: ClassTypeItem,
+    throwsTypes: List<ExceptionTypeItem>,
 ) :
     TurbineMethodItem(
         codebase = codebase,
         fileLocation = fileLocation,
+        modifiers = modifiers,
+        documentation = documentation,
         name = name,
         containingClass = containingClass,
-        returnType = returnType,
-        modifiers = modifiers,
         typeParameterList = typeParameters,
-        documentation = documentation,
-        defaultValue = defaultValue,
+        returnType = returnType,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
 
@@ -69,16 +70,15 @@ internal class TurbineConstructorItem(
                     // Use the location of the containing class for the implicit default
                     // constructor.
                     fileLocation = containingClass.fileLocation,
+                    modifiers = modifiers,
+                    documentation = ItemDocumentation.NONE,
                     name = name,
                     containingClass = containingClass,
-                    returnType = containingClass.type(),
-                    modifiers = modifiers,
                     typeParameters = typeParameterList,
-                    documentation = ItemDocumentation.NONE,
-                    defaultValue = "",
+                    returnType = containingClass.type(),
+                    throwsTypes = emptyList(),
                 )
             ctorItem.parameters = emptyList()
-            ctorItem.throwableTypes = emptyList()
             return ctorItem
         }
     }

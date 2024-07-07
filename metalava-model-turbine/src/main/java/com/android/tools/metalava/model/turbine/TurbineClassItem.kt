@@ -199,13 +199,14 @@ internal open class TurbineClassItem(
             TurbineMethodItem(
                 codebase = codebase,
                 fileLocation = FileLocation.UNKNOWN,
+                modifiers = mods,
+                documentation = method.documentation.duplicate(),
                 name = method.name(),
                 containingClass = this,
-                returnType = retType,
-                modifiers = mods,
                 typeParameterList = method.typeParameterList,
-                documentation = method.documentation.duplicate(),
-                defaultValue = method.defaultValue(),
+                returnType = retType,
+                annotationDefault = method.defaultValue(),
+                throwsTypes = method.throwsTypes(),
             )
 
         val params =
@@ -214,7 +215,6 @@ internal open class TurbineClassItem(
             }
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = method.containingClass()
-        duplicateMethod.throwableTypes = method.throwableTypes
 
         duplicateMethod.updateCopiedMethodState()
 

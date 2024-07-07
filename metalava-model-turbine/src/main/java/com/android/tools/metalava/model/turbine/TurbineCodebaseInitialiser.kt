@@ -812,13 +812,14 @@ internal open class TurbineCodebaseInitialiser(
                         TurbineMethodItem(
                             codebase = codebase,
                             fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                            modifiers = methodModifierItem,
+                            documentation = getCommentedDoc(documentation),
                             name = name,
                             containingClass = classItem,
-                            returnType = returnType,
-                            modifiers = methodModifierItem,
                             typeParameterList = typeParams,
-                            documentation = getCommentedDoc(documentation),
-                            defaultValue = defaultValue,
+                            returnType = returnType,
+                            throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                            annotationDefault = defaultValue,
                         )
                     createParameters(
                         methodItem,
@@ -826,8 +827,6 @@ internal open class TurbineCodebaseInitialiser(
                         parameters,
                         methodTypeItemFactory,
                     )
-                    methodItem.throwableTypes =
-                        getThrowsList(method.exceptions(), methodTypeItemFactory)
                     methodItem
                 }
         // Ignore enum synthetic methods
@@ -914,16 +913,17 @@ internal open class TurbineCodebaseInitialiser(
                         TurbineConstructorItem(
                             codebase = codebase,
                             fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                            name = name,
-                            containingClass = classItem,
+                            modifiers = constructorModifierItem,
+                            documentation = getCommentedDoc(documentation),
                             // Turbine's Binder gives return type of constructors as void but the
                             // model expects it to the type of object being created. So, use the
                             // containing [ClassItem]'s type as the constructor return type.
-                            returnType = classItem.type(),
-                            modifiers = constructorModifierItem,
+                            name = name,
+                            containingClass = classItem,
                             typeParameters = typeParams,
-                            documentation = getCommentedDoc(documentation),
-                            defaultValue = "",
+                            returnType = classItem.type(),
+                            throwsTypes =
+                                getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
                         )
                     createParameters(
                         constructorItem,
@@ -931,8 +931,6 @@ internal open class TurbineCodebaseInitialiser(
                         constructor.parameters(),
                         constructorTypeItemFactory,
                     )
-                    constructorItem.throwableTypes =
-                        getThrowsList(constructor.exceptions(), constructorTypeItemFactory)
                     constructorItem
                 }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
