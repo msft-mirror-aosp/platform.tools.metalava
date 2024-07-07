@@ -750,15 +750,15 @@ internal open class TurbineCodebaseInitialiser(
                 val documentation = javadoc(decl)
                 val fieldItem =
                     TurbineFieldItem(
-                        codebase,
-                        TurbineFileLocation.forTree(classItem, decl),
-                        field.name(),
-                        classItem,
-                        type,
-                        fieldModifierItem,
-                        getCommentedDoc(documentation),
-                        isEnumConstant,
-                        fieldValue,
+                        codebase = codebase,
+                        fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                        modifiers = fieldModifierItem,
+                        documentation = getCommentedDoc(documentation),
+                        name = field.name(),
+                        containingClass = classItem,
+                        type = type,
+                        isEnumConstant = isEnumConstant,
+                        fieldValue = fieldValue,
                     )
                 fieldItem
             }

@@ -30,23 +30,23 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class TurbineFieldItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
     name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
-    modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
     private val isEnumConstant: Boolean,
     private val fieldValue: TurbineFieldValue?,
 ) :
     DefaultMemberItem(
-        codebase,
-        fileLocation,
-        ItemLanguage.JAVA,
-        modifiers,
-        documentation,
-        ApiVariantSelectors.MUTABLE_FACTORY,
-        name,
-        containingClass,
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        name = name,
+        containingClass = containingClass,
     ),
     FieldItem {
 
@@ -72,15 +72,15 @@ internal class TurbineFieldItem(
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
         val duplicated =
             TurbineFieldItem(
-                codebase,
-                fileLocation,
-                name(),
-                targetContainingClass,
-                type,
-                modifiers.duplicate(),
-                documentation.duplicate(),
-                isEnumConstant,
-                fieldValue,
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = modifiers.duplicate(),
+                documentation = documentation.duplicate(),
+                name = name(),
+                containingClass = targetContainingClass,
+                type = type,
+                isEnumConstant = isEnumConstant,
+                fieldValue = fieldValue,
             )
         duplicated.inheritedFrom = containingClass()
 
