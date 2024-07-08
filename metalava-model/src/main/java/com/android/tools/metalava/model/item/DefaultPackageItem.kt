@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
@@ -24,24 +24,25 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TurbinePackageItem(
+class DefaultPackageItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
 ) :
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = ItemLanguage.JAVA,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentation = documentation,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {
 
@@ -66,30 +67,11 @@ internal class TurbinePackageItem(
         }
     }
 
-    internal fun addTopClass(classItem: ClassItem) {
+    fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
     }
 
     override fun equals(other: Any?) = equalsToItem(other)
 
     override fun hashCode() = hashCodeForItem()
-
-    companion object {
-        fun create(
-            codebase: DefaultCodebase,
-            fileLocation: FileLocation = FileLocation.UNKNOWN,
-            modifiers: DefaultModifierList = DefaultModifierList(codebase),
-            documentation: ItemDocumentation = ItemDocumentation.NONE,
-            qualifiedName: String,
-        ): TurbinePackageItem {
-            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-            return TurbinePackageItem(
-                codebase,
-                fileLocation,
-                modifiers,
-                documentation,
-                qualifiedName,
-            )
-        }
-    }
 }

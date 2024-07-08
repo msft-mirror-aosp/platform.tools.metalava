@@ -34,9 +34,11 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.source.SourceItemDocumentation
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -262,7 +264,7 @@ internal open class TurbineCodebaseInitialiser(
         name: String,
         sourceFile: TurbineSourceFile?,
         documentation: ItemDocumentation,
-    ): TurbinePackageItem {
+    ): PackageItem {
         codebase.findPackage(name)?.let {
             error("Duplicate package-info.java files found for $name")
         }
@@ -270,7 +272,7 @@ internal open class TurbineCodebaseInitialiser(
         val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
         val fileLocation = TurbineFileLocation.forTree(sourceFile)
         val turbinePkgItem =
-            TurbinePackageItem.create(codebase, fileLocation, modifiers, documentation, name)
+            itemFactory.createPackageItem(fileLocation, modifiers, documentation, name)
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }
@@ -279,12 +281,12 @@ internal open class TurbineCodebaseInitialiser(
      * Searches for the package with supplied name in the codebase's package map and if not found
      * creates the corresponding TurbinePackageItem and adds it to the package map.
      */
-    private fun findOrCreatePackage(name: String): TurbinePackageItem {
+    private fun findOrCreatePackage(name: String): DefaultPackageItem {
         codebase.findPackage(name)?.let {
-            return it as TurbinePackageItem
+            return it as DefaultPackageItem
         }
 
-        val turbinePkgItem = TurbinePackageItem.create(codebase = codebase, qualifiedName = name)
+        val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }

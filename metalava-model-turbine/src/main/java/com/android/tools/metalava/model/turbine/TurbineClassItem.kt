@@ -73,7 +73,7 @@ internal open class TurbineClassItem(
 
     private var allInterfaces: List<ClassItem>? = null
 
-    internal lateinit var containingPackage: TurbinePackageItem
+    internal lateinit var containingPackage: PackageItem
 
     internal lateinit var fields: List<FieldItem>
 
