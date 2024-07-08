@@ -427,6 +427,11 @@ private constructor(
                         tokenizer
                     )
                 }
+                // Make sure that to mark the existing package as part of the current API surface if
+                // it is referenced in any signature file that was part of the current API surface.
+                if (!existing.emit) {
+                    existing.markForCurrentApiSurface()
+                }
                 existing
             } else {
                 val newPackageItem =
@@ -613,7 +618,7 @@ private constructor(
             // package body has been parsed.
             pkg.addClass(cl)
         } else {
-            outerClass.addInnerClass(cl)
+            outerClass.addNestedClass(cl)
         }
         codebase.registerClass(cl)
 
@@ -751,7 +756,7 @@ private constructor(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
-        val outerClass: ClassItem?,
+        val outerClass: TextClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
         /**
@@ -802,9 +807,10 @@ private constructor(
                 // always precedes its nested classes.
                 val outerClass =
                     codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
+                        as TextClassItem
 
-                val innerClassName = fullName.substring(nestedClassIndex + 1)
-                Pair(outerClass, innerClassName)
+                val nestedClassName = fullName.substring(nestedClassIndex + 1)
+                Pair(outerClass, nestedClassName)
             }
 
         // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
@@ -935,7 +941,9 @@ private constructor(
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
         }
         return annotations
     }
@@ -969,7 +977,7 @@ private constructor(
         val name: String =
             token.substring(
                 token.lastIndexOf('.') + 1
-            ) // For inner classes, strip outer classes from name
+            ) // For nested classes, strip outer classes from name
         val parameters = parseParameterList(tokenizer, typeItemFactory, name)
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()
@@ -1120,9 +1128,9 @@ private constructor(
         method.setThrowsTypes(throwsList)
         method.setAnnotationDefault(defaultAnnotationMethodValue)
 
-        if (!cl.methods().contains(method)) {
-            cl.addMethod(method)
-        }
+        // If the method already exists in the class item because it was defined in a previous
+        // signature file then replace it with this one, otherwise just add this method.
+        cl.replaceOrAddMethod(method)
     }
 
     private fun parseField(
@@ -1781,7 +1789,7 @@ private constructor(
                 if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
                     ANDROIDX_NONNULL
                 } else {
-                    val nullability = typeItem.modifiers.nullability()
+                    val nullability = typeItem.modifiers.nullability
                     if (typeItem !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
                         ANDROIDX_NONNULL
                     } else if (nullability == TypeNullability.NULLABLE) {

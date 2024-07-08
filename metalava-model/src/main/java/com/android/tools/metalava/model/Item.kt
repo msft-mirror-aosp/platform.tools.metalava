@@ -42,7 +42,7 @@ interface Item : Reportable {
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
      * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
      */
-    var originallyHidden: Boolean
+    val originallyHidden: Boolean
 
     /**
      * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
@@ -237,6 +237,13 @@ interface Item : Reportable {
     fun type(): TypeItem?
 
     /**
+     * Set the type of this.
+     *
+     * The [type] parameter must be of the same concrete type as returned by the [Item.type] method.
+     */
+    fun setType(type: TypeItem)
+
+    /**
      * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
      * item.
      *
@@ -413,12 +420,16 @@ interface Item : Reportable {
 abstract class DefaultItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
+    final override var documentation: String,
 ) : Item {
 
     init {
         @Suppress("LeakingThis")
         modifiers.owner = this
     }
+
+    final override var docOnly = documentation.contains("@doconly")
+    final override var removed = documentation.contains("@removed")
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -458,7 +469,7 @@ abstract class DefaultItem(
         return buildSet {
             for (annotation in modifiers.annotations()) {
                 val annotationName = annotation.qualifiedName
-                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                if (annotationName in SUPPRESS_ANNOTATIONS) {
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
                         // one attribute such as value/names that is varargs of String

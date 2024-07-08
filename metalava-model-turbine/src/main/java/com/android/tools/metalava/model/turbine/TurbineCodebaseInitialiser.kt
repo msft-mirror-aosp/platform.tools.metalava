@@ -31,10 +31,12 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -58,6 +60,7 @@ import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
+import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
@@ -126,7 +129,7 @@ internal open class TurbineCodebaseInitialiser(
      * Then creates the packages, classes and their members, as well as sets up various class
      * hierarchies using the binder's output
      */
-    fun initialize() {
+    fun initialize(packageHtmlByPackageName: Map<String, File>) {
         // Bind the units
         try {
             val procInfo =
@@ -170,54 +173,109 @@ internal open class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        createAllPackages()
+        createAllPackages(packageHtmlByPackageName)
         createAllClasses()
     }
 
-    private fun createAllPackages() {
-        // Root package
-        findOrCreatePackage("", null, "")
+    /** Map from file path to the [TurbineSourceFile]. */
+    private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
 
+    /**
+     * Create a [TurbineSourceFile] for the specified [compUnit].
+     *
+     * This may be called multiple times for the same [compUnit] in which case it will return the
+     * same [TurbineSourceFile]. It will throw an exception if two [CompUnit]s have the same path.
+     */
+    private fun createTurbineSourceFile(compUnit: CompUnit): TurbineSourceFile {
+        val path = compUnit.source().path()
+        val existing = turbineSourceFiles[path]
+        if (existing != null && existing.compUnit != compUnit) {
+            error("duplicate source file found for $path")
+        }
+        return TurbineSourceFile(codebase, compUnit).also { turbineSourceFiles[path] = it }
+    }
+
+    /**
+     * Get the [TurbineSourceFile] for a [SourceFile], failing if it could not be found.
+     *
+     * A [TurbineSourceFile] must be created by [createTurbineSourceFile] before calling this.
+     */
+    private fun turbineSourceFile(sourceFile: SourceFile): TurbineSourceFile =
+        turbineSourceFiles[sourceFile.path()]
+            ?: error("unrecognized source file: ${sourceFile.path()}")
+
+    /** Check if this is for a `package-info.java` file or not. */
+    private fun CompUnit.isPackageInfo() =
+        source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
+
+    private fun createAllPackages(packageHtmlByPackageName: Map<String, File>) {
+        // First, find all package-info.java files and create packages for them.
         for (unit in units) {
-            var doc = ""
-            var sourceFile: TurbineSourceFile? = null
-            // No class declarations. Will be a case of package-info file
-            if (unit.decls().isEmpty()) {
-                val source = unit.source().source()
-                sourceFile = TurbineSourceFile(codebase, unit)
-                doc = getHeaderComments(source)
-            }
-            findOrCreatePackage(getPackageName(unit), sourceFile, doc)
+            // Only process package-info.java files in this loop.
+            if (!unit.isPackageInfo()) continue
+
+            val source = unit.source().source()
+            val sourceFile = createTurbineSourceFile(unit)
+            val doc = getHeaderComments(source)
+            createPackage(getPackageName(unit), sourceFile, doc)
+        }
+
+        // Secondly, create package items for package.html files.
+        for ((name, file) in packageHtmlByPackageName.entries) {
+            codebase.findPackage(name)
+                ?: createPackage(name, null, packageHtmlToJavadoc(file.readText()))
+        }
+
+        // Thirdly, find all classes and create or find a package for them.
+        for (unit in units) {
+            // Ignore package-info.java files in this loop.
+            if (unit.isPackageInfo()) continue
+
+            val name = getPackageName(unit)
+            findOrCreatePackage(name)
             unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
         }
+
+        // Finally, make sure that there is a root package.
+        findOrCreatePackage("")
+    }
+
+    /**
+     * Creates a package and registers it in the codebase's package map.
+     *
+     * Fails if there is a duplicate.
+     */
+    private fun createPackage(
+        name: String,
+        sourceFile: TurbineSourceFile?,
+        document: String
+    ): TurbinePackageItem {
+        codebase.findPackage(name)?.let {
+            error("Duplicate package-info.java files found for $name")
+        }
+
+        val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
+        val fileLocation = TurbineFileLocation.forTree(sourceFile)
+        val turbinePkgItem =
+            TurbinePackageItem.create(codebase, fileLocation, name, modifiers, document)
+        codebase.addPackage(turbinePkgItem)
+        return turbinePkgItem
     }
 
     /**
      * Searches for the package with supplied name in the codebase's package map and if not found
      * creates the corresponding TurbinePackageItem and adds it to the package map.
      */
-    private fun findOrCreatePackage(
-        name: String,
-        sourceFile: TurbineSourceFile?,
-        document: String
-    ): TurbinePackageItem {
-        val pkgItem = codebase.findPackage(name)
-        if (pkgItem != null) {
-            val turbinePkgItem = pkgItem as TurbinePackageItem
-            // Update originallyHidden status based on the documentation.
-            if (document.isNotEmpty()) {
-                turbinePkgItem.updateOriginallyHiddenStatus(document)
-            }
-            // The hidden status will be updated automatically based on originallyHidden
-            return turbinePkgItem
-        } else {
-            val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
-            val fileLocation = TurbineFileLocation.forTree(sourceFile)
-            val turbinePkgItem =
-                TurbinePackageItem.create(codebase, fileLocation, name, modifiers, document)
-            codebase.addPackage(turbinePkgItem)
-            return turbinePkgItem
+    private fun findOrCreatePackage(name: String): TurbinePackageItem {
+        codebase.findPackage(name)?.let {
+            return it as TurbinePackageItem
         }
+
+        val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
+        val fileLocation = TurbineFileLocation.forTree(null)
+        val turbinePkgItem = TurbinePackageItem.create(codebase, fileLocation, name, modifiers, "")
+        codebase.addPackage(turbinePkgItem)
+        return turbinePkgItem
     }
 
     private fun createAllClasses() {
@@ -229,7 +287,7 @@ internal open class TurbineCodebaseInitialiser(
                 continue
             }
 
-            // Ignore inner classes, they will be created when the outer class is created.
+            // Ignore nested classes, they will be created when the outer class is created.
             if (sourceBoundClass.owner() != null) {
                 continue
             }
@@ -244,7 +302,7 @@ internal open class TurbineCodebaseInitialiser(
         get() = !binaryName().contains('$')
 
     /**
-     * Create top level classes, their inner classes and all the other members.
+     * Create top level classes, their nested classes and all the other members.
      *
      * All the classes are registered by name and so can be found by [findOrCreateClass].
      */
@@ -258,20 +316,20 @@ internal open class TurbineCodebaseInitialiser(
         var classItem = codebase.findClass(name)
 
         if (classItem == null) {
-            // This will get the symbol for the top class even if the class name is for an inner
+            // This will get the symbol for the top class even if the class name is for a nested
             // class.
             val topClassSym = getClassSymbol(name)
 
-            // Create the top level class, if needed, along with any inner classes and register them
-            // all by name.
+            // Create the top level class, if needed, along with any nested classes and register
+            // them all by name.
             topClassSym?.let {
                 // It is possible that the top level class has already been created but just did not
-                // contain the requested inner class so check to make sure it exists before creating
-                // it.
+                // contain the requested nested class so check to make sure it exists before
+                // creating it.
                 val topClassName = getQualifiedName(topClassSym.binaryName())
                 codebase.findClass(topClassName)
                     ?: let {
-                        // Create tand register he top level class and its inner classes.
+                        // Create and register the top level class and its nested classes.
                         createTopLevelClassAndContents(topClassSym)
 
                         // Now try and find the actual class that was requested by name. If it
@@ -300,7 +358,22 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName, null, "")
+        val pkgItem = findOrCreatePackage(pkgName)
+
+        // Create the sourcefile
+        val sourceFile =
+            if (isTopClass && !isFromClassPath) {
+                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
+                    createTurbineSourceFile(it)
+                }
+            } else null
+        val fileLocation =
+            when {
+                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
+                containingClassItem != null ->
+                    TurbineFileLocation.forTree(containingClassItem, decl)
+                else -> FileLocation.UNKNOWN
+            }
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
@@ -321,20 +394,6 @@ internal open class TurbineCodebaseInitialiser(
                 enclosingClassTypeItemFactory,
                 "class $qualifiedName",
             )
-        // Create the sourcefile
-        val sourceFile =
-            if (isTopClass && !isFromClassPath) {
-                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
-                    TurbineSourceFile(codebase, it)
-                }
-            } else null
-        val fileLocation =
-            when {
-                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
-                containingClassItem != null ->
-                    TurbineFileLocation.forTree(containingClassItem, decl)
-                else -> FileLocation.UNKNOWN
-            }
         val classItem =
             TurbineClassItem(
                 codebase,
@@ -392,7 +451,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Create InnerClasses.
         val children = cls.children()
-        createInnerClasses(classItem, children.values.asList(), classTypeItemFactory)
+        createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)
 
         return classItem
     }
@@ -408,17 +467,25 @@ internal open class TurbineCodebaseInitialiser(
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.map { createAnnotation(it) }
+        return annotations.mapNotNull { createAnnotation(it) }
     }
 
-    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem {
-        val simpleName = annotation.tree()?.let { extractNameFromIdent(it.name()) }
+    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
+        val tree = annotation.tree()
+        val simpleName = tree?.let { extractNameFromIdent(it.name()) }
         val clsSym = annotation.sym()
         val qualifiedName =
             if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
 
-        return DefaultAnnotationItem(codebase, qualifiedName) {
-            getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
+        val fileLocation =
+            annotation
+                .source()
+                ?.let { sourceFile -> turbineSourceFile(sourceFile) }
+                ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
+                ?: FileLocation.UNKNOWN
+
+        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) {
+            getAnnotationAttributes(annotation.values(), tree?.args())
         }
     }
 
@@ -611,14 +678,14 @@ internal open class TurbineCodebaseInitialiser(
         return typeBounds.toList()
     }
 
-    /** This method sets up the inner class hierarchy. */
-    private fun createInnerClasses(
+    /** This method sets up the nested class hierarchy. */
+    private fun createNestedClasses(
         classItem: TurbineClassItem,
-        innerClasses: ImmutableList<ClassSymbol>,
+        nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        classItem.innerClasses =
-            innerClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
+        classItem.nestedClasses =
+            nestedClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
     }
 
     /** This methods creates and sets the fields of a class */
@@ -853,7 +920,7 @@ internal open class TurbineCodebaseInitialiser(
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method
      * returns only top-level classes, this method will return the ClassSymbol of outermost class
-     * for inner classes.
+     * for nested classes.
      */
     private fun getClassSymbol(name: String): ClassSymbol? {
         val result = index.scope().lookup(createLookupKey(name))

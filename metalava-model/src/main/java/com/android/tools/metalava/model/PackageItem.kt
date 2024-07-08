@@ -27,15 +27,26 @@ interface PackageItem : Item {
     /** The qualified name of this package */
     fun qualifiedName(): String
 
-    /** All top level classes in this package */
-    fun topLevelClasses(): Sequence<ClassItem>
+    /**
+     * All top level classes in this package.
+     *
+     * This is a snapshot of the classes in this package and will not be affected by any additional
+     * classes added to the package after the list is returned.
+     */
+    fun topLevelClasses(): List<ClassItem>
 
-    /** All top level classes **and inner classes** in this package */
+    /**
+     * All top level classes **and nested classes** in this package flattened into a single
+     * [Sequence].
+     */
     fun allClasses(): Sequence<ClassItem> {
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
 
     override fun type(): TypeItem? = null
+
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on PackageItem: $this")
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -63,7 +74,7 @@ interface PackageItem : Item {
         get() = originallyDeprecated
 
     /** Whether this package is empty */
-    fun empty() = topLevelClasses().none()
+    fun empty() = topLevelClasses().isEmpty()
 
     override fun baselineElementId() = qualifiedName()
 
