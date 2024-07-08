@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
@@ -41,7 +42,7 @@ internal class TextCodebase(
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
-    private val packagesByName = HashMap<String, TextPackageItem>(300)
+    private val packagesByName = HashMap<String, DefaultPackageItem>(300)
     private val allClassesByName = HashMap<String, TextClassItem>(30000)
 
     private val externalClassesByName = HashMap<String, ClassItem>()
@@ -60,7 +61,7 @@ internal class TextCodebase(
 
     init {
         // Make sure that it has a root package.
-        val rootPackage = TextPackageItem.create(codebase = this, qualifiedName = "")
+        val rootPackage = itemFactory.createPackageItem(qualifiedName = "")
         addPackage(rootPackage)
     }
 
@@ -86,7 +87,7 @@ internal class TextCodebase(
 
     override fun supportsDocumentation(): Boolean = false
 
-    fun addPackage(pInfo: TextPackageItem) {
+    fun addPackage(pInfo: DefaultPackageItem) {
         // track the set of organized packages in the API
         packagesByName[pInfo.qualifiedName()] = pInfo
 
@@ -233,8 +234,7 @@ internal class TextCodebase(
             val pkg =
                 findPackage(pkgPath)
                     ?: run {
-                        val newPkg =
-                            TextPackageItem.create(codebase = this, qualifiedName = pkgPath)
+                        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgPath)
                         addPackage(newPkg)
                         newPkg.emit = false
                         newPkg
@@ -245,7 +245,7 @@ internal class TextCodebase(
         return stubClass
     }
 
-    override fun findPackage(pkgName: String): TextPackageItem? {
+    override fun findPackage(pkgName: String): DefaultPackageItem? {
         return packagesByName[pkgName]
     }
 

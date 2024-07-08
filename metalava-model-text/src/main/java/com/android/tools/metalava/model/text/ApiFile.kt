@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
@@ -441,7 +442,11 @@ private constructor(
                 existing
             } else {
                 val newPackageItem =
-                    TextPackageItem.create(codebase, tokenizer.fileLocation(), modifiers, name)
+                    itemFactory.createPackageItem(
+                        fileLocation = tokenizer.fileLocation(),
+                        modifiers = modifiers,
+                        qualifiedName = name,
+                    )
                 newPackageItem.markForCurrentApiSurface()
                 codebase.addPackage(newPackageItem)
                 newPackageItem
@@ -461,7 +466,7 @@ private constructor(
         }
     }
 
-    private fun parseClass(pkg: TextPackageItem, tokenizer: Tokenizer, startingToken: String) {
+    private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
@@ -782,7 +787,7 @@ private constructor(
      * If the qualified name matches an existing class then return its information.
      */
     private fun parseDeclaredClassType(
-        pkg: TextPackageItem,
+        pkg: DefaultPackageItem,
         declaredClassType: String,
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {

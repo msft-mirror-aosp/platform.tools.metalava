@@ -106,7 +106,8 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
                 val packageItem =
                     codebase.findPackage(packageName)
-                        ?: TextPackageItem.create(codebase = codebase, qualifiedName = packageName)
+                        ?: codebase.itemFactory
+                            .createPackageItem(qualifiedName = packageName)
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 
                 TextClassItem(

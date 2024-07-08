@@ -93,7 +93,7 @@ internal open class TextClassItem(
 
     private var containingPackage: PackageItem? = null
 
-    fun setContainingPackage(containingPackage: TextPackageItem) {
+    fun setContainingPackage(containingPackage: PackageItem) {
         this.containingPackage = containingPackage
     }
 

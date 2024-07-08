@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 
@@ -57,18 +58,20 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     var description by codebase::description
 
-    private fun getOrAddPackage(pkgName: String): TextPackageItem {
+    private val itemFactory = codebase.itemFactory
+
+    private fun getOrAddPackage(pkgName: String): DefaultPackageItem {
         val pkg = codebase.findPackage(pkgName)
         if (pkg != null) {
             return pkg
         }
-        val newPkg = TextPackageItem.create(codebase = codebase, qualifiedName = pkgName)
+        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgName)
         codebase.addPackage(newPkg)
         return newPkg
     }
 
     fun addPackage(pkg: PackageItem) {
-        codebase.addPackage(pkg as TextPackageItem)
+        codebase.addPackage(pkg as DefaultPackageItem)
     }
 
     fun addClass(cls: ClassItem) {
