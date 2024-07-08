@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
@@ -31,13 +32,17 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.source.SourceItemDocumentation
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
@@ -117,6 +122,17 @@ internal open class TurbineCodebaseInitialiser(
 
     private val globalTypeItemFactory =
         TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
+
+    /** Creates [Item] instances for [codebase]. */
+    private val itemFactory =
+        DefaultItemFactory(
+            codebase = codebase,
+            // Turbine can only process java files.
+            defaultItemLanguage = ItemLanguage.JAVA,
+            // Source files need to track which parts belong to which API surface variants, so they
+            // need to create an ApiVariantSelectors instance that can be used to track that.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        )
 
     /**
      * Data Type: TurbineElements (An implementation of javax.lang.model.util.Elements)
@@ -662,18 +678,24 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     /**
-     * Create the [TurbineTypeParameterItem] without any bounds and register it so that any uses of
+     * Create the [DefaultTypeParameterItem] without any bounds and register it so that any uses of
      * it within the type bounds, e.g. `<E extends Enum<E>>`, or from other type parameters within
      * the same [TypeParameterList] can be resolved.
      */
-    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): TurbineTypeParameterItem {
+    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
         val modifiers =
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
-        val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, name = sym.name())
+        val typeParamItem =
+            itemFactory.createTypeParameterItem(
+                modifiers,
+                name = sym.name(),
+                // Java does not supports reified generics
+                isReified = false,
+            )
         return typeParamItem
     }
 
-    /** Create the bounds of a [TurbineTypeParameterItem]. */
+    /** Create the bounds of a [DefaultTypeParameterItem]. */
     private fun createTypeParameterBounds(
         param: TyVarInfo,
         typeItemFactory: TurbineTypeItemFactory,
@@ -792,15 +814,15 @@ internal open class TurbineCodebaseInitialiser(
 
                     val methodItem =
                         TurbineMethodItem(
-                            codebase,
-                            TurbineFileLocation.forTree(classItem, decl),
-                            method.sym(),
-                            classItem,
-                            returnType,
-                            methodModifierItem,
-                            typeParams,
-                            getCommentedDoc(documentation),
-                            defaultValue,
+                            codebase = codebase,
+                            fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                            methodSymbol = method.sym(),
+                            containingClass = classItem,
+                            returnType = returnType,
+                            modifiers = methodModifierItem,
+                            typeParameterList = typeParams,
+                            documentation = getCommentedDoc(documentation),
+                            defaultValue = defaultValue,
                         )
                     createParameters(
                         methodItem,
@@ -895,19 +917,19 @@ internal open class TurbineCodebaseInitialiser(
                     val documentation = javadoc(decl)
                     val constructorItem =
                         TurbineConstructorItem(
-                            codebase,
-                            TurbineFileLocation.forTree(classItem, decl),
-                            name,
-                            constructor.sym(),
-                            classItem,
+                            codebase = codebase,
+                            fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                            name = name,
+                            methodSymbol = constructor.sym(),
+                            containingClass = classItem,
                             // Turbine's Binder gives return type of constructors as void but the
                             // model expects it to the type of object being created. So, use the
                             // containing [ClassItem]'s type as the constructor return type.
-                            classItem.type(),
-                            constructorModifierItem,
-                            typeParams,
-                            getCommentedDoc(documentation),
-                            "",
+                            returnType = classItem.type(),
+                            modifiers = constructorModifierItem,
+                            typeParameters = typeParams,
+                            documentation = getCommentedDoc(documentation),
+                            defaultValue = "",
                         )
                     createParameters(
                         constructorItem,

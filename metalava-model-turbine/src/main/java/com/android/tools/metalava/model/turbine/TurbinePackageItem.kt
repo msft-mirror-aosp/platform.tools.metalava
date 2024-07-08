@@ -16,20 +16,33 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbinePackageItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), PackageItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 
@@ -37,7 +50,7 @@ internal class TurbinePackageItem(
 
     companion object {
         fun create(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             fileLocation: FileLocation,
             qualifiedName: String,
             modifiers: DefaultModifierList,
