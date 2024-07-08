@@ -91,14 +91,6 @@ open class PsiMethodItem(
 
     override fun hashCode() = hashCodeForItem()
 
-    override fun findMainDocumentation(): String {
-        val text = documentation.text
-        if (text == "") return text
-        val comment = codebase.getComment(text)
-        val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
-        return comment.text.substring(0, end)
-    }
-
     override fun isConstructor(): Boolean = false
 
     override fun isImplicitConstructor(): Boolean = false

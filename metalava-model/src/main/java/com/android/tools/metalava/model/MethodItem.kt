@@ -68,9 +68,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         else correspondingMethodItem
     }
 
-    /** Returns the main documentation for the method (the documentation before any tags). */
-    fun findMainDocumentation(): String
-
     fun allSuperMethods(): Sequence<MethodItem> {
         val original = superMethods().firstOrNull() ?: return emptySequence()
         return generateSequence(original) { item ->

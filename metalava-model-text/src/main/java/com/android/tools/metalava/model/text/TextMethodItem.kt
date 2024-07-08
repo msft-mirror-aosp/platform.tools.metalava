@@ -93,8 +93,6 @@ internal open class TextMethodItem(
         return computeSuperMethods()
     }
 
-    override fun findMainDocumentation(): String = documentation.text
-
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {

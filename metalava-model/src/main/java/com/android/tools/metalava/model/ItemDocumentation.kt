@@ -81,6 +81,9 @@ interface ItemDocumentation : CharSequence {
      */
     fun findTagDocumentation(tag: String, value: String? = null): String?
 
+    /** Returns the main documentation for the method (the documentation before any tags). */
+    fun findMainDocumentation(): String
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -116,6 +119,8 @@ interface ItemDocumentation : CharSequence {
         override fun appendDocumentation(comment: String, tagSection: String?) {
             error("cannot modify documentation on an item that does not support documentation")
         }
+
+        override fun findMainDocumentation() = ""
     }
 }
 
@@ -257,6 +262,10 @@ internal class DefaultItemDocumentation(override var text: String) : AbstractIte
     override fun duplicate() = DefaultItemDocumentation(text)
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun findMainDocumentation(): String {
         TODO("Not yet implemented")
     }
 }
