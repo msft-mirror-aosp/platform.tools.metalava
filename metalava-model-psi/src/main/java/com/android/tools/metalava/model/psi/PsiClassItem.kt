@@ -209,12 +209,9 @@ internal constructor(
         return PsiSourceFile(codebase, containingFile, uFile)
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ClassItem && qualifiedName == other.qualifiedName()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
+
+    override fun hashCode() = hashCodeForItem()
 
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(): ConstructorItem {
@@ -254,8 +251,6 @@ internal constructor(
         retention = ClassItem.findRetention(this)
         return retention!!
     }
-
-    override fun hashCode(): Int = qualifiedName.hashCode()
 
     companion object {
         private fun hasExplicitRetention(

@@ -60,18 +60,9 @@ internal open class TextClassItem(
 
     override var artifact: String? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        other as TextClassItem
-
-        return qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int {
-        return qualifiedName.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 

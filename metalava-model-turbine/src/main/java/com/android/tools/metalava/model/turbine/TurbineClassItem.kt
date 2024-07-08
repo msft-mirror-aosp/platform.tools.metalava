@@ -185,14 +185,9 @@ internal open class TurbineClassItem(
         return cachedType
     }
 
-    override fun hashCode(): Int = qualifiedName.hashCode()
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ClassItem && qualifiedName() == other.qualifiedName()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun getSourceFile(): SourceFile? = source
 
