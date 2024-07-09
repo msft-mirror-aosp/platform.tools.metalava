@@ -431,7 +431,7 @@ abstract class AbstractItem(
      * The leaking of `this` is safe as the implementations do not do access anything that has not
      * been initialized.
      */
-    private val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+    internal val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 
     /**
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
@@ -553,7 +553,7 @@ abstract class AbstractItem(
 abstract class DefaultItem(
     final override val codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val itemLanguage: ItemLanguage,
+    internal val itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     variantSelectorsFactory: ApiVariantSelectorsFactory,

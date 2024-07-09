@@ -37,7 +37,6 @@ import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.ClassSymbol
-import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineClassItem(
     codebase: DefaultCodebase,
@@ -74,9 +73,9 @@ internal open class TurbineClassItem(
 
     private var allInterfaces: List<ClassItem>? = null
 
-    internal lateinit var containingPackage: TurbinePackageItem
+    internal lateinit var containingPackage: PackageItem
 
-    internal lateinit var fields: List<TurbineFieldItem>
+    internal lateinit var fields: List<FieldItem>
 
     internal lateinit var methods: MutableList<TurbineMethodItem>
 
@@ -141,8 +140,7 @@ internal open class TurbineClassItem(
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     override fun createDefaultConstructor(): ConstructorItem {
-        val sym = MethodSymbol(0, classSymbol, name)
-        return TurbineConstructorItem.createDefaultConstructor(codebase, this, sym)
+        return TurbineConstructorItem.createDefaultConstructor(codebase, this)
     }
 
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
@@ -185,14 +183,9 @@ internal open class TurbineClassItem(
         return cachedType
     }
 
-    override fun hashCode(): Int = qualifiedName.hashCode()
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ClassItem && qualifiedName() == other.qualifiedName()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun getSourceFile(): SourceFile? = source
 
@@ -201,27 +194,28 @@ internal open class TurbineClassItem(
         val replacementMap = mapTypeVariables(method.containingClass())
         val retType = method.returnType().convertType(replacementMap)
         val mods = method.modifiers.duplicate()
+        val parameters = method.parameters()
 
         val duplicateMethod =
             TurbineMethodItem(
                 codebase = codebase,
                 fileLocation = FileLocation.UNKNOWN,
-                methodSymbol = method.getSymbol(),
-                containingClass = this,
-                returnType = retType,
                 modifiers = mods,
-                typeParameterList = method.typeParameterList,
                 documentation = method.documentation.duplicate(),
-                defaultValue = method.defaultValue(),
+                name = method.name(),
+                containingClass = this,
+                typeParameterList = method.typeParameterList,
+                returnType = retType,
+                parameterItemsFactory = { methodItem ->
+                    parameters.map {
+                        TurbineParameterItem.duplicate(codebase, methodItem, it, replacementMap)
+                    }
+                },
+                annotationDefault = method.defaultValue(),
+                throwsTypes = method.throwsTypes(),
             )
 
-        val params =
-            method.parameters().map {
-                TurbineParameterItem.duplicate(codebase, duplicateMethod, it, replacementMap)
-            }
-        duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = method.containingClass()
-        duplicateMethod.throwableTypes = method.throwableTypes
 
         duplicateMethod.updateCopiedMethodState()
 
