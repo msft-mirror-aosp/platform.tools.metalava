@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ItemDocumentation
@@ -26,9 +27,9 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal class TurbineConstructorItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val name: String,
+    name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
     returnType: ClassTypeItem,
@@ -38,19 +39,18 @@ internal class TurbineConstructorItem(
     private val defaultValue: String,
 ) :
     TurbineMethodItem(
-        codebase,
-        fileLocation,
-        methodSymbol,
-        containingClass,
-        returnType,
-        modifiers,
-        typeParameters,
-        documentation,
-        defaultValue,
+        codebase = codebase,
+        fileLocation = fileLocation,
+        methodSymbol = methodSymbol,
+        name = name,
+        containingClass = containingClass,
+        returnType = returnType,
+        modifiers = modifiers,
+        typeParameterList = typeParameters,
+        documentation = documentation,
+        defaultValue = defaultValue,
     ),
     ConstructorItem {
-
-    override fun name(): String = name
 
     override var superConstructor: ConstructorItem? = null
 
@@ -58,7 +58,7 @@ internal class TurbineConstructorItem(
 
     companion object {
         fun createDefaultConstructor(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             containingClass: TurbineClassItem,
             symbol: MethodSymbol
         ): TurbineConstructorItem {
@@ -69,18 +69,18 @@ internal class TurbineConstructorItem(
 
             val ctorItem =
                 TurbineConstructorItem(
-                    codebase,
+                    codebase = codebase,
                     // Use the location of the containing class for the implicit default
                     // constructor.
-                    containingClass.fileLocation,
-                    name,
-                    symbol,
-                    containingClass,
-                    containingClass.type(),
-                    modifiers,
-                    typeParameterList,
-                    ItemDocumentation.NONE,
-                    "",
+                    fileLocation = containingClass.fileLocation,
+                    name = name,
+                    methodSymbol = symbol,
+                    containingClass = containingClass,
+                    returnType = containingClass.type(),
+                    modifiers = modifiers,
+                    typeParameters = typeParameterList,
+                    documentation = ItemDocumentation.NONE,
+                    defaultValue = "",
                 )
             ctorItem.parameters = emptyList()
             ctorItem.throwableTypes = emptyList()
