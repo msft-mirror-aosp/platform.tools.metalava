@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
@@ -32,7 +31,6 @@ import com.android.tools.metalava.model.computeSuperMethods
 import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
-import java.util.function.Predicate
 
 /**
  * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
@@ -85,11 +83,40 @@ internal open class TextMethodItem(
         returnType = type
     }
 
+    override var inheritedFrom: ClassItem? = null
+
+    override fun parameters(): List<ParameterItem> = parameters
+
+    override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
+
+    override fun isExtensionMethod(): Boolean =
+        false // signature files do not support extension methods
+
+    override fun defaultValue() = annotationDefault
+
+    private lateinit var superMethodList: List<MethodItem>
+
+    /**
+     * Super methods for a given method M with containing class C are calculated as follows:
+     * 1) Superclass Search: Traverse the class hierarchy, starting from C's direct superclass, and
+     *    add the first method that matches M's signature to the list.
+     * 2) Interface Supermethod Search: For each direct interface implemented by C, check if it
+     *    contains a method matching M's signature. If found, return that method. If not,
+     *    recursively apply this method to the direct interfaces of the current interface.
+     *
+     * Note: This method's implementation is based on MethodItem.matches method which only checks
+     * that name and parameter list types match. Parameter names, Return types and Throws list types
+     * are not matched
+     */
     override fun superMethods(): List<MethodItem> {
-        return computeSuperMethods()
+        if (!::superMethodList.isInitialized) {
+            superMethodList = computeSuperMethods()
+        }
+        return superMethodList
     }
 
-    override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
+    @Deprecated("This property should not be accessed directly.")
+    override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
@@ -125,20 +152,5 @@ internal open class TextMethodItem(
         duplicated.updateCopiedMethodState()
 
         return duplicated
-    }
-
-    override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
-
-    override fun parameters(): List<ParameterItem> = parameters
-
-    override fun isExtensionMethod(): Boolean = codebase.unsupported()
-
-    override var inheritedFrom: ClassItem? = null
-
-    @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
-
-    override fun defaultValue(): String {
-        return annotationDefault
     }
 }
