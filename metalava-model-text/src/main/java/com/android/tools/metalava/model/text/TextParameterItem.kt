@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
+import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.reporter.FileLocation
 
 const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
@@ -35,7 +36,7 @@ internal class TextParameterItem(
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     private val name: String,
-    private val publicName: String?,
+    private val publicNameProvider: PublicNameProvider,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
@@ -54,7 +55,7 @@ internal class TextParameterItem(
 
     override fun name(): String = name
 
-    override fun publicName(): String? = publicName
+    override fun publicName(): String? = publicNameProvider(this)
 
     override fun containingMethod(): MethodItem = containingMethod
 
@@ -81,7 +82,7 @@ internal class TextParameterItem(
             fileLocation,
             modifiers.duplicate(),
             name,
-            publicName,
+            publicNameProvider,
             containingMethod,
             parameterIndex,
             type.convertType(typeVariableMap),

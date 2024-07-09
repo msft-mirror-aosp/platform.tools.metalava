@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -862,6 +863,12 @@ internal open class TurbineCodebaseInitialiser(
                     TurbineFileLocation.forTree(methodItem.containingClass(), decl),
                     parameterModifierItem,
                     parameter.name(),
+                    { item ->
+                        // Java: Look for @ParameterName annotation
+                        val modifiers = item.modifiers
+                        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
+                        annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
+                    },
                     methodItem,
                     idx,
                     type,

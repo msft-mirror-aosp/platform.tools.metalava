@@ -1740,7 +1740,7 @@ private constructor(
                     location,
                     modifiers,
                     name,
-                    publicName,
+                    { publicName },
                     containingMethod,
                     index,
                     type,

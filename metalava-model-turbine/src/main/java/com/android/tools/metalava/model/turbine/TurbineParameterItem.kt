@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineParameterItem(
@@ -36,6 +37,7 @@ internal class TurbineParameterItem(
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     private val name: String,
+    private val publicNameProvider: PublicNameProvider,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
@@ -52,11 +54,7 @@ internal class TurbineParameterItem(
 
     override fun name(): String = name
 
-    override fun publicName(): String? {
-        // Java: Look for @ParameterName annotation
-        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
-        return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
-    }
+    override fun publicName(): String? = publicNameProvider(this)
 
     override fun containingMethod(): MethodItem = containingMethod
 
@@ -88,6 +86,7 @@ internal class TurbineParameterItem(
             fileLocation,
             modifiers.duplicate(),
             name(),
+            publicNameProvider,
             containingMethod,
             parameterIndex,
             type().convertType(typeVariableMap),
