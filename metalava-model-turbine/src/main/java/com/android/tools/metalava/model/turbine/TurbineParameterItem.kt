@@ -79,24 +79,17 @@ internal class TurbineParameterItem(
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
 
-    companion object {
-        internal fun duplicate(
-            codebase: DefaultCodebase,
-            containingMethod: MethodItem,
-            parameter: ParameterItem,
-            typeParameterBindings: TypeParameterBindings,
-        ): TurbineParameterItem {
-            val type = parameter.type().convertType(typeParameterBindings)
-            val mods = (parameter.modifiers as DefaultModifierList).duplicate()
-            return TurbineParameterItem(
-                codebase,
-                FileLocation.UNKNOWN,
-                mods,
-                parameter.name(),
-                containingMethod,
-                parameter.parameterIndex,
-                type
-            )
-        }
-    }
+    internal fun duplicate(
+        containingMethod: MethodItem,
+        typeVariableMap: TypeParameterBindings,
+    ) =
+        TurbineParameterItem(
+            codebase,
+            fileLocation,
+            modifiers.duplicate(),
+            name(),
+            containingMethod,
+            parameterIndex,
+            type().convertType(typeVariableMap),
+        )
 }

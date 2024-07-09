@@ -130,9 +130,7 @@ internal open class TurbineMethodItem(
                 returnType = returnType,
                 parameterItemsFactory = { methodItem ->
                     // Duplicate the parameters
-                    parameters.map {
-                        TurbineParameterItem.duplicate(codebase, methodItem, it, emptyMap())
-                    }
+                    parameters.map { it.duplicate(methodItem, emptyMap()) }
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,

@@ -75,8 +75,8 @@ internal class TextParameterItem(
     internal fun duplicate(
         containingMethod: MethodItem,
         typeVariableMap: TypeParameterBindings,
-    ): TextParameterItem {
-        return TextParameterItem(
+    ) =
+        TextParameterItem(
             codebase,
             fileLocation,
             modifiers.duplicate(),
@@ -88,5 +88,4 @@ internal class TextParameterItem(
             hasDefaultValue,
             defaultValueBody,
         )
-    }
 }

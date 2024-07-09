@@ -204,7 +204,7 @@ internal open class TurbineClassItem(
                 returnType = retType,
                 parameterItemsFactory = { methodItem ->
                     parameters.map {
-                        TurbineParameterItem.duplicate(codebase, methodItem, it, replacementMap)
+                        (it as TurbineParameterItem).duplicate(methodItem, replacementMap)
                     }
                 },
                 annotationDefault = method.defaultValue(),
