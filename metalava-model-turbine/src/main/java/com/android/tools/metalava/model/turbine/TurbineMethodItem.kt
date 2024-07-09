@@ -113,10 +113,6 @@ internal open class TurbineMethodItem(
         return superMethodList
     }
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 

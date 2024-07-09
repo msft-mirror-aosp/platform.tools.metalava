@@ -183,10 +183,6 @@ internal open class TurbineClassItem(
         return cachedType
     }
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     override fun getSourceFile(): SourceFile? = source
 
     override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {

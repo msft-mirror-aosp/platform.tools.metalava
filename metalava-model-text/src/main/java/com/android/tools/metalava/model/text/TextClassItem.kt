@@ -60,10 +60,6 @@ internal open class TextClassItem(
 
     override var artifact: String? = null
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     override fun allInterfaces(): Sequence<ClassItem> {

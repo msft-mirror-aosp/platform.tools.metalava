@@ -77,10 +77,6 @@ internal open class TextMethodItem(
      */
     @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     override fun isConstructor(): Boolean = false
 
     override fun returnType(): TypeItem = returnType

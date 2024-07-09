@@ -564,9 +564,9 @@ abstract class AbstractItem(
         documentation.appendDocumentation(comment, tagSection)
     }
 
-    override fun equals(other: Any?) = equalsToItem(other)
+    final override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode() = hashCodeForItem()
+    final override fun hashCode() = hashCodeForItem()
 
     final override fun toString() = toStringForItem()
 }

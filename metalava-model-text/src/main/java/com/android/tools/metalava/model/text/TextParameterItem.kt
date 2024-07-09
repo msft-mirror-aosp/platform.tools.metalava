@@ -72,10 +72,6 @@ internal class TextParameterItem(
 
     override fun defaultValue(): String? = defaultValueBody
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     internal fun duplicate(
         containingMethod: MethodItem,
         typeVariableMap: TypeParameterBindings,
