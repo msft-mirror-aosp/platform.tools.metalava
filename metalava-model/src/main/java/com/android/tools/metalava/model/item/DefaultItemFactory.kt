@@ -20,10 +20,14 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 /** A factory for creating [Item] instances suitable for use by many models. */
@@ -37,6 +41,49 @@ class DefaultItemFactory(
     /** The default [ApiVariantSelectorsFactory] for [Item]s created by this. */
     private val defaultVariantSelectorsFactory: ApiVariantSelectorsFactory,
 ) {
+    /** Create a [PackageItem]. */
+    fun createPackageItem(
+        fileLocation: FileLocation = FileLocation.UNKNOWN,
+        modifiers: DefaultModifierList = DefaultModifierList(codebase),
+        documentation: ItemDocumentation = ItemDocumentation.NONE,
+        qualifiedName: String,
+    ): DefaultPackageItem {
+        modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+        return DefaultPackageItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            modifiers,
+            documentation,
+            defaultVariantSelectorsFactory,
+            qualifiedName,
+        )
+    }
+
+    /** Create a [FieldItem]. */
+    fun createFieldItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentation: ItemDocumentation,
+        name: String,
+        containingClass: ClassItem,
+        type: TypeItem,
+        isEnumConstant: Boolean,
+        fieldValue: FieldValue?,
+    ): FieldItem =
+        DefaultFieldItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            defaultVariantSelectorsFactory,
+            modifiers,
+            documentation,
+            name,
+            containingClass,
+            type,
+            isEnumConstant,
+            fieldValue,
+        )
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(
