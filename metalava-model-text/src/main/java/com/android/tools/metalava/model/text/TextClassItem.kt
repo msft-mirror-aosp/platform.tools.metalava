@@ -60,18 +60,9 @@ internal open class TextClassItem(
 
     override var artifact: String? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        other as TextClassItem
-
-        return qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int {
-        return qualifiedName.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -102,7 +93,7 @@ internal open class TextClassItem(
 
     private var containingPackage: PackageItem? = null
 
-    fun setContainingPackage(containingPackage: TextPackageItem) {
+    fun setContainingPackage(containingPackage: PackageItem) {
         this.containingPackage = containingPackage
     }
 
@@ -171,17 +162,12 @@ internal open class TextClassItem(
         methods += method
     }
 
-    fun addField(field: TextFieldItem) {
+    fun addField(field: FieldItem) {
         fields += field
     }
 
     fun addProperty(property: PropertyItem) {
         properties += property
-    }
-
-    fun addEnumConstant(field: TextFieldItem) {
-        field.setEnumConstant(true)
-        fields += field
     }
 
     fun addNestedClass(cls: ClassItem) {

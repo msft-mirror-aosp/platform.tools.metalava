@@ -34,11 +34,11 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class TurbineParameterItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     private val name: String,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    modifiers: DefaultModifierList,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -60,6 +60,14 @@ internal class TurbineParameterItem(
 
     override fun containingMethod(): MethodItem = containingMethod
 
+    override fun isVarArgs(): Boolean = modifiers.isVarArg()
+
+    override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
+
     override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
 
     override fun isDefaultValueKnown(): Boolean {
@@ -71,24 +79,9 @@ internal class TurbineParameterItem(
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ParameterItem &&
-            parameterIndex == other.parameterIndex &&
-            containingMethod == other.containingMethod()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode(): Int = parameterIndex
-
-    override fun type(): TypeItem = type
-
-    override fun setType(type: TypeItem) {
-        this.type = type
-    }
-
-    override fun isVarArgs(): Boolean = modifiers.isVarArg()
+    override fun hashCode() = hashCodeForItem()
 
     companion object {
         internal fun duplicate(
@@ -102,11 +95,11 @@ internal class TurbineParameterItem(
             return TurbineParameterItem(
                 codebase,
                 FileLocation.UNKNOWN,
+                mods,
                 parameter.name(),
                 containingMethod,
                 parameter.parameterIndex,
-                type,
-                mods
+                type
             )
         }
     }
