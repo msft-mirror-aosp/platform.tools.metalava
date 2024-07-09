@@ -414,7 +414,6 @@ internal open class TurbineCodebaseInitialiser(
                 simpleName,
                 fullName,
                 qualifiedName,
-                sym,
                 modifierItem,
                 getClassKind(cls.kind()),
                 typeParameters,
