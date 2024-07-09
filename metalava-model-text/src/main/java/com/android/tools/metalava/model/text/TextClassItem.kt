@@ -204,6 +204,6 @@ internal open class TextClassItem(
     override fun qualifiedName(): String = qualifiedName
 
     override fun createDefaultConstructor(): ConstructorItem {
-        return TextConstructorItem.createDefaultConstructor(codebase, this, fileLocation)
+        return TextConstructorItem.createDefaultConstructor(codebase, this)
     }
 }

@@ -910,7 +910,7 @@ internal open class TurbineCodebaseInitialiser(
                             // containing [ClassItem]'s type as the constructor return type.
                             name = name,
                             containingClass = classItem,
-                            typeParameters = typeParams,
+                            typeParameterList = typeParams,
                             returnType = classItem.type(),
                             parameterItemsFactory = { constructorItem ->
                                 createParameters(
