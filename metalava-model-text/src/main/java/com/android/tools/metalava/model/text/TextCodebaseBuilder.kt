@@ -100,7 +100,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     fun addProperty(property: PropertyItem) {
         val cls = getOrAddClass(property.containingClass())
-        cls.addProperty(property as TextPropertyItem)
+        cls.addProperty(property)
     }
 
     private fun getOrAddClass(fullClass: ClassItem): TextClassItem {

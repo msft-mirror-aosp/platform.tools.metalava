@@ -16,21 +16,37 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextFieldItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
     private var type: TypeItem,
     private val constantValue: Any?,
     fileLocation: FileLocation
-) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), FieldItem {
+) :
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        ItemLanguage.UNKNOWN,
+        modifiers,
+        ItemDocumentation.NONE,
+        ApiVariantSelectors.IMMUTABLE_FACTORY,
+        name,
+        containingClass,
+    ),
+    FieldItem {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

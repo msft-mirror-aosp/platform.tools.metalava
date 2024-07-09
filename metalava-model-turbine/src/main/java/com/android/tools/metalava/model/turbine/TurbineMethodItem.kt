@@ -16,30 +16,45 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineMethodItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
+    name: String = methodSymbol.name(),
     containingClass: ClassItem,
     private var returnType: TypeItem,
     modifiers: DefaultModifierList,
     override val typeParameterList: TypeParameterList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private val defaultValue: String,
 ) :
-    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        ItemLanguage.JAVA,
+        modifiers,
+        documentation,
+        ApiVariantSelectors.MUTABLE_FACTORY,
+        name,
+        containingClass,
+    ),
     MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
@@ -47,8 +62,6 @@ internal open class TurbineMethodItem(
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
-
-    override fun name(): String = methodSymbol.name()
 
     override fun parameters(): List<ParameterItem> = parameters
 
@@ -105,15 +118,15 @@ internal open class TurbineMethodItem(
         val mods = modifiers.duplicate()
         val duplicated =
             TurbineMethodItem(
-                codebase,
-                fileLocation,
-                methodSymbol,
-                targetContainingClass,
-                returnType,
-                mods,
-                typeParameterList,
-                documentation,
-                defaultValue,
+                codebase = codebase,
+                fileLocation = fileLocation,
+                methodSymbol = methodSymbol,
+                containingClass = targetContainingClass,
+                returnType = returnType,
+                modifiers = mods,
+                typeParameterList = typeParameterList,
+                documentation = documentation.duplicate(),
+                defaultValue = defaultValue,
             )
         // Duplicate the parameters
         val params =
