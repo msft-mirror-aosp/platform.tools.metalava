@@ -397,7 +397,7 @@ open class PsiMethodItem(
                     psiMethod = original.psiMethod,
                     containingClass = containingClass,
                     name = original.name(),
-                    documentation = original.documentation,
+                    documentation = original.documentation.duplicate(),
                     modifiers = original.modifiers.duplicate(),
                     returnType = returnType,
                     parameters =

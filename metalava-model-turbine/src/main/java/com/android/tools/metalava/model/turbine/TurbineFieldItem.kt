@@ -16,17 +16,21 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineFieldItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val name: String,
+    name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
     modifiers: DefaultModifierList,
@@ -34,12 +38,19 @@ internal class TurbineFieldItem(
     private val isEnumConstant: Boolean,
     private val fieldValue: TurbineFieldValue?,
 ) :
-    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        ItemLanguage.JAVA,
+        modifiers,
+        documentation,
+        ApiVariantSelectors.MUTABLE_FACTORY,
+        name,
+        containingClass,
+    ),
     FieldItem {
 
     override var inheritedFrom: ClassItem? = null
-
-    override fun name(): String = name
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -67,7 +78,7 @@ internal class TurbineFieldItem(
                 targetContainingClass,
                 type,
                 modifiers.duplicate(),
-                documentation,
+                documentation.duplicate(),
                 isEnumConstant,
                 fieldValue,
             )
