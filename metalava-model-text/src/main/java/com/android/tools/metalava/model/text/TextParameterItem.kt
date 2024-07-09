@@ -32,14 +32,15 @@ const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
 internal class TextParameterItem(
     codebase: DefaultCodebase,
-    private var name: String,
-    private var publicName: String?,
-    private val hasDefaultValue: Boolean,
-    private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
+    private val name: String,
+    private val publicName: String?,
+    private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    modifiers: DefaultModifierList,
-    fileLocation: FileLocation
+    private val hasDefaultValue: Boolean,
+    private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -51,11 +52,13 @@ internal class TextParameterItem(
     ),
     ParameterItem {
 
-    internal lateinit var containingMethod: TextMethodItem
+    override fun name(): String = name
 
-    override fun isVarArgs(): Boolean {
-        return modifiers.isVarArg()
-    }
+    override fun publicName(): String? = publicName
+
+    override fun containingMethod(): MethodItem = containingMethod
+
+    override fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     override fun type(): TypeItem = type
 
@@ -63,38 +66,31 @@ internal class TextParameterItem(
         this.type = type
     }
 
-    override fun name(): String = name
-
-    override fun publicName(): String? = publicName
-
     override fun hasDefaultValue(): Boolean = hasDefaultValue
 
     override fun isDefaultValueKnown(): Boolean = defaultValueBody != UNKNOWN_DEFAULT_VALUE
 
     override fun defaultValue(): String? = defaultValueBody
 
-    override fun containingMethod(): MethodItem = containingMethod
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is ParameterItem) return false
+    override fun hashCode() = hashCodeForItem()
 
-        return parameterIndex == other.parameterIndex
-    }
-
-    override fun hashCode(): Int = parameterIndex
-
-    internal fun duplicate(typeVariableMap: TypeParameterBindings): TextParameterItem {
+    internal fun duplicate(
+        containingMethod: MethodItem,
+        typeVariableMap: TypeParameterBindings,
+    ): TextParameterItem {
         return TextParameterItem(
             codebase,
+            fileLocation,
+            modifiers.duplicate(),
             name,
             publicName,
-            hasDefaultValue,
-            defaultValueBody,
+            containingMethod,
             parameterIndex,
             type.convertType(typeVariableMap),
-            modifiers.duplicate(),
-            fileLocation
+            hasDefaultValue,
+            defaultValueBody,
         )
     }
 }
