@@ -43,9 +43,9 @@ internal open class TextClassItem(
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,
-    val qualifiedName: String = "",
-    var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-    val fullName: String = simpleName,
+    private val qualifiedName: String = "",
+    private val simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    private val fullName: String = simpleName,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
     DefaultItem(
