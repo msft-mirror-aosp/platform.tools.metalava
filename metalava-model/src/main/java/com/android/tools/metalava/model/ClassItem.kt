@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.ArrayList
 import java.util.LinkedHashSet
 import java.util.function.Predicate
 
@@ -40,15 +39,15 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     @MetalavaApi fun qualifiedName(): String
 
-    /** Is this an innerclass? */
-    @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
+    /** Is this a nested class? */
+    @MetalavaApi fun isNestedClass() = containingClass() != null
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
-    /** This [ClassItem] and all of its inner classes, recursively */
+    /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
-        return sequenceOf(this).plus(innerClasses().asSequence().flatMap { it.allClasses() })
+        return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
     }
 
     override fun parent(): Item? = containingClass() ?: containingPackage()
@@ -57,11 +56,11 @@ interface ClassItem : Item, TypeParameterListOwner {
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
 
     /**
-     * The qualified name where inner classes use $ as a separator. In class foo.bar.Outer.Inner,
+     * The qualified name where nested classes use $ as a separator. In class foo.bar.Outer.Inner,
      * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
      * files for example.)
      */
-    fun qualifiedNameWithDollarInnerClasses(): String {
+    fun qualifiedNameWithDollarNestedClasses(): String {
         var curr: ClassItem? = this
         while (curr?.containingClass() != null) {
             curr = curr.containingClass()
@@ -95,7 +94,7 @@ interface ClassItem : Item, TypeParameterListOwner {
      *
      * Interfaces always return `null` for this.
      */
-    @MetalavaApi fun superClass(): ClassItem?
+    @MetalavaApi fun superClass() = superClassType()?.asClass()
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -159,8 +158,11 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     fun allInterfaces(): Sequence<ClassItem>
 
-    /** Any inner classes of this class */
-    fun innerClasses(): List<ClassItem>
+    /**
+     * Any classes nested in this class, that includes inner classes which are just non-static
+     * nested classes.
+     */
+    fun nestedClasses(): List<ClassItem>
 
     /** The constructors in this class */
     @MetalavaApi fun constructors(): List<ConstructorItem>
@@ -196,7 +198,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Whether this class is a regular class (not an interface, not an enum, etc) */
     fun isClass() = classKind == ClassKind.CLASS
 
-    /** The containing class, for inner classes */
+    /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */
@@ -204,6 +206,9 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     /** Gets the type for this class */
     override fun type(): ClassTypeItem
+
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on PackageItem: $this")
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -453,7 +458,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         }
     }
 
-    fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
+    fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
@@ -468,7 +473,7 @@ interface ClassItem : Item, TypeParameterListOwner {
                     return superClassType
                 }
 
-                return superClassType.convertType(this, prev)
+                return superClassType.convertType(this, prev) as ClassTypeItem
             }
 
             prev = superClass
@@ -572,7 +577,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
+    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<ClassTypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -581,9 +586,6 @@ interface ClassItem : Item, TypeParameterListOwner {
                 includeParents = false,
                 target = this
             )
-        if (interfaceTypes.isEmpty()) {
-            return interfaceTypes
-        }
 
         return interfaceTypes
     }
@@ -606,11 +608,11 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     private fun filteredInterfaceTypes(
         predicate: Predicate<Item>,
-        types: LinkedHashSet<TypeItem>,
+        types: LinkedHashSet<ClassTypeItem>,
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
-    ): LinkedHashSet<TypeItem> {
+    ): LinkedHashSet<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
             val superClass = superClassType.asClass()
@@ -657,26 +659,6 @@ interface ClassItem : Item, TypeParameterListOwner {
             }
         }
         return types
-    }
-
-    fun allInnerClasses(includeSelf: Boolean = false): Sequence<ClassItem> {
-        if (!includeSelf && innerClasses().isEmpty()) {
-            return emptySequence()
-        }
-
-        val list = ArrayList<ClassItem>()
-        if (includeSelf) {
-            list.add(this)
-        }
-        addInnerClasses(list, this)
-        return list.asSequence()
-    }
-
-    private fun addInnerClasses(list: MutableList<ClassItem>, cls: ClassItem) {
-        for (innerClass in cls.innerClasses()) {
-            list.add(innerClass)
-            addInnerClasses(list, innerClass)
-        }
     }
 
     /**
@@ -754,7 +736,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         val classTypeArguments =
             classTypeItem.arguments.map {
                 if (it is ClassTypeItem && it.arguments.isNotEmpty()) {
-                    it.duplicate(it.outerClassType, arguments = emptyList())
+                    it.substitute(arguments = emptyList())
                 } else {
                     it
                 }
@@ -782,8 +764,6 @@ interface ClassItem : Item, TypeParameterListOwner {
     fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
-
-    fun addInnerClass(cls: ClassItem): Unit = codebase.unsupported()
 
     /**
      * Return true if a [ClassItem] could be subclassed, i.e. is not final or sealed and has at

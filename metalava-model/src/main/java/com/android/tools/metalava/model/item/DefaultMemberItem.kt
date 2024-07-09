@@ -14,36 +14,39 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal abstract class TextItem(
-    override val codebase: TextCodebase,
+abstract class DefaultMemberItem(
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    override var docOnly: Boolean = false,
-    override var documentation: String = "",
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
+    private val name: String,
+    private val containingClass: ClassItem,
 ) :
     DefaultItem(
+        codebase = codebase,
         fileLocation = fileLocation,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
-    ) {
+        documentation = documentation,
+        variantSelectorsFactory = variantSelectorsFactory,
+    ),
+    MemberItem {
 
-    override var originallyHidden = false
-    override var hidden = false
-    override var removed = false
+    final override fun name() = name
 
-    override fun findTagDocumentation(tag: String, value: String?): String? = null
-
-    override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) =
-        codebase.unsupported()
-
-    override fun isJava(): Boolean =
-        codebase.unsupported() // source language not recorded in signature files
-
-    override fun isKotlin(): Boolean =
-        codebase.unsupported() // source language not recorded in signature files
+    final override fun containingClass() = containingClass
 }

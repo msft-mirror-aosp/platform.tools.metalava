@@ -17,7 +17,12 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -27,14 +32,23 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineParameterItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val name: String,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
-    private val type: TypeItem,
+    private var type: TypeItem,
     modifiers: DefaultModifierList,
-) : TurbineItem(codebase, fileLocation, modifiers, ""), ParameterItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    ParameterItem {
 
     override fun name(): String = name
 
@@ -70,11 +84,15 @@ internal class TurbineParameterItem(
 
     override fun type(): TypeItem = type
 
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
+
     override fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     companion object {
         internal fun duplicate(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             containingMethod: MethodItem,
             parameter: ParameterItem,
             typeParameterBindings: TypeParameterBindings,

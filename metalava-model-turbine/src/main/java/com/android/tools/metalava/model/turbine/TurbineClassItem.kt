@@ -17,28 +17,30 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineClassItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val name: String,
     private val fullName: String,
@@ -47,9 +49,18 @@ internal open class TurbineClassItem(
     modifiers: DefaultModifierList,
     override val classKind: ClassKind,
     override val typeParameterList: TypeParameterList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private val source: SourceFile?
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), ClassItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    ClassItem {
 
     override var artifact: String? = null
 
@@ -57,7 +68,7 @@ internal open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    internal lateinit var innerClasses: List<TurbineClassItem>
+    internal lateinit var nestedClasses: List<TurbineClassItem>
 
     private var superClassType: ClassTypeItem? = null
 
@@ -136,7 +147,7 @@ internal open class TurbineClassItem(
 
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
-    override fun innerClasses(): List<ClassItem> = innerClasses
+    override fun nestedClasses(): List<ClassItem> = nestedClasses
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
@@ -162,8 +173,6 @@ internal open class TurbineClassItem(
         this.superClassType = superClassType
     }
 
-    override fun superClass(): ClassItem? = superClassType?.asClass()
-
     override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Must only be used by [type] to cache its result. */
@@ -174,11 +183,6 @@ internal open class TurbineClassItem(
             cachedType = DefaultResolvedClassTypeItem.createForClass(this)
         }
         return cachedType
-    }
-
-    private fun createVariableType(typeParam: TurbineTypeParameterItem): VariableTypeItem {
-        val mods = DefaultTypeModifiers.create(typeParam.modifiers.annotations())
-        return DefaultVariableTypeItem(mods, typeParam)
     }
 
     override fun hashCode(): Int = qualifiedName.hashCode()
@@ -200,15 +204,15 @@ internal open class TurbineClassItem(
 
         val duplicateMethod =
             TurbineMethodItem(
-                codebase,
-                FileLocation.UNKNOWN,
-                method.getSymbol(),
-                this,
-                retType,
-                mods,
-                method.typeParameterList,
-                method.documentation,
-                method.defaultValue(),
+                codebase = codebase,
+                fileLocation = FileLocation.UNKNOWN,
+                methodSymbol = method.getSymbol(),
+                containingClass = this,
+                returnType = retType,
+                modifiers = mods,
+                typeParameterList = method.typeParameterList,
+                documentation = method.documentation.duplicate(),
+                defaultValue = method.defaultValue(),
             )
 
         val params =

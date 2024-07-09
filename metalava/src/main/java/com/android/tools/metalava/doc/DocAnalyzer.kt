@@ -134,9 +134,7 @@ class DocAnalyzer(
                     for (annotation in annotations) {
                         val name = annotation.qualifiedName
                         if (
-                            name != null &&
-                                name.endsWith("Thread") &&
-                                name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
+                            name.endsWith("Thread") && name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
                         ) {
                             if (result == null) {
                                 result = mutableListOf()
@@ -176,7 +174,7 @@ class DocAnalyzer(
                     visitedClasses: MutableSet<String> = mutableSetOf()
                 ) {
                     val name = annotation.qualifiedName
-                    if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
+                    if (name.startsWith(JAVA_LANG_PREFIX)) {
                         // Ignore java.lang.Retention etc.
                         return
                     }
@@ -213,7 +211,7 @@ class DocAnalyzer(
 
                     // TODO: Resource type annotations
 
-                    // Handle inner annotations
+                    // Handle nested annotations
                     annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
@@ -676,17 +674,7 @@ class DocAnalyzer(
         codebase.accept(
             object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
-                    var doc = item.documentation
-                    if (doc.isBlank()) {
-                        return
-                    }
-
-                    // Work around javadoc cutting off the summary line after the first ". ".
-                    val firstDot = doc.indexOf(".")
-                    if (firstDot > 0 && doc.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
-                        doc = doc.substring(0, firstDot) + ".g.&nbsp;" + doc.substring(firstDot + 4)
-                        item.documentation = doc
-                    }
+                    item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
             }
         )
@@ -1050,7 +1038,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     // Nomenclature differences:
                     //   - constructors are named "<init>()V" in api-versions.xml, but
                     //     "ClassName()V" in PsiItems
-                    //   - inner classes are named "Outer#Inner" in api-versions.xml, but
+                    //   - nested classes are named "Outer#Inner" in api-versions.xml, but
                     //     "Outer.Inner" in PsiItems
                     when (qualifiedName) {
                         "class" -> {

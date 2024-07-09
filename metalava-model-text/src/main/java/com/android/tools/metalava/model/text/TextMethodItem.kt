@@ -16,29 +16,43 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextMethodItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     name: String,
     containingClass: ClassItem,
     modifiers: DefaultModifierList,
-    private val returnType: TypeItem,
+    private var returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
     fileLocation: FileLocation,
 ) :
-    TextMemberItem(codebase, name, containingClass, fileLocation, modifiers = modifiers),
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        ItemLanguage.UNKNOWN,
+        modifiers,
+        ItemDocumentation.NONE,
+        ApiVariantSelectors.IMMUTABLE_FACTORY,
+        name,
+        containingClass,
+    ),
     MethodItem {
     init {
         parameters.forEach { it.containingMethod = this }
@@ -96,11 +110,15 @@ internal open class TextMethodItem(
 
     override fun returnType(): TypeItem = returnType
 
+    override fun setType(type: TypeItem) {
+        returnType = type
+    }
+
     override fun superMethods(): List<MethodItem> {
         return computeSuperMethods()
     }
 
-    override fun findMainDocumentation(): String = documentation
+    override fun findMainDocumentation(): String = documentation.text
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 

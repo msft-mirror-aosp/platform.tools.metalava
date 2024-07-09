@@ -43,7 +43,7 @@ fun addApisFromCodebase(
         object :
             ApiVisitor(
                 visitConstructorsAsMethods = true,
-                nestInnerClasses = false,
+                preserveClassNesting = false,
                 filterEmit = providedFilterEmit,
                 filterReference = providedFilterReference,
                 config = @Suppress("DEPRECATION") options.apiVisitorConfig,
@@ -56,11 +56,11 @@ fun addApisFromCodebase(
             }
 
             /**
-             * Get the value of [Item.deprecated] from the [Item.actualItem], i.e. the item that
-             * would actually be written out.
+             * Get the value of [Item.originallyDeprecated] from the [Item.actualItem], i.e. the
+             * item that would actually be written out.
              */
             private val Item.actualDeprecated
-                get() = actualItem.deprecated
+                get() = actualItem.effectivelyDeprecated
 
             override fun visitClass(cls: ClassItem) {
                 val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
@@ -235,7 +235,7 @@ fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
     val sb = StringBuilder()
     sb.append("(")
 
-    // Non-static inner classes get an implicit constructor parameter for the
+    // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
     // outer type
     if (
         isConstructor() &&

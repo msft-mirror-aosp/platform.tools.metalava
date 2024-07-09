@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -54,13 +55,13 @@ internal constructor(
     private val name: String,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
-    private val type: PsiTypeItem,
+    private var type: PsiTypeItem,
 ) :
     PsiItem(
         codebase = codebase,
         element = psiParameter,
         modifiers = modifiers,
-        documentation = "",
+        documentation = ItemDocumentation.NONE,
     ),
     ParameterItem {
     lateinit var containingMethod: PsiMethodItem
@@ -233,6 +234,10 @@ internal constructor(
     }
 
     override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type as PsiTypeItem
+    }
 
     override fun containingMethod(): MethodItem = containingMethod
 

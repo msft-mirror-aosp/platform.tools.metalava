@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
@@ -25,8 +26,10 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.util.ArrayList
@@ -44,6 +47,18 @@ internal class TextCodebase(
     private val allClassesByName = HashMap<String, TextClassItem>(30000)
 
     private val externalClassesByName = HashMap<String, ClassItem>()
+
+    /** Creates [Item] instances for this. */
+    internal val itemFactory =
+        DefaultItemFactory(
+            codebase = this,
+            // Signature files do not contain information about whether an item was originally
+            // created from Java or Kotlin.
+            defaultItemLanguage = ItemLanguage.UNKNOWN,
+            // Signature files have already been separated by API surface variants, so they can use
+            // the same immutable ApiVariantSelectors.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        )
 
     override fun trustedApi(): Boolean = true
 
@@ -82,7 +97,7 @@ internal class TextCodebase(
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
             error(
-                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
             )
         }
 
@@ -186,8 +201,8 @@ internal class TextCodebase(
 
         val fullName = stubClass.fullName()
         if (fullName.contains('.')) {
-            // We created a new inner class stub. We need to fully initialize it with outer classes,
-            // themselves possibly stubs
+            // We created a new nested class stub. We need to fully initialize it with outer
+            // classes, themselves possibly stubs
             val outerName = name.substring(0, name.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
             val outerClass = getOrCreateClass(outerName, isOuterClass = true)
@@ -201,8 +216,12 @@ internal class TextCodebase(
                 )
             }
 
+            // As outerClass and stubClass are from the same codebase the outerClass must be a
+            // TextClassItem so cast it to one so that the code below can use TextClassItem methods.
+            outerClass as TextClassItem
+
             stubClass.containingClass = outerClass
-            outerClass.addInnerClass(stubClass)
+            outerClass.addNestedClass(stubClass)
         } else {
             // Add to package
             val endIndex = name.lastIndexOf('.')
@@ -234,7 +253,7 @@ internal class TextCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): AnnotationItem {
+    ): AnnotationItem? {
         return DefaultAnnotationItem.create(this, source)
     }
 

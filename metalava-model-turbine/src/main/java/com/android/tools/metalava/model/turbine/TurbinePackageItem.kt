@@ -16,20 +16,33 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbinePackageItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
-    documentation: String,
-    isInitiallyHidden: Boolean,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation, isInitiallyHidden), PackageItem {
+    documentation: ItemDocumentation,
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 
@@ -37,13 +50,12 @@ internal class TurbinePackageItem(
 
     companion object {
         fun create(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             fileLocation: FileLocation,
             qualifiedName: String,
             modifiers: DefaultModifierList,
-            documentation: String,
+            documentation: ItemDocumentation,
         ): TurbinePackageItem {
-            val isHidden = codebase.isPackageHidden(qualifiedName)
             if (modifiers.isPackagePrivate()) {
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
             }
@@ -53,20 +65,11 @@ internal class TurbinePackageItem(
                 qualifiedName,
                 modifiers,
                 documentation,
-                isHidden,
             )
         }
     }
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
-
-    fun updateOriginallyHiddenStatus(documentation: String) {
-        this.originallyHidden =
-            this.originallyHidden ||
-                documentation.contains("@hide") ||
-                documentation.contains("@pending") ||
-                hasHideAnnotation()
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -79,7 +82,7 @@ internal class TurbinePackageItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): Sequence<ClassItem> = topClasses.asSequence()
+    override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
 
     internal fun addTopClass(classItem: TurbineClassItem) {
         topClasses.add(classItem)
