@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -60,7 +61,7 @@ internal constructor(
         codebase = codebase,
         element = psiParameter,
         modifiers = modifiers,
-        documentation = "",
+        documentation = ItemDocumentation.NONE,
     ),
     ParameterItem {
     lateinit var containingMethod: PsiMethodItem
@@ -240,18 +241,9 @@ internal constructor(
 
     override fun containingMethod(): MethodItem = containingMethod
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ParameterItem &&
-            parameterIndex == other.parameterIndex &&
-            containingMethod == other.containingMethod()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode(): Int {
-        return parameterIndex
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()

@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -36,7 +37,6 @@ import com.android.tools.metalava.model.updateCopiedMethodState
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
@@ -63,7 +63,7 @@ internal constructor(
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
@@ -209,12 +209,9 @@ internal constructor(
         return PsiSourceFile(codebase, containingFile, uFile)
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ClassItem && qualifiedName == other.qualifiedName()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
+
+    override fun hashCode() = hashCodeForItem()
 
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(): ConstructorItem {
@@ -254,8 +251,6 @@ internal constructor(
         retention = ClassItem.findRetention(this)
         return retention!!
     }
-
-    override fun hashCode(): Int = qualifiedName.hashCode()
 
     companion object {
         private fun hasExplicitRetention(
@@ -299,7 +294,7 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadoc(psiClass, codebase.allowReadingComments)
+            val commentText = javadocAsItemDocumentation(psiClass, codebase)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
@@ -401,12 +396,12 @@ internal constructor(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classKind == ClassKind.ENUM && psiMethod.isSyntheticEnumMethod()) {
-                    // skip
                 } else {
                     val method =
                         PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
-                    methods.add(method)
+                    if (!method.isEnumSyntheticMethod()) {
+                        methods.add(method)
+                    }
                 }
             }
 
@@ -684,19 +679,4 @@ internal constructor(
             return false
         }
     }
-}
-
-/**
- * Check whether the method is a synthetic enum method.
- *
- * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and Kotlin.
- */
-private fun PsiMethod.isSyntheticEnumMethod(): Boolean {
-    if (containingClass?.isEnum != true) return false
-    val parameterCount = parameterList.parametersCount
-    return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
-        (parameterCount == 1 &&
-            name == "valueOf" &&
-            (parameterList.parameters[0].type as? PsiClassType)?.computeQualifiedName() ==
-                "java.lang.String")
 }
