@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal open class TurbineClassItem(
@@ -59,6 +60,11 @@ internal open class TurbineClassItem(
     ) {
 
     override fun createDefaultConstructor(): ConstructorItem {
-        return TurbineConstructorItem.createDefaultConstructor(codebase, this)
+        return DefaultConstructorItem.createDefaultConstructor(
+            codebase = codebase,
+            itemLanguage = ItemLanguage.JAVA,
+            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+            containingClass = this,
+        )
     }
 }

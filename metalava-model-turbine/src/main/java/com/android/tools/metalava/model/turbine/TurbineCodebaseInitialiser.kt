@@ -807,8 +807,7 @@ internal open class TurbineCodebaseInitialiser(
                 )
 
             val methodItem =
-                TurbineMethodItem(
-                    codebase = codebase,
+                itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodModifierItem,
                     documentation = getCommentedDoc(documentation),
@@ -917,8 +916,7 @@ internal open class TurbineCodebaseInitialiser(
             val name = classItem.simpleName()
             val documentation = javadoc(decl)
             val constructorItem =
-                TurbineConstructorItem(
-                    codebase = codebase,
+                itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = constructorModifierItem,
                     documentation = getCommentedDoc(documentation),
