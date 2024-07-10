@@ -76,13 +76,9 @@ internal open class TextClassItem(
             .flatten()
     }
 
-    private var nestedClasses: MutableList<ClassItem> = mutableListOf()
-
     override var stubConstructor: ConstructorItem? = null
 
     override var hasPrivateConstructor: Boolean = false
-
-    override fun nestedClasses(): List<ClassItem> = nestedClasses
 
     override fun hasImplicitDefaultConstructor(): Boolean {
         return false
@@ -163,10 +159,6 @@ internal open class TextClassItem(
 
     fun addProperty(property: PropertyItem) {
         properties += property
-    }
-
-    fun addNestedClass(cls: ClassItem) {
-        nestedClasses.add(cls)
     }
 
     fun addAnnotation(annotation: AnnotationItem) {

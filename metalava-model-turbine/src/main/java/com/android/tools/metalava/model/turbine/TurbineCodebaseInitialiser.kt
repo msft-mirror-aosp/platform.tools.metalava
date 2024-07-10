@@ -705,8 +705,11 @@ internal open class TurbineCodebaseInitialiser(
         nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        classItem.nestedClasses =
-            nestedClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
+        for (nestedClassSymbol in nestedClasses) {
+            val nestedClassItem =
+                createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
+            classItem.addNestedClass(nestedClassItem)
+        }
     }
 
     /** This methods creates and sets the fields of a class */

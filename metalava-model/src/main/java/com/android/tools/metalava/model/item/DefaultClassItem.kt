@@ -64,4 +64,14 @@ abstract class DefaultClassItem(
     final override fun fullName() = fullName
 
     final override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
+
+    /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
+    private val mutableNestedClasses = mutableListOf<ClassItem>()
+
+    final override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
+
+    /** Add a nested class to this class. */
+    fun addNestedClass(classItem: ClassItem) {
+        mutableNestedClasses.add(classItem)
+    }
 }

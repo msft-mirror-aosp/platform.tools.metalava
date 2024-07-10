@@ -70,8 +70,6 @@ internal open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    internal lateinit var nestedClasses: List<TurbineClassItem>
-
     private var superClassType: ClassTypeItem? = null
 
     private var allInterfaces: List<ClassItem>? = null
@@ -141,8 +139,6 @@ internal open class TurbineClassItem(
     override fun createDefaultConstructor(): ConstructorItem {
         return TurbineConstructorItem.createDefaultConstructor(codebase, this)
     }
-
-    override fun nestedClasses(): List<ClassItem> = nestedClasses
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
