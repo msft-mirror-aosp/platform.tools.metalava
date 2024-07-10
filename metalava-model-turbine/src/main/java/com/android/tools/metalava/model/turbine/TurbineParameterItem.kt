@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
@@ -27,8 +26,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
-import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -41,6 +39,7 @@ internal class TurbineParameterItem(
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
+    private val defaultValue: DefaultValue,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -66,16 +65,11 @@ internal class TurbineParameterItem(
         this.type = type
     }
 
-    override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
+    override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
 
-    override fun isDefaultValueKnown(): Boolean {
-        return modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
-    }
+    override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
 
-    override fun defaultValue(): String? {
-        val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
-        return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
-    }
+    override fun defaultValue(): String? = defaultValue.value()
 
     internal fun duplicate(
         containingMethod: MethodItem,
@@ -90,5 +84,6 @@ internal class TurbineParameterItem(
             containingMethod,
             parameterIndex,
             type().convertType(typeVariableMap),
+            defaultValue,
         )
 }

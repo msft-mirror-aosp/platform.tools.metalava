@@ -872,6 +872,7 @@ internal open class TurbineCodebaseInitialiser(
                     methodItem,
                     idx,
                     type,
+                    TurbineDefaultValue(parameterModifierItem),
                 )
             parameterItem
         }
