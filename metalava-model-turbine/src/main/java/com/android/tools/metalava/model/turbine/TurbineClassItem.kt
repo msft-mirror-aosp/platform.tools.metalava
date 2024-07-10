@@ -140,6 +140,17 @@ internal open class TurbineClassItem(
 
         duplicateMethod.inheritedFrom = method.containingClass()
 
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (hidden) {
+            duplicateMethod.hidden = true
+        }
+        if (removed) {
+            duplicateMethod.removed = true
+        }
+        if (docOnly) {
+            duplicateMethod.docOnly = true
+        }
+
         duplicateMethod.updateCopiedMethodState()
 
         return duplicateMethod

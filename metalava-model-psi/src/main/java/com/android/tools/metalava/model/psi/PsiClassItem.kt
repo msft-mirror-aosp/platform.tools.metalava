@@ -209,6 +209,17 @@ internal constructor(
         // Remember which class this method was copied from.
         newMethod.inheritedFrom = template.containingClass()
 
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (hidden) {
+            newMethod.hidden = true
+        }
+        if (removed) {
+            newMethod.removed = true
+        }
+        if (docOnly) {
+            newMethod.docOnly = true
+        }
+
         newMethod.updateCopiedMethodState()
 
         return newMethod
