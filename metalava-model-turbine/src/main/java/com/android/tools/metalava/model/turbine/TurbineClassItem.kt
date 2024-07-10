@@ -193,7 +193,7 @@ internal open class TurbineClassItem(
         val duplicateMethod =
             TurbineMethodItem(
                 codebase = codebase,
-                fileLocation = FileLocation.UNKNOWN,
+                fileLocation = method.fileLocation,
                 modifiers = mods,
                 documentation = method.documentation.duplicate(),
                 name = method.name(),
