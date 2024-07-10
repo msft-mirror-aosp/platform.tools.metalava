@@ -93,14 +93,6 @@ internal open class TextClassItem(
     override fun containingPackage(): PackageItem =
         containingClass()?.containingPackage() ?: containingPackage ?: error(this)
 
-    private var superClassType: ClassTypeItem? = null
-
-    override fun superClassType(): ClassTypeItem? = superClassType
-
-    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
-        this.superClassType = superClassType
-    }
-
     override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         this.interfaceTypes = interfaceTypes
     }
@@ -170,7 +162,7 @@ internal open class TextClassItem(
         // have already been filtered and all items should match.
         // This lets us load signature files and rewrite them using updated
         // output formats etc.
-        return superClassType
+        return superClassType()
     }
 
     private var retention: AnnotationRetention? = null

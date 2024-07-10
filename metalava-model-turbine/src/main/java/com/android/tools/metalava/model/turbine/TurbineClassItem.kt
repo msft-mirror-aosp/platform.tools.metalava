@@ -70,8 +70,6 @@ internal open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    private var superClassType: ClassTypeItem? = null
-
     private var allInterfaces: List<ClassItem>? = null
 
     internal lateinit var containingPackage: PackageItem
@@ -153,12 +151,6 @@ internal open class TurbineClassItem(
     override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         interfaceTypesList = interfaceTypes
     }
-
-    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
-        this.superClassType = superClassType
-    }
-
-    override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Must only be used by [type] to cache its result. */
     private lateinit var cachedType: ClassTypeItem

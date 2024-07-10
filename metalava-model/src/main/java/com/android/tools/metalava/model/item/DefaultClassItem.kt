@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -64,6 +65,21 @@ abstract class DefaultClassItem(
     final override fun fullName() = fullName
 
     final override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
+
+    /**
+     * The optional, mutable super class [ClassTypeItem].
+     *
+     * This could be a constructor val apart from the fact that Text needs to mutate the super class
+     * type of an existing class when merging classes that are defined in multiple API surfaces.
+     */
+    private var superClassType: ClassTypeItem? = null
+
+    final override fun superClassType(): ClassTypeItem? = superClassType
+
+    /** Set the super class [ClassTypeItem]. */
+    fun setSuperClassType(superClassType: ClassTypeItem?) {
+        this.superClassType = superClassType
+    }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
