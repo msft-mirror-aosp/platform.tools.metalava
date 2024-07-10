@@ -1755,8 +1755,7 @@ private constructor(
             synchronizeNullability(type, modifiers)
 
             val parameter =
-                TextParameterItem(
-                    codebase,
+                itemFactory.createParameterItem(
                     location,
                     modifiers,
                     name,
