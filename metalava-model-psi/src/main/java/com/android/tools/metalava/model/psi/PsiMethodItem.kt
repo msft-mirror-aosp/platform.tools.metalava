@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
@@ -47,6 +48,16 @@ import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
+/**
+ * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
+ *
+ * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
+ * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
+ * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
+ * [MethodItem.parameters] as that will not yet have been initialized when this is called.
+ */
+internal typealias ParameterItemsFactory = (PsiMethodItem) -> List<PsiParameterItem>
+
 open class PsiMethodItem(
     codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
@@ -58,7 +69,7 @@ open class PsiMethodItem(
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     private var returnType: TypeItem,
-    private val parameters: List<PsiParameterItem>,
+    parameterItemsFactory: ParameterItemsFactory,
     override val typeParameterList: TypeParameterList,
     private val throwsTypes: List<ExceptionTypeItem>
 ) :
@@ -73,12 +84,14 @@ open class PsiMethodItem(
     ),
     MethodItem {
 
-    init {
-        for (parameter in parameters) {
-            @Suppress("LeakingThis")
-            parameter.containingMethod = this
-        }
-    }
+    /**
+     * Create the [ParameterItem] list during initialization of this method to allow them to contain
+     * an immutable reference to this object.
+     *
+     * The leaking of `this` to `parameterItemsFactory` is ok as implementations follow the rules
+     * explained in the documentation of [ParameterItemsFactory].
+     */
+    @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
 
     override var inheritedFrom: ClassItem? = null
 
@@ -305,7 +318,6 @@ open class PsiMethodItem(
                     "method $name",
                     psiMethod
                 )
-            val parameters = parameterList(codebase, psiMethod, methodTypeItemFactory)
             val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
             val isAnnotationElement = containingClass.isAnnotationType() && !modifiers.isStatic()
             val returnType =
@@ -325,7 +337,9 @@ open class PsiMethodItem(
                     documentation = commentText,
                     modifiers = modifiers,
                     returnType = returnType,
-                    parameters = parameters,
+                    parameterItemsFactory = { methodItem ->
+                        parameterList(methodItem, methodTypeItemFactory)
+                    },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                 )
@@ -376,8 +390,9 @@ open class PsiMethodItem(
                     documentation = original.documentation.duplicate(),
                     modifiers = original.modifiers.duplicate(),
                     returnType = returnType,
-                    parameters =
-                        PsiParameterItem.create(original.parameters(), typeParameterBindings),
+                    parameterItemsFactory = { methodItem ->
+                        original.parameters.map { it.duplicate(methodItem, typeParameterBindings) }
+                    },
                     // This is probably incorrect as the type parameter bindings probably need
                     // applying here but this is the same behavior as before.
                     // TODO: Investigate whether the above comment is correct and fix if necessary.
@@ -389,15 +404,14 @@ open class PsiMethodItem(
         }
 
         internal fun parameterList(
-            codebase: PsiBasedCodebase,
-            psiMethod: PsiMethod,
+            containingMethod: PsiMethodItem,
             enclosingTypeItemFactory: PsiTypeItemFactory,
         ): List<PsiParameterItem> {
-            val psiParameters = psiMethod.psiParameters
-            val fingerprint = MethodFingerprint(psiMethod.name, psiParameters.size)
+            val psiParameters = containingMethod.psiMethod.psiParameters
+            val fingerprint = MethodFingerprint(containingMethod.name, psiParameters.size)
             return psiParameters.mapIndexed { index, parameter ->
                 PsiParameterItem.create(
-                    codebase,
+                    containingMethod,
                     fingerprint,
                     parameter,
                     index,
