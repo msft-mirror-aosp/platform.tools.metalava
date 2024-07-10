@@ -59,8 +59,6 @@ internal open class TurbineClassItem(
     ),
     ClassItem {
 
-    override var artifact: String? = null
-
     override var hasPrivateConstructor: Boolean = false
 
     override var stubConstructor: ConstructorItem? = null

@@ -58,8 +58,6 @@ internal open class TextClassItem(
     ),
     ClassItem {
 
-    override var artifact: String? = null
-
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     override fun allInterfaces(): Sequence<ClassItem> {

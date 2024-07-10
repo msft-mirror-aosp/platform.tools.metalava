@@ -99,7 +99,6 @@ internal constructor(
     override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null
-    override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
 

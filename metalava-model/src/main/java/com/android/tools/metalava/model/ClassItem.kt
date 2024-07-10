@@ -16,10 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.MethodItem.Companion.equals
-import com.android.tools.metalava.model.MethodItem.Companion.hashCode
-import com.android.tools.metalava.model.TypeItem.Companion.equals
-import com.android.tools.metalava.model.TypeItem.Companion.hashCode
 import java.util.LinkedHashSet
 import java.util.function.Predicate
 
@@ -237,12 +233,6 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** The primary constructor for this class in Kotlin, if present. */
     val primaryConstructor: ConstructorItem?
         get() = constructors().singleOrNull { it.isPrimary }
-
-    /**
-     * Maven artifact of this class, if any. (Not used for the Android SDK, but used in for example
-     * support libraries.
-     */
-    var artifact: String?
 
     override fun baselineElementId() = qualifiedName()
 
