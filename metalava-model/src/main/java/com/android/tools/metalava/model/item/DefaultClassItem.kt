@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
 abstract class DefaultClassItem(
@@ -40,6 +41,7 @@ abstract class DefaultClassItem(
     private val qualifiedName: String,
     private val simpleName: String,
     private val fullName: String,
+    final override val typeParameterList: TypeParameterList,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -60,4 +62,6 @@ abstract class DefaultClassItem(
     final override fun simpleName() = simpleName
 
     final override fun fullName() = fullName
+
+    final override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 }

@@ -47,7 +47,7 @@ internal open class TextClassItem(
     qualifiedName: String = "",
     simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     fullName: String = simpleName,
-    override val typeParameterList: TypeParameterList = TypeParameterList.NONE
+    typeParameterList: TypeParameterList = TypeParameterList.NONE,
 ) :
     DefaultClassItem(
         codebase = codebase,
@@ -62,6 +62,7 @@ internal open class TextClassItem(
         qualifiedName = qualifiedName,
         simpleName = simpleName,
         fullName = fullName,
+        typeParameterList = typeParameterList,
     ) {
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
@@ -95,8 +96,6 @@ internal open class TextClassItem(
 
     override fun containingPackage(): PackageItem =
         containingClass()?.containingPackage() ?: containingPackage ?: error(this)
-
-    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     private var superClassType: ClassTypeItem? = null
 

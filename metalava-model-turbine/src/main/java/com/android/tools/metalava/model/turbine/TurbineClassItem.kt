@@ -48,7 +48,7 @@ internal open class TurbineClassItem(
     qualifiedName: String,
     simpleName: String,
     fullName: String,
-    override val typeParameterList: TypeParameterList,
+    typeParameterList: TypeParameterList,
 ) :
     DefaultClassItem(
         codebase = codebase,
@@ -63,6 +63,7 @@ internal open class TurbineClassItem(
         qualifiedName = qualifiedName,
         simpleName = simpleName,
         fullName = fullName,
+        typeParameterList = typeParameterList,
     ) {
 
     override var hasPrivateConstructor: Boolean = false
@@ -140,8 +141,6 @@ internal open class TurbineClassItem(
     override fun createDefaultConstructor(): ConstructorItem {
         return TurbineConstructorItem.createDefaultConstructor(codebase, this)
     }
-
-    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     override fun nestedClasses(): List<ClassItem> = nestedClasses
 
