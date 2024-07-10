@@ -40,7 +40,7 @@ import com.android.tools.metalava.reporter.FileLocation
  * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
  * [MethodItem.parameters] as that will not yet have been initialized when this is called.
  */
-internal typealias ParameterItemsFactory = (TextMethodItem) -> List<TextParameterItem>
+internal typealias ParameterItemsFactory = (MethodItem) -> List<ParameterItem>
 
 internal open class TextMethodItem(
     codebase: DefaultCodebase,

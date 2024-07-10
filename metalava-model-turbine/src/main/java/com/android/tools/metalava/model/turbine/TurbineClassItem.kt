@@ -201,9 +201,7 @@ internal open class TurbineClassItem(
                 typeParameterList = method.typeParameterList,
                 returnType = retType,
                 parameterItemsFactory = { methodItem ->
-                    parameters.map {
-                        (it as TurbineParameterItem).duplicate(methodItem, replacementMap)
-                    }
+                    parameters.map { it.duplicate(methodItem, replacementMap) }
                 },
                 annotationDefault = method.defaultValue(),
                 throwsTypes = method.throwsTypes(),

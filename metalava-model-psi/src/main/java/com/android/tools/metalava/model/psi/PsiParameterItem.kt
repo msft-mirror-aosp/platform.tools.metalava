@@ -295,6 +295,11 @@ internal constructor(
         }
     }
 
+    override fun duplicate(containingMethod: MethodItem, typeVariableMap: TypeParameterBindings) =
+        error(
+            "not needed at the moment as duplicating a PsiMethodItem reconstructs it from the underlying objects"
+        )
+
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,

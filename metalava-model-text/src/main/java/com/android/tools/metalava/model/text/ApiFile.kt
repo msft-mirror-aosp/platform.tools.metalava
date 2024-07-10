@@ -35,6 +35,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -961,18 +963,18 @@ private constructor(
     }
 
     /**
-     * Create [TextParameterItem]s for the [containingMethod] from the [parameters] using the
+     * Create [ParameterItem]s for the [containingMethod] from the [parameters] using the
      * [typeItemFactory] to create types.
      *
      * This is called from within the constructor of the [containingMethod] so must only access its
-     * `name` and its reference. In particularly it must not access its [TextMethodItem.parameters]
+     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
      * property as this is called during its initialization.
      */
     private fun createParameterItems(
-        containingMethod: TextMethodItem,
+        containingMethod: MethodItem,
         parameters: List<ParameterInfo>,
         typeItemFactory: TextTypeItemFactory
-    ): List<TextParameterItem> {
+    ): List<ParameterItem> {
         val methodFingerprint = MethodFingerprint(containingMethod.name(), parameters.size)
         return parameters.map { it.create(containingMethod, typeItemFactory, methodFingerprint) }
     }
@@ -1723,7 +1725,7 @@ private constructor(
 
     /**
      * Container for parsed information on a parameter. This is an intermediate step before a
-     * [TextParameterItem] is created, which is needed because
+     * [ParameterItem] is created, which is needed because
      * [TextTypeItemFactory.getMethodParameterType] requires a [MethodFingerprint] with the total
      * number of method parameters.
      */
@@ -1736,12 +1738,12 @@ private constructor(
         val location: FileLocation,
         val index: Int
     ) {
-        /** Turn this [ParameterInfo] into a [TextParameterItem] by parsing the [typeString]. */
+        /** Turn this [ParameterInfo] into a [ParameterItem] by parsing the [typeString]. */
         fun create(
-            containingMethod: TextMethodItem,
+            containingMethod: MethodItem,
             typeItemFactory: TextTypeItemFactory,
             methodFingerprint: MethodFingerprint
-        ): TextParameterItem {
+        ): ParameterItem {
             val type =
                 typeItemFactory.getMethodParameterType(
                     typeString,

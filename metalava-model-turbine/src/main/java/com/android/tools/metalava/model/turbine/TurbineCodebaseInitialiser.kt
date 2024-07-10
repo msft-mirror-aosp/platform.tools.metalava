@@ -34,7 +34,9 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.findAnnotation
@@ -826,11 +828,11 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createParameters(
-        methodItem: TurbineMethodItem,
+        methodItem: MethodItem,
         parameterDecls: List<Tree.VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
-    ): List<TurbineParameterItem> {
+    ): List<ParameterItem> {
         val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total

@@ -71,7 +71,7 @@ internal class TurbineParameterItem(
 
     override fun defaultValue(): String? = defaultValue.value()
 
-    internal fun duplicate(
+    override fun duplicate(
         containingMethod: MethodItem,
         typeVariableMap: TypeParameterBindings,
     ) =
