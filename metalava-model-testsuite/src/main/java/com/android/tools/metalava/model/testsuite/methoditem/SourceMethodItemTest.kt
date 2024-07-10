@@ -74,7 +74,7 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(false, duplicateMethod.docOnly)
             assertEquals("void", duplicateMethod.returnType().toTypeString())
             assertEquals(
-                listOf("A", "B"),
+                listOf("M", "String"),
                 duplicateMethod.parameters().map { it.type().toTypeString() }
             )
             assertEquals(methodItem.typeParameterList, duplicateMethod.typeParameterList)
