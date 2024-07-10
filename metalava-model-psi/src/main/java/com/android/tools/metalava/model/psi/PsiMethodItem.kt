@@ -221,13 +221,18 @@ open class PsiMethodItem(
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
         val duplicated =
-            create(
+            PsiMethodItem(
                 codebase,
-                targetContainingClass,
                 psiMethod,
-                // Use the scope from this class to resolve type parameter references as the target
-                // class may have a completely different set.
-                codebase.globalTypeItemFactory.from(containingClass)
+                fileLocation,
+                targetContainingClass,
+                name,
+                modifiers.duplicate(),
+                documentation.duplicate(),
+                returnType,
+                { methodItem -> parameters.map { it.duplicate(methodItem, emptyMap()) } },
+                typeParameterList,
+                throwsTypes,
             )
 
         duplicated.inheritedFrom = containingClass
