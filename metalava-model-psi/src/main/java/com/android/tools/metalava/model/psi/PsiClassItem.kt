@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.updateCopiedMethodState
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -197,32 +196,6 @@ internal constructor(
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(): ConstructorItem {
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
-    }
-
-    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
-        val method = template as PsiMethodItem
-        require(method.codebase == codebase) {
-            "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
-        }
-        val newMethod = PsiMethodItem.create(this, method)
-
-        // Remember which class this method was copied from.
-        newMethod.inheritedFrom = template.containingClass()
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (hidden) {
-            newMethod.hidden = true
-        }
-        if (removed) {
-            newMethod.removed = true
-        }
-        if (docOnly) {
-            newMethod.docOnly = true
-        }
-
-        newMethod.updateCopiedMethodState()
-
-        return newMethod
     }
 
     override fun addMethod(method: MethodItem) {

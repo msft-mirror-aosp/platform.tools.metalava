@@ -766,7 +766,12 @@ interface ClassItem : Item, TypeParameterListOwner {
      * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
      * [MethodItem.containingClass] of the [template].
      */
-    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
+    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
+        require(template.codebase == codebase) {
+            "Unexpected attempt to copy $template from one codebase (${template.codebase.location}) to another (${codebase.location})"
+        }
+        return template.duplicate(this)
+    }
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 

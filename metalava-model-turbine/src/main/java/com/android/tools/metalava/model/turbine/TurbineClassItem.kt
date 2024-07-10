@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
 internal open class TurbineClassItem(
@@ -113,48 +112,6 @@ internal open class TurbineClassItem(
      * so just return an empty list.
      */
     override fun properties(): List<PropertyItem> = emptyList()
-
-    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
-        val method = template as TurbineMethodItem
-        val replacementMap = mapTypeVariables(method.containingClass())
-        val retType = method.returnType().convertType(replacementMap)
-        val mods = method.modifiers.duplicate()
-        val parameters = method.parameters()
-
-        val duplicateMethod =
-            TurbineMethodItem(
-                codebase = codebase,
-                fileLocation = method.fileLocation,
-                modifiers = mods,
-                documentation = method.documentation.duplicate(),
-                name = method.name(),
-                containingClass = this,
-                typeParameterList = method.typeParameterList,
-                returnType = retType,
-                parameterItemsFactory = { methodItem ->
-                    parameters.map { it.duplicate(methodItem, replacementMap) }
-                },
-                annotationDefault = method.defaultValue(),
-                throwsTypes = method.throwsTypes(),
-            )
-
-        duplicateMethod.inheritedFrom = method.containingClass()
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (hidden) {
-            duplicateMethod.hidden = true
-        }
-        if (removed) {
-            duplicateMethod.removed = true
-        }
-        if (docOnly) {
-            duplicateMethod.docOnly = true
-        }
-
-        duplicateMethod.updateCopiedMethodState()
-
-        return duplicateMethod
-    }
 
     override fun addMethod(method: MethodItem) {
         methods.add(method)

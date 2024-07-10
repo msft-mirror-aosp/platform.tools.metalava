@@ -372,54 +372,6 @@ open class PsiMethodItem(
             return method
         }
 
-        /**
-         * Create a [PsiMethodItem] from a [PsiMethodItem] in a hidden super class.
-         *
-         * @see ClassItem.inheritMethodFromNonApiAncestor
-         */
-        internal fun create(containingClass: PsiClassItem, original: PsiMethodItem): PsiMethodItem {
-            val typeParameterBindings = containingClass.mapTypeVariables(original.containingClass())
-            val returnType = original.returnType.convertType(typeParameterBindings) as PsiTypeItem
-
-            // This results in a PsiMethodItem that is inconsistent, compared with other
-            // PsiMethodItem. PsiMethodItems created directly from the source are such that:
-            //
-            //    psiMethod.containingClass === containingClass().psiClass
-            //
-            // However, the PsiMethodItem created here contains a psiMethod from a different class,
-            // usually the super class, so:
-            //
-            //    psiMethod.containingClass !== containingClass().psiClass
-            //
-            // If the method was created from the super class then:
-            //
-            //    psiMethod.containingClass === containingClass().superClass().psiClass
-            //
-            // The consequence of this is that the PsiMethodItem does not behave as might be
-            // expected. e.g. superMethods() will find super methods of the method in the super
-            // class, not the PsiMethodItem's containing class.
-            val method =
-                PsiMethodItem(
-                    codebase = original.codebase,
-                    psiMethod = original.psiMethod,
-                    containingClass = containingClass,
-                    name = original.name(),
-                    documentation = original.documentation.duplicate(),
-                    modifiers = original.modifiers.duplicate(),
-                    returnType = returnType,
-                    parameterItemsFactory = { methodItem ->
-                        original.parameters.map { it.duplicate(methodItem, typeParameterBindings) }
-                    },
-                    // This is probably incorrect as the type parameter bindings probably need
-                    // applying here but this is the same behavior as before.
-                    // TODO: Investigate whether the above comment is correct and fix if necessary.
-                    typeParameterList = original.typeParameterList,
-                    throwsTypes = original.throwsTypes,
-                )
-
-            return method
-        }
-
         internal fun parameterList(
             containingMethod: PsiMethodItem,
             enclosingTypeItemFactory: PsiTypeItemFactory,
