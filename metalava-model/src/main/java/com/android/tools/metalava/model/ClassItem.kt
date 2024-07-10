@@ -445,7 +445,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     }
 
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFile? = null
+    fun getSourceFile(): SourceFile?
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention

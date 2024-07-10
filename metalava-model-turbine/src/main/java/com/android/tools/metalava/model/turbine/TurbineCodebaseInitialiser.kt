@@ -416,13 +416,13 @@ internal open class TurbineCodebaseInitialiser(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
                 documentation = getCommentedDoc(documentation),
+                source = sourceFile,
                 classKind = getClassKind(cls.kind()),
                 containingClass = containingClassItem,
                 qualifiedName = qualifiedName,
                 simpleName = simpleName,
                 fullName = fullName,
                 typeParameterList = typeParameters,
-                source = sourceFile,
             )
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 

@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.reporter.FileLocation
 
 abstract class DefaultClassItem(
@@ -33,6 +34,7 @@ abstract class DefaultClassItem(
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
+    private val source: SourceFile?,
     final override val classKind: ClassKind,
     private val containingClass: ClassItem?,
     private val qualifiedName: String,
@@ -48,6 +50,8 @@ abstract class DefaultClassItem(
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     ClassItem {
+
+    final override fun getSourceFile() = source
 
     final override fun containingClass() = containingClass
 

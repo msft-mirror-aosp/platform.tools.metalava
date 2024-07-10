@@ -42,13 +42,13 @@ internal open class TurbineClassItem(
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    source: SourceFile?,
     classKind: ClassKind,
     containingClass: ClassItem?,
     qualifiedName: String,
     simpleName: String,
     fullName: String,
     override val typeParameterList: TypeParameterList,
-    private val source: SourceFile?
 ) :
     DefaultClassItem(
         codebase = codebase,
@@ -57,6 +57,7 @@ internal open class TurbineClassItem(
         modifiers = modifiers,
         documentation = documentation,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        source = source,
         classKind = classKind,
         containingClass = containingClass,
         qualifiedName = qualifiedName,
@@ -173,8 +174,6 @@ internal open class TurbineClassItem(
         }
         return cachedType
     }
-
-    override fun getSourceFile(): SourceFile? = source
 
     override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as TurbineMethodItem

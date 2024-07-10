@@ -56,6 +56,7 @@ internal open class TextClassItem(
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        source = null,
         classKind = classKind,
         containingClass = containingClass,
         qualifiedName = qualifiedName,
