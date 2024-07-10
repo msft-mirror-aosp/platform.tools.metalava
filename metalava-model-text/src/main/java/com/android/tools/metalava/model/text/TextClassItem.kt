@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -34,6 +33,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
@@ -42,21 +42,21 @@ internal open class TextClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
-    override val classKind: ClassKind = ClassKind.CLASS,
+    classKind: ClassKind = ClassKind.CLASS,
     private val qualifiedName: String = "",
     private val simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     private val fullName: String = simpleName,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
-    DefaultItem(
+    DefaultClassItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = ItemLanguage.UNKNOWN,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
-    ),
-    ClassItem {
+        classKind = classKind,
+    ) {
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 

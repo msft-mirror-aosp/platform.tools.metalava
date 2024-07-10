@@ -48,10 +48,10 @@ internal class StubClassBuilder(
     private fun build(): TextClassItem =
         TextClassItem(
                 codebase = codebase,
+                modifiers = modifiers,
+                classKind = classKind,
                 qualifiedName = qualifiedName,
                 fullName = fullName,
-                classKind = classKind,
-                modifiers = modifiers,
             )
             .also { item -> item.setSuperClassType(superClassType) }
 

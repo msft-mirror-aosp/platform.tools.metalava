@@ -412,16 +412,16 @@ internal open class TurbineCodebaseInitialiser(
             )
         val classItem =
             TurbineClassItem(
-                codebase,
-                fileLocation,
-                simpleName,
-                fullName,
-                qualifiedName,
-                modifierItem,
-                getClassKind(cls.kind()),
-                typeParameters,
-                getCommentedDoc(documentation),
-                sourceFile,
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = modifierItem,
+                documentation = getCommentedDoc(documentation),
+                classKind = getClassKind(cls.kind()),
+                name = simpleName,
+                fullName = fullName,
+                qualifiedName = qualifiedName,
+                typeParameterList = typeParameters,
+                source = sourceFile,
             )
         classItem.containingClass = containingClassItem
         modifierItem.setSynchronized(false) // A class can not be synchronized in java

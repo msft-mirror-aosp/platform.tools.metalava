@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -33,6 +32,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
@@ -40,24 +40,24 @@ import com.android.tools.metalava.reporter.FileLocation
 internal open class TurbineClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
+    classKind: ClassKind,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    modifiers: DefaultModifierList,
-    override val classKind: ClassKind,
     override val typeParameterList: TypeParameterList,
-    documentation: ItemDocumentation,
     private val source: SourceFile?
 ) :
-    DefaultItem(
+    DefaultClassItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = ItemLanguage.JAVA,
         modifiers = modifiers,
         documentation = documentation,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-    ),
-    ClassItem {
+        classKind = classKind,
+    ) {
 
     override var hasPrivateConstructor: Boolean = false
 
