@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
@@ -67,6 +68,11 @@ internal open class TextClassItem(
     }
 
     override fun createDefaultConstructor(): ConstructorItem {
-        return TextConstructorItem.createDefaultConstructor(codebase, this)
+        return DefaultConstructorItem.createDefaultConstructor(
+            codebase = codebase,
+            itemLanguage = ItemLanguage.UNKNOWN,
+            variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+            containingClass = this,
+        )
     }
 }
