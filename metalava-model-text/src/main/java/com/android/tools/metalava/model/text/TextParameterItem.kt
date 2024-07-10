@@ -26,10 +26,9 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.reporter.FileLocation
-
-const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
 internal class TextParameterItem(
     codebase: DefaultCodebase,
@@ -40,8 +39,7 @@ internal class TextParameterItem(
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    private val hasDefaultValue: Boolean,
-    private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
+    private val defaultValue: DefaultValue,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -67,11 +65,11 @@ internal class TextParameterItem(
         this.type = type
     }
 
-    override fun hasDefaultValue(): Boolean = hasDefaultValue
+    override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
 
-    override fun isDefaultValueKnown(): Boolean = defaultValueBody != UNKNOWN_DEFAULT_VALUE
+    override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
 
-    override fun defaultValue(): String? = defaultValueBody
+    override fun defaultValue(): String? = defaultValue.value()
 
     internal fun duplicate(
         containingMethod: MethodItem,
@@ -86,7 +84,6 @@ internal class TextParameterItem(
             containingMethod,
             parameterIndex,
             type.convertType(typeVariableMap),
-            hasDefaultValue,
-            defaultValueBody,
+            defaultValue,
         )
 }
