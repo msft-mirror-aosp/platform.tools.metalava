@@ -418,9 +418,9 @@ internal open class TurbineCodebaseInitialiser(
                 documentation = getCommentedDoc(documentation),
                 classKind = getClassKind(cls.kind()),
                 containingClass = containingClassItem,
-                name = simpleName,
-                fullName = fullName,
                 qualifiedName = qualifiedName,
+                simpleName = simpleName,
+                fullName = fullName,
                 typeParameterList = typeParameters,
                 source = sourceFile,
             )

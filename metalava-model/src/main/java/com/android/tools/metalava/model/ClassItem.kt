@@ -27,17 +27,17 @@ import java.util.function.Predicate
  */
 @MetalavaApi
 interface ClassItem : Item, TypeParameterListOwner {
-    /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
-    fun simpleName(): String
-
-    /** The full name of a class. In class foo.bar.Outer.Inner, the full name is "Outer.Inner" */
-    fun fullName(): String
-
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
      */
     @MetalavaApi fun qualifiedName(): String
+
+    /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
+    fun simpleName(): String
+
+    /** The full name of a class. In class foo.bar.Outer.Inner, the full name is "Outer.Inner" */
+    fun fullName(): String
 
     /** Is this a nested class? */
     @MetalavaApi fun isNestedClass() = containingClass() != null

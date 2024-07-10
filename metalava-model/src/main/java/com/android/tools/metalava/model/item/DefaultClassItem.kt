@@ -35,6 +35,9 @@ abstract class DefaultClassItem(
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     final override val classKind: ClassKind,
     private val containingClass: ClassItem?,
+    private val qualifiedName: String,
+    private val simpleName: String,
+    private val fullName: String,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -47,4 +50,10 @@ abstract class DefaultClassItem(
     ClassItem {
 
     final override fun containingClass() = containingClass
+
+    final override fun qualifiedName() = qualifiedName
+
+    final override fun simpleName() = simpleName
+
+    final override fun fullName() = fullName
 }

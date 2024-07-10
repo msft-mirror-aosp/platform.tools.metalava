@@ -44,9 +44,9 @@ internal open class TurbineClassItem(
     documentation: ItemDocumentation,
     classKind: ClassKind,
     containingClass: ClassItem?,
-    private val name: String,
-    private val fullName: String,
-    private val qualifiedName: String,
+    qualifiedName: String,
+    simpleName: String,
+    fullName: String,
     override val typeParameterList: TypeParameterList,
     private val source: SourceFile?
 ) :
@@ -59,6 +59,9 @@ internal open class TurbineClassItem(
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         classKind = classKind,
         containingClass = containingClass,
+        qualifiedName = qualifiedName,
+        simpleName = simpleName,
+        fullName = fullName,
     ) {
 
     override var hasPrivateConstructor: Boolean = false
@@ -150,12 +153,6 @@ internal open class TurbineClassItem(
      * so just return an empty list.
      */
     override fun properties(): List<PropertyItem> = emptyList()
-
-    override fun simpleName(): String = name
-
-    override fun qualifiedName(): String = qualifiedName
-
-    override fun fullName(): String = fullName
 
     override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         interfaceTypesList = interfaceTypes

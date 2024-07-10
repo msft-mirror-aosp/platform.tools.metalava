@@ -44,9 +44,9 @@ internal open class TextClassItem(
     modifiers: DefaultModifierList,
     classKind: ClassKind = ClassKind.CLASS,
     containingClass: ClassItem?,
-    private val qualifiedName: String = "",
-    private val simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-    private val fullName: String = simpleName,
+    qualifiedName: String = "",
+    simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    fullName: String = simpleName,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
     DefaultClassItem(
@@ -58,6 +58,9 @@ internal open class TextClassItem(
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         classKind = classKind,
         containingClass = containingClass,
+        qualifiedName = qualifiedName,
+        simpleName = simpleName,
+        fullName = fullName,
     ) {
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
@@ -192,12 +195,6 @@ internal open class TextClassItem(
         retention = ClassItem.findRetention(this)
         return retention!!
     }
-
-    override fun simpleName(): String = simpleName
-
-    override fun fullName(): String = fullName
-
-    override fun qualifiedName(): String = qualifiedName
 
     override fun createDefaultConstructor(): ConstructorItem {
         return TextConstructorItem.createDefaultConstructor(codebase, this)
