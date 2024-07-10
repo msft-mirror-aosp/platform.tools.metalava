@@ -153,24 +153,24 @@ internal class TextCodebase(
     /**
      * Gets an existing, or creates a new [ClassItem].
      *
-     * Tries to find [name] in [allClassesByName]. If not found, then if a [classResolver] is
-     * provided it will invoke that and return the [ClassItem] it returns if any. Otherwise, it will
-     * create an empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
+     * Tries to find [qualifiedName] in [allClassesByName]. If not found, then if a [classResolver]
+     * is provided it will invoke that and return the [ClassItem] it returns if any. Otherwise, it
+     * will create an empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
      * [StubKind.CLASS] if no specific [StubKind] was required.
      *
      * Initializes outer classes and packages for the created class as needed.
      *
-     * @param name the name of the class.
+     * @param qualifiedName the fully qualified name of the class.
      * @param isOuterClass if `true` then this is searching for an outer class of a class in this
      *   codebase, in which case this must only search classes in this codebase, otherwise it can
      *   search for external classes too.
      */
     fun getOrCreateClass(
-        name: String,
+        qualifiedName: String,
         isOuterClass: Boolean = false,
     ): ClassItem {
         // Check this codebase first, if found then return it.
-        allClassesByName[name]?.let { found ->
+        allClassesByName[qualifiedName]?.let { found ->
             return found
         }
 
@@ -179,24 +179,24 @@ internal class TextCodebase(
         if (!isOuterClass && classResolver != null) {
             // Check to see whether the class has already been retrieved from the resolver. If it
             // has then return it.
-            externalClassesByName[name]?.let { found ->
+            externalClassesByName[qualifiedName]?.let { found ->
                 return found
             }
 
             // Else try and resolve the class.
-            val classItem = classResolver.resolveClass(name)
+            val classItem = classResolver.resolveClass(qualifiedName)
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
                 // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClassesByName[name] = classItem
+                externalClassesByName[qualifiedName] = classItem
                 return classItem
             }
         }
 
         // Build a stub class of the required kind.
-        val requiredStubKind = requiredStubKindForClass.remove(name) ?: StubKind.CLASS
+        val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
         val stubClass =
-            StubClassBuilder.build(this, name) {
+            StubClassBuilder.build(this, qualifiedName) {
                 // Apply stub kind specific mutations to the stub class being built.
                 requiredStubKind.mutator(this)
             }
@@ -208,7 +208,7 @@ internal class TextCodebase(
         if (fullName.contains('.')) {
             // We created a new nested class stub. We need to fully initialize it with outer
             // classes, themselves possibly stubs
-            val outerName = name.substring(0, name.lastIndexOf('.'))
+            val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
             val outerClass = getOrCreateClass(outerName, isOuterClass = true)
 
@@ -229,8 +229,8 @@ internal class TextCodebase(
             outerClass.addNestedClass(stubClass)
         } else {
             // Add to package
-            val endIndex = name.lastIndexOf('.')
-            val pkgPath = if (endIndex != -1) name.substring(0, endIndex) else ""
+            val endIndex = qualifiedName.lastIndexOf('.')
+            val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
             val pkg =
                 findPackage(pkgPath)
                     ?: run {
