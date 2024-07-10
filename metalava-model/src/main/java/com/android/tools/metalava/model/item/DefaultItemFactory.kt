@@ -24,7 +24,9 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -88,6 +90,31 @@ class DefaultItemFactory(
             type,
             isEnumConstant,
             fieldValue,
+        )
+
+    /** Create a [ParameterItem]. */
+    fun createParameterItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        name: String,
+        publicNameProvider: PublicNameProvider,
+        containingMethod: MethodItem,
+        parameterIndex: Int,
+        type: TypeItem,
+        defaultValue: DefaultValue,
+    ): ParameterItem =
+        DefaultParameterItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            modifiers,
+            defaultVariantSelectorsFactory,
+            name,
+            publicNameProvider,
+            containingMethod,
+            parameterIndex,
+            type,
+            defaultValue,
         )
 
     /** Create a [PropertyItem]. */

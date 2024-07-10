@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -26,14 +26,14 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
-import com.android.tools.metalava.model.item.DefaultValue
-import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TurbineParameterItem(
+internal class DefaultParameterItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val publicNameProvider: PublicNameProvider,
     private val containingMethod: MethodItem,
@@ -44,10 +44,10 @@ internal class TurbineParameterItem(
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = ItemLanguage.JAVA,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        variantSelectorsFactory = variantSelectorsFactory,
     ),
     ParameterItem {
 
@@ -75,10 +75,12 @@ internal class TurbineParameterItem(
         containingMethod: MethodItem,
         typeVariableMap: TypeParameterBindings,
     ) =
-        TurbineParameterItem(
+        DefaultParameterItem(
             codebase,
             fileLocation,
+            itemLanguage,
             modifiers.duplicate(),
+            variantSelectors::duplicate,
             name(),
             publicNameProvider,
             containingMethod,

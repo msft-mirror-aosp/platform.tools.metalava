@@ -860,8 +860,7 @@ internal open class TurbineCodebaseInitialiser(
                 else null
 
             val parameterItem =
-                TurbineParameterItem(
-                    codebase,
+                itemFactory.createParameterItem(
                     TurbineFileLocation.forTree(methodItem.containingClass(), decl),
                     parameterModifierItem,
                     parameter.name(),
