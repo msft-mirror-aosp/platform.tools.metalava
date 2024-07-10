@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.bestGuessAtFullName
 
 /**
  * A builder for stub classes, i.e. [TextClassItem]s fabricated because [ApiFile] has no definition
@@ -28,15 +27,8 @@ import com.android.tools.metalava.model.bestGuessAtFullName
 internal class StubClassBuilder(
     val codebase: TextCodebase,
     val qualifiedName: String,
+    private val fullName: String,
 ) {
-    /**
-     * The full name can be ambiguous in theory, but where the naming conventions for packages and
-     * classes are followed it is not. So, assuming that the conventions are followed then produce
-     * the best guess for the full name. This is not really that important as the full name only
-     * really affects the partial ordering of some classes, like in a `throws` list.
-     */
-    val fullName: String = bestGuessAtFullName(qualifiedName)
-
     /** The default [ClassKind] can be modified. */
     var classKind = ClassKind.CLASS
 
@@ -63,9 +55,15 @@ internal class StubClassBuilder(
         fun build(
             codebase: TextCodebase,
             qualifiedName: String,
+            fullName: String,
             mutator: StubClassBuilder.() -> Unit
         ): TextClassItem {
-            val builder = StubClassBuilder(codebase, qualifiedName)
+            val builder =
+                StubClassBuilder(
+                    codebase = codebase,
+                    qualifiedName = qualifiedName,
+                    fullName = fullName,
+                )
             builder.mutator()
             return builder.build()
         }

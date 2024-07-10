@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
@@ -193,10 +194,41 @@ internal class TextCodebase(
             }
         }
 
+        val fullName = bestGuessAtFullName(qualifiedName)
+
+        val outerClass =
+            if (fullName.contains('.')) {
+                // We created a new nested class stub. We need to fully initialize it with outer
+                // classes, themselves possibly stubs
+                val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
+                // Pass classResolver = null, so it only looks in this codebase for the outer class.
+                val outerClass = getOrCreateClass(outerName, isOuterClass = true)
+
+                // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
+                // another.
+                if (outerClass.codebase != this) {
+                    throw IllegalStateException(
+                        "Outer class $outerClass is from ${outerClass.codebase} but" +
+                            " inner class $qualifiedName is from ${this}"
+                    )
+                }
+
+                // As outerClass and stubClass are from the same codebase the outerClass must be a
+                // TextClassItem so cast it to one so that the code below can use TextClassItem
+                // methods.
+                outerClass as TextClassItem
+            } else {
+                null
+            }
+
         // Build a stub class of the required kind.
         val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
         val stubClass =
-            StubClassBuilder.build(this, qualifiedName) {
+            StubClassBuilder.build(
+                codebase = this,
+                qualifiedName = qualifiedName,
+                fullName = fullName,
+            ) {
                 // Apply stub kind specific mutations to the stub class being built.
                 requiredStubKind.mutator(this)
             }
@@ -204,27 +236,7 @@ internal class TextCodebase(
         registerClass(stubClass)
         stubClass.emit = false
 
-        val fullName = stubClass.fullName()
-        if (fullName.contains('.')) {
-            // We created a new nested class stub. We need to fully initialize it with outer
-            // classes, themselves possibly stubs
-            val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
-            // Pass classResolver = null, so it only looks in this codebase for the outer class.
-            val outerClass = getOrCreateClass(outerName, isOuterClass = true)
-
-            // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
-            // another.
-            if (outerClass.codebase != stubClass.codebase) {
-                throw IllegalStateException(
-                    "Outer class $outerClass is from ${outerClass.codebase} but" +
-                        " inner class $stubClass is from ${stubClass.codebase}"
-                )
-            }
-
-            // As outerClass and stubClass are from the same codebase the outerClass must be a
-            // TextClassItem so cast it to one so that the code below can use TextClassItem methods.
-            outerClass as TextClassItem
-
+        if (outerClass != null) {
             stubClass.containingClass = outerClass
             outerClass.addNestedClass(stubClass)
         } else {
