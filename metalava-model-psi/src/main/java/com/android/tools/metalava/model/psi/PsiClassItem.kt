@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.updateCopiedMethodState
@@ -116,22 +117,7 @@ internal constructor(
 
     override fun allInterfaces(): Sequence<ClassItem> {
         if (allInterfaces == null) {
-            val classes = mutableSetOf<PsiClass>()
-            var curr: PsiClass? = psiClass
-            while (curr != null) {
-                if (curr.isInterface && !classes.contains(curr)) {
-                    classes.add(curr)
-                }
-                addInterfaces(classes, curr.interfaces)
-                curr = curr.superClass
-            }
-            val result = mutableListOf<ClassItem>()
-            for (cls in classes) {
-                val item = codebase.findOrCreateClass(cls)
-                result.add(item)
-            }
-
-            allInterfaces = result
+            allInterfaces = computeAllInterfaces()
         }
 
         return allInterfaces!!.asSequence()

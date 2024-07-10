@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
@@ -70,8 +71,6 @@ internal open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    private var allInterfaces: List<ClassItem>? = null
-
     internal lateinit var containingPackage: PackageItem
 
     internal lateinit var fields: List<FieldItem>
@@ -86,27 +85,11 @@ internal open class TurbineClassItem(
 
     private var retention: AnnotationRetention? = null
 
+    private var allInterfaces: List<ClassItem>? = null
+
     override fun allInterfaces(): Sequence<ClassItem> {
         if (allInterfaces == null) {
-            val interfaces = mutableSetOf<ClassItem>()
-
-            // Add self as interface if applicable
-            if (isInterface()) {
-                interfaces.add(this)
-            }
-
-            // Add all the interfaces of super class
-            superClass()?.let { supClass ->
-                supClass.allInterfaces().forEach { interfaces.add(it) }
-            }
-
-            // Add all the interfaces of direct interfaces
-            interfaceTypesList.forEach { interfaceType ->
-                val itf = interfaceType.asClass()
-                itf?.allInterfaces()?.forEach { interfaces.add(it) }
-            }
-
-            allInterfaces = interfaces.toList()
+            allInterfaces = computeAllInterfaces()
         }
 
         return allInterfaces!!.asSequence()

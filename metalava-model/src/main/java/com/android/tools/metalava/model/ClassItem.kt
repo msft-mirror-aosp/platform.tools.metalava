@@ -779,3 +779,20 @@ interface ClassItem : Item, TypeParameterListOwner {
             !modifiers.isSealed() &&
             constructors().any { it.isPublic || it.isProtected }
 }
+
+/** Compute the value for [ClassItem.allInterfaces]. */
+fun ClassItem.computeAllInterfaces() = buildList {
+    // Add self as interface if applicable
+    if (isInterface()) {
+        add(this@computeAllInterfaces)
+    }
+
+    // Add all the interfaces of super class
+    superClass()?.let { superClass -> superClass.allInterfaces().forEach { add(it) } }
+
+    // Add all the interfaces of direct interfaces
+    interfaceTypes().forEach { interfaceType ->
+        val itf = interfaceType.asClass()
+        itf?.allInterfaces()?.forEach { add(it) }
+    }
+}
