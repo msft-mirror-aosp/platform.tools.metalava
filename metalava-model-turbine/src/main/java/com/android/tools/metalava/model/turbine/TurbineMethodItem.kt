@@ -118,7 +118,7 @@ internal open class TurbineMethodItem(
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 
-    override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
+    override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val duplicated =
             TurbineMethodItem(
                 codebase = codebase,

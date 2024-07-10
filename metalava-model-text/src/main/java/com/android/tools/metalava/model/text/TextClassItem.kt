@@ -134,11 +134,11 @@ internal open class TextClassItem(
 
     override fun properties(): List<PropertyItem> = properties
 
-    fun addConstructor(constructor: TextConstructorItem) {
+    fun addConstructor(constructor: ConstructorItem) {
         constructors += constructor
     }
 
-    fun addMethod(method: TextMethodItem) {
+    override fun addMethod(method: MethodItem) {
         methods += method
     }
 
@@ -146,7 +146,7 @@ internal open class TextClassItem(
      * Replace an existing method with [method], if no such method exists then just add [method] to
      * the list of methods.
      */
-    fun replaceOrAddMethod(method: TextMethodItem) {
+    fun replaceOrAddMethod(method: MethodItem) {
         val iterator = methods.listIterator()
         while (iterator.hasNext()) {
             val existing = iterator.next()

@@ -75,9 +75,9 @@ internal open class TurbineClassItem(
 
     internal lateinit var fields: List<FieldItem>
 
-    internal lateinit var methods: MutableList<TurbineMethodItem>
+    internal lateinit var methods: MutableList<MethodItem>
 
-    internal lateinit var constructors: List<TurbineConstructorItem>
+    internal lateinit var constructors: List<ConstructorItem>
 
     internal var containingClass: TurbineClassItem? = null
 
@@ -215,6 +215,6 @@ internal open class TurbineClassItem(
     }
 
     override fun addMethod(method: MethodItem) {
-        methods.add(method as TurbineMethodItem)
+        methods.add(method)
     }
 }
