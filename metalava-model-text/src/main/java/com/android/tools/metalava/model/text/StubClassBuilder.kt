@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -28,6 +29,7 @@ internal class StubClassBuilder(
     val codebase: TextCodebase,
     val qualifiedName: String,
     private val fullName: String,
+    private val containingClass: ClassItem?,
 ) {
     /** The default [ClassKind] can be modified. */
     var classKind = ClassKind.CLASS
@@ -44,6 +46,7 @@ internal class StubClassBuilder(
                 classKind = classKind,
                 qualifiedName = qualifiedName,
                 fullName = fullName,
+                containingClass = containingClass,
             )
             .also { item -> item.setSuperClassType(superClassType) }
 
@@ -56,6 +59,7 @@ internal class StubClassBuilder(
             codebase: TextCodebase,
             qualifiedName: String,
             fullName: String,
+            containingClass: ClassItem?,
             mutator: StubClassBuilder.() -> Unit
         ): TextClassItem {
             val builder =
@@ -63,6 +67,7 @@ internal class StubClassBuilder(
                     codebase = codebase,
                     qualifiedName = qualifiedName,
                     fullName = fullName,
+                    containingClass = containingClass,
                 )
             builder.mutator()
             return builder.build()

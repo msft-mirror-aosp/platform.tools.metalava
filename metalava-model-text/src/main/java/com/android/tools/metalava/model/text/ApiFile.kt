@@ -604,6 +604,7 @@ private constructor(
                 fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
+                containingClass = outerClass,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
@@ -627,7 +628,6 @@ private constructor(
         }
 
         cl.setContainingPackage(pkg)
-        cl.containingClass = outerClass
         if (outerClass == null) {
             // Add the class to the package, it will only be added to the TextCodebase once the
             // package body has been parsed.

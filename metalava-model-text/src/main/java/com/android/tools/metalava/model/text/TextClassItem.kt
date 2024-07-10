@@ -43,6 +43,7 @@ internal open class TextClassItem(
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     classKind: ClassKind = ClassKind.CLASS,
+    containingClass: ClassItem?,
     private val qualifiedName: String = "",
     private val simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     private val fullName: String = simpleName,
@@ -56,6 +57,7 @@ internal open class TextClassItem(
         documentation = ItemDocumentation.NONE,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         classKind = classKind,
+        containingClass = containingClass,
     ) {
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
@@ -81,10 +83,6 @@ internal open class TextClassItem(
         return false
     }
 
-    var containingClass: ClassItem? = null
-
-    override fun containingClass(): ClassItem? = containingClass
-
     private var containingPackage: PackageItem? = null
 
     fun setContainingPackage(containingPackage: PackageItem) {
@@ -92,7 +90,7 @@ internal open class TextClassItem(
     }
 
     override fun containingPackage(): PackageItem =
-        containingClass?.containingPackage() ?: containingPackage ?: error(this)
+        containingClass()?.containingPackage() ?: containingPackage ?: error(this)
 
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 

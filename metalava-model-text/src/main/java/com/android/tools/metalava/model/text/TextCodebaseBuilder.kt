@@ -111,6 +111,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                 fileLocation = FileLocation.UNKNOWN,
                 modifiers = textClass.modifiers,
                 classKind = textClass.classKind,
+                containingClass = null,
                 qualifiedName = textClass.qualifiedName(),
                 simpleName = textClass.simpleName(),
                 fullName = textClass.fullName(),

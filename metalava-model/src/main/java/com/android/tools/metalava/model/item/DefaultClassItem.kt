@@ -34,6 +34,7 @@ abstract class DefaultClassItem(
     documentation: ItemDocumentation,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     final override val classKind: ClassKind,
+    private val containingClass: ClassItem?,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -43,4 +44,7 @@ abstract class DefaultClassItem(
         documentation = documentation,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
-    ClassItem
+    ClassItem {
+
+    final override fun containingClass() = containingClass
+}

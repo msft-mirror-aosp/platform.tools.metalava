@@ -43,6 +43,7 @@ internal open class TurbineClassItem(
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     classKind: ClassKind,
+    containingClass: ClassItem?,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
@@ -57,6 +58,7 @@ internal open class TurbineClassItem(
         documentation = documentation,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         classKind = classKind,
+        containingClass = containingClass,
     ) {
 
     override var hasPrivateConstructor: Boolean = false
@@ -76,8 +78,6 @@ internal open class TurbineClassItem(
     internal lateinit var methods: MutableList<MethodItem>
 
     internal lateinit var constructors: List<ConstructorItem>
-
-    internal var containingClass: TurbineClassItem? = null
 
     private lateinit var interfaceTypesList: List<ClassTypeItem>
 
@@ -113,10 +113,8 @@ internal open class TurbineClassItem(
 
     override fun constructors(): List<ConstructorItem> = constructors
 
-    override fun containingClass(): TurbineClassItem? = containingClass
-
     override fun containingPackage(): PackageItem =
-        containingClass?.containingPackage() ?: containingPackage
+        containingClass()?.containingPackage() ?: containingPackage
 
     override fun fields(): List<FieldItem> = fields
 

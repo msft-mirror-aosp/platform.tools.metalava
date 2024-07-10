@@ -228,6 +228,7 @@ internal class TextCodebase(
                 codebase = this,
                 qualifiedName = qualifiedName,
                 fullName = fullName,
+                containingClass = outerClass,
             ) {
                 // Apply stub kind specific mutations to the stub class being built.
                 requiredStubKind.mutator(this)
@@ -237,7 +238,6 @@ internal class TextCodebase(
         stubClass.emit = false
 
         if (outerClass != null) {
-            stubClass.containingClass = outerClass
             outerClass.addNestedClass(stubClass)
         } else {
             // Add to package
