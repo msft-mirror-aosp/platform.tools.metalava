@@ -269,10 +269,6 @@ internal class TextCodebase(
         return DefaultAnnotationItem.create(this, source)
     }
 
-    override fun toString(): String {
-        return description
-    }
-
     override fun unsupported(desc: String?): Nothing {
         error(desc ?: "Not supported for a signature-file based codebase")
     }

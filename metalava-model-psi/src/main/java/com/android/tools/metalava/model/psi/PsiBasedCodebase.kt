@@ -851,8 +851,6 @@ open class PsiBasedCodebase(
 
     override fun supportsDocumentation(): Boolean = true
 
-    override fun toString(): String = description
-
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
     internal fun registerClass(classItem: PsiClassItem) {
         val qualifiedName = classItem.qualifiedName()

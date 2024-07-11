@@ -116,6 +116,8 @@ abstract class AbstractCodebase(
         )
     }
 
+    final override fun toString() = description
+
     override fun dispose() {
         description += " [disposed]"
     }
