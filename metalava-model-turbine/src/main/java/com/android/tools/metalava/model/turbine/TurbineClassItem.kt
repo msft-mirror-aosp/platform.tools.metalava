@@ -59,8 +59,6 @@ internal open class TurbineClassItem(
         typeParameterList = typeParameterList,
     ) {
 
-    override var hasPrivateConstructor: Boolean = false
-
     override var stubConstructor: ConstructorItem? = null
 
     internal lateinit var constructors: List<ConstructorItem>

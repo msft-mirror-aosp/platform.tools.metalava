@@ -61,8 +61,6 @@ internal open class TextClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    override var hasPrivateConstructor: Boolean = false
-
     override fun hasImplicitDefaultConstructor(): Boolean {
         return false
     }
