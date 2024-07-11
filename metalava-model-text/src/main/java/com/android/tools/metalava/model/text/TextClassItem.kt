@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
@@ -81,16 +80,6 @@ internal open class TextClassItem(
 
     override fun containingPackage(): PackageItem =
         containingClass()?.containingPackage() ?: containingPackage ?: error(this)
-
-    /** Must only be used by [type] to cache its result. */
-    private lateinit var cachedType: ClassTypeItem
-
-    override fun type(): ClassTypeItem {
-        if (!::cachedType.isInitialized) {
-            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
-        }
-        return cachedType
-    }
 
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()

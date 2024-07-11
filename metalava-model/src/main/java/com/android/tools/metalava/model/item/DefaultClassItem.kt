@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeAllInterfaces
+import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 abstract class DefaultClassItem(
@@ -66,6 +67,16 @@ abstract class DefaultClassItem(
     final override fun fullName() = fullName
 
     final override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
+
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var cachedType: ClassTypeItem
+
+    final override fun type(): ClassTypeItem {
+        if (!::cachedType.isInitialized) {
+            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
+        }
+        return cachedType
+    }
 
     /**
      * The optional, mutable super class [ClassTypeItem].
