@@ -40,11 +40,6 @@ class DefaultAnnotationItemTest {
             override fun findPackage(pkgName: String) = unsupported()
 
             override fun trustedApi() = false
-
-            override fun createAnnotation(
-                source: String,
-                context: Item?,
-            ): AnnotationItem = unsupported()
         }
 
     private fun createDefaultAnnotationItem(source: String) =
