@@ -58,8 +58,10 @@ class SignatureToJDiffCommand :
         option(
                 help =
                     """
-                        Determines whether duplicate inherited methods should be stripped from the
-                        output or not.
+                        Determines whether types that are not defined within the input signature
+                        file should be stripped from the output or not. This does not include
+                        super class types, i.e. the `extends` attribute in the generated JDiff file.
+                        Historically, they have not been filtered.
                     """
                         .trimIndent()
             )
