@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
@@ -114,10 +113,6 @@ internal open class TextClassItem(
 
     fun addProperty(property: PropertyItem) {
         properties += property
-    }
-
-    fun addAnnotation(annotation: AnnotationItem) {
-        modifiers.addAnnotation(annotation)
     }
 
     override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
