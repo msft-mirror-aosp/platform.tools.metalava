@@ -718,47 +718,47 @@ internal open class TurbineCodebaseInitialiser(
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
-        classItem.fields =
-            fields.map { field ->
-                val annotations = createAnnotations(field.annotations())
-                val flags = field.access()
-                val decl = field.decl()
-                val fieldModifierItem =
-                    TurbineModifierItem.create(
-                        codebase,
-                        flags,
-                        annotations,
-                        isDeprecated(javadoc(decl))
-                    )
-                val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
-                val fieldValue = createInitialValue(field)
-                val type =
-                    typeItemFactory.getFieldType(
-                        underlyingType = field.type(),
-                        itemAnnotations = annotations,
-                        isEnumConstant = isEnumConstant,
-                        isFinal = fieldModifierItem.isFinal(),
-                        isInitialValueNonNull = {
-                            // The initial value is non-null if the value is a literal which is not
-                            // null.
-                            fieldValue.initialValue(false) != null
-                        }
-                    )
+        for (field in fields) {
+            val annotations = createAnnotations(field.annotations())
+            val flags = field.access()
+            val decl = field.decl()
+            val fieldModifierItem =
+                TurbineModifierItem.create(
+                    codebase,
+                    flags,
+                    annotations,
+                    isDeprecated(javadoc(decl))
+                )
+            val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
+            val fieldValue = createInitialValue(field)
+            val type =
+                typeItemFactory.getFieldType(
+                    underlyingType = field.type(),
+                    itemAnnotations = annotations,
+                    isEnumConstant = isEnumConstant,
+                    isFinal = fieldModifierItem.isFinal(),
+                    isInitialValueNonNull = {
+                        // The initial value is non-null if the value is a literal which is not
+                        // null.
+                        fieldValue.initialValue(false) != null
+                    }
+                )
 
-                val documentation = javadoc(decl)
-                val fieldItem =
-                    itemFactory.createFieldItem(
-                        fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                        modifiers = fieldModifierItem,
-                        documentation = getCommentedDoc(documentation),
-                        name = field.name(),
-                        containingClass = classItem,
-                        type = type,
-                        isEnumConstant = isEnumConstant,
-                        fieldValue = fieldValue,
-                    )
-                fieldItem
-            }
+            val documentation = javadoc(decl)
+            val fieldItem =
+                itemFactory.createFieldItem(
+                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    modifiers = fieldModifierItem,
+                    documentation = getCommentedDoc(documentation),
+                    name = field.name(),
+                    containingClass = classItem,
+                    type = type,
+                    isEnumConstant = isEnumConstant,
+                    fieldValue = fieldValue,
+                )
+
+            classItem.addField(fieldItem)
+        }
     }
 
     private fun createMethods(

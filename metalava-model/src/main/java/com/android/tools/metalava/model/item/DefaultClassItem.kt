@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
@@ -121,6 +122,16 @@ abstract class DefaultClassItem(
 
         return cacheAllInterfaces!!.asSequence()
     }
+
+    /** The mutable list of [FieldItem] that backs [fields]. */
+    private val mutableFields = mutableListOf<FieldItem>()
+
+    /** Add a field to this class. */
+    fun addField(field: FieldItem) {
+        mutableFields += field
+    }
+
+    final override fun fields(): List<FieldItem> = mutableFields
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()

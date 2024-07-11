@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
@@ -72,14 +71,11 @@ internal open class TextClassItem(
 
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
-    private val fields = mutableListOf<FieldItem>()
     private val properties = mutableListOf<PropertyItem>()
 
     override fun constructors(): List<ConstructorItem> = constructors
 
     override fun methods(): List<MethodItem> = methods
-
-    override fun fields(): List<FieldItem> = fields
 
     override fun properties(): List<PropertyItem> = properties
 
@@ -105,10 +101,6 @@ internal open class TextClassItem(
             }
         }
         methods += method
-    }
-
-    fun addField(field: FieldItem) {
-        fields += field
     }
 
     fun addProperty(property: PropertyItem) {

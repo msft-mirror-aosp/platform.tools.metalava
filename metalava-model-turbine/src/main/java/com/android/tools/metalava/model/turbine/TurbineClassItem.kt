@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
@@ -66,8 +65,6 @@ internal open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    internal lateinit var fields: List<FieldItem>
-
     internal lateinit var methods: MutableList<MethodItem>
 
     internal lateinit var constructors: List<ConstructorItem>
@@ -77,8 +74,6 @@ internal open class TurbineClassItem(
     private var retention: AnnotationRetention? = null
 
     override fun constructors(): List<ConstructorItem> = constructors
-
-    override fun fields(): List<FieldItem> = fields
 
     override fun getRetention(): AnnotationRetention {
         retention?.let {
