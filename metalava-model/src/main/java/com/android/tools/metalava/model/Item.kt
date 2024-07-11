@@ -41,14 +41,29 @@ interface Item : Reportable {
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
      * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
+     *
+     * @see variantSelectors
      */
     val originallyHidden: Boolean
 
     /**
      * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
      * containing class/pkg)
+     *
+     * @see variantSelectors
      */
     var hidden: Boolean
+
+    /**
+     * Tracks the properties that determine whether this [Item] will be selected for each API
+     * variant.
+     *
+     * @see originallyHidden
+     * @see hidden
+     * @see docOnly
+     * @see removed
+     */
+    val variantSelectors: ApiVariantSelectors
 
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
@@ -75,6 +90,8 @@ interface Item : Reportable {
     /**
      * Whether this element has been removed with @removed/@Remove (or after propagation, in some
      * containing class)
+     *
+     * @see variantSelectors
      */
     var removed: Boolean
 
@@ -87,7 +104,11 @@ interface Item : Reportable {
      */
     val effectivelyDeprecated: Boolean
 
-    /** True if this element is only intended for documentation */
+    /**
+     * True if this element is only intended for documentation
+     *
+     * @see variantSelectors
+     */
     var docOnly: Boolean
 
     /** True if this item is either hidden or removed */
@@ -444,7 +465,7 @@ abstract class AbstractItem(
      * The leaking of `this` is safe as the implementations do not do access anything that has not
      * been initialized.
      */
-    internal val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 
     final override fun isJava(): Boolean {
         return itemLanguage.isJava()
