@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -65,22 +64,7 @@ internal open class TurbineClassItem(
 
     internal var hasImplicitDefaultConstructor = false
 
-    private var retention: AnnotationRetention? = null
-
     override fun constructors(): List<ConstructorItem> = constructors
-
-    override fun getRetention(): AnnotationRetention {
-        retention?.let {
-            return it
-        }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        retention = ClassItem.findRetention(this)
-        return retention!!
-    }
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 

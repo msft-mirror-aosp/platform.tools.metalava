@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -179,5 +180,21 @@ abstract class DefaultClassItem(
     /** Add a nested class to this class. */
     fun addNestedClass(classItem: ClassItem) {
         mutableNestedClasses.add(classItem)
+    }
+
+    /** Cache result of [getRetention]. */
+    private var cacheRetention: AnnotationRetention? = null
+
+    final override fun getRetention(): AnnotationRetention {
+        cacheRetention?.let {
+            return it
+        }
+
+        if (!isAnnotationType()) {
+            error("getRetention() should only be called on annotation classes")
+        }
+
+        cacheRetention = ClassItem.findRetention(this)
+        return cacheRetention!!
     }
 }

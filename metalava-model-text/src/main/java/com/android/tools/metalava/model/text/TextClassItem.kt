@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -79,21 +78,6 @@ internal open class TextClassItem(
         // This lets us load signature files and rewrite them using updated
         // output formats etc.
         return superClassType()
-    }
-
-    private var retention: AnnotationRetention? = null
-
-    override fun getRetention(): AnnotationRetention {
-        retention?.let {
-            return it
-        }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        retention = ClassItem.findRetention(this)
-        return retention!!
     }
 
     override fun createDefaultConstructor(): ConstructorItem {
