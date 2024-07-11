@@ -413,8 +413,7 @@ internal open class TurbineCodebaseInitialiser(
                 "class $qualifiedName",
             )
         val classItem =
-            TurbineClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
                 documentation = getCommentedDoc(documentation),

@@ -37,7 +37,7 @@ import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultClassItem(
+open class DefaultClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
