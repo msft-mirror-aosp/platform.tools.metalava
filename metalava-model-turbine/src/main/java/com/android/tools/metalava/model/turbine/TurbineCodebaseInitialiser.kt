@@ -891,55 +891,56 @@ internal open class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         var hasImplicitDefaultConstructor = false
-        classItem.constructors =
-            methods
-                .filter { it.sym().name() == "<init>" }
-                .map { constructor ->
-                    val annotations = createAnnotations(constructor.annotations())
-                    val decl: MethDecl? = constructor.decl()
-                    val constructorModifierItem =
-                        TurbineModifierItem.create(
-                            codebase,
-                            constructor.access(),
-                            annotations,
-                            isDeprecated(javadoc(decl))
+        for (constructor in methods) {
+            // Skip real methods.
+            if (constructor.sym().name() != "<init>") continue
+
+            val annotations = createAnnotations(constructor.annotations())
+            val decl: MethDecl? = constructor.decl()
+            val constructorModifierItem =
+                TurbineModifierItem.create(
+                    codebase,
+                    constructor.access(),
+                    annotations,
+                    isDeprecated(javadoc(decl))
+                )
+            val (typeParams, constructorTypeItemFactory) =
+                createTypeParameters(
+                    constructor.tyParams(),
+                    enclosingClassTypeItemFactory,
+                    constructor.name(),
+                )
+            hasImplicitDefaultConstructor =
+                (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
+            val name = classItem.simpleName()
+            val documentation = javadoc(decl)
+            val constructorItem =
+                TurbineConstructorItem(
+                    codebase = codebase,
+                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    modifiers = constructorModifierItem,
+                    documentation = getCommentedDoc(documentation),
+                    // Turbine's Binder gives return type of constructors as void but the
+                    // model expects it to the type of object being created. So, use the
+                    // containing [ClassItem]'s type as the constructor return type.
+                    name = name,
+                    containingClass = classItem,
+                    typeParameterList = typeParams,
+                    returnType = classItem.type(),
+                    parameterItemsFactory = { constructorItem ->
+                        createParameters(
+                            constructorItem,
+                            decl?.params(),
+                            constructor.parameters(),
+                            constructorTypeItemFactory,
                         )
-                    val (typeParams, constructorTypeItemFactory) =
-                        createTypeParameters(
-                            constructor.tyParams(),
-                            enclosingClassTypeItemFactory,
-                            constructor.name(),
-                        )
-                    hasImplicitDefaultConstructor =
-                        (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
-                    val name = classItem.simpleName()
-                    val documentation = javadoc(decl)
-                    val constructorItem =
-                        TurbineConstructorItem(
-                            codebase = codebase,
-                            fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                            modifiers = constructorModifierItem,
-                            documentation = getCommentedDoc(documentation),
-                            // Turbine's Binder gives return type of constructors as void but the
-                            // model expects it to the type of object being created. So, use the
-                            // containing [ClassItem]'s type as the constructor return type.
-                            name = name,
-                            containingClass = classItem,
-                            typeParameterList = typeParams,
-                            returnType = classItem.type(),
-                            parameterItemsFactory = { constructorItem ->
-                                createParameters(
-                                    constructorItem,
-                                    decl?.params(),
-                                    constructor.parameters(),
-                                    constructorTypeItemFactory,
-                                )
-                            },
-                            throwsTypes =
-                                getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
-                        )
-                    constructorItem
-                }
+                    },
+                    throwsTypes =
+                        getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
+                )
+
+            classItem.addConstructor(constructorItem)
+        }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
     }
 

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -125,6 +126,27 @@ abstract class DefaultClassItem(
 
         return cacheAllInterfaces!!.asSequence()
     }
+
+    /** The mutable list of [ConstructorItem] that backs [constructors]. */
+    private val mutableConstructors = mutableListOf<ConstructorItem>()
+
+    final override fun constructors(): List<ConstructorItem> = mutableConstructors
+
+    /** Add a constructor to this class. */
+    fun addConstructor(constructor: ConstructorItem) {
+        mutableConstructors += constructor
+    }
+
+    final override var stubConstructor: ConstructorItem? = null
+
+    /**
+     * Tracks whether the class has an implicit default constructor.
+     *
+     * TODO(b/345775012): Stop it from being public.
+     */
+    var hasImplicitDefaultConstructor = false
+
+    final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     /** The mutable list of [MethodItem] that backs [methods]. */
     private val mutableMethods = mutableListOf<MethodItem>()

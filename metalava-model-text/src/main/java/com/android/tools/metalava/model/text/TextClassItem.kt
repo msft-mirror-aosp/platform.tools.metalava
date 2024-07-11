@@ -58,20 +58,6 @@ internal open class TextClassItem(
         typeParameterList = typeParameterList,
     ) {
 
-    override var stubConstructor: ConstructorItem? = null
-
-    override fun hasImplicitDefaultConstructor(): Boolean {
-        return false
-    }
-
-    private val constructors = mutableListOf<ConstructorItem>()
-
-    override fun constructors(): List<ConstructorItem> = constructors
-
-    fun addConstructor(constructor: ConstructorItem) {
-        constructors += constructor
-    }
-
     override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
         // No filtering in signature files: we assume signature APIs
         // have already been filtered and all items should match.

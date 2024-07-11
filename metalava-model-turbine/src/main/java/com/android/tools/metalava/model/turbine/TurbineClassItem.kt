@@ -58,16 +58,6 @@ internal open class TurbineClassItem(
         typeParameterList = typeParameterList,
     ) {
 
-    override var stubConstructor: ConstructorItem? = null
-
-    internal lateinit var constructors: List<ConstructorItem>
-
-    internal var hasImplicitDefaultConstructor = false
-
-    override fun constructors(): List<ConstructorItem> = constructors
-
-    override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
-
     override fun createDefaultConstructor(): ConstructorItem {
         return TurbineConstructorItem.createDefaultConstructor(codebase, this)
     }
