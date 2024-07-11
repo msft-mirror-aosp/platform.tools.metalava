@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.reporter.FileLocation
 
 abstract class DefaultClassItem(
@@ -79,6 +80,25 @@ abstract class DefaultClassItem(
     /** Set the super class [ClassTypeItem]. */
     fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
+    }
+
+    private var interfaceTypes = emptyList<ClassTypeItem>()
+
+    final override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
+
+    final override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
+        this.interfaceTypes = interfaceTypes
+    }
+
+    /** Cache of the results of calling [cacheAllInterfaces]. */
+    private var cacheAllInterfaces: List<ClassItem>? = null
+
+    final override fun allInterfaces(): Sequence<ClassItem> {
+        if (cacheAllInterfaces == null) {
+            cacheAllInterfaces = computeAllInterfaces()
+        }
+
+        return cacheAllInterfaces!!.asSequence()
     }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */

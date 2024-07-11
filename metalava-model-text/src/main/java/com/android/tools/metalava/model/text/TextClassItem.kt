@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
@@ -66,18 +65,6 @@ internal open class TextClassItem(
         typeParameterList = typeParameterList,
     ) {
 
-    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
-
-    private var allInterfaces: List<ClassItem>? = null
-
-    override fun allInterfaces(): Sequence<ClassItem> {
-        if (allInterfaces == null) {
-            allInterfaces = computeAllInterfaces()
-        }
-
-        return allInterfaces!!.asSequence()
-    }
-
     override var stubConstructor: ConstructorItem? = null
 
     override var hasPrivateConstructor: Boolean = false
@@ -95,10 +82,6 @@ internal open class TextClassItem(
     override fun containingPackage(): PackageItem =
         containingClass()?.containingPackage() ?: containingPackage ?: error(this)
 
-    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
-        this.interfaceTypes = interfaceTypes
-    }
-
     /** Must only be used by [type] to cache its result. */
     private lateinit var cachedType: ClassTypeItem
 
@@ -109,7 +92,6 @@ internal open class TextClassItem(
         return cachedType
     }
 
-    private var interfaceTypes = emptyList<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()

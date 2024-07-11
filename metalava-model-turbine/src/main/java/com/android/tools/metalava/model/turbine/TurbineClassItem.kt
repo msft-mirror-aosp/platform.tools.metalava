@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
@@ -79,21 +78,9 @@ internal open class TurbineClassItem(
 
     internal lateinit var constructors: List<ConstructorItem>
 
-    private lateinit var interfaceTypesList: List<ClassTypeItem>
-
     internal var hasImplicitDefaultConstructor = false
 
     private var retention: AnnotationRetention? = null
-
-    private var allInterfaces: List<ClassItem>? = null
-
-    override fun allInterfaces(): Sequence<ClassItem> {
-        if (allInterfaces == null) {
-            allInterfaces = computeAllInterfaces()
-        }
-
-        return allInterfaces!!.asSequence()
-    }
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -121,8 +108,6 @@ internal open class TurbineClassItem(
         return TurbineConstructorItem.createDefaultConstructor(codebase, this)
     }
 
-    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
-
     override fun methods(): List<MethodItem> = methods
 
     /**
@@ -130,10 +115,6 @@ internal open class TurbineClassItem(
      * so just return an empty list.
      */
     override fun properties(): List<PropertyItem> = emptyList()
-
-    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
-        interfaceTypesList = interfaceTypes
-    }
 
     /** Must only be used by [type] to cache its result. */
     private lateinit var cachedType: ClassTypeItem
