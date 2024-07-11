@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
@@ -59,12 +60,12 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  *
  * When [resolveClass] is called this will first look in [codebase] to see if the [ClassItem] has
  * already been loaded, returning it if found. Otherwise, it will look in the [classLoader] to see
- * if the class exists on the classpath. If it does then it will create a [TextClassItem] to
+ * if the class exists on the classpath. If it does then it will create a [DefaultClassItem] to
  * represent it and add it to the [codebase]. Otherwise, it will return `null`.
  *
- * The created [TextClassItem] is not a complete representation of the class that was found in the
- * [classLoader]. It is just a placeholder to indicate that it was found, although that may change
- * in the future.
+ * The created [DefaultClassItem] is not a complete representation of the class that was found in
+ * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
+ * change in the future.
  */
 internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 

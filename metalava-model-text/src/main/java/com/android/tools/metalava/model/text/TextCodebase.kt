@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.bestGuessAtFullName
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
@@ -44,7 +45,7 @@ internal class TextCodebase(
     private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
     private val packagesByName = HashMap<String, DefaultPackageItem>(300)
-    private val allClassesByName = HashMap<String, TextClassItem>(30000)
+    private val allClassesByName = HashMap<String, DefaultClassItem>(30000)
 
     private val externalClassesByName = HashMap<String, ClassItem>()
 
@@ -94,11 +95,11 @@ internal class TextCodebase(
 
         // accumulate a direct map of all the classes in the API
         for (cl in pInfo.allClasses()) {
-            allClassesByName[cl.qualifiedName()] = cl as TextClassItem
+            allClassesByName[cl.qualifiedName()] = cl as DefaultClassItem
         }
     }
 
-    fun registerClass(classItem: TextClassItem) {
+    fun registerClass(classItem: DefaultClassItem) {
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
@@ -214,9 +215,9 @@ internal class TextCodebase(
                 }
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
-                // TextClassItem so cast it to one so that the code below can use TextClassItem
-                // methods.
-                outerClass as TextClassItem
+                // DefaultClassItem so cast it to one so that the code below can use
+                // DefaultClassItem methods.
+                outerClass as DefaultClassItem
             } else {
                 null
             }
