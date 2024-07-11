@@ -890,7 +890,6 @@ internal open class TurbineCodebaseInitialiser(
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        var hasImplicitDefaultConstructor = false
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
@@ -910,7 +909,7 @@ internal open class TurbineCodebaseInitialiser(
                     enclosingClassTypeItemFactory,
                     constructor.name(),
                 )
-            hasImplicitDefaultConstructor =
+            val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
             val documentation = javadoc(decl)
@@ -936,11 +935,11 @@ internal open class TurbineCodebaseInitialiser(
                     },
                     throwsTypes =
                         getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
+                    implicitConstructor = isImplicitDefaultConstructor,
                 )
 
             classItem.addConstructor(constructorItem)
         }
-        classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
     }
 
     internal fun getQualifiedName(binaryName: String): String {

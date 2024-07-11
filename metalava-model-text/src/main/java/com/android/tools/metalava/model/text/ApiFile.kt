@@ -1034,6 +1034,10 @@ private constructor(
                     createParameterItems(methodItem, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
+                // Signature files do not track implicit constructors, all constructors are treated
+                // the same as whether it was created by the compiler or in the source has no effect
+                // on the API surface.
+                implicitConstructor = false,
             )
         method.markForCurrentApiSurface()
 

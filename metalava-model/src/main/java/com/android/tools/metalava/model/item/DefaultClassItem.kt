@@ -135,16 +135,17 @@ open class DefaultClassItem(
     /** Add a constructor to this class. */
     fun addConstructor(constructor: ConstructorItem) {
         mutableConstructors += constructor
+
+        // Keep track of whether any implicit constructors were added.
+        if (constructor.isImplicitConstructor()) {
+            hasImplicitDefaultConstructor = true
+        }
     }
 
     final override var stubConstructor: ConstructorItem? = null
 
-    /**
-     * Tracks whether the class has an implicit default constructor.
-     *
-     * TODO(b/345775012): Stop it from being public.
-     */
-    var hasImplicitDefaultConstructor = false
+    /** Tracks whether the class has an implicit default constructor. */
+    private var hasImplicitDefaultConstructor = false
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 

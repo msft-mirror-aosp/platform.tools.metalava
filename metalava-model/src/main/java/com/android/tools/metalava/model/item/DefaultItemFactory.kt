@@ -113,6 +113,7 @@ class DefaultItemFactory(
         returnType: ClassTypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
+        implicitConstructor: Boolean,
     ): ConstructorItem =
         DefaultConstructorItem(
             codebase,
@@ -127,6 +128,7 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            implicitConstructor,
         )
 
     /** Create a [FieldItem]. */
