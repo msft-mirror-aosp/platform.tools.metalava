@@ -18,7 +18,6 @@ package com.android.tools.metalava.compatibility
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ANDROID_SYSTEM_API
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
@@ -36,6 +35,7 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -1049,9 +1049,10 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    suppressLintSource
+                    suppressLintSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation")
         )
     }
 
@@ -2029,14 +2030,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2077,14 +2078,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2094,103 +2095,6 @@ class CompatibilityCheckTest : DriverTest() {
                     method public abstract void onGrantDefaultRoles();
                     method public final void sendNetworkScore();
                     field public static final int APP_RETURN_UNWANTED = 1;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Incompatible changes to released API signature codebase`() {
-        // Incompatible changes to a released System API should be detected
-        // in case of partial files
-        check(
-            expectedIssues =
-                """
-                released-api.txt:6: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
-                """,
-            signatureSource =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1();
-                  }
-                }
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1();
-                    method public void method2();
-                    method public void method3();
-                  }
-                }
-                """,
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method3();
-                  }
-                }
-                """,
-        )
-    }
-
-    @Test
-    fun `Partial text file which adds methods to show-annotation API`() {
-        // This happens in system and test files where we only include APIs that differ
-        // from the base IDE. When parsing these code bases we need to gracefully handle
-        // references to inner classes.
-        check(
-            includeSystemApiAnnotations = true,
-            expectedIssues =
-                """
-                released-api.txt:5: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package android.rolecontrollerservice;
-
-                    public class Service {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                        """
-                    package android.rolecontrollerservice;
-                    import android.annotation.SystemApi;
-
-                    /** @hide */
-                    @SystemApi
-                    public abstract class RoleControllerService extends Service {
-                        public abstract void onGrantDefaultRoles();
-                    }
-                    """
-                    ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package android.rolecontrollerservice {
-                  public abstract class RoleControllerService extends android.rolecontrollerservice.Service {
-                    ctor public RoleControllerService();
-                    method public abstract void onClearRoleHolders();
                   }
                 }
                 """
@@ -2233,7 +2137,9 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    testApiSource
+                    testApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -2245,11 +2151,6 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.view {
@@ -2390,84 +2291,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 )
-        )
-    }
-
-    @Test
-    fun `Test check release with base api`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class SomeClass {
-                      method public static void publicMethodA();
-                      method public static void publicMethodB();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class SomeClass {
-                      public static void publicMethodA();
-                    }
-                    """
-                    )
-                ),
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public class SomeClass {
-                      method public static void publicMethodB();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Test check a class moving from the released api to the base api`() {
-        check(
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class SomeClass1 {
-                    method public void method1();
-                  }
-                  public class SomeClass2 {
-                    method public void oldMethod();
-                  }
-                }
-                """,
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public class SomeClass2 {
-                    method public void newMethod();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class SomeClass1 {
-                        public void method1();
-                    }
-                    """
-                    )
-                ),
-            expectedIssues =
-                """
-            released-api.txt:7: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
-            """
-                    .trimIndent()
         )
     }
 
@@ -2685,14 +2508,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -2742,14 +2565,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -2995,14 +2818,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues =
                 """
@@ -3085,14 +2908,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = """
                 """
@@ -3448,9 +3271,10 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 

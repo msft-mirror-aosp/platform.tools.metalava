@@ -16,40 +16,41 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
-import com.google.turbine.binder.sym.MethodSymbol
 
 internal class TurbineConstructorItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val name: String,
-    methodSymbol: MethodSymbol,
-    containingClass: TurbineClassItem,
-    returnType: ClassTypeItem,
     modifiers: DefaultModifierList,
-    typeParameters: TypeParameterList,
-    documentation: String,
-    private val defaultValue: String,
+    documentation: ItemDocumentation,
+    name: String,
+    containingClass: ClassItem,
+    typeParameterList: TypeParameterList,
+    returnType: ClassTypeItem,
+    parameterItemsFactory: ParameterItemsFactory,
+    throwsTypes: List<ExceptionTypeItem>,
 ) :
     TurbineMethodItem(
-        codebase,
-        fileLocation,
-        methodSymbol,
-        containingClass,
-        returnType,
-        modifiers,
-        typeParameters,
-        documentation,
-        defaultValue,
+        codebase = codebase,
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+        documentation = documentation,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
+        returnType = returnType,
+        parameterItemsFactory = parameterItemsFactory,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
-
-    override fun name(): String = name
 
     override var superConstructor: ConstructorItem? = null
 
@@ -57,32 +58,28 @@ internal class TurbineConstructorItem(
 
     companion object {
         fun createDefaultConstructor(
-            codebase: TurbineBasedCodebase,
-            containingClass: TurbineClassItem,
-            symbol: MethodSymbol
-        ): TurbineConstructorItem {
+            codebase: DefaultCodebase,
+            containingClass: ClassItem,
+        ): ConstructorItem {
             val name = containingClass.simpleName()
             val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
-            val typeParameterList = DefaultTypeParameterList(emptyList())
 
             val ctorItem =
                 TurbineConstructorItem(
-                    codebase,
+                    codebase = codebase,
                     // Use the location of the containing class for the implicit default
                     // constructor.
-                    containingClass.fileLocation,
-                    name,
-                    symbol,
-                    containingClass,
-                    containingClass.type(),
-                    modifiers,
-                    typeParameterList,
-                    "",
-                    "",
+                    fileLocation = containingClass.fileLocation,
+                    modifiers = modifiers,
+                    documentation = ItemDocumentation.NONE,
+                    name = name,
+                    containingClass = containingClass,
+                    typeParameterList = TypeParameterList.NONE,
+                    returnType = containingClass.type(),
+                    parameterItemsFactory = { emptyList() },
+                    throwsTypes = emptyList(),
                 )
-            ctorItem.parameters = emptyList()
-            ctorItem.throwableTypes = emptyList()
             return ctorItem
         }
     }

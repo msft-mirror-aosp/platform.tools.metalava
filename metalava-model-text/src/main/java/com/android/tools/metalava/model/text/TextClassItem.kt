@@ -18,47 +18,47 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextClassItem(
-    override val codebase: TextCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,
-    val qualifiedName: String = "",
-    var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-    val fullName: String = simpleName,
+    private val qualifiedName: String = "",
+    private val simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    private val fullName: String = simpleName,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
-) : TextItem(codebase = codebase, fileLocation = fileLocation, modifiers = modifiers), ClassItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.UNKNOWN,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+    ),
+    ClassItem {
 
     override var artifact: String? = null
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as TextClassItem
-
-        return qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int {
-        return qualifiedName.hashCode()
-    }
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -71,13 +71,13 @@ internal open class TextClassItem(
             .flatten()
     }
 
-    private var innerClasses: MutableList<ClassItem> = mutableListOf()
+    private var nestedClasses: MutableList<ClassItem> = mutableListOf()
 
     override var stubConstructor: ConstructorItem? = null
 
     override var hasPrivateConstructor: Boolean = false
 
-    override fun innerClasses(): List<ClassItem> = innerClasses
+    override fun nestedClasses(): List<ClassItem> = nestedClasses
 
     override fun hasImplicitDefaultConstructor(): Boolean {
         return false
@@ -89,7 +89,7 @@ internal open class TextClassItem(
 
     private var containingPackage: PackageItem? = null
 
-    fun setContainingPackage(containingPackage: TextPackageItem) {
+    fun setContainingPackage(containingPackage: PackageItem) {
         this.containingPackage = containingPackage
     }
 
@@ -99,8 +99,6 @@ internal open class TextClassItem(
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     private var superClassType: ClassTypeItem? = null
-
-    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
@@ -136,36 +134,47 @@ internal open class TextClassItem(
 
     override fun properties(): List<PropertyItem> = properties
 
-    fun addConstructor(constructor: TextConstructorItem) {
+    fun addConstructor(constructor: ConstructorItem) {
         constructors += constructor
     }
 
-    fun addMethod(method: TextMethodItem) {
+    override fun addMethod(method: MethodItem) {
         methods += method
     }
 
-    fun addField(field: TextFieldItem) {
+    /**
+     * Replace an existing method with [method], if no such method exists then just add [method] to
+     * the list of methods.
+     */
+    fun replaceOrAddMethod(method: MethodItem) {
+        val iterator = methods.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == method) {
+                iterator.set(method)
+                return
+            }
+        }
+        methods += method
+    }
+
+    fun addField(field: FieldItem) {
         fields += field
     }
 
-    fun addProperty(property: TextPropertyItem) {
+    fun addProperty(property: PropertyItem) {
         properties += property
     }
 
-    fun addEnumConstant(field: TextFieldItem) {
-        field.setEnumConstant(true)
-        fields += field
-    }
-
-    override fun addInnerClass(cls: ClassItem) {
-        innerClasses.add(cls)
+    fun addNestedClass(cls: ClassItem) {
+        nestedClasses.add(cls)
     }
 
     fun addAnnotation(annotation: AnnotationItem) {
         modifiers.addAnnotation(annotation)
     }
 
-    override fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
+    override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
         // No filtering in signature files: we assume signature APIs
         // have already been filtered and all items should match.
         // This lets us load signature files and rewrite them using updated
@@ -195,6 +204,6 @@ internal open class TextClassItem(
     override fun qualifiedName(): String = qualifiedName
 
     override fun createDefaultConstructor(): ConstructorItem {
-        return TextConstructorItem.createDefaultConstructor(codebase, this, fileLocation)
+        return TextConstructorItem.createDefaultConstructor(codebase, this)
     }
 }

@@ -247,11 +247,19 @@ private constructor(
         // Do not write deprecate or suppress compatibility annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
-                when (item) {
+                when {
+                    // Do not write @Deprecated for a removed item unless it was explicitly marked
+                    // as deprecated.
+                    item.removed -> item.originallyDeprecated
                     // Do not write @Deprecated for a parameter unless it was explicitly marked
                     // as deprecated.
-                    is ParameterItem -> item.originallyDeprecated
-                    else -> item.deprecated
+                    item is ParameterItem -> item.originallyDeprecated
+                    // Do not write @Deprecated for a field if it was inherited from another class
+                    // and was not explicitly qualified.
+                    item is FieldItem ->
+                        if (item.inheritedFromAncestor) item.originallyDeprecated
+                        else item.effectivelyDeprecated
+                    else -> item.effectivelyDeprecated
                 }
             if (writeDeprecated) {
                 writer.write("@Deprecated")
@@ -307,9 +315,7 @@ private constructor(
                     ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
-                        writer.write(
-                            annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
-                        )
+                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
                         if (separateLines) {
                             writer.write("\n")
                         } else {

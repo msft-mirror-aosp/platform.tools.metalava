@@ -23,12 +23,15 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
@@ -136,7 +139,6 @@ private const val INDENT_WIDTH = 45
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
-const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
@@ -180,7 +182,6 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_STUB_PACKAGES = "--stub-packages"
-const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -221,8 +222,6 @@ class Options(
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [revertAnnotations] */
     private val revertAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [stubImportPackages] */
-    private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
@@ -339,9 +338,6 @@ class Options(
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
 
-    /** Packages to import (if empty, include all) */
-    private var stubImportPackages: Set<String> = mutableStubImportPackages
-
     /** Packages to exclude/hide */
     var hidePackages: List<String> = mutableHidePackages
 
@@ -420,7 +416,6 @@ class Options(
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = mergeQualifierAnnotations,
             mergeInclusionAnnotations = mergeInclusionAnnotations,
-            stubImportPackages = stubImportPackages,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
         )
@@ -480,9 +475,6 @@ class Options(
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
 
-    /** If set, a file to write the DEX signatures to. Corresponds to [ARG_DEX_API]. */
-    var dexApiFile: File? = null
-
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
 
@@ -519,13 +511,32 @@ class Options(
     private var excludeAnnotations = mutableExcludeAnnotations
 
     /** A signature file to migrate nullness data from */
-    var migrateNullsFrom: File? = null
+    val migrateNullsFrom by
+        option(
+                ARG_MIGRATE_NULLNESS,
+                metavar = "<api file>",
+                help =
+                    """
+                        Compare nullness information with the previous stable API
+                        and mark newly annotated APIs as under migration.
+                    """
+                        .trimIndent()
+            )
+            .existingFile()
+            .multiple()
+            .map {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                    ARG_MIGRATE_NULLNESS,
+                    it,
+                    onlyUseLastForCurrentApiSurface = false
+                )
+            }
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
 
-    /** The API to use a base for the otherwise checked API during compat checks. */
-    val baseApiForCompatCheck by compatibilityCheckOptions::baseApiForCompatCheck
+    /** The set of annotation classes that should be treated as API compatibility important */
+    val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
 
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
@@ -686,13 +697,6 @@ class Options(
                     .trimIndent()
             )
 
-    val encoding by
-        option("-encoding", hidden = true)
-            .deprecated(
-                "WARNING: option `-encoding` is deprecated; it has no effect please remove",
-                tagValue = "please remove"
-            )
-
     fun parse(
         executionEnvironment: ExecutionEnvironment,
         args: Array<String>,
@@ -747,7 +751,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
@@ -768,8 +771,7 @@ class Options(
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
-                ARG_STUB_PACKAGES,
-                "-stubpackages" -> {
+                ARG_STUB_PACKAGES -> {
                     val packages = getValue(args, ++index)
                     val filter =
                         stubPackages
@@ -780,22 +782,12 @@ class Options(
                             }
                     filter.addPackages(packages)
                 }
-                ARG_STUB_IMPORT_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    for (pkg in packages.split(File.pathSeparatorChar)) {
-                        mutableStubImportPackages.add(pkg)
-                        mutableHidePackages.add(pkg)
-                    }
-                }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
-                ARG_MIGRATE_NULLNESS -> {
-                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                }
 
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
@@ -852,8 +844,7 @@ class Options(
                 ARG_API_VERSION_NAMES -> {
                     apiVersionNames = getValue(args, ++index).split(' ')
                 }
-                ARG_JAVA_SOURCE,
-                "-source" -> {
+                ARG_JAVA_SOURCE -> {
                     val value = getValue(args, ++index)
                     javaLanguageLevelAsString = value
                 }
@@ -1056,9 +1047,7 @@ class Options(
         }
 
         // Get all the android.jar. They are in platforms-#
-        var apiLevel = minApi - 1
-        while (true) {
-            apiLevel++
+        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
             try {
                 var jar: File? = null
                 if (apiLevel == currentApiLevel) {
@@ -1251,8 +1240,6 @@ object OptionsHelp {
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
-                "$ARG_DEX_API <file>",
-                "Generate a DEX signature descriptor file listing the APIs",
                 "$ARG_PROGUARD <file>",
                 "Write a ProGuard keep file for the API",
                 "$ARG_SDK_VALUES <dir>",
@@ -1282,11 +1269,6 @@ object OptionsHelp {
                 "Exclude element documentation (javadoc and kdoc) " +
                     "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                     "Documentation stubs (--doc-stubs) are not affected.)",
-                "",
-                "Diffs and Checks:",
-                "$ARG_MIGRATE_NULLNESS <api file>",
-                "Compare nullness information with the previous stable API " +
-                    "and mark newly annotated APIs as under migration.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
