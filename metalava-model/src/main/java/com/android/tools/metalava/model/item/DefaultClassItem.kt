@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeAllInterfaces
@@ -57,6 +58,15 @@ abstract class DefaultClassItem(
     ClassItem {
 
     final override fun getSourceFile() = source
+
+    private lateinit var containingPackage: PackageItem
+
+    fun setContainingPackage(containingPackage: PackageItem) {
+        this.containingPackage = containingPackage
+    }
+
+    final override fun containingPackage(): PackageItem =
+        containingClass()?.containingPackage() ?: containingPackage
 
     final override fun containingClass() = containingClass
 

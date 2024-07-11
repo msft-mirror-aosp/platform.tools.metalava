@@ -454,7 +454,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
-            classItem.containingPackage = pkgItem
+            classItem.setContainingPackage(pkgItem)
             pkgItem.addTopClass(classItem)
         }
 

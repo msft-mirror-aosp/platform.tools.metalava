@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -71,15 +70,6 @@ internal open class TextClassItem(
     override fun hasImplicitDefaultConstructor(): Boolean {
         return false
     }
-
-    private var containingPackage: PackageItem? = null
-
-    fun setContainingPackage(containingPackage: PackageItem) {
-        this.containingPackage = containingPackage
-    }
-
-    override fun containingPackage(): PackageItem =
-        containingClass()?.containingPackage() ?: containingPackage ?: error(this)
 
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
