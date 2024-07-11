@@ -766,68 +766,71 @@ internal open class TurbineCodebaseInitialiser(
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        val methodItems =
-            methods
-                .filter { it.sym().name() != "<init>" }
-                .map { method ->
-                    val annotations = createAnnotations(method.annotations())
-                    val decl: MethDecl? = method.decl()
-                    val methodModifierItem =
-                        TurbineModifierItem.create(
-                            codebase,
-                            method.access(),
-                            annotations,
-                            isDeprecated(javadoc(decl))
-                        )
-                    val name = method.name()
-                    val (typeParams, methodTypeItemFactory) =
-                        createTypeParameters(
-                            method.tyParams(),
-                            enclosingClassTypeItemFactory,
-                            name,
-                        )
-                    val documentation = javadoc(decl)
-                    val defaultValueExpr = getAnnotationDefaultExpression(method)
-                    val defaultValue =
-                        if (method.defaultValue() != null)
-                            extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
-                        else ""
+        for (method in methods) {
+            // Ignore constructors.
+            if (method.sym().name() == "<init>") continue
 
-                    val parameters = method.parameters()
-                    val fingerprint = MethodFingerprint(name, parameters.size)
-                    val isAnnotationElement =
-                        classItem.isAnnotationType() && !methodModifierItem.isStatic()
-                    val returnType =
-                        methodTypeItemFactory.getMethodReturnType(
-                            underlyingReturnType = method.returnType(),
-                            itemAnnotations = methodModifierItem.annotations(),
-                            fingerprint = fingerprint,
-                            isAnnotationElement = isAnnotationElement,
-                        )
+            val annotations = createAnnotations(method.annotations())
+            val decl: MethDecl? = method.decl()
+            val methodModifierItem =
+                TurbineModifierItem.create(
+                    codebase,
+                    method.access(),
+                    annotations,
+                    isDeprecated(javadoc(decl))
+                )
+            val name = method.name()
+            val (typeParams, methodTypeItemFactory) =
+                createTypeParameters(
+                    method.tyParams(),
+                    enclosingClassTypeItemFactory,
+                    name,
+                )
+            val documentation = javadoc(decl)
+            val defaultValueExpr = getAnnotationDefaultExpression(method)
+            val defaultValue =
+                if (method.defaultValue() != null)
+                    extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
+                else ""
 
-                    TurbineMethodItem(
-                        codebase = codebase,
-                        fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                        modifiers = methodModifierItem,
-                        documentation = getCommentedDoc(documentation),
-                        name = name,
-                        containingClass = classItem,
-                        typeParameterList = typeParams,
-                        returnType = returnType,
-                        parameterItemsFactory = { methodItem ->
-                            createParameters(
-                                methodItem,
-                                decl?.params(),
-                                parameters,
-                                methodTypeItemFactory,
-                            )
-                        },
-                        throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
-                        annotationDefault = defaultValue,
-                    )
-                }
-        // Ignore enum synthetic methods
-        classItem.methods = methodItems.filter { !it.isEnumSyntheticMethod() }.toMutableList()
+            val parameters = method.parameters()
+            val fingerprint = MethodFingerprint(name, parameters.size)
+            val isAnnotationElement = classItem.isAnnotationType() && !methodModifierItem.isStatic()
+            val returnType =
+                methodTypeItemFactory.getMethodReturnType(
+                    underlyingReturnType = method.returnType(),
+                    itemAnnotations = methodModifierItem.annotations(),
+                    fingerprint = fingerprint,
+                    isAnnotationElement = isAnnotationElement,
+                )
+
+            val methodItem =
+                TurbineMethodItem(
+                    codebase = codebase,
+                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    modifiers = methodModifierItem,
+                    documentation = getCommentedDoc(documentation),
+                    name = name,
+                    containingClass = classItem,
+                    typeParameterList = typeParams,
+                    returnType = returnType,
+                    parameterItemsFactory = { methodItem ->
+                        createParameters(
+                            methodItem,
+                            decl?.params(),
+                            parameters,
+                            methodTypeItemFactory,
+                        )
+                    },
+                    throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                    annotationDefault = defaultValue,
+                )
+
+            // Ignore enum synthetic methods.
+            if (methodItem.isEnumSyntheticMethod()) continue
+
+            classItem.addMethod(methodItem)
+        }
     }
 
     private fun createParameters(

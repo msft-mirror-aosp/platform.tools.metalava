@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
@@ -69,34 +68,11 @@ internal open class TextClassItem(
     }
 
     private val constructors = mutableListOf<ConstructorItem>()
-    private val methods = mutableListOf<MethodItem>()
 
     override fun constructors(): List<ConstructorItem> = constructors
 
-    override fun methods(): List<MethodItem> = methods
-
     fun addConstructor(constructor: ConstructorItem) {
         constructors += constructor
-    }
-
-    override fun addMethod(method: MethodItem) {
-        methods += method
-    }
-
-    /**
-     * Replace an existing method with [method], if no such method exists then just add [method] to
-     * the list of methods.
-     */
-    fun replaceOrAddMethod(method: MethodItem) {
-        val iterator = methods.listIterator()
-        while (iterator.hasNext()) {
-            val existing = iterator.next()
-            if (existing == method) {
-                iterator.set(method)
-                return
-            }
-        }
-        methods += method
     }
 
     override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {

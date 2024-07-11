@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
@@ -122,6 +123,32 @@ abstract class DefaultClassItem(
         }
 
         return cacheAllInterfaces!!.asSequence()
+    }
+
+    /** The mutable list of [MethodItem] that backs [methods]. */
+    private val mutableMethods = mutableListOf<MethodItem>()
+
+    final override fun methods(): List<MethodItem> = mutableMethods
+
+    /** Add a method to this class. */
+    override fun addMethod(method: MethodItem) {
+        mutableMethods += method
+    }
+
+    /**
+     * Replace an existing method with [method], if no such method exists then just add [method] to
+     * the list of methods.
+     */
+    fun replaceOrAddMethod(method: MethodItem) {
+        val iterator = mutableMethods.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == method) {
+                iterator.set(method)
+                return
+            }
+        }
+        mutableMethods += method
     }
 
     /** The mutable list of [FieldItem] that backs [fields]. */

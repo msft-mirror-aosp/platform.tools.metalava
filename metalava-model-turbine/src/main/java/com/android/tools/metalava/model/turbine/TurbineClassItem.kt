@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -64,8 +63,6 @@ internal open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    internal lateinit var methods: MutableList<MethodItem>
-
     internal lateinit var constructors: List<ConstructorItem>
 
     internal var hasImplicitDefaultConstructor = false
@@ -91,11 +88,5 @@ internal open class TurbineClassItem(
 
     override fun createDefaultConstructor(): ConstructorItem {
         return TurbineConstructorItem.createDefaultConstructor(codebase, this)
-    }
-
-    override fun methods(): List<MethodItem> = methods
-
-    override fun addMethod(method: MethodItem) {
-        methods.add(method)
     }
 }
