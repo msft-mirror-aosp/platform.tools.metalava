@@ -102,7 +102,7 @@ object UnsetMinSdkVersion : MinSdkVersion()
 
 const val CLASS_ESTIMATE = 15000
 
-abstract class DefaultCodebase(
+abstract class AbstractCodebase(
     final override var location: File,
     final override var description: String,
     final override val preFiltered: Boolean,

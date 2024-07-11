@@ -20,11 +20,11 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -104,7 +104,7 @@ open class PsiBasedCodebase(
     private val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
-) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
+) : AbstractCodebase(location, description, false, annotationManager), SourceCodebase {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
         get() = uastEnvironment.ideaProject

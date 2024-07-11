@@ -35,8 +35,15 @@ internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
-    val allowReadingComments: Boolean
-) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
+    val allowReadingComments: Boolean,
+) :
+    DefaultCodebase(
+        location,
+        description,
+        false,
+        annotationManager,
+    ),
+    SourceCodebase {
 
     /**
      * Map from class name to class item. Classes are added via [registerClass] while initialising
