@@ -333,24 +333,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         }
     }
 
-    fun formatParameters(): String? {
-        // TODO: Generalize, allow callers to control whether to include annotations, whether to
-        // erase types,
-        // whether to include names, etc
-        if (parameters().isEmpty()) {
-            return ""
-        }
-        val sb = StringBuilder()
-        for (parameter in parameters()) {
-            if (sb.isNotEmpty()) {
-                sb.append(", ")
-            }
-            sb.append(parameter.type().toTypeString())
-        }
-
-        return sb.toString()
-    }
-
     /**
      * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does
      * not have any corresponding source code.
