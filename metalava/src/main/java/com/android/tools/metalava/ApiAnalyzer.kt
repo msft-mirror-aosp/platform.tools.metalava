@@ -618,7 +618,7 @@ class ApiAnalyzer(
             }
             val containingPackage = pkg.containingPackage()
             if (containingPackage != null) {
-                if (containingPackage.hidden && !containingPackage.isDefault) {
+                if (containingPackage.hidden) {
                     pkg.hidden = true
                 }
                 if (containingPackage.docOnly) {
