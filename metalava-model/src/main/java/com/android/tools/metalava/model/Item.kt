@@ -16,10 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.MethodItem.Companion.equals
-import com.android.tools.metalava.model.MethodItem.Companion.hashCode
-import com.android.tools.metalava.model.TypeItem.Companion.equals
-import com.android.tools.metalava.model.TypeItem.Companion.hashCode
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
