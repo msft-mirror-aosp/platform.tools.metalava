@@ -48,7 +48,7 @@ private constructor(
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
-    PsiMethodItem(
+    PsiCallableItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,

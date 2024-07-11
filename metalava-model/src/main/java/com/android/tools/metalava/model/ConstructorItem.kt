@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface ConstructorItem : MethodItem {
+interface ConstructorItem : CallableItem {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)

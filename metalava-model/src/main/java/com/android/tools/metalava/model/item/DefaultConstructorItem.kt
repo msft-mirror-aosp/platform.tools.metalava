@@ -43,7 +43,7 @@ class DefaultConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
     private val implicitConstructor: Boolean,
 ) :
-    DefaultMethodItem(
+    DefaultCallableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
