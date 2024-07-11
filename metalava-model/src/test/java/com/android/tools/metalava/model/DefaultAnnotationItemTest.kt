@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultCodebase
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

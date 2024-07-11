@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.AbstractCodebase
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
 import java.io.File
 
 /**
