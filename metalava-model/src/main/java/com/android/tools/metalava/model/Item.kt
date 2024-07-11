@@ -566,31 +566,3 @@ abstract class AbstractItem(
 
     final override fun toString() = toStringForItem()
 }
-
-/**
- * Base class that is common to models that do not incorporate their underlying model, if any, into
- * their [Item] implementations.
- */
-abstract class DefaultItem(
-    final override val codebase: DefaultCodebase,
-    fileLocation: FileLocation,
-    internal val itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
-) :
-    AbstractItem(
-        fileLocation,
-        modifiers,
-        documentation,
-        variantSelectorsFactory,
-    ) {
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
-}
