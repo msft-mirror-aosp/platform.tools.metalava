@@ -352,9 +352,11 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return sb.toString()
     }
 
-    fun isImplicitConstructor(): Boolean {
-        return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
-    }
+    /**
+     * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does
+     * not have any corresponding source code.
+     */
+    fun isImplicitConstructor(): Boolean = false
 
     /**
      * Check whether this method is a synthetic enum method.
