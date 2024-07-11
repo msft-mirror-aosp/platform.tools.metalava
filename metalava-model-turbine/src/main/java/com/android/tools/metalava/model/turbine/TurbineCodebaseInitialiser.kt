@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
@@ -40,6 +41,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -328,7 +330,7 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     /** Tries to create a class if not already present in codebase's classmap */
-    internal fun findOrCreateClass(name: String): TurbineClassItem? {
+    internal fun findOrCreateClass(name: String): ClassItem? {
         var classItem = codebase.findClass(name)
 
         if (classItem == null) {
@@ -361,9 +363,9 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createClass(
         sym: ClassSymbol,
-        containingClassItem: TurbineClassItem?,
+        containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
-    ): TurbineClassItem {
+    ): ClassItem {
 
         var cls: TypeBoundClass? = sourceClassMap[sym]
         cls = if (cls != null) cls else envClassMap.get(sym)!!
@@ -701,7 +703,7 @@ internal open class TurbineCodebaseInitialiser(
 
     /** This method sets up the nested class hierarchy. */
     private fun createNestedClasses(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -714,7 +716,7 @@ internal open class TurbineCodebaseInitialiser(
 
     /** This methods creates and sets the fields of a class */
     private fun createFields(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -762,7 +764,7 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createMethods(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -886,7 +888,7 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createConstructors(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
