@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * A builder for stub classes, i.e. [DefaultClassItem]s fabricated because [ApiFile] has no
@@ -41,13 +43,15 @@ internal class StubClassBuilder(
     var superClassType: ClassTypeItem? = null
 
     private fun build(): DefaultClassItem =
-        TextClassItem(
-                codebase = codebase,
+        codebase.itemFactory
+            .createClassItem(
+                fileLocation = FileLocation.UNKNOWN,
                 modifiers = modifiers,
                 classKind = classKind,
                 qualifiedName = qualifiedName,
                 fullName = fullName,
                 containingClass = containingClass,
+                typeParameterList = TypeParameterList.NONE,
             )
             .also { item -> item.setSuperClassType(superClassType) }
 

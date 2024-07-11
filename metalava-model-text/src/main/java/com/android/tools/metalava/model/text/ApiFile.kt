@@ -597,11 +597,10 @@ private constructor(
             return
         }
 
-        // Create the TextClassItem and set its package but do not add it to the package or
+        // Create the DefaultClassItem and set its package but do not add it to the package or
         // register it.
         val cl =
-            TextClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,

@@ -77,13 +77,13 @@ class DefaultItemFactory(
     fun createClassItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
-        source: SourceFile?,
+        documentation: ItemDocumentation = ItemDocumentation.NONE,
+        source: SourceFile? = null,
         classKind: ClassKind,
         containingClass: ClassItem?,
-        qualifiedName: String,
-        simpleName: String,
-        fullName: String,
+        qualifiedName: String = "",
+        simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+        fullName: String = simpleName,
         typeParameterList: TypeParameterList,
     ) =
         DefaultClassItem(

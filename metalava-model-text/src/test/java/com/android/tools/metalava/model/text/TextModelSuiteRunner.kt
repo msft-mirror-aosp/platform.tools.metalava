@@ -17,14 +17,17 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import java.net.URLClassLoader
@@ -111,11 +114,14 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                             .createPackageItem(qualifiedName = packageName)
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 
-                TextClassItem(
-                        codebase = codebase,
+                codebase.itemFactory
+                    .createClassItem(
+                        fileLocation = FileLocation.UNKNOWN,
                         modifiers = DefaultModifierList(codebase),
                         qualifiedName = cls.canonicalName,
+                        classKind = ClassKind.CLASS,
                         containingClass = null,
+                        typeParameterList = TypeParameterList.NONE,
                     )
                     .also { newClassItem ->
                         codebase.registerClass(newClassItem)

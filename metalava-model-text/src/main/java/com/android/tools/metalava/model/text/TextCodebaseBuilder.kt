@@ -107,8 +107,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         }
         val textClass = fullClass as DefaultClassItem
         val newClass =
-            TextClassItem(
-                codebase = codebase,
+            codebase.itemFactory.createClassItem(
                 fileLocation = FileLocation.UNKNOWN,
                 modifiers = textClass.modifiers,
                 classKind = textClass.classKind,
