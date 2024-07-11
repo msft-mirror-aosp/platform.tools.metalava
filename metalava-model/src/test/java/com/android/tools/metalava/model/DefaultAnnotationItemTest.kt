@@ -35,15 +35,9 @@ class DefaultAnnotationItemTest {
                 trustedApi = false,
                 supportsDocumentation = false,
             ) {
-            override fun getPackages() = unsupported()
-
-            override fun size() = unsupported()
-
             override fun findClass(className: String) = unsupported()
 
             override fun resolveClass(className: String) = unsupported()
-
-            override fun findPackage(pkgName: String) = unsupported()
         }
 
     private fun createDefaultAnnotationItem(source: String) =

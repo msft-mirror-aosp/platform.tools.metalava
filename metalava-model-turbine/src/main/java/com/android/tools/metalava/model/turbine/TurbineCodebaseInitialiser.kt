@@ -288,7 +288,7 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun findOrCreatePackage(name: String): DefaultPackageItem {
         codebase.findPackage(name)?.let {
-            return it as DefaultPackageItem
+            return it
         }
 
         val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)

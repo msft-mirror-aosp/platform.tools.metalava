@@ -23,15 +23,11 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
-import java.util.ArrayList
 import java.util.HashMap
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
@@ -50,7 +46,6 @@ internal class TextCodebase(
         trustedApi = true,
         supportsDocumentation = false,
     ) {
-    private val packagesByName = HashMap<String, DefaultPackageItem>(300)
     private val allClassesByName = HashMap<String, DefaultClassItem>(30000)
 
     private val externalClassesByName = HashMap<String, ClassItem>()
@@ -73,16 +68,6 @@ internal class TextCodebase(
         addPackage(rootPackage)
     }
 
-    override fun getPackages(): PackageList {
-        val list = ArrayList<PackageItem>(packagesByName.values)
-        list.sortWith(PackageItem.comparator)
-        return PackageList(this, list)
-    }
-
-    override fun size(): Int {
-        return packagesByName.size
-    }
-
     /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
     fun findClassInCodebase(className: String) = allClassesByName[className]
 
@@ -90,11 +75,6 @@ internal class TextCodebase(
         allClassesByName[className] ?: externalClassesByName[className]
 
     override fun resolveClass(className: String) = getOrCreateClass(className)
-
-    fun addPackage(pInfo: DefaultPackageItem) {
-        // track the set of organized packages in the API
-        packagesByName[pInfo.qualifiedName()] = pInfo
-    }
 
     fun registerClass(classItem: DefaultClassItem) {
         val qualifiedName = classItem.qualifiedName()
@@ -253,10 +233,6 @@ internal class TextCodebase(
             pkg.addTopClass(stubClass)
         }
         return stubClass
-    }
-
-    override fun findPackage(pkgName: String): DefaultPackageItem? {
-        return packagesByName[pkgName]
     }
 
     override fun unsupported(desc: String?): Nothing {

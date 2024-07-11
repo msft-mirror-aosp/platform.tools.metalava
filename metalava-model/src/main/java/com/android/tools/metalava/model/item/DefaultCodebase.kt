@@ -22,7 +22,12 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PackageList
 import java.io.File
+import java.util.HashMap
+
+private const val PACKAGE_ESTIMATE = 500
 
 /**
  * Base class of [Codebase]s for the models that do not incorporate their underlying model, if any,
@@ -44,6 +49,28 @@ abstract class DefaultCodebase(
         trustedApi,
         supportsDocumentation,
     ) {
+
+    /** Map from package name to [DefaultPackageItem] of all packages in this. */
+    private val packagesByName = HashMap<String, DefaultPackageItem>(PACKAGE_ESTIMATE)
+
+    final override fun getPackages(): PackageList {
+        val list = packagesByName.values.toMutableList()
+        list.sortWith(PackageItem.comparator)
+        return PackageList(this, list)
+    }
+
+    final override fun size(): Int {
+        return packagesByName.size
+    }
+
+    final override fun findPackage(pkgName: String): DefaultPackageItem? {
+        return packagesByName[pkgName]
+    }
+
+    /** Add the package to this. */
+    fun addPackage(packageItem: DefaultPackageItem) {
+        packagesByName[packageItem.qualifiedName()] = packageItem
+    }
 
     final override fun createAnnotation(
         source: String,
