@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -95,12 +94,6 @@ internal open class TurbineClassItem(
     }
 
     override fun methods(): List<MethodItem> = methods
-
-    /**
-     * [PropertyItem]s are kotlin specific and it is unlikely that Turbine will ever support Kotlin
-     * so just return an empty list.
-     */
-    override fun properties(): List<PropertyItem> = emptyList()
 
     override fun addMethod(method: MethodItem) {
         methods.add(method)

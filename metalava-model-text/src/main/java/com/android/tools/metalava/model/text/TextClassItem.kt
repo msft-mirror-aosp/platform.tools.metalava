@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
@@ -71,13 +70,10 @@ internal open class TextClassItem(
 
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
-    private val properties = mutableListOf<PropertyItem>()
 
     override fun constructors(): List<ConstructorItem> = constructors
 
     override fun methods(): List<MethodItem> = methods
-
-    override fun properties(): List<PropertyItem> = properties
 
     fun addConstructor(constructor: ConstructorItem) {
         constructors += constructor
@@ -101,10 +97,6 @@ internal open class TextClassItem(
             }
         }
         methods += method
-    }
-
-    fun addProperty(property: PropertyItem) {
-        properties += property
     }
 
     override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {

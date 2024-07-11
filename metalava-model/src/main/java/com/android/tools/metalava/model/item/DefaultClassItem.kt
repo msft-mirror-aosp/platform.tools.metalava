@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeAllInterfaces
@@ -132,6 +133,16 @@ abstract class DefaultClassItem(
     }
 
     final override fun fields(): List<FieldItem> = mutableFields
+
+    /** The mutable list of [PropertyItem] that backs [properties]. */
+    private val mutableProperties = mutableListOf<PropertyItem>()
+
+    final override fun properties(): List<PropertyItem> = mutableProperties
+
+    /** Add a property to this class. */
+    fun addProperty(property: PropertyItem) {
+        mutableProperties += property
+    }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
