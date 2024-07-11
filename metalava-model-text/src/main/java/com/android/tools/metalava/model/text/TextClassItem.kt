@@ -19,16 +19,13 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
-import java.util.function.Predicate
 
 internal open class TextClassItem(
     codebase: DefaultCodebase,
@@ -55,13 +52,4 @@ internal open class TextClassItem(
         simpleName = simpleName,
         fullName = fullName,
         typeParameterList = typeParameterList,
-    ) {
-
-    override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
-        // No filtering in signature files: we assume signature APIs
-        // have already been filtered and all items should match.
-        // This lets us load signature files and rewrite them using updated
-        // output formats etc.
-        return superClassType()
-    }
-}
+    )

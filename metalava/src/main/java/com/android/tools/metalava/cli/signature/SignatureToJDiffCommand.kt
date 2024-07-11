@@ -168,6 +168,8 @@ class SignatureToJDiffCommand :
                     filterReference = apiReference,
                     preFiltered = signatureApi.preFiltered && !strip,
                     showUnannotated = false,
+                    // Historically, the super class type has not been filtered.
+                    filterSuperClassType = false,
                 )
         }
     }
