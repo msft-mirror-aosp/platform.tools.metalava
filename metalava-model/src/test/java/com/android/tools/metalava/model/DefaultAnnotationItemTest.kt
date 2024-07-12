@@ -26,17 +26,14 @@ import org.junit.Test
 class DefaultAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
-        object :
-            DefaultCodebase(
-                location = File("").canonicalFile,
-                description = "",
-                preFiltered = false,
-                annotationManager = noOpAnnotationManager,
-                trustedApi = false,
-                supportsDocumentation = false,
-            ) {
-            override fun resolveClass(className: String) = unsupported()
-        }
+        DefaultCodebase(
+            location = File("").canonicalFile,
+            description = "",
+            preFiltered = false,
+            annotationManager = noOpAnnotationManager,
+            trustedApi = false,
+            supportsDocumentation = false,
+        )
 
     private fun createDefaultAnnotationItem(source: String) =
         DefaultAnnotationItem.create(placeholderCodebase, source)

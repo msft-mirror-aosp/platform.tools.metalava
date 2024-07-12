@@ -36,7 +36,7 @@ private const val PACKAGE_ESTIMATE = 500
  * Base class of [Codebase]s for the models that do not incorporate their underlying model, if any,
  * into their [Item] implementations.
  */
-abstract class DefaultCodebase(
+open class DefaultCodebase(
     location: File,
     description: String,
     preFiltered: Boolean,
@@ -111,6 +111,12 @@ abstract class DefaultCodebase(
 
     /** Overrideable hook, called from [registerClass] for each new [DefaultClassItem]. */
     open fun newClassRegistered(classItem: DefaultClassItem) {}
+
+    /**
+     * Provide a simple implementation that just looks for an existing class in this [Codebase].
+     * Subclasses can override this to search other sources for the class.
+     */
+    override fun resolveClass(className: String) = findClass(className)
 
     final override fun createAnnotation(
         source: String,
