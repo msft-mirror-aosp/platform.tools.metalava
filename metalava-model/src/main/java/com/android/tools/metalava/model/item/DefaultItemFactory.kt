@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -31,6 +32,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -70,6 +72,35 @@ class DefaultItemFactory(
             qualifiedName,
         )
     }
+
+    /** Create a [ConstructorItem]. */
+    fun createClassItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentation: ItemDocumentation,
+        source: SourceFile?,
+        classKind: ClassKind,
+        containingClass: ClassItem?,
+        qualifiedName: String,
+        simpleName: String,
+        fullName: String,
+        typeParameterList: TypeParameterList,
+    ) =
+        DefaultClassItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            modifiers,
+            documentation,
+            defaultVariantSelectorsFactory,
+            source,
+            classKind,
+            containingClass,
+            qualifiedName,
+            simpleName,
+            fullName,
+            typeParameterList,
+        )
 
     /** Create a [ConstructorItem]. */
     fun createConstructorItem(
