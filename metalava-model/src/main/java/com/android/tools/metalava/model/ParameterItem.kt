@@ -37,6 +37,10 @@ interface ParameterItem : Item {
     /** The containing callable. */
     fun containingCallable(): CallableItem = containingMethod()
 
+    /** The possible containing method, returns null if this is a constructor parameter. */
+    fun possibleContainingMethod(): MethodItem? =
+        containingCallable().let { if (it.isConstructor()) null else it as MethodItem }
+
     /** The containing method */
     fun containingMethod(): MethodItem
 
