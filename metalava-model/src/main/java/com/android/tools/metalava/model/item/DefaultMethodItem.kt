@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -31,14 +32,14 @@ import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
- * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
+ * A lamda that given a [CallableItem] will create a list of [ParameterItem]s for it.
  *
  * This is called from within the constructor of the [ParameterItem.containingCallable] and can only
- * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
- * a reference to it in [ParameterItem.containingCallable]. In particularly, it must not access
- * [MethodItem.parameters] as that will not yet have been initialized when this is called.
+ * access the [CallableItem.name] (to identify callables that have special nullability rules) and
+ * store a reference to it in [ParameterItem.containingCallable]. In particularly, it must not
+ * access [CallableItem.parameters] as that will not yet have been initialized when this is called.
  */
-typealias ParameterItemsFactory = (MethodItem) -> List<ParameterItem>
+typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 
 open class DefaultMethodItem(
     codebase: DefaultCodebase,
@@ -132,9 +133,9 @@ open class DefaultMethodItem(
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
                 returnType = returnType.convertType(typeVariableMap),
-                parameterItemsFactory = { methodItem ->
+                parameterItemsFactory = { containingCallable ->
                     // Duplicate the parameters
-                    parameters.map { it.duplicate(methodItem, typeVariableMap) }
+                    parameters.map { it.duplicate(containingCallable, typeVariableMap) }
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,

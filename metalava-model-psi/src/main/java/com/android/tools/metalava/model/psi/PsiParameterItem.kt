@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
@@ -296,12 +295,15 @@ internal constructor(
         }
     }
 
-    override fun duplicate(containingMethod: MethodItem, typeVariableMap: TypeParameterBindings) =
+    override fun duplicate(
+        containingCallable: CallableItem,
+        typeVariableMap: TypeParameterBindings
+    ) =
         PsiParameterItem(
             codebase = codebase,
             psiParameter = psiParameter,
             name = name,
-            containingMethod = containingMethod as PsiMethodItem,
+            containingMethod = containingCallable as PsiMethodItem,
             parameterIndex = parameterIndex,
             modifiers = modifiers.duplicate(),
             type = type.convertType(typeVariableMap) as PsiTypeItem,

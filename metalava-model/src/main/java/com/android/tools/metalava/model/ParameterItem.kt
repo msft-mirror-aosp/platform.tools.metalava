@@ -103,17 +103,17 @@ interface ParameterItem : Item {
     }
 
     /**
-     * Create a duplicate of this for [containingMethod].
+     * Create a duplicate of this for [containingCallable].
      *
      * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
      * [TypeItem.convertType].
      *
-     * This is called from within the constructor of the [containingMethod] so must only access its
-     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
-     * property as this is called during its initialization.
+     * This is called from within the constructor of the [containingCallable] so must only access
+     * its `name` and its reference. In particularly it must not access its
+     * [CallableItem.parameters] property as this is called during its initialization.
      */
     fun duplicate(
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,
     ): ParameterItem
 
