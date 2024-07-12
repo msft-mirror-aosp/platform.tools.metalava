@@ -247,7 +247,7 @@ open class PsiMethodItem(
                     modifiers = modifiers,
                     returnType = returnType,
                     parameterItemsFactory = { containingCallable ->
-                        parameterList(containingCallable as PsiMethodItem, methodTypeItemFactory)
+                        parameterList(containingCallable, methodTypeItemFactory)
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),

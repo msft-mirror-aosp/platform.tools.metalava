@@ -100,10 +100,7 @@ private constructor(
                     documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
                     parameterItemsFactory = { containingCallable ->
-                        parameterList(
-                            containingCallable as PsiMethodItem,
-                            constructorTypeItemFactory
-                        )
+                        parameterList(containingCallable, constructorTypeItemFactory)
                     },
                     returnType = containingClass.type(),
                     implicitConstructor = false,

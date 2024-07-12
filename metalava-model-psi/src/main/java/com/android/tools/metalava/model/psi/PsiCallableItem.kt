@@ -167,14 +167,14 @@ abstract class PsiCallableItem(
 
     companion object {
         internal fun parameterList(
-            containingMethod: PsiMethodItem,
+            containingCallable: PsiCallableItem,
             enclosingTypeItemFactory: PsiTypeItemFactory,
         ): List<PsiParameterItem> {
-            val psiParameters = containingMethod.psiMethod.psiParameters
-            val fingerprint = MethodFingerprint(containingMethod.name, psiParameters.size)
+            val psiParameters = containingCallable.psiMethod.psiParameters
+            val fingerprint = MethodFingerprint(containingCallable.name, psiParameters.size)
             return psiParameters.mapIndexed { index, parameter ->
                 PsiParameterItem.create(
-                    containingMethod,
+                    containingCallable,
                     fingerprint,
                     parameter,
                     index,
