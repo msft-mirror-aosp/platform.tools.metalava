@@ -94,11 +94,6 @@ internal class TextCodebase(
     fun addPackage(pInfo: DefaultPackageItem) {
         // track the set of organized packages in the API
         packagesByName[pInfo.qualifiedName()] = pInfo
-
-        // accumulate a direct map of all the classes in the API
-        for (cl in pInfo.allClasses()) {
-            allClassesByName[cl.qualifiedName()] = cl as DefaultClassItem
-        }
     }
 
     fun registerClass(classItem: DefaultClassItem) {
