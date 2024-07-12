@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
@@ -46,8 +47,11 @@ internal class TextCodebase(
         trustedApi = true,
         supportsDocumentation = false,
     ) {
-    private val allClassesByName = HashMap<String, DefaultClassItem>(30000)
 
+    /**
+     * Map from fully qualified class name to a [ClassItem] that has been retrieved from a
+     * [ClassResolver], if any.
+     */
     private val externalClassesByName = HashMap<String, ClassItem>()
 
     /** Creates [Item] instances for this. */
@@ -68,27 +72,19 @@ internal class TextCodebase(
         addPackage(rootPackage)
     }
 
-    /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
-    fun findClassInCodebase(className: String) = allClassesByName[className]
-
+    /**
+     * Override to first search within this [Codebase] and then look for classes that have been
+     * loaded by a [classResolver].
+     */
     override fun findClass(className: String) =
-        allClassesByName[className] ?: externalClassesByName[className]
+        super.findClass(className) ?: externalClassesByName[className]
 
     override fun resolveClass(className: String) = getOrCreateClass(className)
 
-    fun registerClass(classItem: DefaultClassItem) {
-        val qualifiedName = classItem.qualifiedName()
-        val existing = allClassesByName.put(qualifiedName, classItem)
-        if (existing != null) {
-            error(
-                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
-            )
-        }
-
-        addClass(classItem)
-
-        // A real class exists so a stub will not be created.
-        requiredStubKindForClass.remove(qualifiedName)
+    override fun newClassRegistered(classItem: DefaultClassItem) {
+        // A real class exists so a stub will not be created so the hint as to the kind of class
+        // that the stubs should be is no longer needed.
+        requiredStubKindForClass.remove(classItem.qualifiedName())
     }
 
     /**

@@ -35,8 +35,6 @@ class DefaultAnnotationItemTest {
                 trustedApi = false,
                 supportsDocumentation = false,
             ) {
-            override fun findClass(className: String) = unsupported()
-
             override fun resolveClass(className: String) = unsupported()
         }
 

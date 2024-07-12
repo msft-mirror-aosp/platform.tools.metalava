@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.google.turbine.tree.Tree.CompUnit
@@ -41,22 +42,12 @@ internal open class TurbineBasedCodebase(
     SourceCodebase {
 
     /**
-     * Map from class name to class item. Classes are added via [registerClass] while initialising
-     * the codebase
-     */
-    private lateinit var classMap: MutableMap<String, ClassItem>
-
-    /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
      */
     private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
 
     private lateinit var initializer: TurbineCodebaseInitialiser
-
-    override fun findClass(className: String): ClassItem? {
-        return classMap[className]
-    }
 
     override fun resolveClass(className: String) = findOrCreateClass(className)
 
@@ -68,20 +59,10 @@ internal open class TurbineBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun registerClass(classItem: ClassItem) {
-        val qualifiedName = classItem.qualifiedName()
-        val existing = classMap.put(qualifiedName, classItem)
-        if (existing != null) {
-            error(
-                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
-            )
-        }
-
+    override fun newClassRegistered(classItem: DefaultClassItem) {
         if (!classItem.isNestedClass()) {
             topLevelClassesFromSource.add(classItem)
         }
-
-        addClass(classItem)
     }
 
     fun initialize(
@@ -90,7 +71,6 @@ internal open class TurbineBasedCodebase(
         packageHtmlByPackageName: Map<String, File>,
     ) {
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
-        classMap = HashMap(CLASS_ESTIMATE)
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
         initializer.initialize(packageHtmlByPackageName)
     }
