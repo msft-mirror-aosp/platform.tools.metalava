@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
@@ -239,7 +240,7 @@ internal constructor(
         this.type = type as PsiTypeItem
     }
 
-    override fun containingMethod(): MethodItem = containingMethod
+    override fun containingCallable(): CallableItem = containingMethod
 
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()

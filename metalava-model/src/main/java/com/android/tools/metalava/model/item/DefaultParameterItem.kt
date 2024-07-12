@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
@@ -53,7 +54,7 @@ internal class DefaultParameterItem(
 
     override fun publicName(): String? = publicNameProvider(this)
 
-    override fun containingMethod(): MethodItem = containingMethod
+    override fun containingCallable(): CallableItem = containingMethod
 
     override fun isVarArgs(): Boolean = modifiers.isVarArg()
 

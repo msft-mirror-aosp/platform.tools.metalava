@@ -35,14 +35,11 @@ interface ParameterItem : Item {
             ?.getOrNull(parameterIndex)
 
     /** The containing callable. */
-    fun containingCallable(): CallableItem = containingMethod()
+    fun containingCallable(): CallableItem
 
     /** The possible containing method, returns null if this is a constructor parameter. */
     fun possibleContainingMethod(): MethodItem? =
         containingCallable().let { if (it.isConstructor()) null else it as MethodItem }
-
-    /** The containing method */
-    fun containingMethod(): MethodItem
 
     /** Index of this parameter in the parameter list (0-based) */
     val parameterIndex: Int
@@ -93,13 +90,13 @@ interface ParameterItem : Item {
     val property: PropertyItem?
         get() = null
 
-    override fun parent(): MethodItem? = containingMethod()
+    override fun parent(): CallableItem? = containingCallable()
 
     override val effectivelyDeprecated: Boolean
-        get() = originallyDeprecated || containingMethod().effectivelyDeprecated
+        get() = originallyDeprecated || containingCallable().effectivelyDeprecated
 
     override fun baselineElementId() =
-        containingMethod().baselineElementId() + " parameter #" + parameterIndex
+        containingCallable().baselineElementId() + " parameter #" + parameterIndex
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
@@ -125,7 +122,7 @@ interface ParameterItem : Item {
         if (other !is ParameterItem) return false
 
         return parameterIndex == other.parameterIndex &&
-            containingMethod() == other.containingMethod()
+            containingCallable() == other.containingCallable()
     }
 
     override fun hashCodeForItem(): Int {
@@ -134,9 +131,9 @@ interface ParameterItem : Item {
 
     override fun toStringForItem() = "parameter ${name()}"
 
-    override fun containingClass(): ClassItem = containingMethod().containingClass()
+    override fun containingClass(): ClassItem = containingCallable().containingClass()
 
-    override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
+    override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
 
     // TODO: modifier list
 }

@@ -51,9 +51,9 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 /**
  * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
  *
- * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
+ * This is called from within the constructor of the [ParameterItem.containingCallable] and can only
  * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
- * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
+ * a reference to it in [ParameterItem.containingCallable]. In particularly, it must not access
  * [MethodItem.parameters] as that will not yet have been initialized when this is called.
  */
 internal typealias ParameterItemsFactory = (PsiMethodItem) -> List<PsiParameterItem>

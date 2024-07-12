@@ -263,7 +263,7 @@ interface Item : Reportable {
      * @param superMethods if true and this is a [MethodItem] then this method will search for super
      *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
      *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
-     *   the [ParameterItem.containingMethod].
+     *   the [ParameterItem.containingCallable].
      * @param duplicate if true, and this is a [MemberItem] (or [ParameterItem]) then the returned
      *   [Item], if any, will be in the [ClassItem] that corresponds to the [Item.containingClass].
      *   This should be `true` if the returned [Item] is going to be compared to the original [Item]
@@ -544,7 +544,7 @@ abstract class AbstractItem(
             // For parameters, the documentation goes into the surrounding method's documentation!
             // Find the right parameter location!
             val parameterName = name()
-            val target = containingMethod()
+            val target = containingCallable()
             target.appendDocumentation(comment, parameterName)
             return
         }
