@@ -105,6 +105,9 @@ internal class PsiItemDocumentation(
         return comment.text.substring(0, end)
     }
 
+    override fun fullyQualifiedDocumentation(documentation: String) =
+        item.codebase.docQualifier.toFullyQualifiedDocumentation(item, documentation)
+
     companion object {
         /**
          * Get an [ItemDocumentationFactory] for the [psi].

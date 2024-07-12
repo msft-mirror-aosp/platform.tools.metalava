@@ -102,8 +102,8 @@ interface Item : Reportable {
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
      * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
-     * references to classes.
+     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
+     * qualified references to classes.
      */
     val documentation: ItemDocumentation
 
@@ -205,17 +205,6 @@ interface Item : Reportable {
 
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
-
-    /**
-     * Returns the [documentation], but with fully qualified links (except for the same package, and
-     * when turning a relative reference into a fully qualified reference, use the javadoc syntax
-     * for continuing to display the relative text, e.g. instead of {@link java.util.List}, use
-     * {@link java.util.List List}.
-     */
-    fun fullyQualifiedDocumentation(): String = documentation.text
-
-    /** Expands the given documentation comment in the current name context */
-    fun fullyQualifiedDocumentation(documentation: String): String = documentation
 
     /**
      * Produces a user visible description of this item, including a label such as "class" or

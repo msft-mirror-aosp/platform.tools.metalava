@@ -51,14 +51,6 @@ internal constructor(
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
-    final override fun fullyQualifiedDocumentation(): String {
-        return fullyQualifiedDocumentation(documentation.text)
-    }
-
-    final override fun fullyQualifiedDocumentation(documentation: String): String {
-        return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
-    }
-
     final override fun isJava(): Boolean {
         return !isKotlin()
     }
