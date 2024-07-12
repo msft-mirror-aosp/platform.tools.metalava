@@ -63,25 +63,25 @@ class CompatibilityCheck(
 
     var foundProblems = false
 
-    private fun containingMethod(item: Item): MethodItem? {
+    private fun possibleContainingMethod(item: Item): MethodItem? {
         if (item is MethodItem) {
             return item
         }
         if (item is ParameterItem) {
-            return item.containingMethod()
+            return item.possibleContainingMethod()
         }
         return null
     }
 
     private fun compareItemNullability(old: Item, new: Item) {
-        val oldMethod = containingMethod(old)
-        val newMethod = containingMethod(new)
+        val oldMethod = possibleContainingMethod(old)
+        val newMethod = possibleContainingMethod(new)
 
         if (oldMethod != null && newMethod != null) {
             if (
                 oldMethod.containingClass().qualifiedName() !=
                     newMethod.containingClass().qualifiedName() ||
-                    ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))
+                    (oldMethod.inheritedFromAncestor != newMethod.inheritedFromAncestor)
             ) {
                 // If the old method and new method are defined on different classes, then it's
                 // possible that the old method was previously overridden and we omitted it.
@@ -91,9 +91,13 @@ class CompatibilityCheck(
             }
         }
 
-        // In a final method, you can change a parameter from nonnull to nullable
+        // In a final method, you can change a parameter from nonnull to nullable.
+        // This will also allow a constructor parameter to be changed from nonnull to nullable if
+        // the class is not extensible.
+        // TODO: Allow the parameter of any constructor to be switched from nonnull to nullable as
+        //  they can never be overridden.
         val allowNonNullToNullable =
-            new is ParameterItem && !newMethod!!.canBeExternallyOverridden()
+            new is ParameterItem && !new.containingCallable().canBeExternallyOverridden()
         // In a final method, you can change a method return from nullable to nonnull
         val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
 
@@ -229,7 +233,7 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}"
                 )
             }
         }
