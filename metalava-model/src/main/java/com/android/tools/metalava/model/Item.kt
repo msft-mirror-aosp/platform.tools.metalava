@@ -301,7 +301,7 @@ interface Item : Reportable {
                 is PackageItem -> describe(item, capitalize = capitalize)
                 is ClassItem -> describe(item, capitalize = capitalize)
                 is FieldItem -> describe(item, capitalize = capitalize)
-                is MethodItem ->
+                is CallableItem ->
                     describe(
                         item,
                         includeParameterNames = false,
@@ -320,7 +320,7 @@ interface Item : Reportable {
         }
 
         fun describe(
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
             includeReturnValue: Boolean = false,
@@ -337,7 +337,7 @@ interface Item : Reportable {
                 builder.append(item.returnType().toSimpleType())
                 builder.append(' ')
             }
-            appendMethodSignature(builder, item, includeParameterNames, includeParameterTypes)
+            appendCallableSignature(builder, item, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
@@ -352,14 +352,14 @@ interface Item : Reportable {
             builder.append(' ')
             builder.append(item.name())
             builder.append(" in ")
-            val method = item.containingMethod()
-            appendMethodSignature(builder, method, includeParameterNames, includeParameterTypes)
+            val callable = item.containingCallable()
+            appendCallableSignature(builder, callable, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
-        private fun appendMethodSignature(
+        private fun appendCallableSignature(
             builder: StringBuilder,
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean,
             includeParameterTypes: Boolean
         ) {
