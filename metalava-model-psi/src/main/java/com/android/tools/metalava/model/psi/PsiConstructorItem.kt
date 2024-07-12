@@ -99,8 +99,11 @@ private constructor(
                     name = name,
                     documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
-                    parameterItemsFactory = { methodItem ->
-                        parameterList(methodItem, constructorTypeItemFactory)
+                    parameterItemsFactory = { containingCallable ->
+                        parameterList(
+                            containingCallable as PsiMethodItem,
+                            constructorTypeItemFactory
+                        )
                     },
                     returnType = containingClass.type(),
                     implicitConstructor = false,
