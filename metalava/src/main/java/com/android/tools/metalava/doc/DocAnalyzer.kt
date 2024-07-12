@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -702,7 +703,7 @@ class DocAnalyzer(
                     // Do not add API information to implicit constructor. It is not clear exactly
                     // why this is needed but without it some existing tests break.
                     // TODO(b/302290849): Investigate this further.
-                    if (method.isImplicitConstructor()) {
+                    if (method is ConstructorItem && method.isImplicitConstructor()) {
                         return
                     }
                     addApiLevelDocumentation(apiLookup.getMethodVersion(method), method)
