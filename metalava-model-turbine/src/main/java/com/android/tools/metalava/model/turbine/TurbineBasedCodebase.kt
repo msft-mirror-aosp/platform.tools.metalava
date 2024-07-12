@@ -35,10 +35,12 @@ internal open class TurbineBasedCodebase(
     val allowReadingComments: Boolean,
 ) :
     DefaultCodebase(
-        location,
-        description,
-        false,
-        annotationManager,
+        location = location,
+        description = description,
+        preFiltered = false,
+        annotationManager = annotationManager,
+        trustedApi = false,
+        supportsDocumentation = true,
     ),
     SourceCodebase {
 
@@ -83,8 +85,6 @@ internal open class TurbineBasedCodebase(
     override fun size(): Int {
         return packageMap.size
     }
-
-    override fun supportsDocumentation(): Boolean = true
 
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource

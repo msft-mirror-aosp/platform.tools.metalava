@@ -41,7 +41,15 @@ internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
-) : DefaultCodebase(location, "Codebase", true, annotationManager) {
+) :
+    DefaultCodebase(
+        location = location,
+        description = "Codebase",
+        preFiltered = true,
+        annotationManager = annotationManager,
+        trustedApi = true,
+        supportsDocumentation = false,
+    ) {
     private val packagesByName = HashMap<String, DefaultPackageItem>(300)
     private val allClassesByName = HashMap<String, DefaultClassItem>(30000)
 
@@ -65,8 +73,6 @@ internal class TextCodebase(
         addPackage(rootPackage)
     }
 
-    override fun trustedApi(): Boolean = true
-
     override fun getPackages(): PackageList {
         val list = ArrayList<PackageItem>(packagesByName.values)
         list.sortWith(PackageItem.comparator)
@@ -84,8 +90,6 @@ internal class TextCodebase(
         allClassesByName[className] ?: externalClassesByName[className]
 
     override fun resolveClass(className: String) = getOrCreateClass(className)
-
-    override fun supportsDocumentation(): Boolean = false
 
     fun addPackage(pInfo: DefaultPackageItem) {
         // track the set of organized packages in the API

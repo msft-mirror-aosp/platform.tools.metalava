@@ -33,12 +33,16 @@ abstract class DefaultCodebase(
     description: String,
     preFiltered: Boolean,
     annotationManager: AnnotationManager,
+    trustedApi: Boolean,
+    supportsDocumentation: Boolean,
 ) :
     AbstractCodebase(
         location,
         description,
         preFiltered,
         annotationManager,
+        trustedApi,
+        supportsDocumentation,
     ) {
 
     final override fun createAnnotation(

@@ -26,9 +26,15 @@ import org.junit.Test
 class DefaultAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
-        object : DefaultCodebase(File("").canonicalFile, "", false, noOpAnnotationManager) {
-            override fun supportsDocumentation() = false
-
+        object :
+            DefaultCodebase(
+                location = File("").canonicalFile,
+                description = "",
+                preFiltered = false,
+                annotationManager = noOpAnnotationManager,
+                trustedApi = false,
+                supportsDocumentation = false,
+            ) {
             override fun getPackages() = unsupported()
 
             override fun size() = unsupported()
@@ -38,8 +44,6 @@ class DefaultAnnotationItemTest {
             override fun resolveClass(className: String) = unsupported()
 
             override fun findPackage(pkgName: String) = unsupported()
-
-            override fun trustedApi() = false
         }
 
     private fun createDefaultAnnotationItem(source: String) =

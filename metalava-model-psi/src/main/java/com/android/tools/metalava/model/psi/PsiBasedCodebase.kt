@@ -104,7 +104,16 @@ open class PsiBasedCodebase(
     private val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
-) : AbstractCodebase(location, description, false, annotationManager), SourceCodebase {
+) :
+    AbstractCodebase(
+        location = location,
+        description = description,
+        preFiltered = false,
+        annotationManager = annotationManager,
+        trustedApi = false,
+        supportsDocumentation = true,
+    ),
+    SourceCodebase {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
         get() = uastEnvironment.ideaProject
@@ -848,8 +857,6 @@ open class PsiBasedCodebase(
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
-
-    override fun supportsDocumentation(): Boolean = true
 
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
     internal fun registerClass(classItem: PsiClassItem) {
