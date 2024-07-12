@@ -29,10 +29,13 @@ interface ParameterItem : Item {
         superMethods: Boolean,
         duplicate: Boolean,
     ) =
-        containingMethod()
+        containingCallable()
             .findCorrespondingItemIn(codebase, superMethods = superMethods, duplicate = duplicate)
             ?.parameters()
             ?.getOrNull(parameterIndex)
+
+    /** The containing callable. */
+    fun containingCallable(): CallableItem = containingMethod()
 
     /** The containing method */
     fun containingMethod(): MethodItem
