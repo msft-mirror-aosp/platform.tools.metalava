@@ -451,7 +451,7 @@ internal open class TurbineCodebaseInitialiser(
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
 
         // Add to the codebase
-        codebase.registerClass(classItem, isTopClass)
+        codebase.registerClass(classItem)
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {

@@ -68,7 +68,7 @@ internal open class TurbineBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun registerClass(classItem: ClassItem, isTopClass: Boolean) {
+    fun registerClass(classItem: ClassItem) {
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
@@ -77,7 +77,7 @@ internal open class TurbineBasedCodebase(
             )
         }
 
-        if (isTopClass) {
+        if (!classItem.isNestedClass()) {
             topLevelClassesFromSource.add(classItem)
         }
 
