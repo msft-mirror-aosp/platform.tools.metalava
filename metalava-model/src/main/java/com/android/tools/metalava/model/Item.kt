@@ -108,12 +108,6 @@ interface Item : Reportable {
     val documentation: ItemDocumentation
 
     /**
-     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
-     * provided value (e.g. parameter name).
-     */
-    fun findTagDocumentation(tag: String, value: String? = null): String?
-
-    /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
      * order, if non-zero. (Even though in signature files the elements are normally sorted first
      * logically (constructors, then methods, then fields) and then alphabetically, this lets us
@@ -535,9 +529,6 @@ abstract class AbstractItem(
             }
         }
     }
-
-    final override fun findTagDocumentation(tag: String, value: String?): String? =
-        documentation.findTagDocumentation(tag, value)
 
     final override fun appendDocumentation(comment: String, tagSection: String?) {
         if (comment.isBlank()) {

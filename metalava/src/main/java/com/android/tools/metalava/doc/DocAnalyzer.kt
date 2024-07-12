@@ -245,21 +245,23 @@ class DocAnalyzer(
                         // don't include the docs (since it may conflict with more specific
                         // conditions
                         // outlined in the docs).
+                        val documentation = item.documentation
                         val doc =
                             when (item) {
                                 is ParameterItem -> {
                                     item
                                         .containingMethod()
+                                        .documentation
                                         .findTagDocumentation("param", item.name())
                                         ?: ""
                                 }
                                 is MethodItem -> {
                                     // Don't inspect param docs (and other tags) for this purpose.
-                                    item.documentation.findMainDocumentation() +
-                                        (item.findTagDocumentation("return") ?: "")
+                                    documentation.findMainDocumentation() +
+                                        (documentation.findTagDocumentation("return") ?: "")
                                 }
                                 else -> {
-                                    item.documentation
+                                    documentation
                                 }
                             }
                         if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
