@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
@@ -28,7 +27,6 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
@@ -65,14 +63,5 @@ internal open class TextClassItem(
         // This lets us load signature files and rewrite them using updated
         // output formats etc.
         return superClassType()
-    }
-
-    override fun createDefaultConstructor(): ConstructorItem {
-        return DefaultConstructorItem.createDefaultConstructor(
-            codebase = codebase,
-            itemLanguage = ItemLanguage.UNKNOWN,
-            variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
-            containingClass = this,
-        )
     }
 }

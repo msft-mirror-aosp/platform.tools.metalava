@@ -148,6 +148,15 @@ abstract class DefaultClassItem(
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
+    final override fun createDefaultConstructor(): ConstructorItem {
+        return DefaultConstructorItem.createDefaultConstructor(
+            codebase = codebase,
+            itemLanguage = itemLanguage,
+            variantSelectorsFactory = variantSelectors::duplicate,
+            containingClass = this,
+        )
+    }
+
     /** The mutable list of [MethodItem] that backs [methods]. */
     private val mutableMethods = mutableListOf<MethodItem>()
 
