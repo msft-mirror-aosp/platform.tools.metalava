@@ -23,10 +23,14 @@ import java.util.function.Predicate
 @MetalavaApi
 interface CallableItem : MemberItem, TypeParameterListOwner {
 
-    /** Whether this method is a constructor */
+    /** Whether this callable is a constructor or a method. */
     @MetalavaApi fun isConstructor(): Boolean
 
-    /** The type of this field. Returns the containing class for constructors */
+    /**
+     * The return type of this callable.
+     *
+     * Returns the [ClassItem.type] of the [containingClass] for constructors.
+     */
     @MetalavaApi fun returnType(): TypeItem
 
     /** The list of parameters */
@@ -34,10 +38,10 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
 
     override fun type() = returnType()
 
-    /** Types of exceptions that this method can throw */
+    /** Types of exceptions that this callable can throw */
     fun throwsTypes(): List<ExceptionTypeItem>
 
-    /** Returns true if this method throws the given exception */
+    /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
             val throwableClass = type.erasedClass ?: continue
@@ -95,16 +99,16 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     }
 
     /**
-     * Finds uncaught exceptions actually thrown inside this method (as opposed to ones declared in
-     * the signature)
+     * Finds uncaught exceptions actually thrown inside this callable (as opposed to ones declared
+     * in the signature)
      */
     fun findThrownExceptions(): Set<ClassItem> = codebase.unsupported()
 
     /**
-     * Returns true if overloads of the method should be checked separately when checking signature
-     * of the method.
+     * Returns true if overloads of this callable should be checked separately when checking the
+     * signature of this callable.
      *
-     * This works around the issue of actual method not generating overloads for @JvmOverloads
+     * This works around the issue of actual callable not generating overloads for @JvmOverloads
      * annotation when the default is specified on expect side
      * (https://youtrack.jetbrains.com/issue/KT-57537).
      */
@@ -112,8 +116,12 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is MethodItem) return false
+        if (other !is CallableItem) return false
 
+        // The name check will ensure that methods and constructors do not compare equally to each
+        // other even if the rest of this method would return true. That is because constructor
+        // names MUST be the class' `simpleName`, whereas method names MUST NOT be the class'
+        // `simpleName`.
         if (name() != other.name()) {
             return false
         }
@@ -155,18 +163,22 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     }
 
     override fun hashCodeForItem(): Int {
-        // Just use the method name, containing class and number of parameters.
+        // Just use the callable name, containing class and number of parameters.
         return Objects.hash(name(), containingClass(), parameters().size)
     }
 
     /**
-     * Returns true if this method is a signature match for the given method (e.g. can be
-     * overriding). This checks that the name and parameter lists match, but ignores differences in
-     * parameter names, return value types and throws list types.
+     * Returns true if this callable is a signature match for the given callable (e.g. can be
+     * overriding if it is a method). This checks that the name and parameter lists match, but
+     * ignores differences in parameter names, return value types and throws list types.
      */
-    fun matches(other: MethodItem): Boolean {
+    fun matches(other: CallableItem): Boolean {
         if (this === other) return true
 
+        // The name check will ensure that methods and constructors do not compare equally to each
+        // other even if the rest of this method would return true. That is because constructor
+        // names MUST be the class' `simpleName`, whereas method names MUST NOT be the class'
+        // `simpleName`.
         if (name() != other.name()) {
             return false
         }
@@ -192,8 +204,8 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     }
 
     /**
-     * Returns whether this method has any types in its signature that does not match the given
-     * filter
+     * Returns whether this callable has any types in its signature that does not match the given
+     * filter.
      */
     fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
         for (parameter in parameters()) {
