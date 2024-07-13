@@ -16,12 +16,9 @@
 
 package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.PackageFilter
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.plainTerminal
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
 import com.android.tools.metalava.reporter.Severity.INFO
@@ -32,6 +29,7 @@ import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
+import java.util.function.Predicate
 
 internal class DefaultReporter(
     private val environment: ReporterEnvironment,
@@ -46,8 +44,8 @@ internal class DefaultReporter(
      */
     private val errorMessage: String? = null,
 
-    /** Filter to hide issues reported in packages which are not part of the API. */
-    private val packageFilter: PackageFilter? = null,
+    /** Filter to hide issues reported on specific types of [Reportable]. */
+    private val reportableFilter: Predicate<Reportable>? = null,
 
     /** Additional config properties. */
     private val config: Config = Config(),
@@ -128,16 +126,9 @@ internal class DefaultReporter(
             return false
         }
 
-        // If we are only emitting some packages (--stub-packages), don't report
-        // issues from other packages
-        val item = reportable as? Item
-        if (item != null) {
-            if (packageFilter != null) {
-                val pkg = (item as? PackageItem) ?: item.containingPackage()
-                if (pkg != null && !packageFilter.matches(pkg)) {
-                    return false
-                }
-            }
+        // Apply the reportable filter if one is provided.
+        if (reportable != null && reportableFilter?.test(reportable) == false) {
+            return false
         }
 
         if (baseline != null) {
