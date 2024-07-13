@@ -936,30 +936,24 @@ class Options(
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
         reporter =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = baseline,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
+                errorMessage = null,
             )
+
         reporterApiLint =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
             )
+
         reporterCompatibilityReleased =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
             )
 
         // Build "all baselines" and "all reporters"
@@ -981,6 +975,24 @@ class Options(
 
         updateClassPath()
     }
+
+    /**
+     * Create a [Reporter] that checks for known issues in [baseline] and prints [errorMessage], if
+     * provided, when errors have been reported.
+     */
+    private fun createReporter(
+        executionEnvironment: ExecutionEnvironment,
+        baseline: Baseline?,
+        errorMessage: String?,
+    ) =
+        DefaultReporter(
+            environment = executionEnvironment.reporterEnvironment,
+            issueConfiguration = issueConfiguration,
+            baseline = baseline,
+            errorMessage = errorMessage,
+            packageFilter = stubPackages,
+            config = issueReportingOptions.reporterConfig,
+        )
 
     fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
 
