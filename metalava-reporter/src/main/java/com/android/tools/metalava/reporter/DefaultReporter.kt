@@ -44,7 +44,7 @@ class DefaultReporter(
     /** Additional config properties. */
     private val config: Config = Config(),
 ) : Reporter {
-    private var errors = mutableListOf<String>()
+    private val errors = mutableListOf<Report>()
     private var warningCount = 0
 
     /**
@@ -199,14 +199,14 @@ class DefaultReporter(
 
     /** Alias to allow method reference to `dispatch` in [report] */
     private fun doReport(report: Report): Boolean {
-        val formattedMessage = config.outputReportFormatter.format(report)
         val severity = report.severity
         when (severity) {
-            ERROR -> errors.add(formattedMessage)
+            ERROR -> errors.add(report)
             WARNING -> warningCount++
             else -> {}
         }
 
+        val formattedMessage = config.outputReportFormatter.format(report)
         environment.printReport(formattedMessage, severity)
         return true
     }
@@ -218,15 +218,16 @@ class DefaultReporter(
         return true
     }
 
-    /** Print all the recorded errors to the given writer. Returns the number of errors printer. */
+    /** Print all the recorded errors to the given writer. Returns the number of errors printed. */
     fun printErrors(writer: PrintWriter, maxErrors: Int): Int {
         var i = 0
-        errors.forEach loop@{
+        for (error in errors) {
             if (i >= maxErrors) {
-                return@loop
+                break
             }
             i++
-            writer.println(it)
+            val formattedMessage = config.outputReportFormatter.format(error)
+            writer.println(formattedMessage)
         }
         return i
     }
