@@ -44,6 +44,10 @@ class DefaultReporter(
     /** Additional config properties. */
     private val config: Config = Config(),
 ) : Reporter {
+
+    /** A list of [Report] objects containing all the reported issues. */
+    private val reports = mutableListOf<Report>()
+
     private val errors = mutableListOf<Report>()
     private var warningCount = 0
 
@@ -206,8 +210,7 @@ class DefaultReporter(
             else -> {}
         }
 
-        val formattedMessage = config.outputReportFormatter.format(report)
-        environment.printReport(formattedMessage, severity)
+        reports.add(report)
         return true
     }
 
@@ -230,6 +233,15 @@ class DefaultReporter(
             writer.println(formattedMessage)
         }
         return i
+    }
+
+    /** Write all reports. */
+    fun writeSavedReports() {
+        // Print out all the save reports.
+        for (report in reports) {
+            val formattedMessage = config.outputReportFormatter.format(report)
+            environment.printReport(formattedMessage, report.severity)
+        }
     }
 
     /** Write the error message set to this [Reporter], if any errors have been detected. */

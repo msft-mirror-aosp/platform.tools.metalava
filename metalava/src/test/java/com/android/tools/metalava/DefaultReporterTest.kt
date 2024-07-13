@@ -303,6 +303,9 @@ class DefaultReporterTest : DriverTest() {
             checkFileMethod(Severity.WARNING_ERROR_WHEN_NEW)
             checkFileMethod(Severity.WARNING)
             checkFileMethod(Severity.HIDDEN)
+
+            // Write any saved reports.
+            reporter.writeSavedReports()
         }
 
         assertEquals(
