@@ -211,14 +211,13 @@ internal class DefaultReporter(
 
     /** Alias to allow method reference to `dispatch` in [report] */
     private fun doReport(report: Report): Boolean {
-        val (severity, relativePath, line, message, id) = report
-        val location = forReport(relativePath, line)
         val terminal: Terminal = config.terminal
-        val formattedMessage = format(severity, location, message, id, terminal)
-        if (severity == ERROR) {
-            errors.add(formattedMessage)
-        } else if (severity == WARNING) {
-            warningCount++
+        val formattedMessage = format(report, terminal)
+        val severity = report.severity
+        when (severity) {
+            ERROR -> errors.add(formattedMessage)
+            WARNING -> warningCount++
+            else -> {}
         }
 
         environment.printReport(formattedMessage, severity)
@@ -226,39 +225,39 @@ internal class DefaultReporter(
     }
 
     private fun format(
-        severity: Severity,
-        location: String?,
-        message: String,
-        id: Issues.Issue?,
+        report: Report,
         terminal: Terminal,
-    ): String {
-        val sb = StringBuilder(100)
-
-        sb.append(terminal.attributes(bold = true))
-        location?.let { sb.append(it).append(": ") }
+    ) = buildString {
+        val (severity, relativePath, line, message, id) = report
+        val location = forReport(relativePath, line)
+        append(terminal.attributes(bold = true))
+        location?.let { append(it).append(": ") }
         when (severity) {
-            INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
+            INFO -> {
+                append(terminal.attributes(foreground = TerminalColor.CYAN))
+                append("info: ")
+            }
             WARNING,
-            WARNING_ERROR_WHEN_NEW ->
-                sb.append(terminal.attributes(foreground = TerminalColor.YELLOW))
-                    .append("warning: ")
-            ERROR ->
-                sb.append(terminal.attributes(foreground = TerminalColor.RED)).append("error: ")
+            WARNING_ERROR_WHEN_NEW -> {
+                append(terminal.attributes(foreground = TerminalColor.YELLOW))
+                append("warning: ")
+            }
+            ERROR -> {
+                append(terminal.attributes(foreground = TerminalColor.RED))
+                append("error: ")
+            }
             INHERIT,
             HIDDEN -> {}
         }
-        sb.append(terminal.reset())
-        sb.append(message)
-        sb.append(severity.messageSuffix)
-        id?.let { sb.append(" [").append(it.name).append("]") }
-        return sb.toString()
+        append(terminal.reset())
+        append(message)
+        append(severity.messageSuffix)
+        id?.let { append(" [").append(it.name).append("]") }
     }
 
     private fun reportEvenIfSuppressed(report: Report): Boolean {
         config.reportEvenIfSuppressedWriter?.let {
-            val (severity, relativePath, line, message, id) = report
-            val location = forReport(relativePath, line)
-            println(format(severity, location, message, id, terminal = plainTerminal))
+            println(format(report, terminal = plainTerminal))
         }
         return true
     }
