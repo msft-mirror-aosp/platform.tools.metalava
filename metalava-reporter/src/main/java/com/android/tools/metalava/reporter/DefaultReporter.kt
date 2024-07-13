@@ -48,7 +48,6 @@ class DefaultReporter(
     /** A list of [Report] objects containing all the reported issues. */
     private val reports = mutableListOf<Report>()
 
-    private val errors = mutableListOf<Report>()
     private var warningCount = 0
 
     /**
@@ -75,11 +74,11 @@ class DefaultReporter(
     )
 
     /** The number of errors. */
-    val errorCount
-        get() = errors.size
+    var errorCount: Int = 0
+        private set
 
     /** Returns whether any errors have been detected. */
-    fun hasErrors(): Boolean = errors.size > 0
+    fun hasErrors(): Boolean = errorCount > 0
 
     override fun report(
         id: Issues.Issue,
@@ -205,7 +204,7 @@ class DefaultReporter(
     private fun doReport(report: Report): Boolean {
         val severity = report.severity
         when (severity) {
-            ERROR -> errors.add(report)
+            ERROR -> errorCount++
             WARNING -> warningCount++
             else -> {}
         }
@@ -223,16 +222,12 @@ class DefaultReporter(
 
     /** Print all the recorded errors to the given writer. Returns the number of errors printed. */
     fun printErrors(writer: PrintWriter, maxErrors: Int): Int {
-        var i = 0
+        val errors = reports.filter { it.severity == ERROR }.take(maxErrors)
         for (error in errors) {
-            if (i >= maxErrors) {
-                break
-            }
-            i++
             val formattedMessage = config.outputReportFormatter.format(error)
             writer.println(formattedMessage)
         }
-        return i
+        return errors.size
     }
 
     /** Write all reports. */
