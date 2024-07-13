@@ -20,9 +20,9 @@ import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -49,12 +49,15 @@ class PsiAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
-    originalName: String?
+    originalName: String,
+    qualifiedName: String,
 ) :
     DefaultAnnotationItem(
-        codebase,
-        originalName,
-        { getAnnotationAttributes(codebase, psiAnnotation) }
+        codebase = codebase,
+        fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
+        originalName = originalName,
+        qualifiedName = qualifiedName,
+        attributesGetter = { getAnnotationAttributes(codebase, psiAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -64,7 +67,7 @@ private constructor(
     }
 
     override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName ?: return null)
+        return codebase.findOrCreateClass(originalName)
     }
 
     override fun isNonNull(): Boolean {
@@ -98,27 +101,16 @@ private constructor(
         fun create(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,
-            qualifiedName: String? = psiAnnotation.qualifiedName
-        ): PsiAnnotationItem {
-            return PsiAnnotationItem(codebase, psiAnnotation, qualifiedName)
-        }
-
-        fun create(codebase: PsiBasedCodebase, original: PsiAnnotationItem): PsiAnnotationItem {
-            return PsiAnnotationItem(codebase, original.psiAnnotation, original.originalName)
-        }
-
-        fun create(
-            codebase: Codebase,
-            originalName: String,
-            attributes: List<AnnotationAttribute> = emptyList(),
-            context: Item? = null
-        ): PsiAnnotationItem {
-            if (codebase is PsiBasedCodebase) {
-                val source = formatAnnotationItem(originalName, attributes)
-                return codebase.createAnnotation(source, context)
-            } else {
-                codebase.unsupported("Converting to PSI annotation requires PSI codebase")
-            }
+        ): AnnotationItem? {
+            val originalName = psiAnnotation.qualifiedName ?: return null
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
+            return PsiAnnotationItem(
+                codebase = codebase,
+                psiAnnotation = psiAnnotation,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+            )
         }
 
         private fun getAttributes(
@@ -146,28 +138,36 @@ private constructor(
             codebase: PsiBasedCodebase,
             sb: StringBuilder,
             psiAnnotation: PsiAnnotation,
-            originalName: String?,
+            qualifiedName: String?,
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName =
-                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
+            val alwaysInlineValues = qualifiedName == "android.annotation.FlaggedApi"
+            val outputName =
+                codebase.annotationManager.normalizeOutputName(qualifiedName, target) ?: return
 
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
-                sb.append("@$qualifiedName")
+                sb.append("@$outputName")
                 return
             }
 
             sb.append("@")
-            sb.append(qualifiedName)
+            sb.append(outputName)
             sb.append("(")
             if (
                 attributes.size == 1 &&
                     (attributes[0].first == null || attributes[0].first == ANNOTATION_ATTR_VALUE)
             ) {
                 // Special case: omit "value" if it's the only attribute
-                appendValue(codebase, sb, attributes[0].second, target, showDefaultAttrs)
+                appendValue(
+                    codebase,
+                    sb,
+                    attributes[0].second,
+                    target,
+                    showDefaultAttrs = showDefaultAttrs,
+                    alwaysInlineValues = alwaysInlineValues,
+                )
             } else {
                 var first = true
                 for (attribute in attributes) {
@@ -178,7 +178,14 @@ private constructor(
                     }
                     sb.append(attribute.first ?: ANNOTATION_ATTR_VALUE)
                     sb.append('=')
-                    appendValue(codebase, sb, attribute.second, target, showDefaultAttrs)
+                    appendValue(
+                        codebase,
+                        sb,
+                        attribute.second,
+                        target,
+                        showDefaultAttrs = showDefaultAttrs,
+                        alwaysInlineValues = alwaysInlineValues,
+                    )
                 }
             }
             sb.append(")")
@@ -189,7 +196,8 @@ private constructor(
             sb: StringBuilder,
             value: PsiAnnotationMemberValue?,
             target: AnnotationTarget,
-            showDefaultAttrs: Boolean
+            showDefaultAttrs: Boolean,
+            alwaysInlineValues: Boolean,
         ) {
             // Compute annotation string -- we don't just use value.text here
             // because that may not use fully qualified names, e.g. the source may say
@@ -213,7 +221,8 @@ private constructor(
                                 if (initializer != null) {
                                     val fieldItem = cls.findField(resolved.name)
                                     if (
-                                        fieldItem == null ||
+                                        alwaysInlineValues ||
+                                            fieldItem == null ||
                                             fieldItem.isHiddenOrRemoved() ||
                                             !fieldItem.isPublic
                                     ) {
@@ -237,11 +246,25 @@ private constructor(
                     }
                 }
                 is PsiBinaryExpression -> {
-                    appendValue(codebase, sb, value.lOperand, target, showDefaultAttrs)
+                    appendValue(
+                        codebase,
+                        sb,
+                        value.lOperand,
+                        target,
+                        showDefaultAttrs = showDefaultAttrs,
+                        alwaysInlineValues = alwaysInlineValues,
+                    )
                     sb.append(' ')
                     sb.append(value.operationSign.text)
                     sb.append(' ')
-                    appendValue(codebase, sb, value.rOperand, target, showDefaultAttrs)
+                    appendValue(
+                        codebase,
+                        sb,
+                        value.rOperand,
+                        target,
+                        showDefaultAttrs = showDefaultAttrs,
+                        alwaysInlineValues = alwaysInlineValues,
+                    )
                 }
                 is PsiArrayInitializerMemberValue -> {
                     sb.append('{')
@@ -252,7 +275,14 @@ private constructor(
                         } else {
                             sb.append(", ")
                         }
-                        appendValue(codebase, sb, initializer, target, showDefaultAttrs)
+                        appendValue(
+                            codebase,
+                            sb,
+                            initializer,
+                            target,
+                            showDefaultAttrs = showDefaultAttrs,
+                            alwaysInlineValues = alwaysInlineValues,
+                        )
                     }
                     sb.append('}')
                 }

@@ -21,16 +21,12 @@ class PackageList(val codebase: Codebase, val packages: List<PackageItem>) {
         visitor.visit(this)
     }
 
-    fun acceptTypes(visitor: TypeVisitor) {
-        packages.forEach { it.acceptTypes(visitor) }
-    }
-
     /** All top level classes in all packages */
     fun allTopLevelClasses(): Sequence<ClassItem> {
         return packages.asSequence().flatMap { it.topLevelClasses() }
     }
 
-    /** All top level classes **and inner classes** in all packages */
+    /** All top level classes **and nested classes** in all packages */
     fun allClasses(): Sequence<ClassItem> {
         return packages.asSequence().flatMap { it.allClasses() }
     }

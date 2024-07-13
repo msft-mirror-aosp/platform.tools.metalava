@@ -16,12 +16,23 @@
 
 package com.android.tools.metalava.model
 
+@MetalavaApi
 interface ParameterItem : Item {
     /** The name of this field */
     fun name(): String
 
     /** The type of this field */
-    override fun type(): TypeItem
+    @MetalavaApi override fun type(): TypeItem
+
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
+        containingMethod()
+            .findCorrespondingItemIn(codebase, superMethods = superMethods, duplicate = duplicate)
+            ?.parameters()
+            ?.getOrNull(parameterIndex)
 
     /** The containing method */
     fun containingMethod(): MethodItem
@@ -77,59 +88,48 @@ interface ParameterItem : Item {
 
     override fun parent(): MethodItem? = containingMethod()
 
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingMethod().effectivelyDeprecated
+
+    override fun baselineElementId() =
+        containingMethod().baselineElementId() + " parameter #" + parameterIndex
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
+    /**
+     * Create a duplicate of this for [containingMethod].
+     *
+     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
+     * [TypeItem.convertType].
+     *
+     * This is called from within the constructor of the [containingMethod] so must only access its
+     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
+     * property as this is called during its initialization.
+     */
+    fun duplicate(
+        containingMethod: MethodItem,
+        typeVariableMap: TypeParameterBindings,
+    ): ParameterItem
 
-        val type = type()
-        visitor.visitType(type, this)
-        visitor.afterVisitType(type, this)
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ParameterItem) return false
+
+        return parameterIndex == other.parameterIndex &&
+            containingMethod() == other.containingMethod()
     }
 
-    override fun requiresNullnessInfo(): Boolean {
-        return !type().primitive
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
+    override fun toStringForItem() = "parameter ${name()}"
 
-        return modifiers.hasNullnessInfo()
-    }
+    override fun containingClass(): ClassItem = containingMethod().containingClass()
 
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        val method = containingMethod()
-        if (synthetic && method.isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
-
-        // Equals has known nullness
-        if (method.name() == "equals" && method.parameters().size == 1) {
-            return true
-        }
-
-        return null
-    }
-
-    override fun containingClass(strict: Boolean): ClassItem? =
-        containingMethod().containingClass(false)
-
-    override fun containingPackage(strict: Boolean): PackageItem? =
-        containingMethod().containingPackage(false)
+    override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
 
     // TODO: modifier list
 }

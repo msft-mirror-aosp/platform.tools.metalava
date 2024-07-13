@@ -20,15 +20,17 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -52,6 +54,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
+import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -63,18 +66,19 @@ import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 
 const val PACKAGE_ESTIMATE = 500
-const val CLASS_ESTIMATE = 15000
 const val METHOD_ESTIMATE = 1000
 
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
  *
- * After creation, a list of PSI file or a JAR file is passed to [initialize]. This creates package
- * and class items along with their members. This process is broken into two phases:
+ * After creation, a list of PSI file is passed to [initializeFromSources] or a JAR file is passed
+ * to [initializeFromJar]. This creates package and class items along with their members. This
+ * process is broken into two phases:
  *
  * First, [initializing] is set to true, and class items are created from the supplied sources. If
  * [fromClasspath] is false, these are main classes of the codebase and have [ClassItem.emit] set to
@@ -98,7 +102,8 @@ open class PsiBasedCodebase(
     description: String = "Unknown",
     annotationManager: AnnotationManager,
     private val reporter: Reporter,
-    val fromClasspath: Boolean = false
+    val allowReadingComments: Boolean,
+    val fromClasspath: Boolean = false,
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
@@ -108,7 +113,7 @@ open class PsiBasedCodebase(
      * Returns the compilation units used in this codebase (may be empty when the codebase is not
      * loaded from source, such as from .jar files or from signature files)
      */
-    internal var units: List<PsiFile> = emptyList()
+    private var units: List<PsiFile> = emptyList()
 
     /**
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
@@ -131,11 +136,12 @@ open class PsiBasedCodebase(
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
-    /** Map from package name to list of classes in that package. Only used during [initialize]. */
-    private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
-
-    /** A set of packages to hide */
-    private lateinit var hiddenPackages: MutableMap<String, Boolean?>
+    /**
+     * Map from package name to list of classes in that package. Initialized in [initializeFromJar]
+     * and [initializeFromSources], updated by [registerPackageClass], and used and cleared in
+     * [fixUpTypeNullability].
+     */
+    private var packageClasses: MutableMap<String, MutableList<PsiClassItem>>? = null
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -144,10 +150,11 @@ open class PsiBasedCodebase(
     private lateinit var topLevelClassesFromSource: MutableList<PsiClassItem>
 
     /**
-     * Set to true in [initialize] for the first pass of creating class items for all classes in the
-     * codebase sources and false for the second pass of creating class items for the supertypes of
-     * the codebase classes. New class items created in the supertypes pass must come from the
-     * classpath (dependencies) since all source classes have been created.
+     * Set to true in [initializeFromJar] and [initializeFromSources] for the first pass of creating
+     * class items for all classes in the codebase sources and false for the second pass of creating
+     * class items for the supertypes of the codebase classes. New class items created in the
+     * supertypes pass must come from the classpath (dependencies) since all source classes have
+     * been created.
      *
      * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
      * and [ClassItem.isFromClassPath] to true for classpath classes. It is also used in
@@ -155,36 +162,27 @@ open class PsiBasedCodebase(
      */
     private var initializing = false
 
-    override fun trustedApi(): Boolean = false
-
-    private var packageDocs: PackageDocs? = null
-
     private var hideClassesFromJars = true
+
+    /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
+    internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     private lateinit var emptyPackage: PsiPackageItem
 
-    internal fun initialize(
+    internal fun initializeFromSources(
         uastEnvironment: UastEnvironment,
         psiFiles: List<PsiFile>,
         packages: PackageDocs,
     ) {
         initializing = true
         this.units = psiFiles
-        packageDocs = packages
 
         this.uastEnvironment = uastEnvironment
-        // there are currently ~230 packages in the public SDK, but here we need to account for
-        // internal ones too
-        val hiddenPackages: MutableSet<String> = packages.hiddenPackages
-        val packageDocs: MutableMap<String, String> = packages.packageDocs
-        this.hiddenPackages = HashMap(100)
-        for (pkgName in hiddenPackages) {
-            this.hiddenPackages[pkgName] = true
-        }
+        val packageDocs = packages.packageDocs
 
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
-        packageClasses[""] = ArrayList()
+        packageClasses!![""] = ArrayList()
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
@@ -234,9 +232,6 @@ open class PsiBasedCodebase(
                         if (comment != null) {
                             val packageName = packageStatement.packageName
                             val text = comment.text
-                            if (text.contains("@hide")) {
-                                this.hiddenPackages[packageName] = true
-                            }
                             if (packageDocs[packageName] != null) {
                                 reporter.report(
                                     Issues.BOTH_PACKAGE_INFO_AND_HTML,
@@ -283,50 +278,81 @@ open class PsiBasedCodebase(
                                 multifileClassNames.add(ktLightClass.facadeClassFqName)
                             }
                         }
-                        topLevelClassesFromSource += createClass(psiClass)
+                        topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
                     }
                 }
             }
         }
 
+        finishInitialization(packages)
+    }
+
+    /**
+     * Finish initializing a [PsiClassItem].
+     *
+     * This must only be called when [initializing] is `false`.
+     */
+    private fun finishClassInitialization(classItem: PsiClassItem) {
+        if (initializing) {
+            error("incorrectly called on $classItem when initializing=`true`")
+        }
+
+        val pkgName = getPackageName(classItem.psiClass)
+        val pkg = findPackage(pkgName)
+        if (pkg == null) {
+            val psiPackage = findPsiPackage(pkgName)
+            if (psiPackage != null) {
+                val packageItem = registerPackage(pkgName, psiPackage, null)
+                packageItem.addClass(classItem)
+            }
+        } else {
+            pkg.addClass(classItem)
+        }
+    }
+
+    /**
+     * Finish initialising this codebase.
+     *
+     * Involves:
+     * * Constructing packages, setting [emptyPackage].
+     * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
+     *   interfaces referenced from the source code but provided on the class path.
+     */
+    private fun finishInitialization(packages: PackageDocs?) {
+
         // Next construct packages
-        for ((pkgName, classes) in packageClasses) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
+        val packageDocs = packages?.packageDocs ?: emptyMap()
+        val overviewDocs = packages?.overviewDocs ?: emptyMap()
+        for ((pkgName, classes) in packageClasses!!) {
+            val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
                 continue
             }
 
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
-            registerPackage(psiPackage, sortedClasses, packageDocs[pkgName], pkgName)
+            registerPackage(
+                pkgName,
+                psiPackage,
+                sortedClasses,
+                packageDocs[pkgName],
+                overviewDocs[pkgName],
+            )
         }
+
+        // Not used after this point.
+        packageClasses = null
+
         initializing = false
 
         emptyPackage = findPackage("")!!
 
-        // Finish initialization
-        val initialPackages = ArrayList(packageMap.values)
-        var registeredCount =
-            packageMap.size // classes added after this point will have indices >= original
-        for (cls in initialPackages) {
-            cls.finishInitialization()
-        }
-
-        // Finish initialization of any additional classes that were registered during
-        // the above initialization (recursively)
-        while (registeredCount < packageMap.size) {
-            val added = packageMap.values.minus(initialPackages)
-            registeredCount = packageMap.size
-            for (pkg in added) {
-                pkg.finishInitialization()
-            }
-        }
+        // Resolve the super types of all the classes that have been loaded.
+        resolveSuperTypes()
 
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
         addParentPackages(packageMap.values)
-
-        packageClasses.clear() // Not used after this point
     }
 
     override fun dispose() {
@@ -357,10 +383,9 @@ open class PsiBasedCodebase(
 
         // Create PackageItems for any packages that weren't in the source
         for (pkgName in missingPackages) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName) ?: continue
+            val psiPackage = findPsiPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
-            val packageHtml = null
-            registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
+            registerPackage(pkgName, psiPackage, sortedClasses)
         }
 
         // Connect up all the package items
@@ -385,35 +410,32 @@ open class PsiBasedCodebase(
     }
 
     private fun registerPackage(
+        pkgName: String,
         psiPackage: PsiPackage,
         sortedClasses: List<PsiClassItem>?,
-        packageHtml: String?,
-        pkgName: String
+        packageHtml: String? = null,
+        overviewHtml: String? = null,
     ): PsiPackageItem {
         val packageItem =
             PsiPackageItem.create(
                 this,
                 psiPackage,
                 packageHtml,
+                overviewHtml,
                 fromClassPath = fromClasspath || !initializing
             )
         packageItem.emit = !packageItem.isFromClassPath()
 
         packageMap[pkgName] = packageItem
-        if (isPackageHidden(pkgName)) {
-            packageItem.hidden = true
-        }
 
         sortedClasses?.let { packageItem.addClasses(it) }
         return packageItem
     }
 
-    internal fun initialize(
+    internal fun initializeFromJar(
         uastEnvironment: UastEnvironment,
         jarFile: File,
-        preFiltered: Boolean = false,
     ) {
-        this.preFiltered = preFiltered
         initializing = true
         hideClassesFromJars = false
 
@@ -423,10 +445,9 @@ open class PsiBasedCodebase(
         val facade = JavaPsiFacade.getInstance(project)
         val scope = GlobalSearchScope.allScope(project)
 
-        hiddenPackages = HashMap(100)
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
-        packageClasses[""] = ArrayList()
+        packageClasses!![""] = ArrayList()
         this.methodMap = HashMap(1000)
         val packageToClasses: MutableMap<String, MutableList<PsiClassItem>> =
             HashMap(PACKAGE_ESTIMATE)
@@ -459,7 +480,7 @@ open class PsiBasedCodebase(
                         } else {
                             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
 
-                            val classItem = createClass(psiClass)
+                            val classItem = createTopLevelClassAndContents(psiClass)
                             topLevelClassesFromSource.add(classItem)
 
                             val packageName = getPackageName(psiClass)
@@ -478,83 +499,46 @@ open class PsiBasedCodebase(
             reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
         }
 
-        // Next construct packages
-        for ((pkgName, packageClasses) in packageToClasses) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
-            if (psiPackage == null) {
-                println("Could not find package $pkgName")
-                continue
-            }
-
-            packageClasses.sortWith(ClassItem.fullNameComparator)
-            // TODO: How do we obtain the package docs? We generally don't have them, but it *would*
-            // be
-            // nice if we picked up "overview.html" bundled files and added them. But since the docs
-            // are generally missing for all elements *anyway*, let's not bother.
-            val docs = packageDocs?.packageDocs
-            val packageHtml: String? =
-                if (docs != null) {
-                    docs[pkgName]
-                } else {
-                    null
-                }
-            registerPackage(psiPackage, packageClasses, packageHtml, pkgName)
-        }
-
-        emptyPackage = findPackage("")!!
-
-        initializing = false
         hideClassesFromJars = true
 
-        // Finish initialization
-        for (pkg in packageMap.values) {
-            pkg.finishInitialization()
-        }
-
-        packageClasses.clear() // Not used after this point
+        // When loading from a jar there is no package documentation.
+        finishInitialization(null)
     }
 
     private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
-        var list = packageClasses[packageName]
+        var list = packageClasses!![packageName]
         if (list == null) {
             list = ArrayList()
-            packageClasses[packageName] = list
+            packageClasses!![packageName] = list
         }
 
         list.add(cls)
     }
 
-    private fun isPackageHidden(packageName: String): Boolean {
-        val hidden = hiddenPackages[packageName]
-        if (hidden == true) {
-            return true
-        } else if (hidden == null) {
-            // Compute for all prefixes of this package
-            var pkg = packageName
-            while (true) {
-                if (hiddenPackages[pkg] != null) {
-                    hiddenPackages[packageName] = hiddenPackages[pkg]
-                    if (hiddenPackages[pkg] == true) {
-                        return true
-                    }
-                }
-                val last = pkg.lastIndexOf('.')
-                if (last == -1) {
-                    hiddenPackages[packageName] = false
-                    break
-                } else {
-                    pkg = pkg.substring(0, last)
-                }
-            }
-        }
-
-        return false
+    /**
+     * Create top level classes, their inner classes and all the other members.
+     *
+     * All the classes are registered by name and so can be found by [findOrCreateClass].
+     */
+    private fun createTopLevelClassAndContents(psiClass: PsiClass): PsiClassItem {
+        if (psiClass.containingClass != null) error("$psiClass is not a top level class")
+        return createClass(psiClass, null, globalTypeItemFactory)
     }
 
-    private fun createClass(clz: PsiClass): PsiClassItem {
+    internal fun createClass(
+        psiClass: PsiClass,
+        containingClassItem: PsiClassItem?,
+        enclosingClassTypeItemFactory: PsiTypeItemFactory,
+    ): PsiClassItem {
         // If initializing is true, this class is from source
         val classItem =
-            PsiClassItem.create(this, clz, fromClassPath = fromClasspath || !initializing)
+            PsiClassItem.create(
+                this,
+                psiClass,
+                containingClassItem,
+                enclosingClassTypeItemFactory,
+                fromClassPath = fromClasspath || !initializing,
+            )
         // Set emit to true for source classes but false for classpath classes
         classItem.emit = !classItem.isFromClassPath()
 
@@ -564,42 +548,18 @@ open class PsiBasedCodebase(
             if (
                 classItem.simpleName().startsWith("I") &&
                     classItem.isFromClassPath() &&
-                    clz.interfaces.any { it.qualifiedName == "android.os.IInterface" }
+                    psiClass.interfaces.any { it.qualifiedName == "android.os.IInterface" }
             ) {
                 classItem.hidden = true
             }
         }
 
-        if (classItem.classType == ClassType.TYPE_PARAMETER) {
-            // Don't put PsiTypeParameter classes into the registry; e.g. when we're visiting
-            //  java.util.stream.Stream<R>
-            // we come across "R" and would try to place it here.
-            classItem.containingPackage = emptyPackage
-            classItem.finishInitialization()
-            return classItem
-        }
-
-        // TODO: Cache for adjacent files!
-        val packageName = getPackageName(clz)
-        registerPackageClass(packageName, classItem)
-
-        if (!initializing) {
-            classItem.finishInitialization()
-            val pkgName = getPackageName(clz)
-            val pkg = findPackage(pkgName)
-            if (pkg == null) {
-                // val packageHtml: String? = packageDocs?.packageDocs!![pkgName]
-                // dynamically discovered packages should NOT be included
-                // val packageHtml = "/** @hide */"
-                val packageHtml = null
-                val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
-                if (psiPackage != null) {
-                    val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
-                    packageItem.addClass(classItem)
-                }
-            } else {
-                pkg.addClass(classItem)
-            }
+        if (initializing) {
+            // If initializing then keep track of the class in [packageClasses]. This is not needed
+            // after initializing as [packageClasses] is not needed then.
+            // TODO: Cache for adjacent files!
+            val packageName = getPackageName(psiClass)
+            registerPackageClass(packageName, classItem)
         }
 
         return classItem
@@ -613,10 +573,6 @@ open class PsiBasedCodebase(
         )
     }
 
-    override fun getPackageDocs(): PackageDocs? {
-        return packageDocs
-    }
-
     override fun size(): Int {
         return packageMap.size
     }
@@ -625,9 +581,15 @@ open class PsiBasedCodebase(
         return packageMap[pkgName]
     }
 
+    internal fun findPsiPackage(pkgName: String): PsiPackage? {
+        return JavaPsiFacade.getInstance(project).findPackage(pkgName)
+    }
+
     override fun findClass(className: String): PsiClassItem? {
         return classMap[className]
     }
+
+    override fun resolveClass(className: String): ClassItem? = findOrCreateClass(className)
 
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
@@ -635,41 +597,105 @@ open class PsiBasedCodebase(
     }
 
     internal fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
+        // Check to see if the class has already been seen and if so return it immediately.
+        findClass(qualifiedName)?.let {
+            return it
+        }
+
+        // The following cannot find a class whose name does not correspond to the file name, e.g.
+        // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
         val psiClass =
             finder.findClass(qualifiedName, GlobalSearchScope.allScope(project)) ?: return null
         return findOrCreateClass(psiClass)
     }
 
-    internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
-        val existing = findClass(psiClass)
-        if (existing != null) {
-            return existing
-        }
+    /**
+     * Identifies a point in the [PsiClassItem] nesting structure where new [PsiClassItem]s need
+     * inserting.
+     */
+    data class NewClassInsertionPoint(
+        /**
+         * The [PsiClass] that is the root of the nested classes that need creation, is a top level
+         * class if [containingClassItem] is `null`.
+         */
+        val missingPsiClass: PsiClass,
 
-        var curr = psiClass.containingClass
-        if (curr != null && findClass(curr) == null) {
-            // Make sure we construct outer/top level classes first
-            if (findClass(curr) == null) {
-                while (true) {
-                    val containing = curr?.containingClass
-                    if (containing == null) {
-                        break
-                    } else {
-                        curr = containing
-                    }
-                }
-                curr!!
-                createClass(
-                    curr
-                ) // this will also create inner classes, which should now be in the map
-                val inner = findClass(psiClass)
-                inner!! // should be there now
-                return inner
+        /** The containing class item, or `null` if the top level. */
+        val containingClassItem: PsiClassItem?,
+    )
+
+    /**
+     * Called when no [PsiClassItem] was found by [findClass]`([PsiClass]) when called on
+     * [psiClass].
+     *
+     * The purpose of this is to find where a new [PsiClassItem] should be inserted in the nested
+     * class structure. It finds the outermost [PsiClass] with no associated [PsiClassItem] but
+     * which is either a top level class or whose containing [PsiClass] does have an associated
+     * [PsiClassItem]. That is the point where new classes need to be created.
+     *
+     * e.g. if the nesting structure is `A.B.C` and `A` has already been created then the insertion
+     * point would consist of [PsiClassItem] for `A` (the containing class item) and the [PsiClass]
+     * for `B` (the outermost [PsiClass] with no associated item).
+     *
+     * If none had already been created then it would return an insertion point consisting of no
+     * containing class item and the [PsiClass] for `A`.
+     */
+    private fun findNewClassInsertionPoint(psiClass: PsiClass): NewClassInsertionPoint {
+        var current = psiClass
+        do {
+            // If the current has no containing class then it has reached the top level class so
+            // return an insertion point that has no containing class item and the current class.
+            val containing = current.containingClass ?: return NewClassInsertionPoint(current, null)
+
+            // If the containing class has a matching class item then return an insertion point that
+            // uses that containing class item and the current class.
+            findClass(containing)?.let { containingClassItem ->
+                return NewClassInsertionPoint(current, containingClassItem)
             }
+            current = containing
+        } while (true)
+    }
+
+    internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
+        if (psiClass is PsiTypeParameter) {
+            error(
+                "Must not be called with PsiTypeParameter; call findOrCreateTypeParameter(...) instead"
+            )
         }
 
-        return existing ?: return createClass(psiClass)
+        // If it has already been created then return it.
+        findClass(psiClass)?.let {
+            return it
+        }
+
+        // Otherwise, find an insertion point at which new classes should be created.
+        val (missingPsiClass, containingClassItem) = findNewClassInsertionPoint(psiClass)
+
+        // Create a top level or nested class as appropriate.
+        val createdClassItem =
+            if (containingClassItem == null) {
+                createTopLevelClassAndContents(missingPsiClass)
+            } else {
+                createClass(
+                    missingPsiClass,
+                    containingClassItem,
+                    globalTypeItemFactory.from(containingClassItem)
+                )
+            }
+
+        // Make sure that the created class has been properly initialized.
+        finishClassInitialization(createdClassItem)
+
+        // Select the class item to return.
+        return if (missingPsiClass == psiClass) {
+            // The created class item was what was requested so just return it.
+            createdClassItem
+        } else {
+            // Otherwise, a nested class was requested so find it. It was created when its
+            // containing class was created.
+            findClass(psiClass)!!
+        }
     }
 
     internal fun findClass(psiType: PsiType): PsiClassItem? {
@@ -693,21 +719,8 @@ open class PsiBasedCodebase(
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
-    internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
-        getFactory().createDocCommentFromText(string, parent)
-
-    internal fun getType(psiType: PsiType): PsiTypeItem {
-        // Note: We do *not* cache these; it turns out that storing PsiType instances
-        // in a map is bad for performance; it has a very expensive equals operation
-        // for some type comparisons (and we sometimes end up with unexpected results,
-        // e.g. where we fetch an "equals" type from the map but its representation
-        // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType)
-    }
-
-    internal fun getType(psiClass: PsiClass): PsiTypeItem {
-        return PsiTypeItem.create(this, getFactory().createType(psiClass))
-    }
+    internal fun getComment(documentation: String, parent: PsiElement? = null): PsiDocComment =
+        getFactory().createDocCommentFromText(documentation, parent)
 
     private fun getPackageName(clz: PsiClass): String {
         var top: PsiClass? = clz
@@ -748,12 +761,10 @@ open class PsiBasedCodebase(
             val updatedMethod = psiClass.findMethodBySignature(method, true)
             val result = methods[updatedMethod!!]
             if (result == null) {
-                val extra = PsiMethodItem.create(this, cls, updatedMethod)
+                val extra =
+                    PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
                 methods[method] = extra
                 methods[updatedMethod] = extra
-                if (!initializing) {
-                    extra.finishInitialization()
-                }
 
                 return extra
             }
@@ -776,6 +787,13 @@ open class PsiBasedCodebase(
         for (method in methods) {
             val psiMethod = (method as PsiMethodItem).psiMethod
             map[psiMethod] = method
+            if (psiMethod is UMethod) {
+                // Register LC method as a key too
+                // so that we can find the corresponding [MethodItem]
+                // Otherwise, we will end up creating a new [MethodItem]
+                // without source PSI, resulting in wrong modifier.
+                map[psiMethod.javaPsi] = method
+            }
         }
     }
 
@@ -826,7 +844,7 @@ open class PsiBasedCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): PsiAnnotationItem {
+    ): AnnotationItem? {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
@@ -835,9 +853,20 @@ open class PsiBasedCodebase(
 
     override fun toString(): String = description
 
-    /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
-    internal fun registerClass(cls: PsiClassItem) {
-        classMap[cls.qualifiedName()] = cls
+    /** Add a class to the codebase. Called from [PsiClassItem.create]. */
+    internal fun registerClass(classItem: PsiClassItem) {
+        val qualifiedName = classItem.qualifiedName()
+        val existing = classMap.put(qualifiedName, classItem)
+        if (existing != null) {
+            reporter.report(
+                Issues.DUPLICATE_SOURCE_CLASS,
+                classItem,
+                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.fileLocation.path}"
+            )
+            return
+        }
+
+        addClass(classItem)
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
