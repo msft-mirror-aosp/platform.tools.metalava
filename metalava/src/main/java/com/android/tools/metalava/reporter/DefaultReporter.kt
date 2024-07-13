@@ -101,26 +101,27 @@ internal class DefaultReporter(
             return false
         }
 
-        fun dispatch(
-            which:
-                (
-                    severity: Severity, location: String?, message: String, id: Issues.Issue
-                ) -> Boolean
-        ): Boolean {
-            // When selecting a location to use for reporting the issue the location is used in
-            // preference to the item because the location is more specific. e.g. if the item is a
-            // method then the location may be a line within the body of the method.
-            val reportLocation =
-                when {
-                    location.path != null -> location
-                    else -> reportable?.fileLocation
-                }
+        // When selecting a location to use for reporting the issue the location is used in
+        // preference to the item because the location is more specific. e.g. if the item is a
+        // method then the location may be a line within the body of the method.
+        val reportLocation =
+            when {
+                location.path != null -> location
+                else -> reportable?.fileLocation
+            }
 
-            return which(effectiveSeverity, reportLocation?.forReport(), message, id)
-        }
+        val report =
+            Report(
+                severity = effectiveSeverity,
+                // Relativize the path before storing in the Report.
+                relativePath = reportLocation?.path?.relativizeLocationPath(),
+                line = reportLocation?.line ?: 0,
+                message = message,
+                issue = id,
+            )
 
         // Optionally write to the --report-even-if-suppressed file.
-        dispatch(this::reportEvenIfSuppressed)
+        reportEvenIfSuppressed(report)
 
         if (isSuppressed(id, reportable, message)) {
             return false
@@ -132,10 +133,10 @@ internal class DefaultReporter(
         }
 
         if (baseline != null) {
-            // When selecting a location to use for in checking the baseline the item is used in
-            // preference to the location because the item is more stable. e.g. the location may be
-            // for a specific line within a method which would change over time while the method
-            // signature would stay the same.
+            // When selecting a key to use for in checking the baseline the reportable key is used
+            // in preference to the location because the reportable key is more stable. e.g. the
+            // location key may be for a specific line within a method which would change over time
+            // while a key based off a method's would stay the same.
             val baselineKey =
                 when {
                     // When available use the baseline key from the reportable.
@@ -147,7 +148,7 @@ internal class DefaultReporter(
             if (baselineKey != null && baseline.mark(baselineKey, message, id)) return false
         }
 
-        return dispatch(this::doReport)
+        return doReport(report)
     }
 
     override fun isSuppressed(
@@ -186,35 +187,32 @@ internal class DefaultReporter(
     }
 
     /**
-     * Relativize the [absolutePath] against the [ReporterEnvironment.rootFolder] if specified.
+     * Relativize this against the [ReporterEnvironment.rootFolder] if specified.
      *
-     * Tests will set [rootFolder] to the temporary directory so that this can remove that from any
-     * paths that are reported to avoid the test having to be aware of the temporary directory.
+     * Tests will set [ReporterEnvironment.rootFolder] to the temporary directory so that this can
+     * remove that from any paths that are reported to avoid the test having to be aware of the
+     * temporary directory.
      */
-    private fun relativizeLocationPath(absolutePath: Path): String {
-        // b/255575766: Note that [relativize] requires two paths to compare to have same types:
+    private fun Path.relativizeLocationPath(): String {
+        // b/255575766: Note that `relativize` requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = environment.rootFolder.toPath().relativize(absolutePath) ?: absolutePath
+        val path = environment.rootFolder.toPath().relativize(this) ?: this
         return path.toString()
     }
 
     /**
-     * Convert the [FileLocation] to an optional string representation suitable for use in a report.
-     *
-     * See [relativizeLocationPath].
+     * Format the [relativePath] and [line] to an optional string representation suitable for use in
+     * a report.
      */
-    private fun FileLocation.forReport(): String? {
-        val pathString = path?.let { relativizeLocationPath(it) } ?: return null
-        return if (line > 0) "$pathString:$line" else pathString
+    private fun forReport(relativePath: String?, line: Int): String? {
+        relativePath ?: return null
+        return if (line > 0) "$relativePath:$line" else relativePath
     }
 
     /** Alias to allow method reference to `dispatch` in [report] */
-    private fun doReport(
-        severity: Severity,
-        location: String?,
-        message: String,
-        id: Issues.Issue?,
-    ): Boolean {
+    private fun doReport(report: Report): Boolean {
+        val (severity, relativePath, line, message, id) = report
+        val location = forReport(relativePath, line)
         val terminal: Terminal = config.terminal
         val formattedMessage = format(severity, location, message, id, terminal)
         if (severity == ERROR) {
@@ -256,15 +254,12 @@ internal class DefaultReporter(
         return sb.toString()
     }
 
-    private fun reportEvenIfSuppressed(
-        severity: Severity,
-        location: String?,
-        message: String,
-        id: Issues.Issue
-    ): Boolean {
-        config.reportEvenIfSuppressedWriter?.println(
-            format(severity, location, message, id, terminal = plainTerminal)
-        )
+    private fun reportEvenIfSuppressed(report: Report): Boolean {
+        config.reportEvenIfSuppressedWriter?.let {
+            val (severity, relativePath, line, message, id) = report
+            val location = forReport(relativePath, line)
+            println(format(severity, location, message, id, terminal = plainTerminal))
+        }
         return true
     }
 
