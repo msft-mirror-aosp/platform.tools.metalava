@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.reporter
 
+import com.android.tools.metalava.PackageFilter
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.reporter.Baseline
-import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.IssueConfiguration
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reportable
-import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
 import com.android.tools.metalava.reporter.Severity.INFO
