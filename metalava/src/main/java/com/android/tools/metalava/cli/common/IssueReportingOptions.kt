@@ -172,7 +172,7 @@ class IssueReportingOptions(
 
             DefaultReporter.Config(
                 warningsAsErrors = warningsAsErrors,
-                terminal = commonOptions.terminal,
+                outputReportFormatter = TerminalReportFormatter.forTerminal(commonOptions.terminal),
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
             )
         }

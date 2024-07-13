@@ -16,15 +16,11 @@
 
 package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.cli.common.Terminal
-import com.android.tools.metalava.cli.common.TerminalColor
+import com.android.tools.metalava.cli.common.TerminalReportFormatter
 import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
-import com.android.tools.metalava.reporter.Severity.INFO
-import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.WARNING
-import com.android.tools.metalava.reporter.Severity.WARNING_ERROR_WHEN_NEW
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
@@ -63,8 +59,12 @@ internal class DefaultReporter(
         /** If true, treat all warnings as errors */
         val warningsAsErrors: Boolean = false,
 
-        /** Whether output should be colorized */
-        val terminal: Terminal = plainTerminal,
+        /** Formats the report suitable for use in a file. */
+        val fileReportFormatter: ReportFormatter =
+            TerminalReportFormatter.forTerminal(plainTerminal),
+
+        /** Formats the report for output, e.g. to a terminal. */
+        val outputReportFormatter: ReportFormatter = fileReportFormatter,
 
         /**
          * Optional writer to which, if present, all errors, even if they were suppressed in
@@ -200,19 +200,9 @@ internal class DefaultReporter(
         return path.toString()
     }
 
-    /**
-     * Format the [relativePath] and [line] to an optional string representation suitable for use in
-     * a report.
-     */
-    private fun forReport(relativePath: String?, line: Int): String? {
-        relativePath ?: return null
-        return if (line > 0) "$relativePath:$line" else relativePath
-    }
-
     /** Alias to allow method reference to `dispatch` in [report] */
     private fun doReport(report: Report): Boolean {
-        val terminal: Terminal = config.terminal
-        val formattedMessage = format(report, terminal)
+        val formattedMessage = config.outputReportFormatter.format(report)
         val severity = report.severity
         when (severity) {
             ERROR -> errors.add(formattedMessage)
@@ -224,40 +214,9 @@ internal class DefaultReporter(
         return true
     }
 
-    private fun format(
-        report: Report,
-        terminal: Terminal,
-    ) = buildString {
-        val (severity, relativePath, line, message, id) = report
-        val location = forReport(relativePath, line)
-        append(terminal.attributes(bold = true))
-        location?.let { append(it).append(": ") }
-        when (severity) {
-            INFO -> {
-                append(terminal.attributes(foreground = TerminalColor.CYAN))
-                append("info: ")
-            }
-            WARNING,
-            WARNING_ERROR_WHEN_NEW -> {
-                append(terminal.attributes(foreground = TerminalColor.YELLOW))
-                append("warning: ")
-            }
-            ERROR -> {
-                append(terminal.attributes(foreground = TerminalColor.RED))
-                append("error: ")
-            }
-            INHERIT,
-            HIDDEN -> {}
-        }
-        append(terminal.reset())
-        append(message)
-        append(severity.messageSuffix)
-        id?.let { append(" [").append(it.name).append("]") }
-    }
-
     private fun reportEvenIfSuppressed(report: Report): Boolean {
         config.reportEvenIfSuppressedWriter?.let {
-            println(format(report, terminal = plainTerminal))
+            println(config.fileReportFormatter.format(report))
         }
         return true
     }
