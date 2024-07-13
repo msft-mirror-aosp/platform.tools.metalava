@@ -17,7 +17,7 @@
 package com.android.tools.metalava.reporter
 
 /** Formats a [Report] for output. */
-internal open class DefaultReportFormatter protected constructor() : ReportFormatter {
+open class DefaultReportFormatter protected constructor() : ReportFormatter {
 
     protected open fun beginImportantSection(builder: StringBuilder) {}
 

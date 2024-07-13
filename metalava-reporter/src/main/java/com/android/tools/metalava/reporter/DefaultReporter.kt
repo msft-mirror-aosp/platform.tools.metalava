@@ -25,7 +25,7 @@ import java.io.PrintWriter
 import java.nio.file.Path
 import java.util.function.Predicate
 
-internal class DefaultReporter(
+class DefaultReporter(
     private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
 
