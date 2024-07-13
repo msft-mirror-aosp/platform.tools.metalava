@@ -232,6 +232,10 @@ class DefaultReporter(
 
     /** Write all reports. */
     fun writeSavedReports() {
+        // Sort the reports in place. This will ensure that the errors output in [printErrors] are
+        // also sorted in the same order as that is called after this.
+        reports.sortWith(reportComparator)
+
         // Print out all the save reports.
         for (report in reports) {
             val formattedMessage = config.outputReportFormatter.format(report)
@@ -253,6 +257,17 @@ class DefaultReporter(
         } else {
             "no baseline"
         }
+    }
+
+    companion object {
+        private val reportComparator =
+            compareBy<Report>(
+                { it.relativePath },
+                { it.line },
+                { it.severity },
+                { it.issue?.name },
+                { it.message },
+            )
     }
 }
 

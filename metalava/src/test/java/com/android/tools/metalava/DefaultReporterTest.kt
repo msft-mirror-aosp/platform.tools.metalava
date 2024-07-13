@@ -310,12 +310,12 @@ class DefaultReporterTest : DriverTest() {
 
         assertEquals(
             """
-                error: reportable/maximum=error [MissingNullability]
-                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
-                warning: reportable/maximum=warning [MissingNullability]
-                error: file/maximum=error [MissingNullability]
-                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
                 warning: file/maximum=warning [MissingNullability]
+                warning: reportable/maximum=warning [MissingNullability]
+                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
+                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
+                error: file/maximum=error [MissingNullability]
+                error: reportable/maximum=error [MissingNullability]
             """
                 .trimIndent(),
             stringWriter.toString().trimEnd()
