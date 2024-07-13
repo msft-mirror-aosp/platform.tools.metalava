@@ -88,23 +88,33 @@ open class BaseItemVisitor(
         afterVisitItem(field)
     }
 
+    override fun visit(constructor: ConstructorItem) {
+        visitMethodOrConstructor(constructor) { visitConstructor(it) }
+    }
+
     override fun visit(method: MethodItem) {
-        if (skip(method)) {
+        visitMethodOrConstructor(method) { visitMethod(it) }
+    }
+
+    private inline fun <T : CallableItem> visitMethodOrConstructor(
+        callable: T,
+        dispatch: (T) -> Unit
+    ) {
+        if (skip(callable)) {
             return
         }
 
-        visitItem(method)
-        if (method.isConstructor()) {
-            visitConstructor(method as ConstructorItem)
-        } else {
-            visitMethod(method)
-        }
+        visitItem(callable)
+        visitCallable(callable)
 
-        for (parameter in method.parameters()) {
+        // Call the specific visitX method for the CallableItem subclass.
+        dispatch(callable)
+
+        for (parameter in callable.parameters()) {
             parameter.accept(this)
         }
 
-        afterVisitItem(method)
+        afterVisitItem(callable)
     }
 
     /**
@@ -174,15 +184,17 @@ open class BaseItemVisitor(
 
     open fun visitClass(cls: ClassItem) {}
 
+    open fun visitCallable(callable: CallableItem) {}
+
     open fun visitConstructor(constructor: ConstructorItem) {
         if (visitConstructorsAsMethods) {
             visitMethod(constructor)
         }
     }
 
-    open fun visitField(field: FieldItem) {}
-
     open fun visitMethod(method: MethodItem) {}
+
+    open fun visitField(field: FieldItem) {}
 
     open fun visitParameter(parameter: ParameterItem) {}
 
