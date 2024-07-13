@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.cli.common.TerminalReportFormatter
-import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
 import com.android.tools.metalava.reporter.Severity.WARNING
@@ -60,8 +58,7 @@ internal class DefaultReporter(
         val warningsAsErrors: Boolean = false,
 
         /** Formats the report suitable for use in a file. */
-        val fileReportFormatter: ReportFormatter =
-            TerminalReportFormatter.forTerminal(plainTerminal),
+        val fileReportFormatter: ReportFormatter = DefaultReportFormatter.DEFAULT,
 
         /** Formats the report for output, e.g. to a terminal. */
         val outputReportFormatter: ReportFormatter = fileReportFormatter,

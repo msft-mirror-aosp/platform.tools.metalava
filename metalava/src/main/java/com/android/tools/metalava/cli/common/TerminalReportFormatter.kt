@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.DefaultReportFormatter
 import com.android.tools.metalava.reporter.Report
 import com.android.tools.metalava.reporter.ReportFormatter
 import com.android.tools.metalava.reporter.Severity
@@ -26,39 +26,30 @@ internal class TerminalReportFormatter
 private constructor(
     /** Whether output should be colorized */
     val terminal: Terminal = plainTerminal,
-) : ReportFormatter {
+) : DefaultReportFormatter() {
 
-    override fun format(report: Report): String {
-        return buildString {
-            val (severity, relativePath, line, message, id) = report
-            append(terminal.attributes(bold = true))
-            relativePath?.let {
-                append(it)
-                if (line > 0) append(":").append(line)
-                append(": ")
+    override fun beginImportantSection(builder: StringBuilder) {
+        builder.append(terminal.attributes(bold = true))
+    }
+
+    override fun beginSeverity(builder: StringBuilder, severity: Severity) {
+        when (severity) {
+            Severity.INFO -> {
+                builder.append(terminal.attributes(foreground = TerminalColor.CYAN))
             }
-            when (severity) {
-                Severity.INFO -> {
-                    append(terminal.attributes(foreground = TerminalColor.CYAN))
-                    append("info: ")
-                }
-                Severity.WARNING,
-                Severity.WARNING_ERROR_WHEN_NEW -> {
-                    append(terminal.attributes(foreground = TerminalColor.YELLOW))
-                    append("warning: ")
-                }
-                Severity.ERROR -> {
-                    append(terminal.attributes(foreground = TerminalColor.RED))
-                    append("error: ")
-                }
-                Severity.INHERIT,
-                Severity.HIDDEN -> {}
+            Severity.WARNING,
+            Severity.WARNING_ERROR_WHEN_NEW -> {
+                builder.append(terminal.attributes(foreground = TerminalColor.YELLOW))
             }
-            append(terminal.reset())
-            append(message)
-            append(severity.messageSuffix)
-            id?.let<Issues.Issue, Unit> { append(" [").append(it.name).append("]") }
+            Severity.ERROR -> {
+                builder.append(terminal.attributes(foreground = TerminalColor.RED))
+            }
+            else -> {}
         }
+    }
+
+    override fun endSeverity(builder: StringBuilder) {
+        builder.append(terminal.reset())
     }
 
     companion object {
