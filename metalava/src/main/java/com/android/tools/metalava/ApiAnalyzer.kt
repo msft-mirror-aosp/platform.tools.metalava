@@ -873,6 +873,7 @@ class ApiAnalyzer(
         packages.accept(
             object :
                 ApiVisitor(
+                    visitConstructorsAsMethods = true,
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
                 override fun visitParameter(parameter: ParameterItem) {

@@ -210,6 +210,7 @@ private constructor(
     config: Config,
 ) :
     ApiVisitor(
+        visitConstructorsAsMethods = true,
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).

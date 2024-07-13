@@ -37,6 +37,7 @@ class AndroidApiChecks(val reporter: Reporter) {
         codebase.accept(
             object :
                 ApiVisitor(
+                    visitConstructorsAsMethods = true,
                     // Sort by source order such that warnings follow source line number order
                     callableComparator = CallableItem.sourceOrderComparator,
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,

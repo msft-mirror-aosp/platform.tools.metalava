@@ -87,10 +87,6 @@ class FilteringApiVisitor(
     config: Config,
 ) :
     ApiVisitor(
-        // The setting of this is irrelevant as that is done in the visitConstructor(...) and
-        // afterVisitConstructor(...) methods and FilteringApiVisitor overrides them. Set it to
-        // false anyway as that is the behavior that this provides.
-        visitConstructorsAsMethods = false,
         preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = inlineInheritedFields,
         callableComparator = callableComparator,

@@ -52,6 +52,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
         codebase.accept(
             object :
                 ApiVisitor(
+                    visitConstructorsAsMethods = true,
                     // Sort by source order such that warnings follow source line number order
                     callableComparator = CallableItem.sourceOrderComparator,
                     // No need to check "for stubs only APIs" (== "implicit" APIs)
