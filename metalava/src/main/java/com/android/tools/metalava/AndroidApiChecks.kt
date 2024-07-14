@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -37,7 +38,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             object :
                 ApiVisitor(
                     // Sort by source order such that warnings follow source line number order
-                    methodComparator = MethodItem.sourceOrderComparator,
+                    callableComparator = CallableItem.sourceOrderComparator,
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
                 override fun skip(item: Item): Boolean {

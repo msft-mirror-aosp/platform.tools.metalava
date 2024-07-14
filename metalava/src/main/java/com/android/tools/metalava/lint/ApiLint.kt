@@ -53,6 +53,7 @@ import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -216,7 +217,7 @@ private constructor(
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
-        methodComparator = MethodItem.sourceOrderComparator,
+        callableComparator = CallableItem.sourceOrderComparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
