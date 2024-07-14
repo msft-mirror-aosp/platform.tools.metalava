@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.MethodItem.Companion.equals
+import com.android.tools.metalava.model.MethodItem.Companion.hashCode
+import com.android.tools.metalava.model.TypeItem.Companion.equals
+import com.android.tools.metalava.model.TypeItem.Companion.hashCode
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -105,7 +109,7 @@ interface Item : Reportable {
      * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
      * references to classes.
      */
-    var documentation: ItemDocumentation
+    val documentation: ItemDocumentation
 
     /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
@@ -126,11 +130,13 @@ interface Item : Reportable {
      * Add the given text to the documentation.
      *
      * If the [tagSection] is null, add the comment to the initial text block of the description.
-     * Otherwise if it is "@return", add the comment to the return value. Otherwise the [tagSection]
-     * is taken to be the parameter name, and the comment added as parameter documentation for the
-     * given parameter.
+     *
+     * If it is "@return", add the comment to the return value.
+     *
+     * Otherwise, the [tagSection] is taken to be the parameter name, and the comment added as
+     * parameter documentation for the given parameter.
      */
-    fun appendDocumentation(comment: String, tagSection: String? = null, append: Boolean = true)
+    fun appendDocumentation(comment: String, tagSection: String? = null)
 
     val isPublic: Boolean
     val isProtected: Boolean
@@ -138,13 +144,30 @@ interface Item : Reportable {
     val isPackagePrivate: Boolean
     val isPrivate: Boolean
 
-    // make sure these are implemented so we can place in maps:
+    /** Calls [equalsToItem]. */
     override fun equals(other: Any?): Boolean
 
+    /** Calls [hashCodeForItem]. */
     override fun hashCode(): Int
 
     /** Calls [toStringForItem]. */
     override fun toString(): String
+
+    /**
+     * Whether this [Item] is equal to [other].
+     *
+     * This is implemented instead of [equals] because interfaces are not allowed to implement
+     * [equals]. Implementations of this will implement [equals] by calling this.
+     */
+    fun equalsToItem(other: Any?): Boolean
+
+    /**
+     * Hashcode for this [Item].
+     *
+     * This is implemented instead of [hashCode] because interfaces are not allowed to implement
+     * [hashCode]. Implementations of this will implement [hashCode] by calling this.
+     */
+    fun hashCodeForItem(): Int
 
     /** Provides a string representation of the item, suitable for use while debugging. */
     fun toStringForItem(): String
@@ -410,10 +433,11 @@ interface Item : Reportable {
     }
 }
 
-abstract class DefaultItem(
+/** Base [Item] implementation that is common to all models. */
+abstract class AbstractItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
-    final override var documentation: ItemDocumentation,
+    final override val documentation: ItemDocumentation,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
 
@@ -428,7 +452,7 @@ abstract class DefaultItem(
      * The leaking of `this` is safe as the implementations do not do access anything that has not
      * been initialized.
      */
-    private val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+    internal val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 
     /**
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
@@ -516,5 +540,61 @@ abstract class DefaultItem(
         }
     }
 
+    final override fun findTagDocumentation(tag: String, value: String?): String? =
+        documentation.findTagDocumentation(tag, value)
+
+    final override fun appendDocumentation(comment: String, tagSection: String?) {
+        if (comment.isBlank()) {
+            return
+        }
+
+        // TODO: Figure out if an annotation should go on the return value, or on the method.
+        // For example; threading: on the method, range: on the return value.
+        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
+
+        if (this is ParameterItem) {
+            // For parameters, the documentation goes into the surrounding method's documentation!
+            // Find the right parameter location!
+            val parameterName = name()
+            val target = containingMethod()
+            target.appendDocumentation(comment, parameterName)
+            return
+        }
+
+        documentation.appendDocumentation(comment, tagSection)
+    }
+
+    final override fun equals(other: Any?) = equalsToItem(other)
+
+    final override fun hashCode() = hashCodeForItem()
+
     final override fun toString() = toStringForItem()
+}
+
+/**
+ * Base class that is common to models that do not incorporate their underlying model, if any, into
+ * their [Item] implementations.
+ */
+abstract class DefaultItem(
+    final override val codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    internal val itemLanguage: ItemLanguage,
+    modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
+) :
+    AbstractItem(
+        fileLocation,
+        modifiers,
+        documentation,
+        variantSelectorsFactory,
+    ) {
+
+    final override fun isJava(): Boolean {
+        return itemLanguage.isJava()
+    }
+
+    final override fun isKotlin(): Boolean {
+        return itemLanguage.isKotlin()
+    }
 }
