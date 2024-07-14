@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -40,7 +41,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.getAttributeValue
-import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.PsiCallableItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
@@ -696,21 +697,26 @@ class DocAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    visitConstructorsAsMethods = true,
                     config = apiVisitorConfig,
                 ) {
-                override fun visitMethod(method: MethodItem) {
+
+                override fun visitCallable(callable: CallableItem) {
                     // Do not add API information to implicit constructor. It is not clear exactly
                     // why this is needed but without it some existing tests break.
                     // TODO(b/302290849): Investigate this further.
-                    if (method is ConstructorItem && method.isImplicitConstructor()) {
+                    if (callable is ConstructorItem && callable.isImplicitConstructor()) {
                         return
                     }
-                    addApiLevelDocumentation(apiLookup.getMethodVersion(method), method)
-                    val methodName = method.name()
-                    val key = "${method.containingClass().qualifiedName()}#$methodName"
-                    elementToSdkExtSinceMap[key]?.let { addApiExtensionsDocumentation(it, method) }
-                    addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(method), method)
+                    addApiLevelDocumentation(apiLookup.getCallableVersion(callable), callable)
+                    val methodName = callable.name()
+                    val key = "${callable.containingClass().qualifiedName()}#$methodName"
+                    elementToSdkExtSinceMap[key]?.let {
+                        addApiExtensionsDocumentation(it, callable)
+                    }
+                    addDeprecatedDocumentation(
+                        apiLookup.getCallableDeprecatedIn(callable),
+                        callable
+                    )
                 }
 
                 override fun visitClass(cls: ClassItem) {
@@ -863,7 +869,7 @@ fun ApiLookup.getClassVersion(cls: ClassItem): Int {
 
 val defaultEvaluator = DefaultJavaEvaluator(null, null)
 
-fun ApiLookup.getMethodVersion(method: MethodItem): Int {
+fun ApiLookup.getCallableVersion(method: CallableItem): Int {
     val containingClass = method.containingClass()
     val owner = containingClass.qualifiedName()
     val desc = method.getApiLookupMethodDescription()
@@ -883,17 +889,17 @@ fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): Int {
     return getClassDeprecatedInVersions(owner).minApiLevel()
 }
 
-fun ApiLookup.getMethodDeprecatedIn(method: MethodItem): Int {
-    val containingClass = method.containingClass()
+fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): Int {
+    val containingClass = callable.containingClass()
     val owner = containingClass.qualifiedName()
-    val desc = method.getApiLookupMethodDescription() ?: return -1
-    return getMethodDeprecatedInVersions(owner, method.name(), desc).minApiLevel()
+    val desc = callable.getApiLookupMethodDescription() ?: return -1
+    return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiLevel()
 }
 
-/** Get the method description suitable for use in [ApiLookup.getMethodVersions]. */
-fun MethodItem.getApiLookupMethodDescription(): String? {
-    val psiMethodItem = this as PsiMethodItem
-    val psiMethod = psiMethodItem.psiMethod
+/** Get the callable description suitable for use in [ApiLookup.getMethodVersions]. */
+fun CallableItem.getApiLookupMethodDescription(): String? {
+    val psiCallableItem = this as PsiCallableItem
+    val psiMethod = psiCallableItem.psiMethod
     return defaultEvaluator.getMethodDescription(
         psiMethod,
         includeName = false,
