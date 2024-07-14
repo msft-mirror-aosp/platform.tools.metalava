@@ -20,7 +20,7 @@ import java.util.Objects
 import java.util.function.Predicate
 
 @MetalavaApi
-interface MethodItem : MemberItem, TypeParameterListOwner {
+interface MethodItem : MemberItem, InheritableItem, TypeParameterListOwner {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
