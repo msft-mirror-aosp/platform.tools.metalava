@@ -37,7 +37,6 @@ class AndroidApiChecks(val reporter: Reporter) {
         codebase.accept(
             object :
                 ApiVisitor(
-                    visitConstructorsAsMethods = true,
                     // Sort by source order such that warnings follow source line number order
                     callableComparator = CallableItem.sourceOrderComparator,
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
@@ -55,16 +54,17 @@ class AndroidApiChecks(val reporter: Reporter) {
                     checkTodos(item)
                 }
 
+                override fun visitCallable(callable: CallableItem) {
+                    checkRequiresPermission(callable)
+                }
+
                 override fun visitMethod(method: MethodItem) {
-                    checkRequiresPermission(method)
-                    if (!method.isConstructor()) {
-                        checkVariable(
-                            method,
-                            "@return",
-                            "Return value of '" + method.name() + "'",
-                            method.returnType()
-                        )
-                    }
+                    checkVariable(
+                        method,
+                        "@return",
+                        "Return value of '" + method.name() + "'",
+                        method.returnType()
+                    )
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -189,10 +189,10 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
     }
 
-    private fun checkRequiresPermission(method: MethodItem) {
-        val text = method.documentation
+    private fun checkRequiresPermission(callable: CallableItem) {
+        val text = callable.documentation
 
-        val annotation = method.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
+        val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         if (annotation != null) {
             for (attribute in annotation.attributes) {
                 var values: List<AnnotationAttributeValue>? = null
@@ -216,9 +216,9 @@ class AndroidApiChecks(val reporter: Reporter) {
                             // Why is that a problem? Sometimes you want to describe
                             // particular use cases.
                             Issues.REQUIRES_PERMISSION,
-                            method,
+                            callable,
                             "Method '" +
-                                method.name() +
+                                callable.name() +
                                 "' documentation mentions permissions already declared by @RequiresPermission"
                         )
                     }
@@ -229,9 +229,9 @@ class AndroidApiChecks(val reporter: Reporter) {
         ) {
             reporter.report(
                 Issues.REQUIRES_PERMISSION,
-                method,
+                callable,
                 "Method '" +
-                    method.name() +
+                    callable.name() +
                     "' documentation mentions permissions without declaring @RequiresPermission"
             )
         }
