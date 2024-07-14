@@ -356,18 +356,17 @@ private constructor(
         val constructors = cls.filteredConstructors(filterReference)
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
-        val allMethods = methods.asSequence() + constructors.asSequence()
+        val allCallables = methods.asSequence() + constructors.asSequence()
         reporter.withContext(cls) {
-            checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
+            checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
         }
     }
 
     override fun visitCallable(callable: CallableItem) {
         reporter.withContext(callable) {
-            val method = callable as MethodItem
-            checkExceptions(method, filterReference)
-            checkContextFirst(method)
-            checkListenerLast(method)
+            checkExceptions(callable, filterReference)
+            checkContextFirst(callable)
+            checkListenerLast(callable)
             checkHasFlaggedApi(callable)
             checkFlaggedApiLiteral(callable)
             val returnType = callable.returnType()
@@ -376,7 +375,7 @@ private constructor(
             for (parameter in callable.parameters()) {
                 checkType(parameter.type(), parameter)
             }
-            checkParameterOrder(method)
+            checkParameterOrder(callable)
         }
     }
 
@@ -421,7 +420,7 @@ private constructor(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
         constructors: Sequence<ConstructorItem>,
-        methodsAndConstructors: Sequence<MethodItem>,
+        callables: Sequence<CallableItem>,
         fields: Sequence<FieldItem>,
         superClass: ClassItem?,
         interfaces: Sequence<TypeItem>
@@ -437,16 +436,16 @@ private constructor(
         checkBuilder(cls, methods, constructors, superClass, interfaces)
         checkAidl(cls, superClass, interfaces)
         checkInternal(cls)
-        checkLayering(cls, methodsAndConstructors, fields)
+        checkLayering(cls, callables, fields)
         checkBooleans(methods)
         checkFlags(fields)
         checkGoogle(cls, methods, fields)
         checkManager(cls, methods, constructors)
         checkStaticUtils(cls, methods, constructors, fields)
-        checkCallbackHandlers(cls, methodsAndConstructors, superClass)
+        checkCallbackHandlers(cls, callables, superClass)
         checkGenericCallbacks(cls, methods, constructors, fields)
         checkResourceNames(cls, fields)
-        checkFiles(methodsAndConstructors)
+        checkFiles(callables)
         checkManagerList(cls, methods)
         checkAbstractInner(cls)
         checkError(cls, superClass)
@@ -897,7 +896,7 @@ private constructor(
     private fun checkParcelable(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
-        constructors: Sequence<MethodItem>,
+        constructors: Sequence<ConstructorItem>,
         fields: Sequence<FieldItem>
     ) {
         if (!cls.implements("android.os.Parcelable")) {
@@ -1384,7 +1383,7 @@ private constructor(
 
     private fun checkLayering(
         cls: ClassItem,
-        methodsAndConstructors: Sequence<MethodItem>,
+        callables: Sequence<CallableItem>,
         fields: Sequence<FieldItem>
     ) {
         fun packageRank(pkg: PackageItem): Int {
@@ -1446,8 +1445,8 @@ private constructor(
             }
         }
 
-        for (method in methodsAndConstructors) {
-            val returnType = method.returnType()
+        for (callable in callables) {
+            val returnType = callable.returnType()
             val returnTypeRank = getTypeRank(returnType)
             if (returnTypeRank != -1 && returnTypeRank < classRank) {
                 report(
@@ -1459,7 +1458,7 @@ private constructor(
                 )
             }
 
-            for (parameter in method.parameters()) {
+            for (parameter in callable.parameters()) {
                 val parameterTypeRank = getTypeRank(parameter.type())
                 if (parameterTypeRank != -1 && parameterTypeRank < classRank) {
                     report(
@@ -1798,14 +1797,14 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
-        for (throwableType in method.filteredThrowsTypes(filterReference)) {
+    private fun checkExceptions(callable: CallableItem, filterReference: Predicate<Item>) {
+        for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
             val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
-                report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
+                report(BANNED_THROW, callable, "Methods must not throw unchecked exceptions")
             } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without
@@ -1817,12 +1816,12 @@ private constructor(
                     "java.lang.Error" -> {
                         report(
                             GENERIC_EXCEPTION,
-                            method,
+                            callable,
                             "Methods must not throw generic exceptions (`$qualifiedName`)"
                         )
                     }
                     "android.os.RemoteException" -> {
-                        when (method.containingClass().qualifiedName()) {
+                        when (callable.containingClass().qualifiedName()) {
                             "android.content.ContentProviderClient",
                             "android.os.Binder",
                             "android.os.IBinder" -> {
@@ -1831,7 +1830,7 @@ private constructor(
                             else -> {
                                 report(
                                     RETHROW_REMOTE_EXCEPTION,
-                                    method,
+                                    callable,
                                     "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
                                 )
                             }
@@ -2138,7 +2137,7 @@ private constructor(
                         }
                     }
                 }
-                is MethodItem -> {
+                is CallableItem -> {
                     if (type.modifiers.isNullable) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -2240,7 +2239,7 @@ private constructor(
 
     private fun checkCallbackHandlers(
         cls: ClassItem,
-        methodsAndConstructors: Sequence<MethodItem>,
+        callables: Sequence<CallableItem>,
         superClass: ClassItem?
     ) {
         fun packageContainsSegment(packageName: String?, segment: String): Boolean {
@@ -2295,10 +2294,10 @@ private constructor(
             }
         }
 
-        val found = mutableMapOf<String, MethodItem>()
-        val byName = mutableMapOf<String, MutableList<MethodItem>>()
-        for (method in methodsAndConstructors) {
-            val name = method.name()
+        val found = mutableMapOf<String, CallableItem>()
+        val byName = mutableMapOf<String, MutableList<CallableItem>>()
+        for (callable in callables) {
+            val name = callable.name()
             if (name.startsWith("unregister")) {
                 continue
             }
@@ -2312,20 +2311,20 @@ private constructor(
             val list =
                 byName[name]
                     ?: run {
-                        val new = mutableListOf<MethodItem>()
+                        val new = mutableListOf<CallableItem>()
                         byName[name] = new
                         new
                     }
-            list.add(method)
+            list.add(callable)
 
-            for (parameter in method.parameters()) {
+            for (parameter in callable.parameters()) {
                 val type = parameter.type().toTypeString()
                 if (
                     type.endsWith("Listener") ||
                         type.endsWith("Callback") ||
                         type.endsWith("Callbacks")
                 ) {
-                    found[name] = method
+                    found[name] = callable
                 }
             }
         }
@@ -2361,10 +2360,11 @@ private constructor(
         }
     }
 
-    private fun checkContextFirst(method: MethodItem) {
-        val parameters = method.parameters()
+    private fun checkContextFirst(callable: CallableItem) {
+        val parameters = callable.parameters()
         // The first parameter for a Kotlin extension method is the receiver
-        val effectivelyFirstParameterPosition = if (method.isExtensionMethod()) 1 else 0
+        val effectivelyFirstParameterPosition =
+            if (callable is MethodItem && callable.isExtensionMethod()) 1 else 0
         val effectivelySecondParameterPosition = effectivelyFirstParameterPosition + 1
         if (parameters.size <= effectivelySecondParameterPosition) return
         val firstParameterTypeString =
@@ -2376,7 +2376,7 @@ private constructor(
                     report(
                         CONTEXT_FIRST,
                         p,
-                        "Context is distinct, so it must be the first argument (method `${method.name()}`)"
+                        "Context is distinct, so it must be the first argument (method `${callable.name()}`)"
                     )
                 }
             }
@@ -2388,15 +2388,15 @@ private constructor(
                     report(
                         CONTEXT_FIRST,
                         p,
-                        "ContentResolver is distinct, so it must be the first argument (method `${method.name()}`)"
+                        "ContentResolver is distinct, so it must be the first argument (method `${callable.name()}`)"
                     )
                 }
             }
         }
     }
 
-    private fun checkListenerLast(method: MethodItem) {
-        val name = method.name()
+    private fun checkListenerLast(callable: CallableItem) {
+        val name = callable.name()
         if (name.contains("Listener") || name.contains("Callback")) {
             return
         }
@@ -2404,10 +2404,10 @@ private constructor(
         // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
         // to Kotlin callers so just ignore it.
         val parameters =
-            if (method.modifiers.isSuspend()) {
-                method.parameters().dropLast(1)
+            if (callable.modifiers.isSuspend()) {
+                callable.parameters().dropLast(1)
             } else {
-                method.parameters()
+                callable.parameters()
             }
         if (parameters.size > 1) {
             var found = false
@@ -2423,7 +2423,7 @@ private constructor(
                     report(
                         LISTENER_LAST,
                         parameter,
-                        "Listeners should always be at end of argument list (method `${method.name()}`)"
+                        "Listeners should always be at end of argument list (method `${callable.name()}`)"
                     )
                 }
             }
@@ -2535,21 +2535,21 @@ private constructor(
         }
     }
 
-    private fun checkFiles(methodsAndConstructors: Sequence<MethodItem>) {
-        var hasFile: MutableSet<MethodItem>? = null
+    private fun checkFiles(callables: Sequence<CallableItem>) {
+        var hasFile: MutableSet<CallableItem>? = null
         var hasStream: MutableSet<String>? = null
-        for (method in methodsAndConstructors) {
-            for (parameter in method.parameters()) {
+        for (callable in callables) {
+            for (parameter in callable.parameters()) {
                 when (parameter.type().toTypeString()) {
                     "java.io.File" -> {
                         val set =
                             hasFile
                                 ?: run {
-                                    val new = mutableSetOf<MethodItem>()
+                                    val new = mutableSetOf<CallableItem>()
                                     hasFile = new
                                     new
                                 }
-                        set.add(method)
+                        set.add(callable)
                     }
                     "java.io.FileDescriptor",
                     "android.os.ParcelFileDescriptor",
@@ -2562,7 +2562,7 @@ private constructor(
                                     hasStream = new
                                     new
                                 }
-                        set.add(method.name())
+                        set.add(callable.name())
                     }
                 }
             }
@@ -3219,18 +3219,18 @@ private constructor(
      * Make sure that any parameters with default values (in Kotlin) come after all required,
      * non-trailing-lambda parameters.
      */
-    private fun checkParameterOrder(method: MethodItem) {
+    private fun checkParameterOrder(callable: CallableItem) {
         // Ignore Java
-        if (!method.isKotlin()) {
+        if (!callable.isKotlin()) {
             return
         }
         // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
         // to Kotlin callers so just ignore it.
         val parameters =
-            if (method.modifiers.isSuspend()) {
-                method.parameters().dropLast(1)
+            if (callable.modifiers.isSuspend()) {
+                callable.parameters().dropLast(1)
             } else {
-                method.parameters()
+                callable.parameters()
             }
         val (optionalParameters, requiredParameters) = parameters.partition { it.hasDefaultValue() }
         if (requiredParameters.isEmpty() || optionalParameters.isEmpty()) return
