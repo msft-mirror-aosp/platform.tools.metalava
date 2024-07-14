@@ -52,16 +52,14 @@ class KotlinInteropChecks(val reporter: Reporter) {
     }
 
     fun checkMethod(method: MethodItem, isKotlin: Boolean = method.isKotlin()) {
-        if (!method.isConstructor()) {
-            if (isKotlin) {
-                ensureDefaultParamsHaveJvmOverloads(method)
-                ensureCompanionJvmStatic(method)
-                ensureExceptionsDocumented(method)
-            } else {
-                ensureMethodNameNotKeyword(method)
-                ensureParameterNamesNotKeywords(method)
-                ensureLambdaLastParameter(method)
-            }
+        if (isKotlin) {
+            ensureDefaultParamsHaveJvmOverloads(method)
+            ensureCompanionJvmStatic(method)
+            ensureExceptionsDocumented(method)
+        } else {
+            ensureMethodNameNotKeyword(method)
+            ensureParameterNamesNotKeywords(method)
+            ensureLambdaLastParameter(method)
         }
     }
 

@@ -387,7 +387,9 @@ private constructor(
                 checkType(parameter.type(), parameter)
             }
             checkParameterOrder(method)
-            kotlinInterop.checkMethod(method)
+            if (!method.isConstructor()) {
+                kotlinInterop.checkMethod(method)
+            }
         }
     }
 
