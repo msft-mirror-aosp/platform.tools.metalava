@@ -18,26 +18,33 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextConstructorItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     name: String,
     containingClass: TextClassItem,
-    modifiers: DefaultModifierList,
+    typeParameterList: TypeParameterList,
     returnType: ClassTypeItem,
-    parameters: List<TextParameterItem>,
-    fileLocation: FileLocation
+    parameterItemsFactory: ParameterItemsFactory,
+    throwsTypes: List<ExceptionTypeItem>,
 ) :
     TextMethodItem(
-        codebase,
-        name,
-        containingClass,
-        modifiers,
-        returnType,
-        parameters,
-        fileLocation
+        codebase = codebase,
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
+        returnType = returnType,
+        parameterItemsFactory = parameterItemsFactory,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
 
@@ -47,27 +54,28 @@ internal class TextConstructorItem(
 
     companion object {
         fun createDefaultConstructor(
-            codebase: TextCodebase,
+            codebase: DefaultCodebase,
             containingClass: TextClassItem,
-            fileLocation: FileLocation,
         ): TextConstructorItem {
-            val name = containingClass.simpleName
-            // The default constructor is package private because while in Java a class without
-            // a constructor has a default public constructor in a signature file a class
-            // without a constructor has no public constructors.
+            val name = containingClass.simpleName()
             val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
-            val item =
+            val ctorItem =
                 TextConstructorItem(
                     codebase = codebase,
+                    // Use the location of the containing class for the implicit default
+                    // constructor.
+                    fileLocation = containingClass.fileLocation,
+                    modifiers = modifiers,
                     name = name,
                     containingClass = containingClass,
-                    modifiers = modifiers,
+                    typeParameterList = TypeParameterList.NONE,
                     returnType = containingClass.type(),
-                    parameters = emptyList(),
-                    fileLocation = fileLocation,
+                    parameterItemsFactory = { emptyList() },
+                    throwsTypes = emptyList(),
                 )
-            return item
+            return ctorItem
         }
     }
 }
