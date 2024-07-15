@@ -31,8 +31,8 @@ import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
@@ -237,7 +237,7 @@ internal open class TurbineCodebaseInitialiser(
             val source = unit.source().source()
             val sourceFile = createTurbineSourceFile(unit)
             val doc = getHeaderComments(source)
-            createPackage(getPackageName(unit), sourceFile, doc.toItemDocumentation())
+            createPackage(getPackageName(unit), sourceFile, doc.toItemDocumentationFactory())
         }
 
         // Secondly, create package items for package.html files.
@@ -268,7 +268,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createPackage(
         name: String,
         sourceFile: TurbineSourceFile?,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
     ): PackageItem {
         codebase.findPackage(name)?.let {
             error("Duplicate package-info.java files found for $name")
@@ -277,7 +277,7 @@ internal open class TurbineCodebaseInitialiser(
         val modifiers = TurbineModifierItem.create(codebase, 0, null)
         val fileLocation = TurbineFileLocation.forTree(sourceFile)
         val turbinePkgItem =
-            itemFactory.createPackageItem(fileLocation, modifiers, documentation, name)
+            itemFactory.createPackageItem(fileLocation, modifiers, documentationFactory, name)
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }
@@ -415,7 +415,7 @@ internal open class TurbineCodebaseInitialiser(
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
-                documentation = getCommentedDoc(documentation),
+                documentationFactory = getCommentedDoc(documentation),
                 source = sourceFile,
                 classKind = getClassKind(cls.kind()),
                 containingClass = containingClassItem,
@@ -748,7 +748,7 @@ internal open class TurbineCodebaseInitialiser(
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldModifierItem,
-                    documentation = getCommentedDoc(documentation),
+                    documentationFactory = getCommentedDoc(documentation),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
@@ -806,7 +806,7 @@ internal open class TurbineCodebaseInitialiser(
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodModifierItem,
-                    documentation = getCommentedDoc(documentation),
+                    documentationFactory = getCommentedDoc(documentation),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -913,7 +913,7 @@ internal open class TurbineCodebaseInitialiser(
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = constructorModifierItem,
-                    documentation = getCommentedDoc(documentation),
+                    documentationFactory = getCommentedDoc(documentation),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -984,7 +984,7 @@ internal open class TurbineCodebaseInitialiser(
         return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
-    private fun getCommentedDoc(doc: String): ItemDocumentation {
+    private fun getCommentedDoc(doc: String): ItemDocumentationFactory {
         return buildString {
                 if (doc != "") {
                     append("/**")
@@ -992,7 +992,7 @@ internal open class TurbineCodebaseInitialiser(
                     append("*/")
                 }
             }
-            .toItemDocumentation()
+            .toItemDocumentationFactory()
     }
 
     private fun createInitialValue(field: FieldInfo): TurbineFieldValue {

@@ -104,8 +104,10 @@ interface ItemDocumentation : CharSequence {
          */
         val NONE_FACTORY: ItemDocumentationFactory = { NONE }
 
-        /** Wrap a [String] in an [ItemDocumentation]. */
-        fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
+        /** Wrap a [String] in an [ItemDocumentationFactory]. */
+        fun String.toItemDocumentationFactory(): ItemDocumentationFactory = {
+            DefaultItemDocumentation(this)
+        }
     }
 
     /** An empty [ItemDocumentation] that can never contain any text. */
