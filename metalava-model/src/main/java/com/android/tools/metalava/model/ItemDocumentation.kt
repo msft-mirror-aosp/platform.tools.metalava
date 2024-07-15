@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+/** A factory that will create an [ItemDocumentation] for a specific [Item]. */
+typealias ItemDocumentationFactory = (Item) -> ItemDocumentation
+
 /**
  * The documentation associated with an [Item].
  *

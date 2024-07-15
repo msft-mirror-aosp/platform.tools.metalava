@@ -38,7 +38,7 @@ abstract class DefaultItem(
     AbstractItem(
         fileLocation,
         modifiers,
-        documentation,
+        { documentation },
         variantSelectorsFactory,
     ) {
 

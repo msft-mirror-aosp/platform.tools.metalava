@@ -37,7 +37,7 @@ internal constructor(
     AbstractItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = { documentation },
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ) {
 

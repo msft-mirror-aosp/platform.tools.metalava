@@ -427,9 +427,17 @@ interface Item : Reportable {
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
-    final override val documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
+
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not do access anything that has not
+     * been initialized.
+     */
+    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
     init {
         @Suppress("LeakingThis")
