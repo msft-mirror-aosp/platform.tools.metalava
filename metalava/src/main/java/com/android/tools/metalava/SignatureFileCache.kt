@@ -19,18 +19,26 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.text.TextCodebase
-import java.io.File
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.text.SignatureFile
 
-private data class CacheKey(val file: File, val classResolver: ClassResolver?)
+private data class CacheKey(
+    val signatureFiles: List<SignatureFile>,
+    val classResolver: ClassResolver?
+)
 
 /** Loads signature files, caching them for reuse where appropriate. */
 class SignatureFileCache(annotationManager: AnnotationManager) {
     private val signatureFileLoader = SignatureFileLoader(annotationManager)
-    private val map = mutableMapOf<CacheKey, TextCodebase>()
+    private val map = mutableMapOf<CacheKey, Codebase>()
 
-    fun load(file: File, classResolver: ClassResolver? = null): TextCodebase {
-        val key = CacheKey(file, classResolver)
-        return map.computeIfAbsent(key) { k -> signatureFileLoader.load(k.file, k.classResolver) }
+    fun load(signatureFile: SignatureFile, classResolver: ClassResolver? = null): Codebase =
+        load(listOf(signatureFile), classResolver)
+
+    fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase {
+        val key = CacheKey(signatureFiles, classResolver)
+        return map.computeIfAbsent(key) { k ->
+            signatureFileLoader.loadFiles(k.signatureFiles, k.classResolver)
+        }
     }
 }

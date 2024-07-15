@@ -16,26 +16,117 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
+import java.net.URLClassLoader
 
 // @AutoService(ModelSuiteRunner::class)
 class TextModelSuiteRunner : ModelSuiteRunner {
 
+    override val providerName = "text"
+
     override val supportedInputFormats = setOf(InputFormat.SIGNATURE)
 
+    override val capabilities: Set<Capability> = setOf()
+
     override fun createCodebaseAndRun(
-        tempDir: File,
-        input: List<TestFile>,
-        test: (Codebase) -> Unit,
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (Codebase) -> Unit
     ) {
-        val signatureFiles = input.map { it.createFile(tempDir) }
-        val codebase = ApiFile.parseApi(signatureFiles)
+        if (inputs.commonSourceDir != null) {
+            error("text model does not support common sources")
+        }
+
+        val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
+        val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
+        val codebase = ApiFile.parseApi(signatureFiles, classResolver = resolver)
         test(codebase)
     }
 
-    override fun toString(): String = "text"
+    override fun toString() = providerName
+}
+
+/**
+ * A [ClassResolver] that is backed by a [URLClassLoader].
+ *
+ * When [resolveClass] is called this will first look in [codebase] to see if the [ClassItem] has
+ * already been loaded, returning it if found. Otherwise, it will look in the [classLoader] to see
+ * if the class exists on the classpath. If it does then it will create a [DefaultClassItem] to
+ * represent it and add it to the [codebase]. Otherwise, it will return `null`.
+ *
+ * The created [DefaultClassItem] is not a complete representation of the class that was found in
+ * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
+ * change in the future.
+ */
+internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
+
+    private val codebase by lazy {
+        TextCodebase(
+            location = jar,
+            annotationManager = noOpAnnotationManager,
+            classResolver = null,
+        )
+    }
+
+    private val classLoader by lazy { URLClassLoader(arrayOf(jar.toURI().toURL()), null) }
+
+    private fun findClassInClassLoader(qualifiedName: String): Class<*>? {
+        var binaryName = qualifiedName
+        do {
+            try {
+                return classLoader.loadClass(binaryName)
+            } catch (e: ClassNotFoundException) {
+                // If the class could not be found then maybe it was a nested class so replace the
+                // last '.' in the name with a $ and try again. If there is no '.' then return.
+                val lastDot = binaryName.lastIndexOf('.')
+                if (lastDot == -1) {
+                    return null
+                } else {
+                    val before = binaryName.substring(0, lastDot)
+                    val after = binaryName.substring(lastDot + 1)
+                    binaryName = "$before\$$after"
+                }
+            }
+        } while (true)
+    }
+
+    override fun resolveClass(erasedName: String): ClassItem? {
+        return codebase.findClass(erasedName)
+            ?: run {
+                val cls = findClassInClassLoader(erasedName) ?: return null
+                val packageName = cls.`package`.name
+
+                val packageItem =
+                    codebase.findPackage(packageName)
+                        ?: codebase.itemFactory
+                            .createPackageItem(qualifiedName = packageName)
+                            .also { newPackageItem -> codebase.addPackage(newPackageItem) }
+
+                codebase.itemFactory
+                    .createClassItem(
+                        fileLocation = FileLocation.UNKNOWN,
+                        modifiers = DefaultModifierList(codebase),
+                        qualifiedName = cls.canonicalName,
+                        classKind = ClassKind.CLASS,
+                        containingClass = null,
+                        typeParameterList = TypeParameterList.NONE,
+                    )
+                    .also { newClassItem ->
+                        codebase.registerClass(newClassItem)
+                        packageItem.addTopClass(newClassItem)
+                    }
+            }
+    }
 }

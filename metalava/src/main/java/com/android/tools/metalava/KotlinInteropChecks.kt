@@ -54,7 +54,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     // Sort by source order such that warnings follow source line number order
                     methodComparator = MethodItem.sourceOrderComparator,
                     // No need to check "for stubs only APIs" (== "implicit" APIs)
-                    includeApisForStubPurposes = false
+                    includeApisForStubPurposes = false,
+                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
                 private var isKotlin = false
 
@@ -103,7 +104,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (exceptions.isEmpty()) {
             return
         }
-        val doc = method.documentation.ifEmpty { method.property?.documentation.orEmpty() }
+        val doc =
+            method.documentation.text.ifEmpty { method.property?.documentation?.text.orEmpty() }
         for (exception in exceptions.sortedBy { it.qualifiedName() }) {
             val checked =
                 !(exception.extends("java.lang.RuntimeException") ||

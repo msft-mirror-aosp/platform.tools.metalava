@@ -92,9 +92,13 @@ class NullabilityAnnotationsValidator(
                     )
             // Visit methods to check their return type, and parameters to check them. Don't visit
             // constructors as we don't want to check their return types. This visits members of
-            // inner classes as well.
+            // nested classes as well.
             topLevelClass.accept(
-                object : ApiVisitor(visitConstructorsAsMethods = false) {
+                object :
+                    ApiVisitor(
+                        visitConstructorsAsMethods = false,
+                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    ) {
 
                     override fun visitMethod(method: MethodItem) {
                         checkItem(method, RETURN_LABEL, method.returnType(), method)
@@ -134,10 +138,6 @@ class NullabilityAnnotationsValidator(
         if (type == null) {
             throw MetalavaCliException("Missing type on $method item $label")
         }
-        if (method.synthetic) {
-            // Don't validate items which don't exist in source such as an enum's valueOf(String)
-            return
-        }
         val annotations = item.modifiers.annotations()
         val nullabilityAnnotations = annotations.filter(this::isAnyNullabilityAnnotation)
         if (nullabilityAnnotations.size > 1) {
@@ -151,7 +151,7 @@ class NullabilityAnnotationsValidator(
     }
 
     private fun isNullFromTypeParam(it: AnnotationItem) =
-        it.qualifiedName?.endsWith("NullFromTypeParam") == true
+        it.qualifiedName.endsWith("NullFromTypeParam")
 
     private fun isAnyNullabilityAnnotation(it: AnnotationItem) =
         it.isNullnessAnnotation() || isNullFromTypeParam(it)

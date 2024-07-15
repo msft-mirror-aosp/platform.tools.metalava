@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.reporter.FileLocation
+import java.nio.file.Path
+
 /**
  * Extracts tokens from a sequence of characters.
  *
@@ -24,12 +27,13 @@ package com.android.tools.metalava.model.text
  * returned as a single token, if requested (e.g. by calling [requireToken] with
  * `parenIsSep=false`).
  */
-internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
-    var position = 0
-    var line = 1
+internal class Tokenizer(private val path: Path, private val buffer: CharArray) :
+    FileLocationTracker {
+    private var position = 0
+    private var line = 1
 
-    fun pos(): SourcePositionInfo {
-        return SourcePositionInfo(fileName, line)
+    override fun fileLocation(): FileLocation {
+        return FileLocation.createLocation(path, line)
     }
 
     private fun eatWhitespace(): Boolean {
@@ -100,7 +104,7 @@ internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
                 val k = buffer[position]
                 if (k == '\n' || k == '\r') {
                     throw ApiParseException(
-                        "Unexpected newline for \" starting at $line in $fileName",
+                        "Unexpected newline for \" starting at $line in $path",
                         this
                     )
                 }
@@ -199,4 +203,17 @@ internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
             return isIdent(token[0])
         }
     }
+}
+
+/**
+ * Interface implemented by [Tokenizer] which keeps track of the [FileLocation] for the current
+ * token.
+ *
+ * This is provided to avoid passing [Tokenizer] to code that might need access to the current
+ * [FileLocation] but does not consume tokens. That makes that code and the [Tokenizer] state easier
+ * to reason about.
+ */
+internal interface FileLocationTracker {
+    /** Get the current [FileLocation]. */
+    fun fileLocation(): FileLocation
 }

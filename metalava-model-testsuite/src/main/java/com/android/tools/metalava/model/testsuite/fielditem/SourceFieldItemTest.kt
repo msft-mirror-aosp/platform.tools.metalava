@@ -21,11 +21,8 @@ import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for [FieldItem.InitialValue]. */
-@RunWith(Parameterized::class)
 class SourceFieldItemTest : BaseModelTest() {
 
     @Test
@@ -229,6 +226,42 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem = classItem.assertField("field")
             assertEquals(null, fieldItem.initialValue(true))
             assertNotNull(fieldItem.initialValue(false))
+        }
+    }
+
+    @Test
+    fun `test duplicate() for fielditem`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** @doconly Some docs here */
+                    public class Test {
+                        public static final int Field = 7;
+                    }
+
+                    /** @hide */
+                    public class Target {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val targetClassItem = codebase.assertClass("test.pkg.Target")
+            val fieldItem = classItem.assertField("Field")
+
+            val duplicateField = fieldItem.duplicate(targetClassItem)
+
+            assertEquals(
+                fieldItem.modifiers.getVisibilityLevel(),
+                duplicateField.modifiers.getVisibilityLevel()
+            )
+            assertEquals(true, fieldItem.modifiers.equivalentTo(duplicateField.modifiers))
+            assertEquals(true, duplicateField.hidden)
+            assertEquals(false, duplicateField.docOnly)
+            assertEquals(fieldItem.type(), duplicateField.type())
+            assertEquals(fieldItem.initialValue(), duplicateField.initialValue())
+            assertEquals(classItem, duplicateField.inheritedFrom)
         }
     }
 }

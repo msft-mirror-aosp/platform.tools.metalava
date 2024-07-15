@@ -17,16 +17,26 @@
 package com.android.tools.metalava.model
 
 @MetalavaApi
-interface TypeParameterItem : ClassItem {
-    @Deprecated(
-        message = "Please use typeBounds() instead.",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
-    )
-    @MetalavaApi
-    fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
+interface TypeParameterItem : Item {
 
-    fun typeBounds(): List<TypeItem>
+    /** The name of the type parameter. */
+    fun name(): String
+
+    /** The [VariableTypeItem] representing the type of this type parameter. */
+    override fun type(): VariableTypeItem
+
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on TypeParameterItem: $this")
+
+    fun typeBounds(): List<BoundsTypeItem>
+
+    /**
+     * Get the erased type of this, i.e. the type that would be used at runtime to represent
+     * something of this type. That is either the first bound (the super class) or
+     * `java.lang.Object` if there are no bounds.
+     */
+    fun asErasedType(): BoundsTypeItem? =
+        typeBounds().firstOrNull() ?: codebase.resolveClass(JAVA_LANG_OBJECT)?.type()
 
     fun isReified(): Boolean
 
@@ -35,7 +45,7 @@ interface TypeParameterItem : ClassItem {
             if (isReified()) {
                 append("reified ")
             }
-            append(simpleName())
+            append(name())
             // If the only bound is Object, omit it because it is implied.
             if (
                 typeBounds().isNotEmpty() && typeBounds().singleOrNull()?.isJavaLangObject() != true
@@ -54,4 +64,47 @@ interface TypeParameterItem : ClassItem {
             }
         }
     }
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name() == other.name()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
+    }
+
+    override fun toStringForItem(): String =
+        if (typeBounds().isEmpty() && !isReified()) name()
+        else
+            buildString {
+                if (isReified()) append("reified ")
+                append(name())
+                if (typeBounds().isNotEmpty()) {
+                    append(" extends ")
+                    typeBounds().joinTo(this, " & ")
+                }
+            }
+
+    // Methods from [Item] that are not needed. They will be removed in a follow-up change.
+    override fun parent() = error("Not needed for TypeParameterItem")
+
+    override val effectivelyDeprecated: Boolean
+        get() = error("Not needed for TypeParameterItem")
+
+    override fun baselineElementId() = error("Not needed for TypeParameterItem")
+
+    override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
+
+    override fun containingPackage() = error("Not needed for TypeParameterItem")
+
+    override fun containingClass() = error("Not needed for TypeParameterItem")
+
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = error("Not needed for TypeParameterItem")
 }

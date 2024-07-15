@@ -44,6 +44,15 @@ interface Codebase {
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
 
+    /**
+     * Resolve a class identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable class, e.g. searching classpath (if
+     * available). That may include fabricating the [ClassItem] from nothing in the case of models
+     * that work with a partial set of classes (like text model).
+     */
+    fun resolveClass(className: String): ClassItem?
+
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
 
@@ -61,20 +70,21 @@ interface Codebase {
         getPackages().accept(visitor)
     }
 
-    /** Creates an annotation item for the given (fully qualified) Java source */
+    /**
+     * Creates an annotation item for the given (fully qualified) Java source.
+     *
+     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
+     */
     fun createAnnotation(
         source: String,
         context: Item? = null,
-    ): AnnotationItem
+    ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing
 
     /** Discards this model */
     fun dispose()
-
-    /** If this codebase was filtered from another codebase, this points to the original */
-    val original: Codebase?
 
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
@@ -90,13 +100,14 @@ data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
 
-abstract class DefaultCodebase(
+const val CLASS_ESTIMATE = 15000
+
+abstract class AbstractCodebase(
     final override var location: File,
     final override var description: String,
-    final override var preFiltered: Boolean,
+    final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
 ) : Codebase {
-    final override var original: Codebase? = null
 
     override fun unsupported(desc: String?): Nothing {
         error(
@@ -105,7 +116,59 @@ abstract class DefaultCodebase(
         )
     }
 
+    final override fun toString() = description
+
     override fun dispose() {
         description += " [disposed]"
+    }
+
+    /** A list of all the classes. Primarily used by [iterateAllClasses]. */
+    private val allClasses: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
+
+    /**
+     * Add a [ClassItem].
+     *
+     * It is the responsibility of the caller to ensure that each [classItem] is not added more than
+     * once.
+     */
+    protected fun addClass(classItem: ClassItem) {
+        allClasses.add(classItem)
+    }
+
+    /**
+     * Iterate over all the [ClassItem]s in the [Codebase].
+     *
+     * If additional classes are added to the [Codebase] by [body], e.g. by resolving a
+     * `ClassTypeItem` to a class on the classpath that was not previously loaded, then they will be
+     * included in the iteration.
+     */
+    fun iterateAllClasses(body: (ClassItem) -> Unit) {
+        // Iterate by index not using an iterator to avoid `ConcurrentModificationException`s.
+        // Limit the first round of iteration to just the classes that were present at the start.
+        var start = 0
+        var end = allClasses.size
+        do {
+            // Iterate over the classes in the selected range, invoking [body] pn each.
+            for (i in start until end) {
+                val classItem = allClasses[i]
+                body(classItem)
+            }
+
+            // Move the range to include all the classes, if any, added during the previous round.
+            start = end
+            end = allClasses.size
+
+            // Repeat until no new classes were added.
+        } while (start < end)
+    }
+
+    /** Iterate over all the classes resolving their super class and interface types. */
+    fun resolveSuperTypes() {
+        iterateAllClasses { classItem ->
+            classItem.superClass()
+            for (interfaceType in classItem.interfaceTypes()) {
+                interfaceType.asClass()
+            }
+        }
     }
 }

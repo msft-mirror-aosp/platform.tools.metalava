@@ -38,10 +38,10 @@ open class AnnotationInfo(
      * If this is null then the annotation is not a nullability annotation, otherwise this
      * determines whether it is nullable or non-null.
      */
-    internal val nullability: Nullability? =
+    internal val typeNullability: TypeNullability? =
         when {
-            isNullableAnnotation(qualifiedName) -> Nullability.NULLABLE
-            isNonNullAnnotation(qualifiedName) -> Nullability.NON_NULL
+            isNullableAnnotation(qualifiedName) -> TypeNullability.NULLABLE
+            isNonNullAnnotation(qualifiedName) -> TypeNullability.NONNULL
             else -> null
         }
 
@@ -54,11 +54,6 @@ open class AnnotationInfo(
 
     open val suppressCompatibility: Boolean
         get() = false
-}
-
-internal enum class Nullability {
-    NULLABLE,
-    NON_NULL,
 }
 
 /**
@@ -86,9 +81,12 @@ enum class ShowOrHide(private val show: Boolean?) {
      * come after [SHOW].
      */
     REVERT_UNSTABLE_API(show = null) {
-        /** If the [revertItem] is not null then reverting will still show this item. */
+        /**
+         * If the [revertItem] is not null and `emit = true`, i.e. is for the API surface currently
+         * being generated, then reverting will still show this item.
+         */
         override fun show(revertItem: Item?): Boolean {
-            return revertItem != null
+            return revertItem != null && revertItem.emit
         }
 
         /** If the [revertItem] is null then reverting will hide this item. */
