@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AbstractItemDocumentation
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -51,7 +53,7 @@ internal class PsiItemDocumentation(
 
     override fun duplicate(item: Item) = PsiItemDocumentation(psi, codebase, extraDocs)
 
-    final override fun findTagDocumentation(tag: String, value: String?): String? {
+    override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {
             return null
         }
@@ -104,6 +106,36 @@ internal class PsiItemDocumentation(
     }
 
     companion object {
+        /**
+         * Get an [ItemDocumentationFactory] for the [psi].
+         *
+         * If [PsiBasedCodebase.allowReadingComments] is `true` then this will return a factory that
+         * creates a [PsiItemDocumentation] instance. If [extraDocs] is not-null then this will
+         * return a factory that will create an [ItemDocumentation] wrapper around [extraDocs],
+         * otherwise it will return [ItemDocumentation.NONE_FACTORY].
+         *
+         * @param psi the underlying element from which the documentation will be retrieved.
+         *   Although this is usually accessible through the [PsiItem.psi] property, that is not
+         *   true within the [ItemDocumentationFactory] as that is called during initialization of
+         *   the [PsiItem] before [PsiItem.psi] has been initialized.
+         */
+        internal fun factory(
+            psi: PsiElement,
+            codebase: PsiBasedCodebase,
+            extraDocs: String? = null,
+        ) =
+            if (codebase.allowReadingComments) {
+                // When reading comments provide full access to them.
+                { PsiItemDocumentation(psi, codebase, extraDocs) }
+            } else {
+                // If extraDocs are provided then they most likely contain documentation for the
+                // package from a `package-info.java` or `package.html` file. Make sure that they
+                // are included in the `ItemDocumentation`, otherwise package hiding will not work.
+                extraDocs?.toItemDocumentationFactory()
+                // Otherwise, there is no documentation to use.
+                ?: ItemDocumentation.NONE_FACTORY
+            }
+
         // Gets the javadoc of the current element
         private fun javadoc(element: PsiElement): String {
             if (element is PsiCompiledElement) {

@@ -105,7 +105,6 @@ internal constructor(
             overviewHtml: String?,
             fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText = javadocAsItemDocumentationFactory(psiPackage, codebase, extraDocs)
             val modifiers = modifiers(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
@@ -118,7 +117,8 @@ internal constructor(
                     codebase = codebase,
                     psiPackage = psiPackage,
                     qualifiedName = qualifiedName,
-                    documentationFactory = commentText,
+                    documentationFactory =
+                        PsiItemDocumentation.factory(psiPackage, codebase, extraDocs),
                     overviewDocumentation = overviewHtml,
                     modifiers = modifiers,
                     fromClassPath = fromClassPath

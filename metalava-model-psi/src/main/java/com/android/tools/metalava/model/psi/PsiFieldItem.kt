@@ -103,7 +103,6 @@ class PsiFieldItem(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val commentText = javadocAsItemDocumentationFactory(psiField, codebase)
             val modifiers = modifiers(codebase, psiField)
 
             val isEnumConstant = psiField is PsiEnumConstant
@@ -133,7 +132,7 @@ class PsiFieldItem(
                 psiField = psiField,
                 containingClass = containingClass,
                 name = name,
-                documentationFactory = commentText,
+                documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 modifiers = modifiers,
                 fieldType = fieldType,
                 isEnumConstant = isEnumConstant,

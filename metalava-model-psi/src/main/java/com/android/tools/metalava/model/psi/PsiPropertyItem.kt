@@ -95,7 +95,6 @@ private constructor(
                     is KtPropertyAccessor -> sourcePsi.property
                     else -> sourcePsi ?: psiMethod
                 }
-            val documentationFactory = javadocAsItemDocumentationFactory(psiElement, codebase)
             val modifiers = modifiers(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
@@ -126,7 +125,7 @@ private constructor(
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = documentationFactory,
+                    documentationFactory = PsiItemDocumentation.factory(psiElement, codebase),
                     modifiers = modifiers,
                     fieldType = type,
                     getter = getter,

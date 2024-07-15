@@ -324,7 +324,6 @@ open class PsiMethodItem(
                 } else {
                     psiMethod.name
                 }
-            val commentText = javadocAsItemDocumentationFactory(psiMethod, codebase)
             val modifiers = modifiers(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
@@ -351,7 +350,7 @@ open class PsiMethodItem(
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = commentText,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
                     returnType = returnType,
                     parameterItemsFactory = { methodItem ->

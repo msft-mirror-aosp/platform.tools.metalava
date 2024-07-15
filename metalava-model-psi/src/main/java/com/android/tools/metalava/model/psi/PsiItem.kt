@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiElement
@@ -70,31 +68,6 @@ internal constructor(
     }
 
     companion object {
-
-        /**
-         * Get the javadoc for the [element] as an [ItemDocumentation] instance.
-         *
-         * If [PsiBasedCodebase.allowReadingComments] is `true` then this will return a factory that
-         * creates a [PsiItemDocumentation] instance. If [extraDocs] is not-null then this will
-         * return a factory that will create an [ItemDocumentation] wrapper around [extraDocs],
-         * otherwise it will return [ItemDocumentation.NONE_FACTORY].
-         */
-        internal fun javadocAsItemDocumentationFactory(
-            element: PsiElement,
-            codebase: PsiBasedCodebase,
-            extraDocs: String? = null,
-        ) =
-            if (codebase.allowReadingComments) {
-                // When reading comments provide full access to them.
-                { PsiItemDocumentation(element, codebase, extraDocs) }
-            } else {
-                // If extraDocs are provided then they most likely contain documentation for the
-                // package from a `package-info.java` or `package.html` file. Make sure that they
-                // are included in the `ItemDocumentation`, otherwise package hiding will not work.
-                extraDocs?.toItemDocumentationFactory()
-                // Otherwise, there is no documentation to use.
-                ?: ItemDocumentation.NONE_FACTORY
-            }
 
         internal fun modifiers(
             codebase: PsiBasedCodebase,

@@ -257,7 +257,6 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadocAsItemDocumentationFactory(psiClass, codebase)
             val modifiers = PsiModifierItem.create(codebase, psiClass)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
@@ -285,7 +284,7 @@ internal constructor(
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
                     hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
-                    documentationFactory = commentText,
+                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )
