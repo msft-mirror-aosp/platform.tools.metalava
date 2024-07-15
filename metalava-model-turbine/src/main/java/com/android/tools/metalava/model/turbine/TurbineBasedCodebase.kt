@@ -16,12 +16,9 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -61,13 +58,6 @@ internal open class TurbineBasedCodebase(
     private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
 
     private lateinit var initializer: TurbineCodebaseInitialiser
-
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        return DefaultAnnotationItem.create(this, source)
-    }
 
     override fun findClass(className: String): ClassItem? {
         return classMap[className]

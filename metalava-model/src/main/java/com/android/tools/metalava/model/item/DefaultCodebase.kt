@@ -17,8 +17,11 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.AbstractCodebase
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.Item
 import java.io.File
 
 /**
@@ -36,4 +39,12 @@ abstract class DefaultCodebase(
         description,
         preFiltered,
         annotationManager,
-    )
+    ) {
+
+    final override fun createAnnotation(
+        source: String,
+        context: Item?,
+    ): AnnotationItem? {
+        return DefaultAnnotationItem.create(this, source)
+    }
+}

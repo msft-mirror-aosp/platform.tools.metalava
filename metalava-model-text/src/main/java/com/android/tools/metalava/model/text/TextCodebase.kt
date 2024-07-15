@@ -16,13 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
@@ -260,13 +258,6 @@ internal class TextCodebase(
 
     override fun findPackage(pkgName: String): DefaultPackageItem? {
         return packagesByName[pkgName]
-    }
-
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        return DefaultAnnotationItem.create(this, source)
     }
 
     override fun unsupported(desc: String?): Nothing {
