@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -52,6 +53,8 @@ open class ComparisonVisitor(
 
     open fun compare(old: ClassItem, new: ClassItem) {}
 
+    open fun compare(old: CallableItem, new: CallableItem) {}
+
     open fun compare(old: ConstructorItem, new: ConstructorItem) {}
 
     open fun compare(old: MethodItem, new: MethodItem) {}
@@ -66,6 +69,8 @@ open class ComparisonVisitor(
 
     open fun added(new: ClassItem) {}
 
+    open fun added(new: CallableItem) {}
+
     open fun added(new: ConstructorItem) {}
 
     open fun added(new: MethodItem) {}
@@ -79,6 +84,8 @@ open class ComparisonVisitor(
     open fun removed(old: PackageItem, from: Item?) {}
 
     open fun removed(old: ClassItem, from: Item?) {}
+
+    open fun removed(old: CallableItem, from: ClassItem?) {}
 
     open fun removed(old: ConstructorItem, from: ClassItem?) {}
 
@@ -307,6 +314,10 @@ class CodebaseComparator(
     private fun dispatchToAdded(visitor: ComparisonVisitor, item: Item) {
         visitor.added(item)
 
+        if (item is CallableItem) {
+            visitor.added(item)
+        }
+
         when (item) {
             is PackageItem -> visitor.added(item)
             is ClassItem -> visitor.added(item)
@@ -405,6 +416,10 @@ class CodebaseComparator(
     private fun dispatchToRemoved(visitor: ComparisonVisitor, item: Item, from: Item?) {
         visitor.removed(item, from)
 
+        if (item is CallableItem) {
+            visitor.removed(item, from as ClassItem?)
+        }
+
         when (item) {
             is PackageItem -> visitor.removed(item, from)
             is ClassItem -> visitor.removed(item, from)
@@ -430,6 +445,10 @@ class CodebaseComparator(
     /** Dispatch to the [Item] specific `compare(...)` method. */
     private fun dispatchToCompare(visitor: ComparisonVisitor, old: Item, new: Item) {
         visitor.compare(old, new)
+
+        if (old is CallableItem) {
+            visitor.compare(old, new as CallableItem)
+        }
 
         when (old) {
             is PackageItem -> visitor.compare(old, new as PackageItem)
