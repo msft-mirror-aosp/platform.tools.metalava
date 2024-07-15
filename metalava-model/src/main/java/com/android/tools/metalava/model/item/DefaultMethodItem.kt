@@ -126,7 +126,7 @@ open class DefaultMethodItem(
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
                 modifiers = modifiers.duplicate(),
-                documentation = documentation.duplicate(),
+                documentation = documentation.duplicate(this),
                 variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
@@ -32,12 +33,12 @@ internal constructor(
     element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
 ) :
     AbstractItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
-        documentationFactory = { documentation },
+        documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ) {
 
@@ -74,12 +75,12 @@ internal constructor(
          *
          * If [allowReadingComments] is `false` then this will return [ItemDocumentation.NONE].
          */
-        internal fun javadocAsItemDocumentation(
+        internal fun javadocAsItemDocumentationFactory(
             element: PsiElement,
             codebase: PsiBasedCodebase,
             extraDocs: String? = null,
-        ): ItemDocumentation {
-            return PsiItemDocumentation(element, codebase, extraDocs)
+        ): ItemDocumentationFactory {
+            return { PsiItemDocumentation(element, codebase, extraDocs) }
         }
 
         internal fun modifiers(

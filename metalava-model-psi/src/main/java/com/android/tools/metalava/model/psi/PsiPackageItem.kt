@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
@@ -30,7 +30,7 @@ internal constructor(
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -38,7 +38,7 @@ internal constructor(
     PsiItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiPackage
     ),
     PackageItem {
@@ -105,7 +105,7 @@ internal constructor(
             overviewHtml: String?,
             fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText = javadocAsItemDocumentation(psiPackage, codebase, extraDocs)
+            val commentText = javadocAsItemDocumentationFactory(psiPackage, codebase, extraDocs)
             val modifiers = modifiers(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
@@ -118,7 +118,7 @@ internal constructor(
                     codebase = codebase,
                     psiPackage = psiPackage,
                     qualifiedName = qualifiedName,
-                    documentation = commentText,
+                    documentationFactory = commentText,
                     overviewDocumentation = overviewHtml,
                     modifiers = modifiers,
                     fromClassPath = fromClassPath

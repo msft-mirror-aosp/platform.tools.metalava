@@ -63,7 +63,7 @@ interface ItemDocumentation : CharSequence {
      *
      * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
      */
-    fun duplicate(): ItemDocumentation
+    fun duplicate(item: Item): ItemDocumentation
 
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
@@ -96,6 +96,14 @@ interface ItemDocumentation : CharSequence {
          */
         val NONE: ItemDocumentation = EmptyItemDocumentation()
 
+        /**
+         * A special [ItemDocumentationFactory] that returns [NONE] which contains no documentation.
+         *
+         * Used where there is no documentation possible, e.g. text model, type parameters,
+         * parameters.
+         */
+        val NONE_FACTORY: ItemDocumentationFactory = { NONE }
+
         /** Wrap a [String] in an [ItemDocumentation]. */
         fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
     }
@@ -115,7 +123,7 @@ interface ItemDocumentation : CharSequence {
             get() = false
 
         // This is ok to share as it is immutable.
-        override fun duplicate() = this
+        override fun duplicate(item: Item) = this
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 
@@ -262,7 +270,7 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
 /** A default [ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
 
-    override fun duplicate() = DefaultItemDocumentation(text)
+    override fun duplicate(item: Item) = DefaultItemDocumentation(text)
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
         TODO("Not yet implemented")

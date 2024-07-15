@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.intellij.psi.PsiMethod
@@ -33,7 +33,7 @@ private constructor(
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     private var fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
     override val setter: PsiMethodItem?,
@@ -43,7 +43,7 @@ private constructor(
     PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiMethod,
         containingClass = containingClass,
         name = name,
@@ -95,7 +95,7 @@ private constructor(
                     is KtPropertyAccessor -> sourcePsi.property
                     else -> sourcePsi ?: psiMethod
                 }
-            val documentation = javadocAsItemDocumentation(psiElement, codebase)
+            val documentationFactory = javadocAsItemDocumentationFactory(psiElement, codebase)
             val modifiers = modifiers(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
@@ -126,7 +126,7 @@ private constructor(
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentation = documentation,
+                    documentationFactory = documentationFactory,
                     modifiers = modifiers,
                     fieldType = type,
                     getter = getter,

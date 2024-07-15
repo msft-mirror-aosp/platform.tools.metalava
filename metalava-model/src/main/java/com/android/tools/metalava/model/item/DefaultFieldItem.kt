@@ -66,7 +66,7 @@ class DefaultFieldItem(
                 itemLanguage = itemLanguage,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers.duplicate(),
-                documentation = documentation.duplicate(),
+                documentation = documentation.duplicate(this),
                 name = name(),
                 containingClass = targetContainingClass,
                 type = type,

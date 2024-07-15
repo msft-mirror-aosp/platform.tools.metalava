@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AbstractItemDocumentation
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
@@ -51,7 +52,7 @@ internal class PsiItemDocumentation(
         return _text
     }
 
-    override fun duplicate() = PsiItemDocumentation(psi, codebase, extraDocs)
+    override fun duplicate(item: Item) = PsiItemDocumentation(psi, codebase, extraDocs)
 
     final override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {
