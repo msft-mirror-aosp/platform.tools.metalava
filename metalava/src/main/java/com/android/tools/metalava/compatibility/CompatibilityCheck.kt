@@ -489,52 +489,110 @@ class CompatibilityCheck(
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
-        val oldReturnType = old.returnType()
-        val newReturnType = new.returnType()
-        if (!new.isConstructor()) {
-            if (!compatibleReturnTypes(oldReturnType, newReturnType)) {
-                // For incompatible type variable changes, include the type bounds in the string.
-                val oldTypeString = describeBounds(oldReturnType)
-                val newTypeString = describeBounds(newReturnType)
-                val message =
-                    "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
-                report(Issues.CHANGED_TYPE, new, message)
+        val oldVisibility = oldModifiers.getVisibilityString()
+        val newVisibility = newModifiers.getVisibilityString()
+        if (oldVisibility != newVisibility) {
+            // Only report issue if the change is a decrease in access; e.g. public -> protected
+            if (!newModifiers.asAccessibleAs(oldModifiers)) {
+                report(
+                    Issues.CHANGED_SCOPE,
+                    new,
+                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
+                )
             }
+        }
 
-            // Annotation methods
-            if (
-                new.containingClass().isAnnotationType() &&
-                    old.containingClass().isAnnotationType() &&
-                    new.defaultValue() != old.defaultValue()
-            ) {
-                val prevValue = old.defaultValue()
-                val prevString =
-                    if (prevValue.isEmpty()) {
-                        "nothing"
-                    } else {
-                        prevValue
-                    }
-
-                val newValue = new.defaultValue()
-                val newString =
-                    if (newValue.isEmpty()) {
-                        "nothing"
-                    } else {
-                        newValue
-                    }
-                val message =
-                    "${describe(
+        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
+            report(
+                Issues.CHANGED_DEPRECATED,
+                new,
+                "${describe(
                     new,
                     capitalize = true
-                )} has changed value from $prevString to $newString"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+            )
+        }
 
-                // Adding a default value to an annotation method is safe
-                val annotationMethodAddingDefaultValue =
-                    new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
-
-                if (!annotationMethodAddingDefaultValue) {
-                    report(Issues.CHANGED_VALUE, new, message)
+        for (throwType in old.throwsTypes()) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.erasedClass ?: continue
+            if (!new.throws(throwableClass.qualifiedName())) {
+                // exclude 'throws' changes to finalize() overrides with no arguments
+                if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
+                    report(
+                        Issues.CHANGED_THROWS,
+                        new,
+                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
+                    )
                 }
+            }
+        }
+
+        for (throwType in new.filteredThrowsTypes(filterReference)) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.erasedClass ?: continue
+            if (!old.throws(throwableClass.qualifiedName())) {
+                // exclude 'throws' changes to finalize() overrides with no arguments
+                if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
+                    val message =
+                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
+                    report(Issues.CHANGED_THROWS, new, message)
+                }
+            }
+        }
+
+        // The following checks are only for methods not constructors.
+        if (new.isConstructor()) return
+
+        val oldReturnType = old.returnType()
+        val newReturnType = new.returnType()
+
+        if (!compatibleReturnTypes(oldReturnType, newReturnType)) {
+            // For incompatible type variable changes, include the type bounds in the string.
+            val oldTypeString = describeBounds(oldReturnType)
+            val newTypeString = describeBounds(newReturnType)
+            val message =
+                "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
+            report(Issues.CHANGED_TYPE, new, message)
+        }
+
+        // Annotation methods
+        if (
+            new.containingClass().isAnnotationType() &&
+                old.containingClass().isAnnotationType() &&
+                new.defaultValue() != old.defaultValue()
+        ) {
+            val prevValue = old.defaultValue()
+            val prevString =
+                if (prevValue.isEmpty()) {
+                    "nothing"
+                } else {
+                    prevValue
+                }
+
+            val newValue = new.defaultValue()
+            val newString =
+                if (newValue.isEmpty()) {
+                    "nothing"
+                } else {
+                    newValue
+                }
+            val message =
+                "${describe(
+                new,
+                capitalize = true
+            )} has changed value from $prevString to $newString"
+
+            // Adding a default value to an annotation method is safe
+            val annotationMethodAddingDefaultValue =
+                new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+
+            if (!annotationMethodAddingDefaultValue) {
+                report(Issues.CHANGED_VALUE, new, message)
             }
         }
 
@@ -614,76 +672,6 @@ class CompatibilityCheck(
                 new,
                 "${describe(new, capitalize = true)} has changed 'static' qualifier"
             )
-        }
-
-        val oldVisibility = oldModifiers.getVisibilityString()
-        val newVisibility = newModifiers.getVisibilityString()
-        if (oldVisibility != newVisibility) {
-            // Only report issue if the change is a decrease in access; e.g. public -> protected
-            if (!newModifiers.asAccessibleAs(oldModifiers)) {
-                report(
-                    Issues.CHANGED_SCOPE,
-                    new,
-                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
-                )
-            }
-        }
-
-        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
-            report(
-                Issues.CHANGED_DEPRECATED,
-                new,
-                "${describe(
-                    new,
-                    capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
-            )
-        }
-
-        /*
-        // see JLS 3 13.4.20 "Adding or deleting a synchronized modifier of a method does not break "
-        // "compatibility with existing binaries."
-        if (oldModifiers.isSynchronized() != newModifiers.isSynchronized()) {
-            report(
-                Errors.CHANGED_SYNCHRONIZED, new,
-                "${describe(
-                    new,
-                    capitalize = true
-                )} has changed 'synchronized' qualifier from ${oldModifiers.isSynchronized()} to ${newModifiers.isSynchronized()}"
-            )
-        }
-        */
-
-        for (throwType in old.throwsTypes()) {
-            // Get the throwable class, if none could be found then it is either because there is an
-            // error in the codebase or the codebase is incomplete, either way reporting an error
-            // would be unhelpful.
-            val throwableClass = throwType.erasedClass ?: continue
-            if (!new.throws(throwableClass.qualifiedName())) {
-                // exclude 'throws' changes to finalize() overrides with no arguments
-                if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
-                    report(
-                        Issues.CHANGED_THROWS,
-                        new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
-                    )
-                }
-            }
-        }
-
-        for (throwType in new.filteredThrowsTypes(filterReference)) {
-            // Get the throwable class, if none could be found then it is either because there is an
-            // error in the codebase or the codebase is incomplete, either way reporting an error
-            // would be unhelpful.
-            val throwableClass = throwType.erasedClass ?: continue
-            if (!old.throws(throwableClass.qualifiedName())) {
-                // exclude 'throws' changes to finalize() overrides with no arguments
-                if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
-                    val message =
-                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
-                    report(Issues.CHANGED_THROWS, new, message)
-                }
-            }
         }
 
         if (new.modifiers.isInline()) {
