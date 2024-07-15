@@ -45,10 +45,7 @@ internal class PsiItemDocumentation(
 
     /** Lazy initializer for [_text]. */
     private fun initializeText(): String {
-        _text =
-            javadoc(psi, codebase.allowReadingComments).let {
-                if (extraDocs != null) it + "\n$extraDocs" else it
-            }
+        _text = javadoc(psi).let { if (extraDocs != null) it + "\n$extraDocs" else it }
         return _text
     }
 
@@ -107,12 +104,8 @@ internal class PsiItemDocumentation(
     }
 
     companion object {
-        // Gets the javadoc of the current element, unless reading comments is
-        // disabled via allowReadingComments
-        private fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
-            if (!allowReadingComments) {
-                return ""
-            }
+        // Gets the javadoc of the current element
+        private fun javadoc(element: PsiElement): String {
             if (element is PsiCompiledElement) {
                 return ""
             }
