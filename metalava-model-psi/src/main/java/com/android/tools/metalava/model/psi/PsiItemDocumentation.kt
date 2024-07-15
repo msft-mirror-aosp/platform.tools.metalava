@@ -31,8 +31,8 @@ import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
+    private val item: PsiItem,
     private val psi: PsiElement,
-    private val codebase: PsiBasedCodebase,
     private val extraDocs: String?,
 ) : AbstractItemDocumentation() {
 
@@ -51,7 +51,7 @@ internal class PsiItemDocumentation(
         return _text
     }
 
-    override fun duplicate(item: Item) = PsiItemDocumentation(psi, codebase, extraDocs)
+    override fun duplicate(item: Item) = PsiItemDocumentation(item as PsiItem, psi, extraDocs)
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {
@@ -64,7 +64,7 @@ internal class PsiItemDocumentation(
         // We can't just use element.docComment here because we may have modified
         // the comment and then the comment snapshot in PSI isn't up to date with our
         // latest changes
-        val docComment = codebase.getComment(text)
+        val docComment = item.codebase.getComment(text)
         val tagComment =
             if (value == null) {
                 docComment.findTagByName(tag)
@@ -100,7 +100,7 @@ internal class PsiItemDocumentation(
 
     override fun findMainDocumentation(): String {
         if (text == "") return text
-        val comment = codebase.getComment(text)
+        val comment = item.codebase.getComment(text)
         val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
         return comment.text.substring(0, end)
     }
@@ -126,7 +126,10 @@ internal class PsiItemDocumentation(
         ) =
             if (codebase.allowReadingComments) {
                 // When reading comments provide full access to them.
-                { PsiItemDocumentation(psi, codebase, extraDocs) }
+                { item ->
+                    val psiItem = item as PsiItem
+                    PsiItemDocumentation(psiItem, psi, extraDocs)
+                }
             } else {
                 // If extraDocs are provided then they most likely contain documentation for the
                 // package from a `package-info.java` or `package.html` file. Make sure that they
