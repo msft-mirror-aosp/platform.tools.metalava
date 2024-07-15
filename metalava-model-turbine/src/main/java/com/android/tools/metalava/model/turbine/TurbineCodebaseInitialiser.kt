@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
@@ -34,9 +35,13 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -325,7 +330,7 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     /** Tries to create a class if not already present in codebase's classmap */
-    internal fun findOrCreateClass(name: String): TurbineClassItem? {
+    internal fun findOrCreateClass(name: String): ClassItem? {
         var classItem = codebase.findClass(name)
 
         if (classItem == null) {
@@ -358,9 +363,9 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createClass(
         sym: ClassSymbol,
-        containingClassItem: TurbineClassItem?,
+        containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
-    ): TurbineClassItem {
+    ): ClassItem {
 
         var cls: TypeBoundClass? = sourceClassMap[sym]
         cls = if (cls != null) cls else envClassMap.get(sym)!!
@@ -409,19 +414,18 @@ internal open class TurbineCodebaseInitialiser(
             )
         val classItem =
             TurbineClassItem(
-                codebase,
-                fileLocation,
-                simpleName,
-                fullName,
-                qualifiedName,
-                sym,
-                modifierItem,
-                getClassKind(cls.kind()),
-                typeParameters,
-                getCommentedDoc(documentation),
-                sourceFile,
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = modifierItem,
+                documentation = getCommentedDoc(documentation),
+                source = sourceFile,
+                classKind = getClassKind(cls.kind()),
+                containingClass = containingClassItem,
+                qualifiedName = qualifiedName,
+                simpleName = simpleName,
+                fullName = fullName,
+                typeParameterList = typeParameters,
             )
-        classItem.containingClass = containingClassItem
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
         // Setup the SuperClass
@@ -452,7 +456,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
-            classItem.containingPackage = pkgItem
+            classItem.setContainingPackage(pkgItem)
             pkgItem.addTopClass(classItem)
         }
 
@@ -699,138 +703,143 @@ internal open class TurbineCodebaseInitialiser(
 
     /** This method sets up the nested class hierarchy. */
     private fun createNestedClasses(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        classItem.nestedClasses =
-            nestedClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
+        for (nestedClassSymbol in nestedClasses) {
+            val nestedClassItem =
+                createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
+            classItem.addNestedClass(nestedClassItem)
+        }
     }
 
     /** This methods creates and sets the fields of a class */
     private fun createFields(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
-        classItem.fields =
-            fields.map { field ->
-                val annotations = createAnnotations(field.annotations())
-                val flags = field.access()
-                val decl = field.decl()
-                val fieldModifierItem =
-                    TurbineModifierItem.create(
-                        codebase,
-                        flags,
-                        annotations,
-                        isDeprecated(javadoc(decl))
-                    )
-                val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
-                val fieldValue = createInitialValue(field)
-                val type =
-                    typeItemFactory.getFieldType(
-                        underlyingType = field.type(),
-                        itemAnnotations = annotations,
-                        isEnumConstant = isEnumConstant,
-                        isFinal = fieldModifierItem.isFinal(),
-                        isInitialValueNonNull = {
-                            // The initial value is non-null if the value is a literal which is not
-                            // null.
-                            fieldValue.initialValue(false) != null
-                        }
-                    )
+        for (field in fields) {
+            val annotations = createAnnotations(field.annotations())
+            val flags = field.access()
+            val decl = field.decl()
+            val fieldModifierItem =
+                TurbineModifierItem.create(
+                    codebase,
+                    flags,
+                    annotations,
+                    isDeprecated(javadoc(decl))
+                )
+            val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
+            val fieldValue = createInitialValue(field)
+            val type =
+                typeItemFactory.getFieldType(
+                    underlyingType = field.type(),
+                    itemAnnotations = annotations,
+                    isEnumConstant = isEnumConstant,
+                    isFinal = fieldModifierItem.isFinal(),
+                    isInitialValueNonNull = {
+                        // The initial value is non-null if the value is a literal which is not
+                        // null.
+                        fieldValue.initialValue(false) != null
+                    }
+                )
 
-                val documentation = javadoc(decl)
-                val fieldItem =
-                    itemFactory.createFieldItem(
-                        fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                        modifiers = fieldModifierItem,
-                        documentation = getCommentedDoc(documentation),
-                        name = field.name(),
-                        containingClass = classItem,
-                        type = type,
-                        isEnumConstant = isEnumConstant,
-                        fieldValue = fieldValue,
-                    )
-                fieldItem
-            }
+            val documentation = javadoc(decl)
+            val fieldItem =
+                itemFactory.createFieldItem(
+                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    modifiers = fieldModifierItem,
+                    documentation = getCommentedDoc(documentation),
+                    name = field.name(),
+                    containingClass = classItem,
+                    type = type,
+                    isEnumConstant = isEnumConstant,
+                    fieldValue = fieldValue,
+                )
+
+            classItem.addField(fieldItem)
+        }
     }
 
     private fun createMethods(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        val methodItems =
-            methods
-                .filter { it.sym().name() != "<init>" }
-                .map { method ->
-                    val annotations = createAnnotations(method.annotations())
-                    val decl: MethDecl? = method.decl()
-                    val methodModifierItem =
-                        TurbineModifierItem.create(
-                            codebase,
-                            method.access(),
-                            annotations,
-                            isDeprecated(javadoc(decl))
-                        )
-                    val name = method.name()
-                    val (typeParams, methodTypeItemFactory) =
-                        createTypeParameters(
-                            method.tyParams(),
-                            enclosingClassTypeItemFactory,
-                            name,
-                        )
-                    val documentation = javadoc(decl)
-                    val defaultValueExpr = getAnnotationDefaultExpression(method)
-                    val defaultValue =
-                        if (method.defaultValue() != null)
-                            extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
-                        else ""
+        for (method in methods) {
+            // Ignore constructors.
+            if (method.sym().name() == "<init>") continue
 
-                    val parameters = method.parameters()
-                    val fingerprint = MethodFingerprint(name, parameters.size)
-                    val isAnnotationElement =
-                        classItem.isAnnotationType() && !methodModifierItem.isStatic()
-                    val returnType =
-                        methodTypeItemFactory.getMethodReturnType(
-                            underlyingReturnType = method.returnType(),
-                            itemAnnotations = methodModifierItem.annotations(),
-                            fingerprint = fingerprint,
-                            isAnnotationElement = isAnnotationElement,
-                        )
+            val annotations = createAnnotations(method.annotations())
+            val decl: MethDecl? = method.decl()
+            val methodModifierItem =
+                TurbineModifierItem.create(
+                    codebase,
+                    method.access(),
+                    annotations,
+                    isDeprecated(javadoc(decl))
+                )
+            val name = method.name()
+            val (typeParams, methodTypeItemFactory) =
+                createTypeParameters(
+                    method.tyParams(),
+                    enclosingClassTypeItemFactory,
+                    name,
+                )
+            val documentation = javadoc(decl)
+            val defaultValueExpr = getAnnotationDefaultExpression(method)
+            val defaultValue =
+                if (method.defaultValue() != null)
+                    extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
+                else ""
 
-                    TurbineMethodItem(
-                        codebase = codebase,
-                        fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                        modifiers = methodModifierItem,
-                        documentation = getCommentedDoc(documentation),
-                        name = name,
-                        containingClass = classItem,
-                        typeParameterList = typeParams,
-                        returnType = returnType,
-                        parameterItemsFactory = { methodItem ->
-                            createParameters(
-                                methodItem,
-                                decl?.params(),
-                                parameters,
-                                methodTypeItemFactory,
-                            )
-                        },
-                        throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
-                        annotationDefault = defaultValue,
-                    )
-                }
-        // Ignore enum synthetic methods
-        classItem.methods = methodItems.filter { !it.isEnumSyntheticMethod() }.toMutableList()
+            val parameters = method.parameters()
+            val fingerprint = MethodFingerprint(name, parameters.size)
+            val isAnnotationElement = classItem.isAnnotationType() && !methodModifierItem.isStatic()
+            val returnType =
+                methodTypeItemFactory.getMethodReturnType(
+                    underlyingReturnType = method.returnType(),
+                    itemAnnotations = methodModifierItem.annotations(),
+                    fingerprint = fingerprint,
+                    isAnnotationElement = isAnnotationElement,
+                )
+
+            val methodItem =
+                itemFactory.createMethodItem(
+                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    modifiers = methodModifierItem,
+                    documentation = getCommentedDoc(documentation),
+                    name = name,
+                    containingClass = classItem,
+                    typeParameterList = typeParams,
+                    returnType = returnType,
+                    parameterItemsFactory = { methodItem ->
+                        createParameters(
+                            methodItem,
+                            decl?.params(),
+                            parameters,
+                            methodTypeItemFactory,
+                        )
+                    },
+                    throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                    annotationDefault = defaultValue,
+                )
+
+            // Ignore enum synthetic methods.
+            if (methodItem.isEnumSyntheticMethod()) continue
+
+            classItem.addMethod(methodItem)
+        }
     }
 
     private fun createParameters(
-        methodItem: TurbineMethodItem,
+        methodItem: MethodItem,
         parameterDecls: List<Tree.VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
-    ): List<TurbineParameterItem> {
+    ): List<ParameterItem> {
         val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total
@@ -858,74 +867,80 @@ internal open class TurbineCodebaseInitialiser(
                 else null
 
             val parameterItem =
-                TurbineParameterItem(
-                    codebase,
+                itemFactory.createParameterItem(
                     TurbineFileLocation.forTree(methodItem.containingClass(), decl),
                     parameterModifierItem,
                     parameter.name(),
+                    { item ->
+                        // Java: Look for @ParameterName annotation
+                        val modifiers = item.modifiers
+                        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
+                        annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
+                    },
                     methodItem,
                     idx,
                     type,
+                    TurbineDefaultValue(parameterModifierItem),
                 )
             parameterItem
         }
     }
 
     private fun createConstructors(
-        classItem: TurbineClassItem,
+        classItem: DefaultClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         var hasImplicitDefaultConstructor = false
-        classItem.constructors =
-            methods
-                .filter { it.sym().name() == "<init>" }
-                .map { constructor ->
-                    val annotations = createAnnotations(constructor.annotations())
-                    val decl: MethDecl? = constructor.decl()
-                    val constructorModifierItem =
-                        TurbineModifierItem.create(
-                            codebase,
-                            constructor.access(),
-                            annotations,
-                            isDeprecated(javadoc(decl))
+        for (constructor in methods) {
+            // Skip real methods.
+            if (constructor.sym().name() != "<init>") continue
+
+            val annotations = createAnnotations(constructor.annotations())
+            val decl: MethDecl? = constructor.decl()
+            val constructorModifierItem =
+                TurbineModifierItem.create(
+                    codebase,
+                    constructor.access(),
+                    annotations,
+                    isDeprecated(javadoc(decl))
+                )
+            val (typeParams, constructorTypeItemFactory) =
+                createTypeParameters(
+                    constructor.tyParams(),
+                    enclosingClassTypeItemFactory,
+                    constructor.name(),
+                )
+            hasImplicitDefaultConstructor =
+                (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
+            val name = classItem.simpleName()
+            val documentation = javadoc(decl)
+            val constructorItem =
+                itemFactory.createConstructorItem(
+                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    modifiers = constructorModifierItem,
+                    documentation = getCommentedDoc(documentation),
+                    // Turbine's Binder gives return type of constructors as void but the
+                    // model expects it to the type of object being created. So, use the
+                    // containing [ClassItem]'s type as the constructor return type.
+                    name = name,
+                    containingClass = classItem,
+                    typeParameterList = typeParams,
+                    returnType = classItem.type(),
+                    parameterItemsFactory = { constructorItem ->
+                        createParameters(
+                            constructorItem,
+                            decl?.params(),
+                            constructor.parameters(),
+                            constructorTypeItemFactory,
                         )
-                    val (typeParams, constructorTypeItemFactory) =
-                        createTypeParameters(
-                            constructor.tyParams(),
-                            enclosingClassTypeItemFactory,
-                            constructor.name(),
-                        )
-                    hasImplicitDefaultConstructor =
-                        (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
-                    val name = classItem.simpleName()
-                    val documentation = javadoc(decl)
-                    val constructorItem =
-                        TurbineConstructorItem(
-                            codebase = codebase,
-                            fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                            modifiers = constructorModifierItem,
-                            documentation = getCommentedDoc(documentation),
-                            // Turbine's Binder gives return type of constructors as void but the
-                            // model expects it to the type of object being created. So, use the
-                            // containing [ClassItem]'s type as the constructor return type.
-                            name = name,
-                            containingClass = classItem,
-                            typeParameters = typeParams,
-                            returnType = classItem.type(),
-                            parameterItemsFactory = { constructorItem ->
-                                createParameters(
-                                    constructorItem,
-                                    decl?.params(),
-                                    constructor.parameters(),
-                                    constructorTypeItemFactory,
-                                )
-                            },
-                            throwsTypes =
-                                getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
-                        )
-                    constructorItem
-                }
+                    },
+                    throwsTypes =
+                        getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
+                )
+
+            classItem.addConstructor(constructorItem)
+        }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
     }
 

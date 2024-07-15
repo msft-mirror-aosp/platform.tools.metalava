@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,37 +14,47 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TextConstructorItem(
+class DefaultConstructorItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
-    containingClass: TextClassItem,
+    containingClass: ClassItem,
     typeParameterList: TypeParameterList,
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
 ) :
-    TextMethodItem(
-        codebase,
-        fileLocation,
-        modifiers,
-        name,
-        containingClass,
-        typeParameterList,
-        returnType,
-        parameterItemsFactory,
-        throwsTypes,
+    DefaultMethodItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = itemLanguage,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = variantSelectorsFactory,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
+        returnType = returnType,
+        parameterItemsFactory = parameterItemsFactory,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
 
@@ -55,20 +65,24 @@ internal class TextConstructorItem(
     companion object {
         fun createDefaultConstructor(
             codebase: DefaultCodebase,
-            containingClass: TextClassItem,
-            fileLocation: FileLocation,
-        ): TextConstructorItem {
-            val name = containingClass.simpleName
-            // The default constructor is package private because while in Java a class without
-            // a constructor has a default public constructor in a signature file a class
-            // without a constructor has no public constructors.
+            itemLanguage: ItemLanguage,
+            variantSelectorsFactory: ApiVariantSelectorsFactory,
+            containingClass: ClassItem,
+        ): ConstructorItem {
+            val name = containingClass.simpleName()
             val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
-            val item =
-                TextConstructorItem(
+            val ctorItem =
+                DefaultConstructorItem(
                     codebase = codebase,
-                    fileLocation = fileLocation,
+                    // Use the location of the containing class for the implicit default
+                    // constructor.
+                    fileLocation = containingClass.fileLocation,
+                    itemLanguage = itemLanguage,
                     modifiers = modifiers,
+                    documentation = ItemDocumentation.NONE,
+                    variantSelectorsFactory = variantSelectorsFactory,
                     name = name,
                     containingClass = containingClass,
                     typeParameterList = TypeParameterList.NONE,
@@ -76,7 +90,7 @@ internal class TextConstructorItem(
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
                 )
-            return item
+            return ctorItem
         }
     }
 }

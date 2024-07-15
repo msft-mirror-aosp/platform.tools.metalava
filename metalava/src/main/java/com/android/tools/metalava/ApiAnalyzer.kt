@@ -94,9 +94,6 @@ class ApiAnalyzer(
          */
         val mergeInclusionAnnotations: List<File> = emptyList(),
 
-        /** Packages to import (if empty, include all) */
-        val stubImportPackages: Set<String> = emptySet(),
-
         /** The filter for all the show annotations. */
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
 
@@ -516,10 +513,11 @@ class ApiAnalyzer(
         }
 
         // We're now left with concrete methods in hidden parents that are implementing methods in
-        // public
-        // interfaces that are listed in this class. Create stubs for them:
+        // public interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
-            val method = cls.inheritMethodFromNonApiAncestor(it)
+            // Copy the method from the hidden class that is not part of the API into the class that
+            // is part of the API.
+            val method = it.duplicate(cls)
             /* Insert comment marker: This is useful for debugging purposes but doesn't
                belong in the stub
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
@@ -611,14 +609,10 @@ class ApiAnalyzer(
         // status of the containing package which would preventing it being propagated correctly
         // onto its contained packages.
         for (pkg in packages.packages) {
-            when {
-                config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                else -> {
-                    val showability = pkg.showability
-                    when {
-                        showability.show() -> pkg.hidden = false
-                        showability.hide() -> pkg.hidden = true
-                    }
+            pkg.showability.let { showability ->
+                when {
+                    showability.show() -> pkg.hidden = false
+                    showability.hide() -> pkg.hidden = true
                 }
             }
             val containingPackage = pkg.containingPackage()
@@ -1107,11 +1101,6 @@ class ApiAnalyzer(
         from: Item,
         usage: String
     ) {
-        if (config.stubImportPackages.contains(cl.containingPackage().qualifiedName())) {
-            // if the package is imported then it does not need stubbing.
-            return
-        }
-
         if (cl.isFromClassPath()) {
             return
         }
@@ -1325,13 +1314,6 @@ class ApiAnalyzer(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.asClass() ?: return
-                    if (
-                        config.stubImportPackages.contains(
-                            asClass.containingPackage().qualifiedName()
-                        )
-                    ) {
-                        return
-                    }
                     if (asClass.isHiddenOrRemoved()) {
                         hiddenClasses.add(asClass)
                     }
