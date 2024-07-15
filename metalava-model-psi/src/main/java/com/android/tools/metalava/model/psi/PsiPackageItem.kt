@@ -106,7 +106,7 @@ internal constructor(
             fromClassPath: Boolean,
         ): PsiPackageItem {
             val commentText = javadocAsItemDocumentation(psiPackage, codebase, extraDocs)
-            val modifiers = modifiers(codebase, psiPackage, commentText)
+            val modifiers = modifiers(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)

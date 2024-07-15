@@ -434,6 +434,10 @@ abstract class AbstractItem(
     init {
         @Suppress("LeakingThis")
         modifiers.owner = this
+
+        if (documentation.contains("@deprecated")) {
+            modifiers.setDeprecated(true)
+        }
     }
 
     /**

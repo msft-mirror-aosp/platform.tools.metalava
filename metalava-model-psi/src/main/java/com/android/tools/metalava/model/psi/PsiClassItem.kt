@@ -258,7 +258,7 @@ internal constructor(
             val classKind = getClassKind(psiClass)
 
             val commentText = javadocAsItemDocumentation(psiClass, codebase)
-            val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiClass)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.

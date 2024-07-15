@@ -81,7 +81,7 @@ private constructor(
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
             val commentText = javadocAsItemDocumentation(psiMethod, codebase)
-            val modifiers = modifiers(codebase, psiMethod, commentText)
+            val modifiers = modifiers(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, constructorTypeItemFactory) =

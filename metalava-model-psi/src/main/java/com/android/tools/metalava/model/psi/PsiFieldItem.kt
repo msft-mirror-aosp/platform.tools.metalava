@@ -104,7 +104,7 @@ class PsiFieldItem(
         ): PsiFieldItem {
             val name = psiField.name
             val commentText = javadocAsItemDocumentation(psiField, codebase)
-            val modifiers = modifiers(codebase, psiField, commentText)
+            val modifiers = modifiers(codebase, psiField)
 
             val isEnumConstant = psiField is PsiEnumConstant
 

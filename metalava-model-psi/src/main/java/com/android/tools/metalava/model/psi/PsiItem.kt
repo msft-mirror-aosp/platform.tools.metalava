@@ -85,9 +85,8 @@ internal constructor(
         internal fun modifiers(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            documentation: ItemDocumentation? = null,
         ): DefaultModifierList {
-            return PsiModifierItem.create(codebase, element, documentation)
+            return PsiModifierItem.create(codebase, element)
         }
     }
 }

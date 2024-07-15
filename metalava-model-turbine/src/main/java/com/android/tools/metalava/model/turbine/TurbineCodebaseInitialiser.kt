@@ -274,7 +274,7 @@ internal open class TurbineCodebaseInitialiser(
             error("Duplicate package-info.java files found for $name")
         }
 
-        val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
+        val modifiers = TurbineModifierItem.create(codebase, 0, null)
         val fileLocation = TurbineFileLocation.forTree(sourceFile)
         val turbinePkgItem =
             itemFactory.createPackageItem(fileLocation, modifiers, documentation, name)
@@ -404,7 +404,6 @@ internal open class TurbineCodebaseInitialiser(
                 codebase,
                 cls.access(),
                 annotations,
-                isDeprecated(documentation)
             )
         val (typeParameters, classTypeItemFactory) =
             createTypeParameters(
@@ -675,7 +674,7 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
         val modifiers =
-            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
+            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()))
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -728,7 +727,6 @@ internal open class TurbineCodebaseInitialiser(
                     codebase,
                     flags,
                     annotations,
-                    isDeprecated(javadoc(decl))
                 )
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
             val fieldValue = createInitialValue(field)
@@ -778,7 +776,6 @@ internal open class TurbineCodebaseInitialiser(
                     codebase,
                     method.access(),
                     annotations,
-                    isDeprecated(javadoc(decl))
                 )
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
@@ -850,7 +847,7 @@ internal open class TurbineCodebaseInitialiser(
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
             val parameterModifierItem =
-                TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
+                TurbineModifierItem.create(codebase, parameter.access(), annotations)
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
@@ -901,7 +898,6 @@ internal open class TurbineCodebaseInitialiser(
                     codebase,
                     constructor.access(),
                     annotations,
-                    isDeprecated(javadoc(decl))
                 )
             val (typeParams, constructorTypeItemFactory) =
                 createTypeParameters(
