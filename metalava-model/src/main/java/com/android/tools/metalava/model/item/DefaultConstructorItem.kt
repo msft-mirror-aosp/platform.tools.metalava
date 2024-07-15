@@ -61,8 +61,6 @@ class DefaultConstructorItem(
 
     override var superConstructor: ConstructorItem? = null
 
-    override fun isConstructor(): Boolean = true
-
     override fun isImplicitConstructor() = implicitConstructor
 
     companion object {

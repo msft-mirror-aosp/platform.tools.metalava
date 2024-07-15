@@ -339,7 +339,7 @@ class CodebaseComparator(
         // class was hidden then the signature file may have listed the method as being
         // declared on the subclass
         val inheritedMethod =
-            if (old is MethodItem && !old.isConstructor() && newParent is ClassItem) {
+            if (old is MethodItem && newParent is ClassItem) {
                 val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
 
                 if (superMethod != null && (filter == null || filter.test(superMethod))) {

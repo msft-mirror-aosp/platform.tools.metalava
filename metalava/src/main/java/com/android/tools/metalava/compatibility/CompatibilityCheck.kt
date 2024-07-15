@@ -900,7 +900,7 @@ class CompatibilityCheck(
         // an abstract method, because method's abstractness affects how users use it.
         // See if there's a member from inherited class
         val inherited =
-            if (new is MethodItem && !new.isConstructor()) {
+            if (new is MethodItem) {
                 new.containingClass()
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
             } else null
@@ -965,7 +965,7 @@ class CompatibilityCheck(
     override fun removed(old: CallableItem, from: ClassItem?) {
         // See if there's a member from inherited class
         val inherited =
-            if (old is MethodItem && !old.isConstructor()) {
+            if (old is MethodItem) {
                 // This can also return self, specially handled below
                 from
                     ?.findMethod(

@@ -65,8 +65,6 @@ private constructor(
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
-    override fun isConstructor(): Boolean = true
-
     override var superConstructor: ConstructorItem? = null
 
     companion object {
