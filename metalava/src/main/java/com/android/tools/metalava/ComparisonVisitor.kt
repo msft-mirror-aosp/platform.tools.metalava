@@ -35,14 +35,7 @@ import java.util.function.Predicate
  * Visitor which visits all items in two matching codebases and matches up the items and invokes
  * [compare] on each pair, or [added] or [removed] when items are not matched
  */
-open class ComparisonVisitor(
-    /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
-     */
-    val visitConstructorsAsMethods: Boolean = true,
-) {
+open class ComparisonVisitor {
     open fun compare(old: Item, new: Item) {}
 
     open fun added(new: Item) {}
@@ -321,19 +314,8 @@ class CodebaseComparator(
         when (item) {
             is PackageItem -> visitor.added(item)
             is ClassItem -> visitor.added(item)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.added(item)
-                } else {
-                    // Overloaded visitor methods: be explicit about which one is being invoked
-                    @Suppress("USELESS_CAST")
-                    if (item is ConstructorItem) {
-                        visitor.added(item as ConstructorItem)
-                    } else {
-                        visitor.added(item as MethodItem)
-                    }
-                }
-            }
+            is ConstructorItem -> visitor.added(item)
+            is MethodItem -> visitor.added(item)
             is FieldItem -> visitor.added(item)
             is ParameterItem -> visitor.added(item)
             is PropertyItem -> visitor.added(item)
@@ -423,19 +405,8 @@ class CodebaseComparator(
         when (item) {
             is PackageItem -> visitor.removed(item, from)
             is ClassItem -> visitor.removed(item, from)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.removed(item, from as ClassItem?)
-                } else {
-                    // Overloaded visitor methods: be explicit about which one is being invoked
-                    @Suppress("USELESS_CAST")
-                    if (item is ConstructorItem) {
-                        visitor.removed(item as ConstructorItem, from as ClassItem?)
-                    } else {
-                        visitor.removed(item as MethodItem, from as ClassItem?)
-                    }
-                }
-            }
+            is ConstructorItem -> visitor.removed(item, from as ClassItem?)
+            is MethodItem -> visitor.removed(item, from as ClassItem?)
             is FieldItem -> visitor.removed(item, from as ClassItem?)
             is ParameterItem -> visitor.removed(item, from as MethodItem?)
             is PropertyItem -> visitor.removed(item, from as ClassItem?)
@@ -453,19 +424,8 @@ class CodebaseComparator(
         when (old) {
             is PackageItem -> visitor.compare(old, new as PackageItem)
             is ClassItem -> visitor.compare(old, new as ClassItem)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.compare(old, new as MethodItem)
-                } else {
-                    // Overloaded visitor methods: be explicit about which one is being invoked
-                    @Suppress("USELESS_CAST")
-                    if (old is ConstructorItem) {
-                        visitor.compare(old as ConstructorItem, new as MethodItem)
-                    } else {
-                        visitor.compare(old as MethodItem, new as MethodItem)
-                    }
-                }
-            }
+            is ConstructorItem -> visitor.compare(old, new as ConstructorItem)
+            is MethodItem -> visitor.compare(old, new as MethodItem)
             is FieldItem -> visitor.compare(old, new as FieldItem)
             is ParameterItem -> visitor.compare(old, new as ParameterItem)
             is PropertyItem -> visitor.compare(old, new as PropertyItem)
