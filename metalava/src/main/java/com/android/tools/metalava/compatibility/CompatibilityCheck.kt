@@ -24,6 +24,7 @@ import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -889,17 +890,23 @@ class CompatibilityCheck(
         handleAdded(error, new)
     }
 
-    override fun added(new: ConstructorItem) {
-        // Treat ConstructorItem as MethodItem
-        added(new as MethodItem)
-    }
+    override fun added(new: CallableItem) {
+        if (new is MethodItem) {
+            // *Overriding* methods from super classes that are outside the
+            // API is OK (e.g. overriding toString() from java.lang.Object)
+            val superMethods = new.superMethods()
+            for (superMethod in superMethods) {
+                if (superMethod.isFromClassPath()) {
+                    return
+                }
+            }
 
-    override fun added(new: MethodItem) {
-        // *Overriding* methods from super classes that are outside the
-        // API is OK (e.g. overriding toString() from java.lang.Object)
-        val superMethods = new.superMethods()
-        for (superMethod in superMethods) {
-            if (superMethod.isFromClassPath()) {
+            // In most cases it is not permitted to add a new method to an interface, even with a
+            // default implementation because it could create ambiguity if client code implements
+            // two interfaces that each now define methods with the same signature.
+            // Annotation types cannot implement other interfaces, however, so it is permitted to
+            // add new default methods to annotation types.
+            if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
                 return
             }
         }
@@ -909,21 +916,10 @@ class CompatibilityCheck(
         // an abstract method, because method's abstractness affects how users use it.
         // See if there's a member from inherited class
         val inherited =
-            if (new.isConstructor()) {
-                null
-            } else {
+            if (new is MethodItem && !new.isConstructor()) {
                 new.containingClass()
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
-            }
-
-        // In most cases it is not permitted to add a new method to an interface, even with a
-        // default implementation because it could could create ambiguity if client code implements
-        // two interfaces that each now define methods with the same signature.
-        // Annotation types cannot implement other interfaces, however, so it is permitted to add
-        // add new default methods to annotation types.
-        if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
-            return
-        }
+            } else null
 
         // It is ok to add a new abstract method to a class that has no public constructors
         if (
@@ -982,25 +978,25 @@ class CompatibilityCheck(
         handleRemoved(error, old)
     }
 
-    override fun removed(old: ConstructorItem, from: ClassItem?) {
-        // Treat ConstructorItem as MethodItem
-        removed(old as MethodItem, from)
-    }
-
-    override fun removed(old: MethodItem, from: ClassItem?) {
+    override fun removed(old: CallableItem, from: ClassItem?) {
         // See if there's a member from inherited class
         val inherited =
-            if (old.isConstructor()) {
-                null
-            } else {
+            if (old is MethodItem && !old.isConstructor()) {
                 // This can also return self, specially handled below
-                from?.findMethod(
-                    old,
-                    includeSuperClasses = true,
-                    includeInterfaces = from.isInterface()
-                )
-            }
-        if (inherited == null || inherited.treatAsRemoved(old)) {
+                from
+                    ?.findMethod(
+                        old,
+                        includeSuperClasses = true,
+                        includeInterfaces = from.isInterface()
+                    )
+                    ?.let {
+                        // If it was inherited but should still be treated as if it was removed then
+                        // pretend that it was not inherited.
+                        if (it.treatAsRemoved(old)) null else it
+                    }
+            } else null
+
+        if (inherited == null) {
             val error =
                 if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
                 else Issues.REMOVED_METHOD
