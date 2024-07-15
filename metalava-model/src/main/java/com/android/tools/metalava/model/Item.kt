@@ -415,6 +415,7 @@ interface Item : Reportable {
 /** Base [Item] implementation that is common to all models. */
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
+    internal val itemLanguage: ItemLanguage,
     final override val modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -444,6 +445,14 @@ abstract class AbstractItem(
      * been initialized.
      */
     internal val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+
+    final override fun isJava(): Boolean {
+        return itemLanguage.isJava()
+    }
+
+    final override fun isKotlin(): Boolean {
+        return itemLanguage.isKotlin()
+    }
 
     /**
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
