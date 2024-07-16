@@ -202,15 +202,9 @@ sealed interface ApiVariantSelectors {
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
 
         override fun inheritInto() {
-            when (item) {
-                is ClassItem,
-                is CallableItem,
-                is FieldItem -> inheritIntoClassOrCallableOrField()
-                else -> error("unexpected item $item of ${item.javaClass}")
-            }
-        }
+            // Inheritance is only done on a few Item types, ignore the rest.
+            if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
-        private fun inheritIntoClassOrCallableOrField() {
             val showability = item.showability
             if (showability.show()) {
                 item.hidden = false
