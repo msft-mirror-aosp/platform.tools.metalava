@@ -374,10 +374,11 @@ private constructor(
                 checkType(parameter.type(), parameter)
             }
             checkParameterOrder(method)
-            if (!callable.isConstructor()) {
-                kotlinInterop.checkMethod(method)
-            }
         }
+    }
+
+    override fun visitMethod(method: MethodItem) {
+        reporter.withContext(method) { kotlinInterop.checkMethod(method) }
     }
 
     override fun visitField(field: FieldItem) {
