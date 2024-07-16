@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.FileLocation
+
 /** Represents the body of a [CallableItem]. */
 interface CallableBody {
 
@@ -25,11 +27,21 @@ interface CallableBody {
      */
     fun findThrownExceptions(): Set<ClassItem>
 
+    /**
+     * Finds the locations within this where a `synchronized` statement may be visible because it
+     * locks either the instance on which the method is called or its class. e.g. `synchronized
+     * (this) {...}` or `synchronized (Class.class)`.
+     */
+    fun findVisiblySynchronizedLocations(): List<FileLocation>
+
     companion object {
         /** Indicates that the model does not provide [CallableBody] instances. */
         val UNAVAILABLE =
             object : CallableBody {
                 override fun findThrownExceptions() = error("method body is unavailable")
+
+                /** Return an empty list as the method body is unavailable. */
+                override fun findVisiblySynchronizedLocations() = emptyList<FileLocation>()
             }
     }
 }

@@ -18,8 +18,17 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.psi.JavaRecursiveElementVisitor
+import com.intellij.psi.PsiClassObjectAccessExpression
+import com.intellij.psi.PsiSynchronizedStatement
+import com.intellij.psi.PsiThisExpression
+import org.jetbrains.uast.UCallExpression
+import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.UQualifiedReferenceExpression
+import org.jetbrains.uast.UThisExpression
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.getParentOfType
@@ -90,5 +99,54 @@ class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
         )
 
         return exceptions
+    }
+
+    override fun findVisiblySynchronizedLocations(): List<FileLocation> {
+        return buildList {
+            val psiMethod = psiMethod
+            if (psiMethod is UMethod) {
+                psiMethod.accept(
+                    object : AbstractUastVisitor() {
+                        override fun afterVisitCallExpression(node: UCallExpression) {
+                            super.afterVisitCallExpression(node)
+
+                            if (node.methodName == "synchronized" && node.receiver == null) {
+                                val arg = node.valueArguments.firstOrNull()
+                                if (
+                                    arg is UThisExpression ||
+                                        arg is UClassLiteralExpression ||
+                                        arg is UQualifiedReferenceExpression &&
+                                            arg.receiver is UClassLiteralExpression
+                                ) {
+                                    val psi = arg.sourcePsi ?: node.sourcePsi ?: node.javaPsi
+                                    add(PsiFileLocation.fromPsiElement(psi))
+                                }
+                            }
+                        }
+                    }
+                )
+            } else {
+                psiMethod.body?.accept(
+                    object : JavaRecursiveElementVisitor() {
+                        override fun visitSynchronizedStatement(
+                            statement: PsiSynchronizedStatement
+                        ) {
+                            super.visitSynchronizedStatement(statement)
+
+                            val lock = statement.lockExpression
+                            if (
+                                lock == null ||
+                                    lock is PsiThisExpression ||
+                                    // locking on any class is visible
+                                    lock is PsiClassObjectAccessExpression
+                            ) {
+                                val psi = lock ?: statement
+                                add(PsiFileLocation.fromPsiElement(psi))
+                            }
+                        }
+                    }
+                )
+            }
+        }
     }
 }
