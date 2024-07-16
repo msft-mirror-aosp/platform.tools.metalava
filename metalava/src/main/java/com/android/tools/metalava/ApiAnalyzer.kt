@@ -664,9 +664,6 @@ class ApiAnalyzer(
                         // class. Doclava does this in PackageInfo.isHidden(). This logic is why it
                         // is necessary to visit packages before visiting any of their classes.
                         cls.containingPackage().hidden = false
-                        if (containingClass != null) {
-                            ensureParentVisible(cls)
-                        }
                     } else if (showability.hide()) {
                         cls.hidden = true
                     } else if (containingClass != null) {
@@ -686,13 +683,14 @@ class ApiAnalyzer(
                             cls.removed = true
                         }
                     }
+
+                    ensureParentIsVisibleIfThisIsVisible(cls)
                 }
 
                 override fun visitCallable(callable: CallableItem) {
                     val showability = callable.showability
                     if (showability.show()) {
                         callable.hidden = false
-                        ensureParentVisible(callable)
                     } else if (showability.hide()) {
                         callable.hidden = true
                     } else {
@@ -715,13 +713,14 @@ class ApiAnalyzer(
                             callable.removed = true
                         }
                     }
+
+                    ensureParentIsVisibleIfThisIsVisible(callable)
                 }
 
                 override fun visitField(field: FieldItem) {
                     val showability = field.showability
                     if (showability.show()) {
                         field.hidden = false
-                        ensureParentVisible(field)
                     } else if (showability.hide()) {
                         field.hidden = true
                     } else {
@@ -740,13 +739,32 @@ class ApiAnalyzer(
                             field.removed = true
                         }
                     }
+
+                    ensureParentIsVisibleIfThisIsVisible(field)
                 }
 
-                private fun ensureParentVisible(item: Item) {
+                private fun ensureParentIsVisibleIfThisIsVisible(item: Item) {
                     val parent = item.parent() ?: return
+
+                    // The only way for a non-package item to be visible when its parent is not is
+                    // for it to have a show annotation, otherwise it will inherit its parent's
+                    // hidden state. So, check that first.
+                    val showability = item.showability
+                    if (!showability.show()) {
+                        return
+                    }
+
+                    // If the item is hidden then it does not matter what the parent's state is.
+                    if (item.hidden) {
+                        return
+                    }
+
+                    // If the parent is visible then everything is fine.
                     if (!parent.hidden) {
                         return
                     }
+
+                    // Otherwise, find a show annotation and report the issue.
                     item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
                         violatingAnnotation ->
                         reporter.report(
