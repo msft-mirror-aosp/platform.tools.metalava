@@ -84,6 +84,13 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         return throwsTypes
     }
 
+    /** Override to specialize return type. */
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ): CallableItem?
+
     override fun baselineElementId() = buildString {
         append(containingClass().qualifiedName())
         append("#")
