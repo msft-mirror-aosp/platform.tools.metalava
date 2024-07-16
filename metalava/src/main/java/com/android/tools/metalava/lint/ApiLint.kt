@@ -183,7 +183,6 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
 import java.io.StringWriter
@@ -1081,20 +1080,30 @@ private constructor(
     }
 
     private fun checkSynchronized(method: MethodItem) {
-        fun reportError(method: MethodItem, psi: PsiElement? = null) {
+
+        /**
+         * Report an error.
+         *
+         * @param synchronizedStatementLocation an optional [FileLocation] of the synchronized
+         *   statement that is the root of the problem.
+         */
+        fun reportError(synchronizedStatementLocation: FileLocation? = null) {
             val message = StringBuilder("Internal locks must not be exposed")
-            if (psi != null) {
+            if (synchronizedStatementLocation != null) {
                 message.append(" (synchronizing on this or class is still externally observable)")
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiFileLocation.fromPsiElement(psi)
+            val location = synchronizedStatementLocation ?: FileLocation.UNKNOWN
             report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
         if (method.modifiers.isSynchronized()) {
-            reportError(method)
+            // The synchronizing is being done implicitly bny the method so there is no more
+            // specific location to provide.
+            reportError()
         } else if (method is PsiMethodItem) {
+            val synchronizedLocations = mutableListOf<FileLocation>()
             val psiMethod = method.psiMethod
             if (psiMethod is UMethod) {
                 psiMethod.accept(
@@ -1110,10 +1119,8 @@ private constructor(
                                         arg is UQualifiedReferenceExpression &&
                                             arg.receiver is UClassLiteralExpression
                                 ) {
-                                    reportError(
-                                        method,
-                                        arg.sourcePsi ?: node.sourcePsi ?: node.javaPsi
-                                    )
+                                    val psi = arg.sourcePsi ?: node.sourcePsi ?: node.javaPsi
+                                    synchronizedLocations.add(PsiFileLocation.fromPsiElement(psi))
                                 }
                             }
                         }
@@ -1134,11 +1141,18 @@ private constructor(
                                     // locking on any class is visible
                                     lock is PsiClassObjectAccessExpression
                             ) {
-                                reportError(method, lock ?: statement)
+                                val psi = lock ?: statement
+                                synchronizedLocations.add(PsiFileLocation.fromPsiElement(psi))
                             }
                         }
                     }
                 )
+            }
+
+            for (location in synchronizedLocations) {
+                // Report the location of the synchronized statement that is synchronizing on
+                // `this` or the `class` object and causing the problem.
+                reportError(location)
             }
         }
     }
