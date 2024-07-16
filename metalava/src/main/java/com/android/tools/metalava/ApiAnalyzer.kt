@@ -610,39 +610,41 @@ class ApiAnalyzer(
         // status of the containing package which would preventing it being propagated correctly
         // onto its contained packages.
         for (pkg in packages.packages) {
-            pkg.showability.let { showability ->
+            val packageSelectors = pkg.variantSelectors
+            packageSelectors.showability.let { showability ->
                 when {
-                    showability.show() -> pkg.hidden = false
-                    showability.hide() -> pkg.hidden = true
+                    showability.show() -> packageSelectors.hidden = false
+                    showability.hide() -> packageSelectors.hidden = true
                 }
             }
-            val containingPackage = pkg.containingPackage()
-            if (containingPackage != null) {
-                if (containingPackage.hidden) {
-                    pkg.hidden = true
+            val containingPackageSelectors = pkg.containingPackage()?.variantSelectors
+            if (containingPackageSelectors != null) {
+                if (containingPackageSelectors.hidden) {
+                    packageSelectors.hidden = true
                 }
-                if (containingPackage.docOnly) {
-                    pkg.docOnly = true
+                if (containingPackageSelectors.docOnly) {
+                    packageSelectors.docOnly = true
                 }
             }
 
             // If this package is hidden then hide its classes. This is done here to avoid ordering
             // issues when a class with a show annotation unhides its containing package.
-            val hidden = pkg.hidden
-            val docOnly = pkg.docOnly
-            val removed = pkg.removed
+            val hidden = packageSelectors.hidden
+            val docOnly = packageSelectors.docOnly
+            val removed = packageSelectors.removed
             if (hidden || docOnly || removed) {
                 for (topLevelClass in pkg.topLevelClasses()) {
-                    val showability = topLevelClass.showability
+                    val classSelectors = topLevelClass.variantSelectors
+                    val showability = classSelectors.showability
                     if (!showability.show() && !showability.hide()) {
                         if (hidden) {
-                            topLevelClass.hidden = true
+                            classSelectors.hidden = true
                         }
                         if (hidden) {
-                            topLevelClass.docOnly = true
+                            classSelectors.docOnly = true
                         }
                         if (removed) {
-                            topLevelClass.removed = true
+                            classSelectors.removed = true
                         }
                     }
                 }
