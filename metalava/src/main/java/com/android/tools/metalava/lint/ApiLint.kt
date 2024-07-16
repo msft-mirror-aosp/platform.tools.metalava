@@ -53,6 +53,7 @@ import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -209,6 +210,7 @@ private constructor(
     config: Config,
 ) :
     ApiVisitor(
+        visitConstructorsAsMethods = true,
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
@@ -216,7 +218,7 @@ private constructor(
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
-        methodComparator = MethodItem.sourceOrderComparator,
+        callableComparator = CallableItem.sourceOrderComparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -385,7 +387,9 @@ private constructor(
                 checkType(parameter.type(), parameter)
             }
             checkParameterOrder(method)
-            kotlinInterop.checkMethod(method)
+            if (!method.isConstructor()) {
+                kotlinInterop.checkMethod(method)
+            }
         }
     }
 
