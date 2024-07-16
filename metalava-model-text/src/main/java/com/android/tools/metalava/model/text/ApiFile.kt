@@ -26,8 +26,8 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -44,6 +44,8 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -595,14 +597,14 @@ private constructor(
             return
         }
 
-        // Create the TextClassItem and set its package but do not add it to the package or
+        // Create the DefaultClassItem and set its package but do not add it to the package or
         // register it.
         val cl =
-            TextClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
+                containingClass = outerClass,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
@@ -626,7 +628,6 @@ private constructor(
         }
 
         cl.setContainingPackage(pkg)
-        cl.containingClass = outerClass
         if (outerClass == null) {
             // Add the class to the package, it will only be added to the TextCodebase once the
             // package body has been parsed.
@@ -672,7 +673,7 @@ private constructor(
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
         for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
-            existingClass.addAnnotation(annotation)
+            existingClass.modifiers.addAnnotation(annotation)
         }
 
         // Use the latest super class.
@@ -702,7 +703,7 @@ private constructor(
     /** Parse the class body, adding members to [cl]. */
     private fun parseClassBody(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
@@ -770,7 +771,7 @@ private constructor(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
-        val outerClass: TextClassItem?,
+        val outerClass: DefaultClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
         /**
@@ -821,7 +822,7 @@ private constructor(
                 // always precedes its nested classes.
                 val outerClass =
                     codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
-                        as TextClassItem
+                        as DefaultClassItem
 
                 val nestedClassName = fullName.substring(nestedClassIndex + 1)
                 Pair(outerClass, nestedClassName)
@@ -981,12 +982,12 @@ private constructor(
 
     private fun parseConstructor(
         tokenizer: Tokenizer,
-        containingClass: TextClassItem,
+        containingClass: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
         var token = startingToken
-        val method: TextConstructorItem
+        val method: ConstructorItem
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
@@ -1021,10 +1022,10 @@ private constructor(
         }
 
         method =
-            TextConstructorItem(
-                codebase = codebase,
+            itemFactory.createConstructorItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterList,
@@ -1033,6 +1034,10 @@ private constructor(
                     createParameterItems(methodItem, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
+                // Signature files do not track implicit constructors, all constructors are treated
+                // the same as whether it was created by the compiler or in the source has no effect
+                // on the API surface.
+                implicitConstructor = false,
             )
         method.markForCurrentApiSurface()
 
@@ -1043,12 +1048,12 @@ private constructor(
 
     private fun parseMethod(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
         var token = startingToken
-        val method: TextMethodItem
+        val method: MethodItem
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
@@ -1127,10 +1132,10 @@ private constructor(
         }
 
         method =
-            TextMethodItem(
-                codebase = codebase,
+            itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = cl,
                 typeParameterList = typeParameterList,
@@ -1156,7 +1161,7 @@ private constructor(
 
     private fun parseField(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String,
         isEnumConstant: Boolean,
@@ -1215,7 +1220,7 @@ private constructor(
             itemFactory.createFieldItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                documentation = ItemDocumentation.NONE,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = cl,
                 type = type,
@@ -1411,7 +1416,7 @@ private constructor(
 
     private fun parseProperty(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
