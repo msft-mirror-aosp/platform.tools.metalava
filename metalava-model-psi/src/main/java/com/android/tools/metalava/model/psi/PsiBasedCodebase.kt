@@ -20,11 +20,11 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -104,7 +104,16 @@ open class PsiBasedCodebase(
     private val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
-) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
+) :
+    AbstractCodebase(
+        location = location,
+        description = description,
+        preFiltered = false,
+        annotationManager = annotationManager,
+        trustedApi = false,
+        supportsDocumentation = true,
+    ),
+    SourceCodebase {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
         get() = uastEnvironment.ideaProject
@@ -143,9 +152,6 @@ open class PsiBasedCodebase(
      */
     private var packageClasses: MutableMap<String, MutableList<PsiClassItem>>? = null
 
-    /** A set of packages to hide */
-    private lateinit var hiddenPackages: MutableMap<String, Boolean?>
-
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
@@ -181,14 +187,7 @@ open class PsiBasedCodebase(
         this.units = psiFiles
 
         this.uastEnvironment = uastEnvironment
-        // there are currently ~230 packages in the public SDK, but here we need to account for
-        // internal ones too
-        val hiddenPackages: MutableSet<String> = packages.hiddenPackages
         val packageDocs = packages.packageDocs
-        this.hiddenPackages = HashMap(100)
-        for (pkgName in hiddenPackages) {
-            this.hiddenPackages[pkgName] = true
-        }
 
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
@@ -242,9 +241,6 @@ open class PsiBasedCodebase(
                         if (comment != null) {
                             val packageName = packageStatement.packageName
                             val text = comment.text
-                            if (text.contains("@hide")) {
-                                this.hiddenPackages[packageName] = true
-                            }
                             if (packageDocs[packageName] != null) {
                                 reporter.report(
                                     Issues.BOTH_PACKAGE_INFO_AND_HTML,
@@ -440,9 +436,6 @@ open class PsiBasedCodebase(
         packageItem.emit = !packageItem.isFromClassPath()
 
         packageMap[pkgName] = packageItem
-        if (isPackageHidden(pkgName)) {
-            packageItem.hidden = true
-        }
 
         sortedClasses?.let { packageItem.addClasses(it) }
         return packageItem
@@ -461,7 +454,6 @@ open class PsiBasedCodebase(
         val facade = JavaPsiFacade.getInstance(project)
         val scope = GlobalSearchScope.allScope(project)
 
-        hiddenPackages = HashMap(100)
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
         packageClasses!![""] = ArrayList()
@@ -530,33 +522,6 @@ open class PsiBasedCodebase(
         }
 
         list.add(cls)
-    }
-
-    private fun isPackageHidden(packageName: String): Boolean {
-        val hidden = hiddenPackages[packageName]
-        if (hidden == true) {
-            return true
-        } else if (hidden == null) {
-            // Compute for all prefixes of this package
-            var pkg = packageName
-            while (true) {
-                if (hiddenPackages[pkg] != null) {
-                    hiddenPackages[packageName] = hiddenPackages[pkg]
-                    if (hiddenPackages[pkg] == true) {
-                        return true
-                    }
-                }
-                val last = pkg.lastIndexOf('.')
-                if (last == -1) {
-                    hiddenPackages[packageName] = false
-                    break
-                } else {
-                    pkg = pkg.substring(0, last)
-                }
-            }
-        }
-
-        return false
     }
 
     /**
@@ -763,8 +728,8 @@ open class PsiBasedCodebase(
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
-    internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
-        getFactory().createDocCommentFromText(string, parent)
+    internal fun getComment(documentation: String, parent: PsiElement? = null): PsiDocComment =
+        getFactory().createDocCommentFromText(documentation, parent)
 
     private fun getPackageName(clz: PsiClass): String {
         var top: PsiClass? = clz
@@ -888,14 +853,10 @@ open class PsiBasedCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): AnnotationItem {
+    ): AnnotationItem? {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
-
-    override fun supportsDocumentation(): Boolean = true
-
-    override fun toString(): String = description
 
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
     internal fun registerClass(classItem: PsiClassItem) {
@@ -905,7 +866,7 @@ open class PsiBasedCodebase(
             reporter.report(
                 Issues.DUPLICATE_SOURCE_CLASS,
                 classItem,
-                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.issueLocation.path}"
+                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.fileLocation.path}"
             )
             return
         }

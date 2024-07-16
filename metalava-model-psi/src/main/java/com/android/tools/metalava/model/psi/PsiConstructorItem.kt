@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
@@ -39,8 +41,8 @@ private constructor(
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
-    parameters: List<PsiParameterItem>,
+    documentationFactory: ItemDocumentationFactory,
+    parameterItemsFactory: ParameterItemsFactory,
     returnType: ClassTypeItem,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
@@ -50,13 +52,13 @@ private constructor(
     PsiMethodItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         psiMethod = psiMethod,
         fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
         returnType = returnType,
-        parameters = parameters,
+        parameterItemsFactory = parameterItemsFactory,
         typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
     ),
@@ -79,8 +81,7 @@ private constructor(
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
-            val commentText = javadoc(psiMethod, codebase.allowReadingComments)
-            val modifiers = modifiers(codebase, psiMethod, commentText)
+            val modifiers = modifiers(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, constructorTypeItemFactory) =
@@ -90,16 +91,17 @@ private constructor(
                     "constructor $name",
                     psiMethod
                 )
-            val parameters = parameterList(codebase, psiMethod, constructorTypeItemFactory)
             val constructor =
                 PsiConstructorItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentation = commentText,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
-                    parameters = parameters,
+                    parameterItemsFactory = { methodItem ->
+                        parameterList(methodItem, constructorTypeItemFactory)
+                    },
                     returnType = containingClass.type(),
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
@@ -130,9 +132,9 @@ private constructor(
                     fileLocation = containingClass.fileLocation,
                     containingClass = containingClass,
                     name = name,
-                    documentation = "",
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     modifiers = modifiers,
-                    parameters = emptyList(),
+                    parameterItemsFactory = { emptyList() },
                     returnType = containingClass.type(),
                     implicitConstructor = true,
                     typeParameterList = TypeParameterList.NONE,

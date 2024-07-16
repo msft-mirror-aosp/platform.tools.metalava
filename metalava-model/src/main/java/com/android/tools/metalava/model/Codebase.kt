@@ -70,20 +70,21 @@ interface Codebase {
         getPackages().accept(visitor)
     }
 
-    /** Creates an annotation item for the given (fully qualified) Java source */
+    /**
+     * Creates an annotation item for the given (fully qualified) Java source.
+     *
+     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
+     */
     fun createAnnotation(
         source: String,
         context: Item? = null,
-    ): AnnotationItem
+    ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing
 
     /** Discards this model */
     fun dispose()
-
-    /** If this codebase was filtered from another codebase, this points to the original */
-    val original: Codebase?
 
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
@@ -101,13 +102,18 @@ object UnsetMinSdkVersion : MinSdkVersion()
 
 const val CLASS_ESTIMATE = 15000
 
-abstract class DefaultCodebase(
+abstract class AbstractCodebase(
     final override var location: File,
     final override var description: String,
     final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
+    private val trustedApi: Boolean,
+    private val supportsDocumentation: Boolean,
 ) : Codebase {
-    final override var original: Codebase? = null
+
+    final override fun trustedApi() = trustedApi
+
+    final override fun supportsDocumentation() = supportsDocumentation
 
     override fun unsupported(desc: String?): Nothing {
         error(
@@ -115,6 +121,8 @@ abstract class DefaultCodebase(
                 ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
         )
     }
+
+    final override fun toString() = description
 
     override fun dispose() {
         description += " [disposed]"

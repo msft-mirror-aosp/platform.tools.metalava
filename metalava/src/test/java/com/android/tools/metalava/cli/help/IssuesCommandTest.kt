@@ -39,6 +39,7 @@ Available Issues                             |  Category                |   Defa
   ActionValue                                |  api_lint                |   error
   AddSealed                                  |  compatibility           |   error
   AddedAbstractMethod                        |  compatibility           |   error
+  AddedAnnotation                            |  compatibility           |   error
   AddedClass                                 |  compatibility           |   hidden
   AddedField                                 |  compatibility           |   hidden
   AddedFinal                                 |  compatibility           |   error
@@ -94,7 +95,6 @@ Available Issues                             |  Category                |   Defa
   EqualsAndHashCode                          |  api_lint                |   error
   ExceptionName                              |  api_lint                |   error
   ExecutorRegistration                       |  api_lint                |   warning
-  ExpectedPlatformType                       |  unknown                 |   hidden
   ExtendsDeprecated                          |  unknown                 |   hidden
   ExtendsError                               |  api_lint                |   error
   FlaggedApiLiteral                          |  api_lint                |   warning_error_when_new
@@ -177,6 +177,7 @@ Available Issues                             |  Category                |   Defa
   ReferencesDeprecated                       |  unknown                 |   hidden
   ReferencesHidden                           |  unknown                 |   error
   RegistrationName                           |  api_lint                |   error
+  RemovedAnnotation                          |  compatibility           |   error
   RemovedClass                               |  compatibility           |   error
   RemovedDeprecatedClass                     |  compatibility           |   inherit
   RemovedDeprecatedField                     |  compatibility           |   inherit

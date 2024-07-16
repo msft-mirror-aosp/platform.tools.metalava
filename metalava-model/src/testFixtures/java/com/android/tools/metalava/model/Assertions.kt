@@ -60,9 +60,12 @@ interface Assertions {
 
     /** Get the constructor from the [ClassItem], failing if it does not exist. */
     fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
-        val methodItem = findMethod(simpleName(), parameters)
-        assertNotNull(methodItem, message = "Expected ${simpleName()}($parameters) to be defined")
-        return assertIs(methodItem)
+        val constructorItem = findConstructor(parameters)
+        assertNotNull(
+            constructorItem,
+            message = "Expected ${simpleName()}($parameters) to be defined"
+        )
+        return assertIs(constructorItem)
     }
 
     /** Get the property from the [ClassItem], failing if it does not exist. */
@@ -80,11 +83,8 @@ interface Assertions {
     }
 
     /**
-     * Check the [Item.originallyDeprecated] and [Item.deprecated] are [explicitlyDeprecated] and
-     * [implicitlyDeprecated] respectively.
-     *
-     * This will also check that the [Item.deprecated] is the same as [Item.effectivelyDeprecated]
-     * to ensure consistency while replacing the former with the latter.
+     * Check the [Item.originallyDeprecated] and [Item.effectivelyDeprecated] are
+     * [explicitlyDeprecated] and [implicitlyDeprecated] respectively.
      */
     private fun Item.assertDeprecatedStatus(
         explicitlyDeprecated: Boolean,
@@ -95,7 +95,6 @@ interface Assertions {
             originallyDeprecated,
             message = "$this: originallyDeprecated"
         )
-        assertEquals(implicitlyDeprecated, deprecated, message = "$this: deprecated")
         assertEquals(
             implicitlyDeprecated,
             effectivelyDeprecated,
@@ -145,7 +144,7 @@ interface Assertions {
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */
     fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
+        return modifiers.annotations.map { it.qualifiedName }
     }
 
     /** Get the list of fully qualified annotation names associated with the [Item]. */

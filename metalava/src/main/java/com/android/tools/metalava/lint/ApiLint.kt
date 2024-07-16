@@ -53,12 +53,15 @@ import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -73,11 +76,11 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiLocationProvider
+import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
-import com.android.tools.metalava.reporter.IssueLocation
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
@@ -207,6 +210,7 @@ private constructor(
     config: Config,
 ) :
     ApiVisitor(
+        visitConstructorsAsMethods = true,
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
@@ -214,7 +218,7 @@ private constructor(
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
-        methodComparator = MethodItem.sourceOrderComparator,
+        callableComparator = CallableItem.sourceOrderComparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -226,7 +230,7 @@ private constructor(
             id: Issue,
             reportable: Reportable?,
             message: String,
-            location: IssueLocation,
+            location: FileLocation,
             maximumSeverity: Severity,
         ): Boolean {
             // The [Severity] used may be limited by the [Item] on which it is reported.
@@ -254,7 +258,7 @@ private constructor(
 
                 // With show annotations we might be flagging API that is filtered out: hide these
                 // here
-                val testItem = if (item is ParameterItem) item.containingMethod() else item
+                val testItem = if (item is ParameterItem) item.containingCallable() else item
                 if (!filterEmit.test(testItem)) {
                     return false
                 }
@@ -348,7 +352,7 @@ private constructor(
         id: Issue,
         item: Item,
         message: String,
-        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
+        location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
         reporter.report(id, item, message, location, maximumSeverity)
@@ -383,7 +387,9 @@ private constructor(
                 checkType(parameter.type(), parameter)
             }
             checkParameterOrder(method)
-            kotlinInterop.checkMethod(method)
+            if (!method.isConstructor()) {
+                kotlinInterop.checkMethod(method)
+            }
         }
     }
 
@@ -1082,7 +1088,7 @@ private constructor(
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiLocationProvider.elementToIssueLocation(psi)
+            val location = PsiFileLocation.fromPsiElement(psi)
             report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
@@ -1716,8 +1722,8 @@ private constructor(
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
                 is ParameterItem ->
                     item
-                        .containingMethod()
-                        .findPredicateSuperMethod(filterReference)
+                        .possibleContainingMethod()
+                        ?.findPredicateSuperMethod(filterReference)
                         ?.parameters()
                         ?.find { it.parameterIndex == item.parameterIndex }
                 else -> null
@@ -2030,7 +2036,14 @@ private constructor(
         // Check the deprecated status, if it has changed
         val previousDeprecated = previousItem.effectivelyDeprecated
         val currentDeprecated = currentItem.effectivelyDeprecated
-        if (currentDeprecated != previousDeprecated) {
+        if (
+            currentDeprecated != previousDeprecated &&
+                currentItem.originallyDeprecated != previousItem.originallyDeprecated
+        ) {
+            val location =
+                if (currentItem.originallyDeprecated)
+                    currentItem.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.fileLocation
+                else null
             fun deprecatedStatus(b: Boolean): String {
                 return if (b) "deprecated" else "not deprecated"
             }
@@ -2040,7 +2053,8 @@ private constructor(
                 UNFLAGGED_API,
                 currentItem,
                 "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
+                location = location ?: FileLocation.UNKNOWN,
+                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
             )
             // Reporting the same issue on the same Item is pointless as the first report will
             // update the baseline and so suppress the second report so return immediately.
@@ -2071,19 +2085,19 @@ private constructor(
         val itemType = item.type() ?: return
         val inherited =
             when (item) {
-                is ParameterItem -> item.containingMethod().inheritedFromAncestor
-                is FieldItem -> item.inheritedFromAncestor
-                is MethodItem -> item.inheritedFromAncestor
+                is ParameterItem -> item.possibleContainingMethod()?.inheritedFromAncestor == true
+                is InheritableItem -> item.inheritedFromAncestor
                 else -> false
             }
         val superItems =
             when (item) {
                 is ParameterItem ->
-                    item.containingMethod().superMethods().mapNotNull {
+                    item.possibleContainingMethod()?.superMethods()?.mapNotNull {
                         it.parameters().find { param ->
                             item.parameterIndex == param.parameterIndex
                         }
                     }
+                        ?: emptyList()
                 is MethodItem -> item.superMethods()
                 else -> emptyList()
             }
@@ -2148,7 +2162,7 @@ private constructor(
             when (item) {
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
-                    if (item.containingMethod().isConstructor()) return
+                    if (item.containingCallable().isConstructor()) return
                     if (type.modifiers.isNonNull) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -2197,7 +2211,7 @@ private constructor(
         return any { type ->
             // Variable types have been excluded from the check because of previous inconsistency
             // in modeling their nullability.
-            type !is VariableTypeItem && type.modifiers.nullability() == nullability
+            type !is VariableTypeItem && type.modifiers.nullability == nullability
         }
     }
 
@@ -3302,7 +3316,7 @@ private constructor(
         getter: MethodItem,
         setter: MethodItem
     ) {
-        if (getterType.modifiers.nullability() != setterType.modifiers.nullability()) {
+        if (getterType.modifiers.nullability != setterType.modifiers.nullability) {
             val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
             val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
             report(
@@ -3497,7 +3511,8 @@ private constructor(
         private fun isServiceDumpMethod(item: Item) =
             when (item) {
                 is MethodItem -> isServiceDumpMethod(item)
-                is ParameterItem -> isServiceDumpMethod(item.containingMethod())
+                is ParameterItem -> item.possibleContainingMethod()?.let { isServiceDumpMethod(it) }
+                        ?: false
                 else -> false
             }
 

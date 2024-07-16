@@ -18,7 +18,6 @@ package com.android.tools.metalava.compatibility
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ANDROID_SYSTEM_API
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
@@ -36,6 +35,7 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -346,8 +346,8 @@ class CompatibilityCheckTest : DriverTest() {
                 released-api.txt:3: error: Removed class test.pkg.FacetProvider [RemovedInterface]
                 released-api.txt:6: error: Removed class test.pkg.FacetProviderAdapter [RemovedInterface]
                 src/test/pkg/FacetProviderAdapterImpl.java:6: error: Attempted to remove nullability from test.pkg.FacetProvider (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.getFacetProvider(int) [InvalidNullConversion]
-                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove nullability from java.lang.Object (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
                 src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove nullability from java.lang.Class<?> (was NULLABLE) in parameter facetClass in test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?> facetClass) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove nullability from java.lang.Object (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
             """
         )
     }
@@ -1049,9 +1049,10 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    suppressLintSource
+                    suppressLintSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation")
         )
     }
 
@@ -1060,9 +1061,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/ExportedProperty.java:15: error: Method test.pkg.ExportedProperty.category has changed value from "" to nothing [ChangedValue]
-                src/test/pkg/ExportedProperty.java:14: error: Method test.pkg.ExportedProperty.floating has changed value from 1.0f to 1.1f [ChangedValue]
                 src/test/pkg/ExportedProperty.java:13: error: Method test.pkg.ExportedProperty.prefix has changed value from "" to "hello" [ChangedValue]
+                src/test/pkg/ExportedProperty.java:14: error: Method test.pkg.ExportedProperty.floating has changed value from 1.0f to 1.1f [ChangedValue]
+                src/test/pkg/ExportedProperty.java:15: error: Method test.pkg.ExportedProperty.category has changed value from "" to nothing [ChangedValue]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1196,8 +1197,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
                 released-api.txt:4: error: Removed constructor test.pkg.Class1() [RemovedMethod]
+                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2029,14 +2030,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2077,14 +2078,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2094,103 +2095,6 @@ class CompatibilityCheckTest : DriverTest() {
                     method public abstract void onGrantDefaultRoles();
                     method public final void sendNetworkScore();
                     field public static final int APP_RETURN_UNWANTED = 1;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Incompatible changes to released API signature codebase`() {
-        // Incompatible changes to a released System API should be detected
-        // in case of partial files
-        check(
-            expectedIssues =
-                """
-                released-api.txt:6: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
-                """,
-            signatureSource =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1();
-                  }
-                }
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1();
-                    method public void method2();
-                    method public void method3();
-                  }
-                }
-                """,
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method3();
-                  }
-                }
-                """,
-        )
-    }
-
-    @Test
-    fun `Partial text file which adds methods to show-annotation API`() {
-        // This happens in system and test files where we only include APIs that differ
-        // from the base IDE. When parsing these code bases we need to gracefully handle
-        // references to inner classes.
-        check(
-            includeSystemApiAnnotations = true,
-            expectedIssues =
-                """
-                released-api.txt:5: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package android.rolecontrollerservice;
-
-                    public class Service {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                        """
-                    package android.rolecontrollerservice;
-                    import android.annotation.SystemApi;
-
-                    /** @hide */
-                    @SystemApi
-                    public abstract class RoleControllerService extends Service {
-                        public abstract void onGrantDefaultRoles();
-                    }
-                    """
-                    ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package android.rolecontrollerservice {
-                  public abstract class RoleControllerService extends android.rolecontrollerservice.Service {
-                    ctor public RoleControllerService();
-                    method public abstract void onClearRoleHolders();
                   }
                 }
                 """
@@ -2233,7 +2137,9 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    testApiSource
+                    testApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -2245,11 +2151,6 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.view {
@@ -2271,12 +2172,12 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
                 released-api.txt:4: error: Removed constructor test.pkg.Class1() [RemovedMethod]
-                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
-                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
                 released-api.txt:15: error: Removed class test.pkg.MyOldClass [RemovedClass]
                 released-api.txt:18: error: Removed package test.pkg3 [RemovedPackage]
+                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
+                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2361,9 +2262,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:7: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
                 released-api.txt:4: error: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
                 released-api.txt:5: error: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
+                released-api.txt:7: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2390,84 +2291,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 )
-        )
-    }
-
-    @Test
-    fun `Test check release with base api`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class SomeClass {
-                      method public static void publicMethodA();
-                      method public static void publicMethodB();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class SomeClass {
-                      public static void publicMethodA();
-                    }
-                    """
-                    )
-                ),
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public class SomeClass {
-                      method public static void publicMethodB();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Test check a class moving from the released api to the base api`() {
-        check(
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class SomeClass1 {
-                    method public void method1();
-                  }
-                  public class SomeClass2 {
-                    method public void oldMethod();
-                  }
-                }
-                """,
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public class SomeClass2 {
-                    method public void newMethod();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class SomeClass1 {
-                        public void method1();
-                    }
-                    """
-                    )
-                ),
-            expectedIssues =
-                """
-            released-api.txt:7: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
-            """
-                    .trimIndent()
         )
     }
 
@@ -2685,14 +2508,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -2742,14 +2565,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -2995,14 +2818,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues =
                 """
@@ -3047,8 +2870,8 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 src/android/foobar/Foo.java:8: error: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
                 src/android/foobar/Foo.java:8: error: Constructor android.foobar.Foo.Nested has added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
                 src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
                 """
         )
     }
@@ -3085,14 +2908,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = """
                 """
@@ -3448,9 +3271,10 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -3591,8 +3415,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:12: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
                 load-api.txt:9: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
+                load-api.txt:12: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -3729,8 +3553,8 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/JavaInterface.java:4: error: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
-                src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
                 src/test/pkg/KotlinInterface.kt:4: error: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -3802,18 +3626,18 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:12: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:14: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:13: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
                 load-api.txt:3: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
                 load-api.txt:4: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:8: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:5: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
                 load-api.txt:6: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
                 load-api.txt:7: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:11: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:8: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
                 load-api.txt:9: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
                 load-api.txt:10: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:11: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:12: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:13: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:14: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
             """
                     .trimIndent(),
             signatureSource =
@@ -4421,24 +4245,24 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 error: Method test.pkg.MyCollection.add has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
                 error: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
-                load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
-                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
                 error: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
                 error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray [ParameterNameChange]
+                load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
+                load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
+                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
+                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 """,
             checkCompatibilityApiReleased =
                 """

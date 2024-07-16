@@ -29,10 +29,17 @@ interface ParameterItem : Item {
         superMethods: Boolean,
         duplicate: Boolean,
     ) =
-        containingMethod()
+        containingCallable()
             .findCorrespondingItemIn(codebase, superMethods = superMethods, duplicate = duplicate)
             ?.parameters()
             ?.getOrNull(parameterIndex)
+
+    /** The containing callable. */
+    fun containingCallable(): CallableItem = containingMethod()
+
+    /** The possible containing method, returns null if this is a constructor parameter. */
+    fun possibleContainingMethod(): MethodItem? =
+        containingCallable().let { if (it.isConstructor()) null else it as MethodItem }
 
     /** The containing method */
     fun containingMethod(): MethodItem
@@ -96,6 +103,33 @@ interface ParameterItem : Item {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    /**
+     * Create a duplicate of this for [containingMethod].
+     *
+     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
+     * [TypeItem.convertType].
+     *
+     * This is called from within the constructor of the [containingMethod] so must only access its
+     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
+     * property as this is called during its initialization.
+     */
+    fun duplicate(
+        containingMethod: MethodItem,
+        typeVariableMap: TypeParameterBindings,
+    ): ParameterItem
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ParameterItem) return false
+
+        return parameterIndex == other.parameterIndex &&
+            containingMethod() == other.containingMethod()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
     }
 
     override fun toStringForItem() = "parameter ${name()}"
