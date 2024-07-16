@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -30,12 +31,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UThrowExpression
-import org.jetbrains.uast.UTryExpression
-import org.jetbrains.uast.getParentOfType
-import org.jetbrains.uast.visitor.AbstractUastVisitor
 
 /**
  * A lamda that given a [CallableItem] will create a list of [ParameterItem]s for it.
@@ -82,6 +78,8 @@ abstract class PsiCallableItem(
      */
     @Suppress("LeakingThis") protected val parameters = parameterItemsFactory(this)
 
+    override val body: CallableBody = PsiCallableBody(this)
+
     override fun returnType(): TypeItem = returnType
 
     override fun setType(type: TypeItem) {
@@ -93,58 +91,6 @@ abstract class PsiCallableItem(
     override fun psi() = psiMethod
 
     override fun throwsTypes() = throwsTypes
-
-    override fun findThrownExceptions(): Set<ClassItem> {
-        val method = psiMethod as? UMethod ?: return emptySet()
-        if (!isKotlin()) {
-            return emptySet()
-        }
-
-        val exceptions = mutableSetOf<ClassItem>()
-
-        method.accept(
-            object : AbstractUastVisitor() {
-                override fun visitThrowExpression(node: UThrowExpression): Boolean {
-                    val type = node.thrownExpression.getExpressionType()
-                    if (type != null) {
-                        val typeItemFactory =
-                            codebase.globalTypeItemFactory.from(this@PsiCallableItem)
-                        val exceptionClass = typeItemFactory.getType(type).asClass()
-                        if (exceptionClass != null && !isCaught(exceptionClass, node)) {
-                            exceptions.add(exceptionClass)
-                        }
-                    }
-                    return super.visitThrowExpression(node)
-                }
-
-                private fun isCaught(exceptionClass: ClassItem, node: UThrowExpression): Boolean {
-                    var current: UElement = node
-                    while (true) {
-                        val tryExpression =
-                            current.getParentOfType<UTryExpression>(
-                                UTryExpression::class.java,
-                                true,
-                                UMethod::class.java
-                            )
-                                ?: return false
-
-                        for (catchClause in tryExpression.catchClauses) {
-                            for (type in catchClause.types) {
-                                val qualifiedName = type.canonicalText
-                                if (exceptionClass.extends(qualifiedName)) {
-                                    return true
-                                }
-                            }
-                        }
-
-                        current = tryExpression
-                    }
-                }
-            }
-        )
-
-        return exceptions
-    }
 
     internal fun areAllParametersOptional(): Boolean {
         for (param in parameters) {

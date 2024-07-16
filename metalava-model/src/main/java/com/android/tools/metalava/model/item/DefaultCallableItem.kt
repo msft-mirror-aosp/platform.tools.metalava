@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -86,4 +87,8 @@ abstract class DefaultCallableItem(
     final override fun parameters(): List<ParameterItem> = parameters
 
     final override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
+
+    /** Default callables do not currently have a body. */
+    override val body
+        get() = CallableBody.UNAVAILABLE
 }
