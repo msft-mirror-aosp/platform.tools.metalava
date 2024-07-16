@@ -76,7 +76,6 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
@@ -3227,8 +3226,8 @@ private constructor(
      * non-trailing-lambda parameters.
      */
     private fun checkParameterOrder(method: MethodItem) {
-        // Ignore Java / non-PSI backed MethodItems
-        if (!method.isKotlin() || method !is PsiMethodItem) {
+        // Ignore Java
+        if (!method.isKotlin()) {
             return
         }
         // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible

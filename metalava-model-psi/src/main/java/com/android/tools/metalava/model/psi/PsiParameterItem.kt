@@ -245,19 +245,7 @@ internal constructor(
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }
 
-    /**
-     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
-     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
-     * syntax.
-     *
-     * Specifically this will attempt to handle the follow cases:
-     * - Java SAM interface = true
-     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
-     * - Kotlin fun interface = true
-     * - Kotlin lambda = true
-     * - Any other type = false
-     */
-    fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
         // Method is defined in Java source
         if (isJava()) {
             // Check the parameter type to see if it is defined in Kotlin or not.
