@@ -271,9 +271,10 @@ internal class StubWriter(
 
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
     if (config.includeDocumentationInStubs) {
-        val documentation = item.fullyQualifiedDocumentation()
-        if (documentation.isNotBlank()) {
-            val trimmed = trimDocIndent(documentation)
+        val documentation = item.documentation
+        val text = documentation.fullyQualifiedDocumentation()
+        if (text.isNotBlank()) {
+            val trimmed = trimDocIndent(text)
             val output = revertDocumentationDeprecationChange(item, trimmed)
             writer.println(output)
             writer.println()

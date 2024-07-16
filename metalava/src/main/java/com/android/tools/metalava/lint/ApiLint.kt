@@ -58,6 +58,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
@@ -255,7 +256,7 @@ private constructor(
 
                 // With show annotations we might be flagging API that is filtered out: hide these
                 // here
-                val testItem = if (item is ParameterItem) item.containingMethod() else item
+                val testItem = if (item is ParameterItem) item.containingCallable() else item
                 if (!filterEmit.test(testItem)) {
                     return false
                 }
@@ -1717,8 +1718,8 @@ private constructor(
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
                 is ParameterItem ->
                     item
-                        .containingMethod()
-                        .findPredicateSuperMethod(filterReference)
+                        .possibleContainingMethod()
+                        ?.findPredicateSuperMethod(filterReference)
                         ?.parameters()
                         ?.find { it.parameterIndex == item.parameterIndex }
                 else -> null
@@ -2080,19 +2081,19 @@ private constructor(
         val itemType = item.type() ?: return
         val inherited =
             when (item) {
-                is ParameterItem -> item.containingMethod().inheritedFromAncestor
-                is FieldItem -> item.inheritedFromAncestor
-                is MethodItem -> item.inheritedFromAncestor
+                is ParameterItem -> item.possibleContainingMethod()?.inheritedFromAncestor == true
+                is InheritableItem -> item.inheritedFromAncestor
                 else -> false
             }
         val superItems =
             when (item) {
                 is ParameterItem ->
-                    item.containingMethod().superMethods().mapNotNull {
+                    item.possibleContainingMethod()?.superMethods()?.mapNotNull {
                         it.parameters().find { param ->
                             item.parameterIndex == param.parameterIndex
                         }
                     }
+                        ?: emptyList()
                 is MethodItem -> item.superMethods()
                 else -> emptyList()
             }
@@ -2157,7 +2158,7 @@ private constructor(
             when (item) {
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
-                    if (item.containingMethod().isConstructor()) return
+                    if (item.containingCallable().isConstructor()) return
                     if (type.modifiers.isNonNull) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -3506,7 +3507,8 @@ private constructor(
         private fun isServiceDumpMethod(item: Item) =
             when (item) {
                 is MethodItem -> isServiceDumpMethod(item)
-                is ParameterItem -> isServiceDumpMethod(item.containingMethod())
+                is ParameterItem -> item.possibleContainingMethod()?.let { isServiceDumpMethod(it) }
+                        ?: false
                 else -> false
             }
 

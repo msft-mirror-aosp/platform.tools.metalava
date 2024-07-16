@@ -107,7 +107,13 @@ abstract class AbstractCodebase(
     final override var description: String,
     final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
+    private val trustedApi: Boolean,
+    private val supportsDocumentation: Boolean,
 ) : Codebase {
+
+    final override fun trustedApi() = trustedApi
+
+    final override fun supportsDocumentation() = supportsDocumentation
 
     override fun unsupported(desc: String?): Nothing {
         error(
