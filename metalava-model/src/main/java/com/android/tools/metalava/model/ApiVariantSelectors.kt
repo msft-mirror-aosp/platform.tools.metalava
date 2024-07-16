@@ -204,13 +204,13 @@ sealed interface ApiVariantSelectors {
         override fun inheritInto() {
             when (item) {
                 is ClassItem,
-                is CallableItem -> inheritIntoClassOrCallable()
-                is FieldItem -> inheritIntoField()
+                is CallableItem,
+                is FieldItem -> inheritIntoClassOrCallableOrField()
                 else -> error("unexpected item $item of ${item.javaClass}")
             }
         }
 
-        private fun inheritIntoClassOrCallable() {
+        private fun inheritIntoClassOrCallableOrField() {
             val showability = item.showability
             if (showability.show()) {
                 item.hidden = false
@@ -225,7 +225,9 @@ sealed interface ApiVariantSelectors {
                 item.hidden = true
             } else {
                 val containingClass = item.containingClass() ?: return
-                if (containingClass.hidden) {
+
+                // FieldItem does not inherit hidden status from its containing class.
+                if (item !is FieldItem && containingClass.hidden) {
                     item.hidden = true
                 } else if (
                     containingClass.originallyHidden &&
@@ -234,33 +236,6 @@ sealed interface ApiVariantSelectors {
                     // This is a member in a class that was hidden but then unhidden; but it was
                     // unhidden by a non-recursive (single) show annotation, so don't inherit the
                     // show annotation into this item.
-                    item.hidden = true
-                }
-                if (containingClass.docOnly) {
-                    item.docOnly = true
-                }
-                if (containingClass.removed) {
-                    item.removed = true
-                }
-            }
-        }
-
-        private fun inheritIntoField() {
-            // Smart cast item to FieldItem for the body of this method.
-            item as FieldItem
-
-            val showability = item.showability
-            if (showability.show()) {
-                item.hidden = false
-            } else if (showability.hide()) {
-                item.hidden = true
-            } else {
-                val containingClass = item.containingClass()
-                if (
-                    containingClass.originallyHidden &&
-                        containingClass.showability.showNonRecursive()
-                ) {
-                    // See explanation in inheritIntoClassOrCallable
                     item.hidden = true
                 }
                 if (containingClass.docOnly) {
