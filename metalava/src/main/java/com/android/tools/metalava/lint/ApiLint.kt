@@ -365,7 +365,11 @@ private constructor(
     override fun visitCallable(callable: CallableItem) {
         reporter.withContext(callable) {
             val method = callable as MethodItem
-            checkMethod(method, filterReference)
+            checkExceptions(method, filterReference)
+            checkContextFirst(method)
+            checkListenerLast(method)
+            checkHasFlaggedApi(callable)
+            checkFlaggedApiLiteral(callable)
             val returnType = callable.returnType()
             checkType(returnType, callable)
             checkNullableCollections(returnType, callable)
@@ -378,6 +382,14 @@ private constructor(
 
     override fun visitMethod(method: MethodItem) {
         reporter.withContext(method) {
+            checkMethodNames(method)
+            checkProtected(method)
+            checkSynchronized(method)
+            checkIntentBuilder(method)
+            checkUnits(method)
+            checkTense(method)
+            checkClone(method)
+            checkCallbackOrListenerMethod(method)
             checkMethodSuffixListenableFutureReturn(method)
             kotlinInterop.checkMethod(method)
         }
@@ -464,24 +476,6 @@ private constructor(
         checkNullableCollections(field.type(), field)
         checkHasFlaggedApi(field)
         checkFlaggedApiLiteral(field)
-    }
-
-    private fun checkMethod(method: MethodItem, filterReference: Predicate<Item>) {
-        if (!method.isConstructor()) {
-            checkMethodNames(method)
-            checkProtected(method)
-            checkSynchronized(method)
-            checkIntentBuilder(method)
-            checkUnits(method)
-            checkTense(method)
-            checkClone(method)
-            checkCallbackOrListenerMethod(method)
-        }
-        checkExceptions(method, filterReference)
-        checkContextFirst(method)
-        checkListenerLast(method)
-        checkHasFlaggedApi(method)
-        checkFlaggedApiLiteral(method)
     }
 
     private fun checkFlaggedApiLiteral(item: Item) {
