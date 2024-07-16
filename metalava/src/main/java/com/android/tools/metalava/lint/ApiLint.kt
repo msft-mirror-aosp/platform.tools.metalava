@@ -197,7 +197,6 @@ private constructor(
     config: Config,
 ) :
     ApiVisitor(
-        visitConstructorsAsMethods = true,
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
@@ -363,18 +362,19 @@ private constructor(
         }
     }
 
-    override fun visitMethod(method: MethodItem) {
-        reporter.withContext(method) {
+    override fun visitCallable(callable: CallableItem) {
+        reporter.withContext(callable) {
+            val method = callable as MethodItem
             checkMethod(method, filterReference)
-            val returnType = method.returnType()
-            checkType(returnType, method)
-            checkNullableCollections(returnType, method)
+            val returnType = callable.returnType()
+            checkType(returnType, callable)
+            checkNullableCollections(returnType, callable)
             checkMethodSuffixListenableFutureReturn(returnType, method)
-            for (parameter in method.parameters()) {
+            for (parameter in callable.parameters()) {
                 checkType(parameter.type(), parameter)
             }
             checkParameterOrder(method)
-            if (!method.isConstructor()) {
+            if (!callable.isConstructor()) {
                 kotlinInterop.checkMethod(method)
             }
         }
