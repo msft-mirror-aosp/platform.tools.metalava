@@ -54,6 +54,12 @@ sealed interface ApiVariantSelectors {
     /** Create a duplicate of this for the specified [Item]. */
     fun duplicate(item: Item): ApiVariantSelectors
 
+    /**
+     * Update the mutable properties of this by inheriting state from the parent selectors, if
+     * available.
+     */
+    fun inheritInto()
+
     companion object {
         /**
          * An [ApiVariantSelectors] factory that will always return an immutable
@@ -99,6 +105,8 @@ sealed interface ApiVariantSelectors {
 
         override fun duplicate(item: Item): ApiVariantSelectors = this
 
+        override fun inheritInto() = error("Cannot inheritInto() $this")
+
         override fun toString() = "Immutable"
     }
 
@@ -114,8 +122,11 @@ sealed interface ApiVariantSelectors {
      * [docOnly] will be initialized to `true` if it's [item]'s documentation contains `@doconly`.
      *
      * [removed] will be initialized to `true` if it's [item]'s documentation contains `@removed`.
+     *
+     * This implements [ItemVisitor] to allow [inheritInto] to use [Item.accept] to dispatch [item]
+     * to a type specific `visit(...)` method that does the work of [inheritInto].
      */
-    private class Mutable(private val item: Item) : ApiVariantSelectors {
+    private class Mutable(private val item: Item) : ApiVariantSelectors, ItemVisitor {
 
         /**
          * The status of the properties, i.e. whether they have been set/initialized and their value
@@ -192,6 +203,101 @@ sealed interface ApiVariantSelectors {
             }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
+
+        override fun inheritInto() {
+            // Dispatch to the appropriate `visit(...)` method.
+            item.accept(this)
+        }
+
+        override fun visit(cls: ClassItem) {
+            val containingClass = cls.containingClass()
+            val showability = cls.showability
+            if (showability.show()) {
+                cls.hidden = false
+                // Make containing package non-hidden if it contains a show-annotation class.
+                // Doclava does this in PackageInfo.isHidden(). This logic is why it is necessary to
+                // visit packages before visiting any of their classes.
+                cls.containingPackage().hidden = false
+            } else if (showability.hide()) {
+                cls.hidden = true
+            } else if (containingClass != null) {
+                if (containingClass.hidden) {
+                    cls.hidden = true
+                } else if (
+                    containingClass.originallyHidden &&
+                        containingClass.showability.showNonRecursive()
+                ) {
+                    // See explanation in inheritInto
+                    cls.hidden = true
+                }
+                if (containingClass.docOnly) {
+                    cls.docOnly = true
+                }
+                if (containingClass.removed) {
+                    cls.removed = true
+                }
+            }
+        }
+
+        override fun visit(constructor: ConstructorItem) {
+            inheritInto(constructor)
+        }
+
+        override fun visit(method: MethodItem) {
+            inheritInto(method)
+        }
+
+        private fun inheritInto(callable: CallableItem) {
+            val showability = callable.showability
+            if (showability.show()) {
+                callable.hidden = false
+            } else if (showability.hide()) {
+                callable.hidden = true
+            } else {
+                val containingClass = callable.containingClass()
+                if (containingClass.hidden) {
+                    callable.hidden = true
+                } else if (
+                    containingClass.originallyHidden &&
+                        containingClass.showability.showNonRecursive()
+                ) {
+                    // This is a member in a class that was hidden but then unhidden; but it was
+                    // unhidden by a non-recursive (single) show annotation, so don't inherit the
+                    // show annotation into this item.
+                    callable.hidden = true
+                }
+                if (containingClass.docOnly) {
+                    callable.docOnly = true
+                }
+                if (containingClass.removed) {
+                    callable.removed = true
+                }
+            }
+        }
+
+        override fun visit(field: FieldItem) {
+            val showability = field.showability
+            if (showability.show()) {
+                field.hidden = false
+            } else if (showability.hide()) {
+                field.hidden = true
+            } else {
+                val containingClass = field.containingClass()
+                if (
+                    containingClass.originallyHidden &&
+                        containingClass.showability.showNonRecursive()
+                ) {
+                    // See explanation in inheritInto
+                    field.hidden = true
+                }
+                if (containingClass.docOnly) {
+                    field.docOnly = true
+                }
+                if (containingClass.removed) {
+                    field.removed = true
+                }
+            }
+        }
 
         companion object {
             /**

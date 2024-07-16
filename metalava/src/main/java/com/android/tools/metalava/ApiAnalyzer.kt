@@ -649,96 +649,26 @@ class ApiAnalyzer(
             }
         }
 
-        // Create a visitor to propagate the propagate hidden and docOnly from the containing
-        // package onto the top level classes and then propagate them, and removed status, down onto
-        // the nested classes and members.
+        // Create a visitor to propagate hidden and docOnly from the containing package onto the top
+        // level classes and then propagate them, and removed status, down onto the nested classes
+        // and members.
         val visitor =
             object : BaseItemVisitor(preserveClassNesting = true) {
 
                 override fun visitClass(cls: ClassItem) {
-                    val containingClass = cls.containingClass()
-                    val showability = cls.showability
-                    if (showability.show()) {
-                        cls.hidden = false
-                        // Make containing package non-hidden if it contains a show-annotation
-                        // class. Doclava does this in PackageInfo.isHidden(). This logic is why it
-                        // is necessary to visit packages before visiting any of their classes.
-                        cls.containingPackage().hidden = false
-                    } else if (showability.hide()) {
-                        cls.hidden = true
-                    } else if (containingClass != null) {
-                        if (containingClass.hidden) {
-                            cls.hidden = true
-                        } else if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // See explanation in visitMethod
-                            cls.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            cls.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            cls.removed = true
-                        }
-                    }
+                    cls.variantSelectors.inheritInto()
 
                     ensureParentIsVisibleIfThisIsVisible(cls)
                 }
 
                 override fun visitCallable(callable: CallableItem) {
-                    val showability = callable.showability
-                    if (showability.show()) {
-                        callable.hidden = false
-                    } else if (showability.hide()) {
-                        callable.hidden = true
-                    } else {
-                        val containingClass = callable.containingClass()
-                        if (containingClass.hidden) {
-                            callable.hidden = true
-                        } else if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // This is a member in a class that was hidden but then unhidden;
-                            // but it was unhidden by a non-recursive (single) show annotation, so
-                            // don't inherit the show annotation into this item.
-                            callable.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            callable.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            callable.removed = true
-                        }
-                    }
+                    callable.variantSelectors.inheritInto()
 
                     ensureParentIsVisibleIfThisIsVisible(callable)
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val showability = field.showability
-                    if (showability.show()) {
-                        field.hidden = false
-                    } else if (showability.hide()) {
-                        field.hidden = true
-                    } else {
-                        val containingClass = field.containingClass()
-                        if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // See explanation in visitMethod
-                            field.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            field.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            field.removed = true
-                        }
-                    }
+                    field.variantSelectors.inheritInto()
 
                     ensureParentIsVisibleIfThisIsVisible(field)
                 }
