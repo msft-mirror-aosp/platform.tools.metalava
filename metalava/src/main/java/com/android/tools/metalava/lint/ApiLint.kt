@@ -369,7 +369,6 @@ private constructor(
             val returnType = callable.returnType()
             checkType(returnType, callable)
             checkNullableCollections(returnType, callable)
-            checkMethodSuffixListenableFutureReturn(returnType, method)
             for (parameter in callable.parameters()) {
                 checkType(parameter.type(), parameter)
             }
@@ -378,7 +377,10 @@ private constructor(
     }
 
     override fun visitMethod(method: MethodItem) {
-        reporter.withContext(method) { kotlinInterop.checkMethod(method) }
+        reporter.withContext(method) {
+            checkMethodSuffixListenableFutureReturn(method)
+            kotlinInterop.checkMethod(method)
+        }
     }
 
     override fun visitField(field: FieldItem) {
@@ -3207,12 +3209,9 @@ private constructor(
             }
     }
 
-    private fun checkMethodSuffixListenableFutureReturn(type: TypeItem, method: MethodItem) {
-        if (
-            type.toTypeString().contains(listenableFuture) &&
-                !method.isConstructor() &&
-                !method.name().endsWith("Async")
-        ) {
+    private fun checkMethodSuffixListenableFutureReturn(method: MethodItem) {
+        val typeString = method.returnType().toTypeString()
+        if (typeString.contains(listenableFuture) && !method.name().endsWith("Async")) {
             report(
                 ASYNC_SUFFIX_FUTURE,
                 method,
