@@ -203,57 +203,28 @@ sealed interface ApiVariantSelectors {
 
         override fun inheritInto() {
             when (item) {
-                is ClassItem -> inheritIntoClass()
-                is CallableItem -> inheritIntoCallable()
+                is ClassItem,
+                is CallableItem -> inheritIntoClassOrCallable()
                 is FieldItem -> inheritIntoField()
                 else -> error("unexpected item $item of ${item.javaClass}")
             }
         }
 
-        private fun inheritIntoClass() {
-            // Smart cast item to ClassItem for the body of this method.
-            item as ClassItem
-
+        private fun inheritIntoClassOrCallable() {
             val showability = item.showability
             if (showability.show()) {
                 item.hidden = false
-                // Make containing package non-hidden if it contains a show-annotation class.
-                // Doclava does this in PackageInfo.isHidden(). This logic is why it is necessary to
-                // visit packages before visiting any of their classes.
-                item.containingPackage().hidden = false
+
+                if (item is ClassItem) {
+                    // Make containing package non-hidden if it contains a show-annotation class.
+                    // Doclava does this in PackageInfo.isHidden(). This logic is why it is
+                    // necessary to visit packages before visiting any of their classes.
+                    item.containingPackage().hidden = false
+                }
             } else if (showability.hide()) {
                 item.hidden = true
             } else {
                 val containingClass = item.containingClass() ?: return
-                if (containingClass.hidden) {
-                    item.hidden = true
-                } else if (
-                    containingClass.originallyHidden &&
-                        containingClass.showability.showNonRecursive()
-                ) {
-                    // See explanation in inheritIntoCallable
-                    item.hidden = true
-                }
-                if (containingClass.docOnly) {
-                    item.docOnly = true
-                }
-                if (containingClass.removed) {
-                    item.removed = true
-                }
-            }
-        }
-
-        private fun inheritIntoCallable() {
-            // Smart cast item to CallableItem for the body of this method.
-            item as CallableItem
-
-            val showability = item.showability
-            if (showability.show()) {
-                item.hidden = false
-            } else if (showability.hide()) {
-                item.hidden = true
-            } else {
-                val containingClass = item.containingClass()
                 if (containingClass.hidden) {
                     item.hidden = true
                 } else if (
@@ -289,7 +260,7 @@ sealed interface ApiVariantSelectors {
                     containingClass.originallyHidden &&
                         containingClass.showability.showNonRecursive()
                 ) {
-                    // See explanation in inheritIntoCallable
+                    // See explanation in inheritIntoClassOrCallable
                     item.hidden = true
                 }
                 if (containingClass.docOnly) {
