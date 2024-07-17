@@ -347,7 +347,10 @@ class DefaultReporterTest : DriverTest() {
             reporter.writeSavedReports()
         }
 
-        // TODO(b/352868158): Write all output to the suppressed file.
-        assertEquals("", suppressedFile.readText().trimEnd(), message = "suppressed file")
+        assertEquals(
+            "warning: HIDDEN_SUPERCLASS [HiddenSuperclass]",
+            suppressedFile.readText().trimEnd(),
+            message = "suppressed file"
+        )
     }
 }
