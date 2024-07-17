@@ -28,10 +28,18 @@ sealed interface ApiVariantSelectors {
     val originallyHidden: Boolean
 
     /**
+     * Indicates whether children of an [Item] should be hidden, i.e. should not be included in ANY
+     * API surface variant.
+     *
+     * Initially set to [originallyHidden] but updated due to inheritance.
+     */
+    var inheritableHidden: Boolean
+
+    /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
      * variant.
      *
-     * Initially set to [originallyHidden] but updated due to inheritance.
+     * Initially set to [inheritableHidden] but updated due to show annotations.
      */
     var hidden: Boolean
 
@@ -87,6 +95,12 @@ sealed interface ApiVariantSelectors {
 
         override val originallyHidden: Boolean
             get() = false
+
+        override var inheritableHidden: Boolean
+            get() = false
+            set(value) {
+                error("Cannot set `inheritableHidden` to $value")
+            }
 
         override var hidden: Boolean
             get() = false
@@ -207,8 +221,17 @@ sealed interface ApiVariantSelectors {
                     item.documentation.isHidden || item.hasHideAnnotation()
                 }
 
+        override var inheritableHidden: Boolean
+            get() =
+                lazyGet(INHERITABLE_HIDDEN_BIT_MASK) {
+                    originallyHidden && !item.hasShowAnnotation()
+                }
+            set(value) {
+                lazySet(INHERITABLE_HIDDEN_BIT_MASK, value)
+            }
+
         override var hidden: Boolean
-            get() = lazyGet(HIDDEN_BIT_MASK) { originallyHidden && !item.hasShowAnnotation() }
+            get() = lazyGet(HIDDEN_BIT_MASK) { inheritableHidden }
             set(value) {
                 lazySet(HIDDEN_BIT_MASK, value)
             }
@@ -243,23 +266,23 @@ sealed interface ApiVariantSelectors {
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
             if (showability.show()) {
-                hidden = false
+                inheritableHidden = false
 
                 if (item is ClassItem) {
                     // Make containing package non-hidden if it contains a show-annotation class.
-                    // Doclava does this in PackageInfo.isHidden(). This logic is why it is
-                    // necessary to visit packages before visiting any of their classes.
                     val containingPackageSelectors = item.containingPackage().variantSelectors
+                    // Only unhide the package, do not affect anything that might inherit from that
+                    // package.
                     containingPackageSelectors.hidden = false
                 }
             } else if (showability.hide()) {
-                hidden = true
+                inheritableHidden = true
             } else {
                 val containingClassSelectors = item.containingClass()?.variantSelectors ?: return
 
                 // FieldItem does not inherit hidden status from its containing class.
-                if (item !is FieldItem && containingClassSelectors.hidden) {
-                    hidden = true
+                if (item !is FieldItem && containingClassSelectors.inheritableHidden) {
+                    inheritableHidden = true
                 } else if (
                     containingClassSelectors.originallyHidden &&
                         containingClassSelectors.showability.showNonRecursive()
@@ -267,7 +290,7 @@ sealed interface ApiVariantSelectors {
                     // This is a member in a class that was hidden but then unhidden; but it was
                     // unhidden by a non-recursive (single) show annotation, so don't inherit the
                     // show annotation into this item.
-                    hidden = true
+                    inheritableHidden = true
                 }
                 if (containingClassSelectors.docOnly) {
                     docOnly = true
@@ -309,8 +332,14 @@ sealed interface ApiVariantSelectors {
             private const val ORIGINALLY_HIDDEN_BIT_POSITION: Int = 0
             private const val ORIGINALLY_HIDDEN_BIT_MASK: Int = 1 shl ORIGINALLY_HIDDEN_BIT_POSITION
 
+            // `inheritableHidden` related constants
+            private const val INHERITABLE_HIDDEN_BIT_POSITION: Int =
+                ORIGINALLY_HIDDEN_BIT_POSITION + 1
+            private const val INHERITABLE_HIDDEN_BIT_MASK: Int =
+                1 shl INHERITABLE_HIDDEN_BIT_POSITION
+
             // `hidden` related constants
-            private const val HIDDEN_BIT_POSITION: Int = ORIGINALLY_HIDDEN_BIT_POSITION + 1
+            private const val HIDDEN_BIT_POSITION: Int = INHERITABLE_HIDDEN_BIT_POSITION + 1
             private const val HIDDEN_BIT_MASK: Int = 1 shl HIDDEN_BIT_POSITION
 
             // `docOnly` related constants
@@ -329,6 +358,7 @@ sealed interface ApiVariantSelectors {
                 Array(COUNT_BITS_USED) { "" }
                     .also { array ->
                         array[ORIGINALLY_HIDDEN_BIT_POSITION] = "originallyHidden"
+                        array[INHERITABLE_HIDDEN_BIT_POSITION] = "inheritableHidden"
                         array[HIDDEN_BIT_POSITION] = "hidden"
                         array[DOCONLY_BIT_POSITION] = "docOnly"
                         array[REMOVED_BIT_POSITION] = "removed"

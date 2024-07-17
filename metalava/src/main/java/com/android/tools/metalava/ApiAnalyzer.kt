@@ -613,14 +613,14 @@ class ApiAnalyzer(
             val packageSelectors = pkg.variantSelectors
             packageSelectors.showability.let { showability ->
                 when {
-                    showability.show() -> packageSelectors.hidden = false
-                    showability.hide() -> packageSelectors.hidden = true
+                    showability.show() -> packageSelectors.inheritableHidden = false
+                    showability.hide() -> packageSelectors.inheritableHidden = true
                 }
             }
             val containingPackageSelectors = pkg.containingPackage()?.variantSelectors
             if (containingPackageSelectors != null) {
-                if (containingPackageSelectors.hidden) {
-                    packageSelectors.hidden = true
+                if (containingPackageSelectors.inheritableHidden) {
+                    packageSelectors.inheritableHidden = true
                 }
                 if (containingPackageSelectors.docOnly) {
                     packageSelectors.docOnly = true
