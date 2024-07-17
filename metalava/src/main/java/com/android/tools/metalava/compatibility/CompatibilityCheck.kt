@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
@@ -480,9 +479,65 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: ConstructorItem, new: ConstructorItem) {
-        // Treat ConstructorItem as MethodItem
-        compare(old as MethodItem, new as MethodItem)
+    override fun compare(old: CallableItem, new: CallableItem) {
+        val oldModifiers = old.modifiers
+        val newModifiers = new.modifiers
+
+        val oldVisibility = oldModifiers.getVisibilityString()
+        val newVisibility = newModifiers.getVisibilityString()
+        if (oldVisibility != newVisibility) {
+            // Only report issue if the change is a decrease in access; e.g. public -> protected
+            if (!newModifiers.asAccessibleAs(oldModifiers)) {
+                report(
+                    Issues.CHANGED_SCOPE,
+                    new,
+                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
+                )
+            }
+        }
+
+        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
+            report(
+                Issues.CHANGED_DEPRECATED,
+                new,
+                "${describe(
+                    new,
+                    capitalize = true
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+            )
+        }
+
+        for (throwType in old.throwsTypes()) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.erasedClass ?: continue
+            if (!new.throws(throwableClass.qualifiedName())) {
+                // exclude 'throws' changes to finalize() overrides with no arguments
+                if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
+                    report(
+                        Issues.CHANGED_THROWS,
+                        new,
+                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
+                    )
+                }
+            }
+        }
+
+        for (throwType in new.filteredThrowsTypes(filterReference)) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.erasedClass ?: continue
+            if (!old.throws(throwableClass.qualifiedName())) {
+                // exclude 'throws' changes to finalize() overrides with no arguments
+                if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
+                    val message =
+                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
+                    report(Issues.CHANGED_THROWS, new, message)
+                }
+            }
+        }
     }
 
     override fun compare(old: MethodItem, new: MethodItem) {
@@ -491,50 +546,49 @@ class CompatibilityCheck(
 
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
-        if (!new.isConstructor()) {
-            if (!compatibleReturnTypes(oldReturnType, newReturnType)) {
-                // For incompatible type variable changes, include the type bounds in the string.
-                val oldTypeString = describeBounds(oldReturnType)
-                val newTypeString = describeBounds(newReturnType)
-                val message =
-                    "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
-                report(Issues.CHANGED_TYPE, new, message)
-            }
 
-            // Annotation methods
-            if (
-                new.containingClass().isAnnotationType() &&
-                    old.containingClass().isAnnotationType() &&
-                    new.defaultValue() != old.defaultValue()
-            ) {
-                val prevValue = old.defaultValue()
-                val prevString =
-                    if (prevValue.isEmpty()) {
-                        "nothing"
-                    } else {
-                        prevValue
-                    }
+        if (!compatibleReturnTypes(oldReturnType, newReturnType)) {
+            // For incompatible type variable changes, include the type bounds in the string.
+            val oldTypeString = describeBounds(oldReturnType)
+            val newTypeString = describeBounds(newReturnType)
+            val message =
+                "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
+            report(Issues.CHANGED_TYPE, new, message)
+        }
 
-                val newValue = new.defaultValue()
-                val newString =
-                    if (newValue.isEmpty()) {
-                        "nothing"
-                    } else {
-                        newValue
-                    }
-                val message =
-                    "${describe(
-                    new,
-                    capitalize = true
-                )} has changed value from $prevString to $newString"
-
-                // Adding a default value to an annotation method is safe
-                val annotationMethodAddingDefaultValue =
-                    new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
-
-                if (!annotationMethodAddingDefaultValue) {
-                    report(Issues.CHANGED_VALUE, new, message)
+        // Annotation methods
+        if (
+            new.containingClass().isAnnotationType() &&
+                old.containingClass().isAnnotationType() &&
+                new.defaultValue() != old.defaultValue()
+        ) {
+            val prevValue = old.defaultValue()
+            val prevString =
+                if (prevValue.isEmpty()) {
+                    "nothing"
+                } else {
+                    prevValue
                 }
+
+            val newValue = new.defaultValue()
+            val newString =
+                if (newValue.isEmpty()) {
+                    "nothing"
+                } else {
+                    newValue
+                }
+            val message =
+                "${describe(
+                new,
+                capitalize = true
+            )} has changed value from $prevString to $newString"
+
+            // Adding a default value to an annotation method is safe
+            val annotationMethodAddingDefaultValue =
+                new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+
+            if (!annotationMethodAddingDefaultValue) {
+                report(Issues.CHANGED_VALUE, new, message)
             }
         }
 
@@ -614,76 +668,6 @@ class CompatibilityCheck(
                 new,
                 "${describe(new, capitalize = true)} has changed 'static' qualifier"
             )
-        }
-
-        val oldVisibility = oldModifiers.getVisibilityString()
-        val newVisibility = newModifiers.getVisibilityString()
-        if (oldVisibility != newVisibility) {
-            // Only report issue if the change is a decrease in access; e.g. public -> protected
-            if (!newModifiers.asAccessibleAs(oldModifiers)) {
-                report(
-                    Issues.CHANGED_SCOPE,
-                    new,
-                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
-                )
-            }
-        }
-
-        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
-            report(
-                Issues.CHANGED_DEPRECATED,
-                new,
-                "${describe(
-                    new,
-                    capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
-            )
-        }
-
-        /*
-        // see JLS 3 13.4.20 "Adding or deleting a synchronized modifier of a method does not break "
-        // "compatibility with existing binaries."
-        if (oldModifiers.isSynchronized() != newModifiers.isSynchronized()) {
-            report(
-                Errors.CHANGED_SYNCHRONIZED, new,
-                "${describe(
-                    new,
-                    capitalize = true
-                )} has changed 'synchronized' qualifier from ${oldModifiers.isSynchronized()} to ${newModifiers.isSynchronized()}"
-            )
-        }
-        */
-
-        for (throwType in old.throwsTypes()) {
-            // Get the throwable class, if none could be found then it is either because there is an
-            // error in the codebase or the codebase is incomplete, either way reporting an error
-            // would be unhelpful.
-            val throwableClass = throwType.erasedClass ?: continue
-            if (!new.throws(throwableClass.qualifiedName())) {
-                // exclude 'throws' changes to finalize() overrides with no arguments
-                if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
-                    report(
-                        Issues.CHANGED_THROWS,
-                        new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
-                    )
-                }
-            }
-        }
-
-        for (throwType in new.filteredThrowsTypes(filterReference)) {
-            // Get the throwable class, if none could be found then it is either because there is an
-            // error in the codebase or the codebase is incomplete, either way reporting an error
-            // would be unhelpful.
-            val throwableClass = throwType.erasedClass ?: continue
-            if (!old.throws(throwableClass.qualifiedName())) {
-                // exclude 'throws' changes to finalize() overrides with no arguments
-                if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
-                    val message =
-                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
-                    report(Issues.CHANGED_THROWS, new, message)
-                }
-            }
         }
 
         if (new.modifiers.isInline()) {
@@ -916,7 +900,7 @@ class CompatibilityCheck(
         // an abstract method, because method's abstractness affects how users use it.
         // See if there's a member from inherited class
         val inherited =
-            if (new is MethodItem && !new.isConstructor()) {
+            if (new is MethodItem) {
                 new.containingClass()
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
             } else null
@@ -981,7 +965,7 @@ class CompatibilityCheck(
     override fun removed(old: CallableItem, from: ClassItem?) {
         // See if there's a member from inherited class
         val inherited =
-            if (old is MethodItem && !old.isConstructor()) {
+            if (old is MethodItem) {
                 // This can also return self, specially handled below
                 from
                     ?.findMethod(

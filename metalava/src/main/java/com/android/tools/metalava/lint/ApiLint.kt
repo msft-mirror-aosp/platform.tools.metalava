@@ -682,7 +682,7 @@ private constructor(
     }
 
     private fun checkCallbackOrListenerMethod(method: MethodItem) {
-        if (method.isConstructor() || method.modifiers.isStatic() || method.modifiers.isFinal()) {
+        if (method.modifiers.isStatic() || method.modifiers.isFinal()) {
             return
         }
         val cls = method.containingClass()
