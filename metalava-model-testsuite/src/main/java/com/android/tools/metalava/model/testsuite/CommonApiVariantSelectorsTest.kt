@@ -67,6 +67,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         hidden=<not-set>,
                         docOnly=<not-set>,
                         removed=<not-set>,
+                        inheritIntoWasCalled=<not-set>,
                         showability=<not-set>,
                     }
                 """
@@ -89,6 +90,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         hidden=false,
                         docOnly=false,
                         removed=false,
+                        inheritIntoWasCalled=true,
                         showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, forStubsOnly=NO_EFFECT, revertItem=null),
                     }
                 """
@@ -188,6 +190,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             testableSelectorsState =
                 testableSelectorsState.copy(
                     originallyHidden = false,
+                    inheritIntoWasCalled = true,
                     inheritableHidden = false,
                     hidden = false,
                 )
@@ -234,6 +237,8 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             // Check the state after initializing `docOnly`.
             testableSelectorsState =
                 testableSelectorsState.copy(
+                    inheritIntoWasCalled = true,
+                    showability = Showability.NO_EFFECT,
                     docOnly = false,
                 )
             selectors.assertEquals(testableSelectorsState, message = "after `docOnly` initialized")
@@ -265,6 +270,8 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             // Check the state after initializing `removed`.
             testableSelectorsState =
                 testableSelectorsState.copy(
+                    inheritIntoWasCalled = true,
+                    showability = Showability.NO_EFFECT,
                     removed = false,
                 )
             selectors.assertEquals(testableSelectorsState, message = "after `removed` initialized")
