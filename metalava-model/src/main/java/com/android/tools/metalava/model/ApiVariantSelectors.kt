@@ -20,12 +20,12 @@ package com.android.tools.metalava.model
 typealias ApiVariantSelectorsFactory = (Item) -> ApiVariantSelectors
 
 /** Contains properties that select which, if any, variant of an API an [Item] belongs in. */
-sealed interface ApiVariantSelectors {
+sealed class ApiVariantSelectors {
     /**
      * Indicates whether the item was explicitly hidden in the source, e.g. via an `@hide` javadoc
      * tag in its [Item.documentation], or a hide annotation directly on the [Item].
      */
-    val originallyHidden: Boolean
+    abstract val originallyHidden: Boolean
 
     /**
      * Indicates whether children of an [Item] should be hidden, i.e. should not be included in ANY
@@ -33,7 +33,7 @@ sealed interface ApiVariantSelectors {
      *
      * Initially set to [originallyHidden] but updated due to inheritance.
      */
-    var inheritableHidden: Boolean
+    protected abstract var inheritableHidden: Boolean
 
     /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
@@ -41,7 +41,7 @@ sealed interface ApiVariantSelectors {
      *
      * Initially set to [inheritableHidden] but updated due to show annotations.
      */
-    var hidden: Boolean
+    abstract var hidden: Boolean
 
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
@@ -49,7 +49,7 @@ sealed interface ApiVariantSelectors {
      * Initially set to `true` if the [Item.documentation] contains `@doconly` but updated due to
      * inheritance.
      */
-    var docOnly: Boolean
+    abstract var docOnly: Boolean
 
     /**
      * Indicates whether the [Item] should be in the removed API surface variant.
@@ -57,19 +57,19 @@ sealed interface ApiVariantSelectors {
      * Initially set to `true` if the [Item.documentation] contains `@removed` but updated due to
      * inheritance.
      */
-    var removed: Boolean
+    abstract var removed: Boolean
 
     /** Determines whether this item will be shown as part of the API or not. */
-    val showability: Showability
+    abstract val showability: Showability
 
     /** Create a duplicate of this for the specified [Item]. */
-    fun duplicate(item: Item): ApiVariantSelectors
+    abstract fun duplicate(item: Item): ApiVariantSelectors
 
     /**
      * Update the mutable properties of this by inheriting state from the parent selectors, if
      * available.
      */
-    fun inheritInto()
+    abstract fun inheritInto()
 
     companion object {
         /**
@@ -91,7 +91,7 @@ sealed interface ApiVariantSelectors {
      * on any attempt to set the `var` properties.
      */
     @Suppress("ConvertObjectToDataObject") // Requires language level 1.9
-    private object Immutable : ApiVariantSelectors {
+    private object Immutable : ApiVariantSelectors() {
 
         override val originallyHidden: Boolean
             get() = false
@@ -149,7 +149,7 @@ sealed interface ApiVariantSelectors {
      * support lazy initialization with optional setters without duplicating lots of complicated
      * code.
      */
-    private class Mutable(private val item: Item) : ApiVariantSelectors {
+    private class Mutable(private val item: Item) : ApiVariantSelectors() {
 
         /**
          * Contains a bit for each lazy boolean property indicating whether it has been set, either
