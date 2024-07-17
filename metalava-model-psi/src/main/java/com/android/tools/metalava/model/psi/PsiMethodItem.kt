@@ -78,8 +78,6 @@ open class PsiMethodItem(
 
     override fun isConstructor(): Boolean = false
 
-    override fun isImplicitConstructor(): Boolean = false
-
     private var superMethods: List<MethodItem>? = null
 
     override fun superMethods(): List<MethodItem> {

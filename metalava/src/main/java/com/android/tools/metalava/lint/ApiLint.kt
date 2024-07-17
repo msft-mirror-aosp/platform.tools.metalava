@@ -1910,7 +1910,7 @@ private constructor(
 
     private fun checkHasFlaggedApi(item: Item) {
         // Cannot flag an implicit constructor.
-        if (item is MethodItem && item.isImplicitConstructor()) return
+        if (item is ConstructorItem && item.isImplicitConstructor()) return
 
         fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
             var it: Item? = item
