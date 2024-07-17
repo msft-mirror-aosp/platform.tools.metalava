@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
@@ -602,37 +603,15 @@ class ApiAnalyzer(
      * methods and fields are hidden etc
      */
     private fun propagateHiddenRemovedAndDocOnly() {
-        // Iterate over the packages first and propagate hidden and docOnly down the package nesting
-        // structure, from containing to contained packages. This relies on the packages being kept
-        // in nesting order (i.e. containing package before any contained package).
-        //
-        // This must be done separate to the updating of the classes as that can change the hidden
-        // status of the containing package which would preventing it being propagated correctly
-        // onto its contained packages.
-        for (pkg in packages.packages) {
-            val packageSelectors = pkg.variantSelectors
-            packageSelectors.showability.let { showability ->
-                when {
-                    showability.show() -> packageSelectors.inheritableHidden = false
-                    showability.hide() -> packageSelectors.inheritableHidden = true
-                }
-            }
-            val containingPackageSelectors = pkg.containingPackage()?.variantSelectors
-            if (containingPackageSelectors != null) {
-                if (containingPackageSelectors.inheritableHidden) {
-                    packageSelectors.inheritableHidden = true
-                }
-                if (containingPackageSelectors.docOnly) {
-                    packageSelectors.docOnly = true
-                }
-            }
-        }
-
         // Create a visitor to propagate hidden and docOnly from the containing package onto the top
         // level classes and then propagate them, and removed status, down onto the nested classes
         // and members.
         val visitor =
             object : BaseItemVisitor(preserveClassNesting = true) {
+
+                override fun visitPackage(pkg: PackageItem) {
+                    pkg.variantSelectors.inheritInto()
+                }
 
                 override fun visitClass(cls: ClassItem) {
                     cls.variantSelectors.inheritInto()
@@ -686,10 +665,7 @@ class ApiAnalyzer(
                 }
             }
 
-        // Just visit the top level classes as packages have already been dealt with.
-        for (topLevelClass in packages.allTopLevelClasses()) {
-            topLevelClass.accept(visitor)
-        }
+        packages.accept(visitor)
     }
 
     private fun checkSystemPermissions(method: MethodItem) {

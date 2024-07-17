@@ -262,6 +262,25 @@ sealed interface ApiVariantSelectors {
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
 
         override fun inheritInto() {
+            // PackageItem behaves quite differently to the other Item types so do it first.
+            if (item is PackageItem) {
+                showability.let { showability ->
+                    when {
+                        showability.show() -> inheritableHidden = false
+                        showability.hide() -> inheritableHidden = true
+                    }
+                }
+                val containingPackageSelectors =
+                    item.containingPackage()?.variantSelectors ?: return
+                if (containingPackageSelectors.inheritableHidden) {
+                    inheritableHidden = true
+                }
+                if (containingPackageSelectors.docOnly) {
+                    docOnly = true
+                }
+                return
+            }
+
             // Inheritance is only done on a few Item types, ignore the rest.
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
