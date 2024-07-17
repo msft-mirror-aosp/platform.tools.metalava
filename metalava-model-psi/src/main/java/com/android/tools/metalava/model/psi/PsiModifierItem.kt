@@ -55,7 +55,6 @@ import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInherited
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
-import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
@@ -96,13 +95,12 @@ internal object PsiModifierItem {
     fun create(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
-        documentation: String? = null,
     ): DefaultModifierList {
         val modifiers =
             if (element is UAnnotated) {
-                create(codebase, element, element)
+                createFromUAnnotated(codebase, element, element)
             } else {
-                create(codebase, element)
+                createFromPsiElement(codebase, element)
             }
 
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
@@ -111,17 +109,8 @@ internal object PsiModifierItem {
             modifiers.removeAnnotations { it.isNullnessAnnotation() }
         }
 
-        val docDeprecated =
-            if (codebase.allowReadingComments) {
-                documentation?.contains("@deprecated") == true ||
-                    // Check for @Deprecated annotation
-                    ((element as? PsiDocCommentOwner)?.isDeprecated == true)
-            } else {
-                false
-            }
         if (
-            docDeprecated ||
-                hasDeprecatedAnnotation(modifiers) ||
+            hasDeprecatedAnnotation(modifiers) ||
                 // Check for @Deprecated on sourcePsi
                 isDeprecatedFromSourcePsi(element)
         ) {
@@ -161,14 +150,13 @@ internal object PsiModifierItem {
 
     private fun hasDeprecatedAnnotation(modifiers: DefaultModifierList) =
         modifiers.hasAnnotation {
-            it.qualifiedName?.let { qualifiedName ->
+            it.qualifiedName.let { qualifiedName ->
                 qualifiedName == "Deprecated" ||
                     qualifiedName.endsWith(".Deprecated") ||
                     // DeprecatedForSdk that do not apply to this API surface have been filtered
                     // out so if any are left then treat it as a standard Deprecated annotation.
                     qualifiedName == ANDROID_DEPRECATED_FOR_SDK
             }
-                ?: false
         }
 
     private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
@@ -407,7 +395,7 @@ internal object PsiModifierItem {
         }
     }
 
-    private fun create(
+    private fun createFromPsiElement(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner
     ): DefaultModifierList {
@@ -426,7 +414,7 @@ internal object PsiModifierItem {
                     .distinct()
                     // Remove any type-use annotations that psi incorrectly applied to the item.
                     .filterIncorrectTypeUseAnnotations(element)
-                    .map {
+                    .mapNotNull {
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting
                         // com.android.internal.annotations.VisibleForTesting?
@@ -442,7 +430,7 @@ internal object PsiModifierItem {
                             flags = getVisibilityFlag(ref, flags)
                         }
 
-                        PsiAnnotationItem.create(codebase, it, qualifiedName)
+                        PsiAnnotationItem.create(codebase, it)
                     }
                     .filter { !it.isDeprecatedForSdk() }
                     .toMutableList()
@@ -450,7 +438,7 @@ internal object PsiModifierItem {
         }
     }
 
-    private fun create(
+    private fun createFromUAnnotated(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
         annotated: UAnnotated
@@ -467,7 +455,9 @@ internal object PsiModifierItem {
         return if (uAnnotations.isEmpty()) {
             if (psiAnnotations.isNotEmpty()) {
                 val annotations: MutableList<AnnotationItem> =
-                    psiAnnotations.map { PsiAnnotationItem.create(codebase, it) }.toMutableList()
+                    psiAnnotations
+                        .mapNotNull { PsiAnnotationItem.create(codebase, it) }
+                        .toMutableList()
                 DefaultModifierList(codebase, flags, annotations)
             } else {
                 DefaultModifierList(codebase, flags)
@@ -483,7 +473,7 @@ internal object PsiModifierItem {
                             it.qualifiedName == null ||
                             !it.isKotlinNullabilityAnnotation
                     }
-                    .map {
+                    .mapNotNull {
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
@@ -497,7 +487,7 @@ internal object PsiModifierItem {
                             flags = getVisibilityFlag(ref, flags)
                         }
 
-                        UAnnotationItem.create(codebase, it, qualifiedName)
+                        UAnnotationItem.create(codebase, it)
                     }
                     .filter { !it.isDeprecatedForSdk() }
                     .toMutableList()
@@ -509,7 +499,9 @@ internal object PsiModifierItem {
                             psiAnnotation.qualifiedName?.let { isNullnessAnnotation(it) } == true
                         }
                     ktNullAnnotation?.let {
-                        annotations.add(PsiAnnotationItem.create(codebase, it))
+                        PsiAnnotationItem.create(codebase, it)?.let { annotationItem ->
+                            annotations.add(annotationItem)
+                        }
                     }
                 }
             }

@@ -237,7 +237,7 @@ private constructor(
         val separateLines =
             target != AnnotationTarget.SIGNATURE_FILE &&
                 when (item) {
-                    is MethodItem,
+                    is CallableItem,
                     is ClassItem,
                     is PackageItem -> true
                     is FieldItem -> item.isEnumConstant()
@@ -315,9 +315,7 @@ private constructor(
                     ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
-                        writer.write(
-                            annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
-                        )
+                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
                         if (separateLines) {
                             writer.write("\n")
                         } else {

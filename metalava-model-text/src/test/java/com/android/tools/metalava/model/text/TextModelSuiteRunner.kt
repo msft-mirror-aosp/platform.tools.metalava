@@ -17,9 +17,12 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
@@ -60,12 +63,12 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  *
  * When [resolveClass] is called this will first look in [codebase] to see if the [ClassItem] has
  * already been loaded, returning it if found. Otherwise, it will look in the [classLoader] to see
- * if the class exists on the classpath. If it does then it will create a [TextClassItem] to
+ * if the class exists on the classpath. If it does then it will create a [DefaultClassItem] to
  * represent it and add it to the [codebase]. Otherwise, it will return `null`.
  *
- * The created [TextClassItem] is not a complete representation of the class that was found in the
- * [classLoader]. It is just a placeholder to indicate that it was found, although that may change
- * in the future.
+ * The created [DefaultClassItem] is not a complete representation of the class that was found in
+ * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
+ * change in the future.
  */
 internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
@@ -85,7 +88,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
             try {
                 return classLoader.loadClass(binaryName)
             } catch (e: ClassNotFoundException) {
-                // If the class could not be found then maybe it was an inner class so replace the
+                // If the class could not be found then maybe it was a nested class so replace the
                 // last '.' in the name with a $ and try again. If there is no '.' then return.
                 val lastDot = binaryName.lastIndexOf('.')
                 if (lastDot == -1) {
@@ -107,22 +110,22 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
                 val packageItem =
                     codebase.findPackage(packageName)
-                        ?: TextPackageItem(
-                                codebase = codebase,
-                                name = packageName,
-                                modifiers = DefaultModifierList(codebase),
-                                fileLocation = FileLocation.UNKNOWN,
-                            )
+                        ?: codebase.itemFactory
+                            .createPackageItem(qualifiedName = packageName)
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 
-                TextClassItem(
-                        codebase = codebase,
+                codebase.itemFactory
+                    .createClassItem(
+                        fileLocation = FileLocation.UNKNOWN,
                         modifiers = DefaultModifierList(codebase),
                         qualifiedName = cls.canonicalName,
+                        classKind = ClassKind.CLASS,
+                        containingClass = null,
+                        typeParameterList = TypeParameterList.NONE,
                     )
                     .also { newClassItem ->
                         codebase.registerClass(newClassItem)
-                        packageItem.addClass(newClassItem)
+                        packageItem.addTopClass(newClassItem)
                     }
             }
     }
