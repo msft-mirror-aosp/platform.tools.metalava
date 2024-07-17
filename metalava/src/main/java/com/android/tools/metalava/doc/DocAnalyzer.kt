@@ -257,7 +257,7 @@ class DocAnalyzer(
                                         .findTagDocumentation("param", item.name())
                                         ?: ""
                                 }
-                                is MethodItem -> {
+                                is CallableItem -> {
                                     // Don't inspect param docs (and other tags) for this purpose.
                                     documentation.findMainDocumentation() +
                                         (documentation.findTagDocumentation("return") ?: "")
@@ -275,7 +275,7 @@ class DocAnalyzer(
                         is FieldItem -> {
                             addDoc(annotation, "memberDoc", item)
                         }
-                        is MethodItem -> {
+                        is CallableItem -> {
                             addDoc(annotation, "memberDoc", item)
                             addDoc(annotation, "returnDoc", item)
                         }
