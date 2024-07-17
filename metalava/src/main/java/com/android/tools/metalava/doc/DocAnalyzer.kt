@@ -250,7 +250,7 @@ class DocAnalyzer(
                             when (item) {
                                 is ParameterItem -> {
                                     item
-                                        .containingMethod()
+                                        .containingCallable()
                                         .documentation
                                         .findTagDocumentation("param", item.name())
                                         ?: ""
@@ -593,7 +593,7 @@ class DocAnalyzer(
         doc ?: return
 
         when (item) {
-            is ParameterItem -> item.containingMethod().appendDocumentation(doc, item.name())
+            is ParameterItem -> item.containingCallable().appendDocumentation(doc, item.name())
             is MethodItem ->
                 // Document as part of return annotation, not member doc
                 item.appendDocumentation(doc, if (returnValue) "@return" else null)
