@@ -24,8 +24,10 @@ import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
@@ -62,25 +64,25 @@ class CompatibilityCheck(
 
     var foundProblems = false
 
-    private fun containingMethod(item: Item): MethodItem? {
+    private fun possibleContainingMethod(item: Item): MethodItem? {
         if (item is MethodItem) {
             return item
         }
         if (item is ParameterItem) {
-            return item.containingMethod()
+            return item.possibleContainingMethod()
         }
         return null
     }
 
     private fun compareItemNullability(old: Item, new: Item) {
-        val oldMethod = containingMethod(old)
-        val newMethod = containingMethod(new)
+        val oldMethod = possibleContainingMethod(old)
+        val newMethod = possibleContainingMethod(new)
 
         if (oldMethod != null && newMethod != null) {
             if (
                 oldMethod.containingClass().qualifiedName() !=
                     newMethod.containingClass().qualifiedName() ||
-                    ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))
+                    (oldMethod.inheritedFromAncestor != newMethod.inheritedFromAncestor)
             ) {
                 // If the old method and new method are defined on different classes, then it's
                 // possible that the old method was previously overridden and we omitted it.
@@ -90,9 +92,13 @@ class CompatibilityCheck(
             }
         }
 
-        // In a final method, you can change a parameter from nonnull to nullable
+        // In a final method, you can change a parameter from nonnull to nullable.
+        // This will also allow a constructor parameter to be changed from nonnull to nullable if
+        // the class is not extensible.
+        // TODO: Allow the parameter of any constructor to be switched from nonnull to nullable as
+        //  they can never be overridden.
         val allowNonNullToNullable =
-            new is ParameterItem && !newMethod!!.canBeExternallyOverridden()
+            new is ParameterItem && !new.containingCallable().canBeExternallyOverridden()
         // In a final method, you can change a method return from nullable to nonnull
         val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
 
@@ -228,7 +234,7 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}"
                 )
             }
         }
@@ -472,6 +478,11 @@ class CompatibilityCheck(
             }
             else -> return old == new
         }
+    }
+
+    override fun compare(old: ConstructorItem, new: ConstructorItem) {
+        // Treat ConstructorItem as MethodItem
+        compare(old as MethodItem, new as MethodItem)
     }
 
     override fun compare(old: MethodItem, new: MethodItem) {
@@ -879,12 +890,23 @@ class CompatibilityCheck(
         handleAdded(error, new)
     }
 
-    override fun added(new: MethodItem) {
-        // *Overriding* methods from super classes that are outside the
-        // API is OK (e.g. overriding toString() from java.lang.Object)
-        val superMethods = new.superMethods()
-        for (superMethod in superMethods) {
-            if (superMethod.isFromClassPath()) {
+    override fun added(new: CallableItem) {
+        if (new is MethodItem) {
+            // *Overriding* methods from super classes that are outside the
+            // API is OK (e.g. overriding toString() from java.lang.Object)
+            val superMethods = new.superMethods()
+            for (superMethod in superMethods) {
+                if (superMethod.isFromClassPath()) {
+                    return
+                }
+            }
+
+            // In most cases it is not permitted to add a new method to an interface, even with a
+            // default implementation because it could create ambiguity if client code implements
+            // two interfaces that each now define methods with the same signature.
+            // Annotation types cannot implement other interfaces, however, so it is permitted to
+            // add new default methods to annotation types.
+            if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
                 return
             }
         }
@@ -894,21 +916,10 @@ class CompatibilityCheck(
         // an abstract method, because method's abstractness affects how users use it.
         // See if there's a member from inherited class
         val inherited =
-            if (new.isConstructor()) {
-                null
-            } else {
+            if (new is MethodItem && !new.isConstructor()) {
                 new.containingClass()
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
-            }
-
-        // In most cases it is not permitted to add a new method to an interface, even with a
-        // default implementation because it could could create ambiguity if client code implements
-        // two interfaces that each now define methods with the same signature.
-        // Annotation types cannot implement other interfaces, however, so it is permitted to add
-        // add new default methods to annotation types.
-        if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
-            return
-        }
+            } else null
 
         // It is ok to add a new abstract method to a class that has no public constructors
         if (
@@ -967,20 +978,25 @@ class CompatibilityCheck(
         handleRemoved(error, old)
     }
 
-    override fun removed(old: MethodItem, from: ClassItem?) {
+    override fun removed(old: CallableItem, from: ClassItem?) {
         // See if there's a member from inherited class
         val inherited =
-            if (old.isConstructor()) {
-                null
-            } else {
+            if (old is MethodItem && !old.isConstructor()) {
                 // This can also return self, specially handled below
-                from?.findMethod(
-                    old,
-                    includeSuperClasses = true,
-                    includeInterfaces = from.isInterface()
-                )
-            }
-        if (inherited == null || inherited.treatAsRemoved(old)) {
+                from
+                    ?.findMethod(
+                        old,
+                        includeSuperClasses = true,
+                        includeInterfaces = from.isInterface()
+                    )
+                    ?.let {
+                        // If it was inherited but should still be treated as if it was removed then
+                        // pretend that it was not inherited.
+                        if (it.treatAsRemoved(old)) null else it
+                    }
+            } else null
+
+        if (inherited == null) {
             val error =
                 if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
                 else Issues.REMOVED_METHOD
