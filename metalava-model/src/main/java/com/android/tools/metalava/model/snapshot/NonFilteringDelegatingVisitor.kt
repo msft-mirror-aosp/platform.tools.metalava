@@ -17,8 +17,10 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.PackageItem
 
 /**
  * A [BaseItemVisitor] that will delegate to [delegate].
@@ -27,11 +29,28 @@ import com.android.tools.metalava.model.DelegatedVisitor
  */
 class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
     BaseItemVisitor(preserveClassNesting = true) {
+
     override fun visitCodebase(codebase: Codebase) {
         delegate.visitCodebase(codebase)
     }
 
     override fun afterVisitCodebase(codebase: Codebase) {
         delegate.afterVisitCodebase(codebase)
+    }
+
+    override fun visitPackage(pkg: PackageItem) {
+        delegate.visitPackage(pkg)
+    }
+
+    override fun afterVisitPackage(pkg: PackageItem) {
+        delegate.afterVisitPackage(pkg)
+    }
+
+    override fun visitClass(cls: ClassItem) {
+        delegate.visitClass(cls)
+    }
+
+    override fun afterVisitClass(cls: ClassItem) {
+        delegate.afterVisitClass(cls)
     }
 }

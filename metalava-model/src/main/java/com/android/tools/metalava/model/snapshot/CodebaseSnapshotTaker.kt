@@ -16,9 +16,15 @@
 
 package com.android.tools.metalava.model.snapshot
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultPackageItem
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker : DelegatedVisitor {
@@ -27,7 +33,11 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
      *
      * Initialized in [visitCodebase].
      */
-    private lateinit var codebase: Codebase
+    private lateinit var codebase: DefaultCodebase
+
+    private var currentPackage: DefaultPackageItem? = null
+
+    private var currentClass: DefaultClassItem? = null
 
     override fun visitCodebase(codebase: Codebase) {
         this.codebase =
@@ -40,6 +50,56 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
             )
+    }
+
+    override fun visitPackage(pkg: PackageItem) {
+        val newPackage =
+            DefaultPackageItem(
+                codebase = codebase,
+                fileLocation = pkg.fileLocation,
+                itemLanguage = pkg.itemLanguage,
+                modifiers = DefaultModifierList(codebase),
+                documentationFactory = pkg.documentation::snapshot,
+                variantSelectorsFactory = pkg.variantSelectors::duplicate,
+                qualifiedName = pkg.qualifiedName(),
+            )
+        codebase.addPackage(newPackage)
+        currentPackage = newPackage
+    }
+
+    override fun afterVisitPackage(pkg: PackageItem) {
+        currentPackage = null
+    }
+
+    override fun visitClass(cls: ClassItem) {
+        val containingClass = currentClass
+        val newClass =
+            DefaultClassItem(
+                codebase = codebase,
+                fileLocation = cls.fileLocation,
+                itemLanguage = cls.itemLanguage,
+                modifiers = DefaultModifierList(codebase),
+                documentationFactory = cls.documentation::snapshot,
+                variantSelectorsFactory = cls.variantSelectors::duplicate,
+                source = null,
+                classKind = cls.classKind,
+                containingClass = currentClass,
+                qualifiedName = cls.qualifiedName(),
+                simpleName = cls.simpleName(),
+                fullName = cls.fullName(),
+                typeParameterList = TypeParameterList.NONE,
+            )
+        if (containingClass == null) {
+            currentPackage!!.addTopClass(newClass)
+        } else {
+            containingClass.addNestedClass(newClass)
+        }
+        codebase.registerClass(newClass)
+        currentClass = newClass
+    }
+
+    override fun afterVisitClass(cls: ClassItem) {
+        currentClass = currentClass?.containingClass() as? DefaultClassItem
     }
 
     companion object {
