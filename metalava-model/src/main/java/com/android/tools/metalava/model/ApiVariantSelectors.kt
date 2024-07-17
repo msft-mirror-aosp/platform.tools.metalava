@@ -278,25 +278,39 @@ sealed interface ApiVariantSelectors {
             } else if (showability.hide()) {
                 inheritableHidden = true
             } else {
-                val containingClassSelectors = item.containingClass()?.variantSelectors ?: return
-
-                // FieldItem does not inherit hidden status from its containing class.
-                if (item !is FieldItem && containingClassSelectors.inheritableHidden) {
-                    inheritableHidden = true
-                } else if (
-                    containingClassSelectors.originallyHidden &&
-                        containingClassSelectors.showability.showNonRecursive()
-                ) {
-                    // This is a member in a class that was hidden but then unhidden; but it was
-                    // unhidden by a non-recursive (single) show annotation, so don't inherit the
-                    // show annotation into this item.
-                    inheritableHidden = true
-                }
-                if (containingClassSelectors.docOnly) {
-                    docOnly = true
-                }
-                if (containingClassSelectors.removed) {
-                    removed = true
+                val containingClassSelectors = item.containingClass()?.variantSelectors
+                if (containingClassSelectors != null) {
+                    // FieldItem does not inherit hidden status from its containing class.
+                    if (item !is FieldItem && containingClassSelectors.inheritableHidden) {
+                        inheritableHidden = true
+                    } else if (
+                        containingClassSelectors.originallyHidden &&
+                            containingClassSelectors.showability.showNonRecursive()
+                    ) {
+                        // This is a member in a class that was hidden but then unhidden; but it was
+                        // unhidden by a non-recursive (single) show annotation, so don't inherit
+                        // the show annotation into this item.
+                        inheritableHidden = true
+                    }
+                    if (containingClassSelectors.docOnly) {
+                        docOnly = true
+                    }
+                    if (containingClassSelectors.removed) {
+                        removed = true
+                    }
+                } else if (item is ClassItem) {
+                    // This will only be executed for top level classes, i.e. containing class is
+                    // null. They inherit their properties from the containing package.
+                    val containingPackageSelectors = item.containingPackage().variantSelectors
+                    if (containingPackageSelectors.inheritableHidden) {
+                        inheritableHidden = true
+                    }
+                    if (containingPackageSelectors.docOnly) {
+                        docOnly = true
+                    }
+                    if (containingPackageSelectors.removed) {
+                        removed = true
+                    }
                 }
             }
         }

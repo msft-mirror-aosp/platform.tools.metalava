@@ -626,29 +626,6 @@ class ApiAnalyzer(
                     packageSelectors.docOnly = true
                 }
             }
-
-            // If this package is hidden then hide its classes. This is done here to avoid ordering
-            // issues when a class with a show annotation unhides its containing package.
-            val hidden = packageSelectors.hidden
-            val docOnly = packageSelectors.docOnly
-            val removed = packageSelectors.removed
-            if (hidden || docOnly || removed) {
-                for (topLevelClass in pkg.topLevelClasses()) {
-                    val classSelectors = topLevelClass.variantSelectors
-                    val showability = classSelectors.showability
-                    if (!showability.show() && !showability.hide()) {
-                        if (hidden) {
-                            classSelectors.hidden = true
-                        }
-                        if (hidden) {
-                            classSelectors.docOnly = true
-                        }
-                        if (removed) {
-                            classSelectors.removed = true
-                        }
-                    }
-                }
-            }
         }
 
         // Create a visitor to propagate hidden and docOnly from the containing package onto the top
