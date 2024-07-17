@@ -218,20 +218,34 @@ sealed class ApiVariantSelectors {
         override val originallyHidden: Boolean
             get() =
                 lazyGet(ORIGINALLY_HIDDEN_BIT_MASK) {
+                    // The item is originally hidden if the javadoc contains @hide or similar, or
+                    // it is tagged with a hide annotation. That is true even if the hide annotation
+                    // is superseded by a show annotation.
                     item.documentation.isHidden || item.hasHideAnnotation()
                 }
 
         override var inheritableHidden: Boolean
             get() =
                 lazyGet(INHERITABLE_HIDDEN_BIT_MASK) {
-                    originallyHidden && !item.hasShowAnnotation()
+                    // By default, i.e. if the property has not been set, the contents of this item
+                    // will be hidden if this item was originally hidden and this item did not have
+                    // a show annotation that applies recursively to its contents. Otherwise, the
+                    // item's contents will be visible.
+                    originallyHidden && !showability.showRecursive()
                 }
             set(value) {
                 lazySet(INHERITABLE_HIDDEN_BIT_MASK, value)
             }
 
         override var hidden: Boolean
-            get() = lazyGet(HIDDEN_BIT_MASK) { inheritableHidden }
+            get() =
+                lazyGet(HIDDEN_BIT_MASK) {
+                    // By default, i.e. if the property has not been set, this item will be hidden
+                    // if it inherits hidden from its parent (or was originally hidden) and this
+                    // item does not have a show annotation of any sort. Otherwise, this item is
+                    // visible.
+                    inheritableHidden && !showability.show()
+                }
             set(value) {
                 lazySet(HIDDEN_BIT_MASK, value)
             }
@@ -285,7 +299,14 @@ sealed class ApiVariantSelectors {
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
             if (showability.show()) {
-                inheritableHidden = false
+                // If the showability is recursive then set inheritableHidden to false, that will
+                // unhide any contents of this item too, unless they hide themselves.
+                if (showability.showRecursive()) {
+                    inheritableHidden = false
+                }
+                // Whether the showability is recursive or not a show annotation of any sort will
+                // always unhide this item.
+                hidden = false
 
                 if (item is ClassItem) {
                     // Make containing package non-hidden if it contains a show-annotation class.
@@ -299,16 +320,19 @@ sealed class ApiVariantSelectors {
             } else {
                 val containingClassSelectors = item.containingClass()?.variantSelectors
                 if (containingClassSelectors != null) {
-                    // FieldItem does not inherit hidden status from its containing class.
-                    if (item !is FieldItem && containingClassSelectors.inheritableHidden) {
-                        inheritableHidden = true
-                    } else if (
-                        containingClassSelectors.originallyHidden &&
-                            containingClassSelectors.showability.showNonRecursive()
-                    ) {
-                        // This is a member in a class that was hidden but then unhidden; but it was
-                        // unhidden by a non-recursive (single) show annotation, so don't inherit
-                        // the show annotation into this item.
+                    if (item is FieldItem) {
+                        if (
+                            containingClassSelectors.originallyHidden &&
+                                containingClassSelectors.showability.showNonRecursive()
+                        ) {
+                            // This is a member in a class that was hidden but then unhidden; but it
+                            // was
+                            // unhidden by a non-recursive (single) show annotation, so don't
+                            // inherit
+                            // the show annotation into this item.
+                            inheritableHidden = true
+                        }
+                    } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
                     if (containingClassSelectors.docOnly) {
