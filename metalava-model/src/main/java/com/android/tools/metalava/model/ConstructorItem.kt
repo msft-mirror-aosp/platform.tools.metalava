@@ -16,12 +16,17 @@
 
 package com.android.tools.metalava.model
 
-interface ConstructorItem : MethodItem {
+interface ConstructorItem : CallableItem {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
+    @Deprecated(
+        message =
+            "There is no point in calling this method on ConstructorItem as it always returns true",
+        ReplaceWith("")
+    )
     override fun isConstructor(): Boolean = true
 
     /** Returns the internal name of the class, as seen in bytecode */
