@@ -60,8 +60,6 @@ open class DefaultMethodItem(
     ),
     MethodItem {
 
-    override fun isConstructor(): Boolean = false
-
     override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
