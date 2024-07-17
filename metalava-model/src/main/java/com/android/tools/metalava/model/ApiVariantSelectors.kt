@@ -51,6 +51,9 @@ sealed interface ApiVariantSelectors {
      */
     var removed: Boolean
 
+    /** Determines whether this item will be shown as part of the API or not. */
+    val showability: Showability
+
     /** Create a duplicate of this for the specified [Item]. */
     fun duplicate(item: Item): ApiVariantSelectors
 
@@ -102,6 +105,9 @@ sealed interface ApiVariantSelectors {
             set(value) {
                 error("Cannot set `removed` to $value")
             }
+
+        override val showability: Showability
+            get() = Showability.NO_EFFECT
 
         override fun duplicate(item: Item): ApiVariantSelectors = this
 
@@ -198,6 +204,17 @@ sealed interface ApiVariantSelectors {
             set(value) {
                 lazySet(REMOVED_HAS_BEEN_SET, REMOVED_VALUE, value)
             }
+
+        /** Cache of [showability]. */
+        private lateinit var _showability: Showability
+
+        override val showability: Showability
+            get() =
+                if (::_showability.isInitialized) _showability
+                else {
+                    _showability = item.codebase.annotationManager.getShowabilityForItem(item)
+                    _showability
+                }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
 
