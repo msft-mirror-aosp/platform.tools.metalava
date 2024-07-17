@@ -42,4 +42,10 @@ interface ConstructorItem : MethodItem {
     /** True if this is the primary constructor in Kotlin. */
     val isPrimary: Boolean
         get() = false
+
+    /**
+     * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does
+     * not have any corresponding source code.
+     */
+    fun isImplicitConstructor(): Boolean = false
 }

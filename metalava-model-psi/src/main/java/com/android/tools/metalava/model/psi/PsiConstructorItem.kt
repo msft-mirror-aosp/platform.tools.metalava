@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PR
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
@@ -69,8 +68,6 @@ private constructor(
     override fun isConstructor(): Boolean = true
 
     override var superConstructor: ConstructorItem? = null
-
-    override fun superMethods(): List<MethodItem> = emptyList()
 
     companion object {
         internal fun create(
