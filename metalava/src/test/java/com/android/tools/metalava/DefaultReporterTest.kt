@@ -321,4 +321,33 @@ class DefaultReporterTest : DriverTest() {
             stringWriter.toString().trimEnd()
         )
     }
+
+    @Test
+    fun `test suppressed writer`() {
+        val nullReportable: Reportable? = null
+        val suppressedFile = temporaryFolder.newFile("suppressed.txt")
+        suppressedFile.printWriter().use { reportEvenIfSuppressedWriter ->
+            val reporter =
+                DefaultReporter(
+                    environment = DefaultReporterEnvironment(),
+                    issueConfiguration = IssueConfiguration(),
+                    config =
+                        DefaultReporter.Config(
+                            reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
+                        ),
+                )
+
+            reporter.report(
+                Issues.HIDDEN_SUPERCLASS,
+                nullReportable,
+                "HIDDEN_SUPERCLASS",
+            )
+
+            // Write any saved reports.
+            reporter.writeSavedReports()
+        }
+
+        // TODO(b/352868158): Write all output to the suppressed file.
+        assertEquals("", suppressedFile.readText().trimEnd(), message = "suppressed file")
+    }
 }
