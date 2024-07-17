@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterItem
 import java.util.function.Predicate
 
@@ -144,15 +143,6 @@ class ApiPredicate(
                 else -> null
             }
 
-        if (clazz != null) {
-            var pkg: PackageItem? = clazz.containingPackage()
-            while (pkg != null) {
-                hidden = hidden or pkg.hidden
-                docOnly = docOnly or pkg.docOnly
-                removed = removed or pkg.removed
-                pkg = pkg.containingPackage()
-            }
-        }
         while (clazz != null) {
             visible =
                 visible and
