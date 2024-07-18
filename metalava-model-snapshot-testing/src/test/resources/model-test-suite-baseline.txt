@@ -1,14 +1,12 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   050 - check field exists[turbine]
   060 - check method exists[turbine]
-  070 - check constructor exists[turbine]
   120 - check modifiers[turbine]
   130 - check classes from classpath[turbine]
   140 - test annotations[turbine]
   150 - advanced superMethods() test on methoditem[turbine]
   160 - check field type[turbine]
   170 - check unannotated typeString[turbine]
-  190 - test constructors[turbine]
   200 - test TypeParameterList name strings[turbine]
   210 Test Method exception list[turbine]
   230 test public name and default value of parameters[turbine]
@@ -58,8 +56,6 @@ com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
   Test class no super class but implements lists[text]
   Test class no super class or implements lists[text]
   Test duplicate without type substitutions[turbine]
-  empty class[text]
-  empty class[turbine]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
   Test enum synthetic methods are not included in the enum class[text]
@@ -91,10 +87,6 @@ com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
 com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorItemTest
   Test access type parameter of outer class[text]
   Test access type parameter of outer class[turbine]
-
-com.android.tools.metalava.model.testsuite.constructoritem.SourceConstructorItemTest
-  test explicit no-args public constructor[turbine]
-  test implicit default constructor[turbine]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonCopyFieldItemTest
   test copy deprecated field from one class to another keeps field as deprecated[text]
@@ -494,8 +486,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test implicit nullability of annotation members[turbine]
   Test implicit nullability of constants[text]
   Test implicit nullability of constants[turbine]
-  Test implicit nullability of constructor returns[text]
-  Test implicit nullability of constructor returns[turbine]
   Test implicit nullability of equals parameter[text]
   Test implicit nullability of equals parameter[turbine]
   Test implicit nullability of toString[text]
@@ -507,8 +497,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test leading annotation on array type[turbine]
   Test nullability of arrays[text]
   Test nullability of arrays[turbine]
-  Test nullability of class type parameter from constructor[text]
-  Test nullability of class type parameter from constructor[turbine]
   Test nullability of classes with parameters[text]
   Test nullability of classes with parameters[turbine]
   Test nullability of multi-dimensional arrays[text]

@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -28,6 +30,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 
@@ -78,6 +81,9 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
 
     /** Take a snapshot of this [ModifierList] for [codebase]. */
     private fun ModifierList.snapshot() = (this as DefaultModifierList).snapshot(codebase)
+
+    /** [ClassTypeItem] specific snapshot. */
+    private fun ClassTypeItem.snapshot() = typeItemFactory.getGeneralType(this) as ClassTypeItem
 
     override fun visitCodebase(codebase: Codebase) {
         val newCodebase =
@@ -192,6 +198,47 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
     override fun afterVisitClass(cls: ClassItem) {
         currentClass = currentClass?.containingClass() as? DefaultClassItem
         typeItemFactoryStack.pop()
+    }
+
+    /** Push this [SnapshotTypeItemFactory] in scope before executing [body] and pop afterwards. */
+    private inline fun SnapshotTypeItemFactory.inScope(body: () -> Unit) {
+        typeItemFactoryStack.push(this)
+        body()
+        typeItemFactoryStack.pop()
+    }
+
+    override fun visitConstructor(constructor: ConstructorItem) {
+        // Create a TypeParameterList and SnapshotTypeItemFactory for the constructor.
+        val (typeParameterList, constructorTypeItemFactory) =
+            constructor.typeParameterList.snapshot(constructor.describe())
+
+        // Resolve any type parameters used in the constructor's parameter items within the scope of
+        // the constructor's SnapshotTypeItemFactory.
+        constructorTypeItemFactory.inScope {
+            val containingClass = currentClass!!
+            val newConstructor =
+                DefaultConstructorItem(
+                    codebase = codebase,
+                    fileLocation = constructor.fileLocation,
+                    itemLanguage = constructor.itemLanguage,
+                    modifiers = constructor.modifiers.snapshot(),
+                    documentationFactory = constructor.documentation::snapshot,
+                    variantSelectorsFactory = constructor.variantSelectors::duplicate,
+                    name = constructor.name(),
+                    containingClass = containingClass,
+                    typeParameterList = typeParameterList,
+                    returnType = constructor.returnType().snapshot(),
+                    parameterItemsFactory = {
+                        // TODO: snapshot these properly.
+                        emptyList()
+                    },
+                    throwsTypes =
+                        constructor.throwsTypes().map { typeItemFactory.getExceptionType(it) },
+                    implicitConstructor = constructor.isImplicitConstructor(),
+                )
+
+            containingClass.addConstructor(newConstructor)
+        }
     }
 
     companion object {
