@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -52,6 +53,9 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
      */
     private var currentClass: DefaultClassItem? = null
 
+    /** Take a snapshot of this [ModifierList] for [codebase]. */
+    private fun ModifierList.snapshot() = (this as DefaultModifierList).snapshot(codebase)
+
     override fun visitCodebase(codebase: Codebase) {
         this.codebase =
             DefaultCodebase(
@@ -71,7 +75,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 codebase = codebase,
                 fileLocation = pkg.fileLocation,
                 itemLanguage = pkg.itemLanguage,
-                modifiers = DefaultModifierList(codebase),
+                modifiers = pkg.modifiers.snapshot(),
                 documentationFactory = pkg.documentation::snapshot,
                 variantSelectorsFactory = pkg.variantSelectors::duplicate,
                 qualifiedName = pkg.qualifiedName(),
@@ -91,7 +95,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 codebase = codebase,
                 fileLocation = cls.fileLocation,
                 itemLanguage = cls.itemLanguage,
-                modifiers = DefaultModifierList(codebase),
+                modifiers = cls.modifiers.snapshot(),
                 documentationFactory = cls.documentation::snapshot,
                 variantSelectorsFactory = cls.variantSelectors::duplicate,
                 source = null,
