@@ -54,6 +54,12 @@ sealed interface ApiVariantSelectors {
     /** Create a duplicate of this for the specified [Item]. */
     fun duplicate(item: Item): ApiVariantSelectors
 
+    /**
+     * Update the mutable properties of this by inheriting state from the parent selectors, if
+     * available.
+     */
+    fun inheritInto()
+
     companion object {
         /**
          * An [ApiVariantSelectors] factory that will always return an immutable
@@ -98,6 +104,8 @@ sealed interface ApiVariantSelectors {
             }
 
         override fun duplicate(item: Item): ApiVariantSelectors = this
+
+        override fun inheritInto() = error("Cannot inheritInto() $this")
 
         override fun toString() = "Immutable"
     }
@@ -192,6 +200,46 @@ sealed interface ApiVariantSelectors {
             }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
+
+        override fun inheritInto() {
+            // Inheritance is only done on a few Item types, ignore the rest.
+            if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
+
+            val showability = item.showability
+            if (showability.show()) {
+                item.hidden = false
+
+                if (item is ClassItem) {
+                    // Make containing package non-hidden if it contains a show-annotation class.
+                    // Doclava does this in PackageInfo.isHidden(). This logic is why it is
+                    // necessary to visit packages before visiting any of their classes.
+                    item.containingPackage().hidden = false
+                }
+            } else if (showability.hide()) {
+                item.hidden = true
+            } else {
+                val containingClass = item.containingClass() ?: return
+
+                // FieldItem does not inherit hidden status from its containing class.
+                if (item !is FieldItem && containingClass.hidden) {
+                    item.hidden = true
+                } else if (
+                    containingClass.originallyHidden &&
+                        containingClass.showability.showNonRecursive()
+                ) {
+                    // This is a member in a class that was hidden but then unhidden; but it was
+                    // unhidden by a non-recursive (single) show annotation, so don't inherit the
+                    // show annotation into this item.
+                    item.hidden = true
+                }
+                if (containingClass.docOnly) {
+                    item.docOnly = true
+                }
+                if (containingClass.removed) {
+                    item.removed = true
+                }
+            }
+        }
 
         companion object {
             /**
