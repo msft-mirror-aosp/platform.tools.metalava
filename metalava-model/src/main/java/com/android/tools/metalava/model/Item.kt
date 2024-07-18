@@ -189,11 +189,25 @@ interface Item : Reportable {
      */
     fun isFromClassPath(): Boolean = false
 
-    /** Is this element declared in Java (rather than Kotlin) ? */
-    fun isJava(): Boolean = true
+    /**
+     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * created from a signature file.
+     */
+    val itemLanguage: ItemLanguage
 
-    /** Is this element declared in Kotlin (rather than Java) ? */
-    fun isKotlin() = !isJava()
+    /**
+     * Is this element declared in Java (rather than Kotlin) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isJava() = itemLanguage.isJava()
+
+    /**
+     * Is this element declared in Kotlin (rather than Java) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isKotlin() = itemLanguage.isKotlin()
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
@@ -436,7 +450,7 @@ interface Item : Reportable {
 /** Base [Item] implementation that is common to all models. */
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
-    internal val itemLanguage: ItemLanguage,
+    final override val itemLanguage: ItemLanguage,
     final override val modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -466,14 +480,6 @@ abstract class AbstractItem(
      * been initialized.
      */
     override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
 
     /**
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
