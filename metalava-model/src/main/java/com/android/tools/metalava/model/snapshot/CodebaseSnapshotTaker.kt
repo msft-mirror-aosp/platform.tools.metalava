@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -35,8 +36,20 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
      */
     private lateinit var codebase: DefaultCodebase
 
+    /** Takes a snapshot of [TypeItem]s. */
+    private val typeSnapshotTaker by lazy(LazyThreadSafetyMode.NONE) { TypeSnapshotTaker(codebase) }
+
+    /**
+     * The current [PackageItem], set in [visitPackage], cleared in [afterVisitPackage], relies on
+     * the [PackageItem]s being visited as a flat list, not a package hierarchy.
+     */
     private var currentPackage: DefaultPackageItem? = null
 
+    /**
+     * The current [ClassItem], that forms a stack through the [ClassItem.containingClass].
+     *
+     * Set (pushed on the stack) in [visitClass]. Reset (popped off the stack) in [afterVisitClass].
+     */
     private var currentClass: DefaultClassItem? = null
 
     override fun visitCodebase(codebase: Codebase) {
@@ -94,6 +107,15 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
         } else {
             containingClass.addNestedClass(newClass)
         }
+
+        // Snapshot the super class type, if any.
+        cls.superClassType()?.let { superClassType ->
+            newClass.setSuperClassType(superClassType.transform(typeSnapshotTaker))
+        }
+
+        // Snapshot the interface types, if any.
+        newClass.setInterfaceTypes(cls.interfaceTypes().map { it.transform(typeSnapshotTaker) })
+
         codebase.registerClass(newClass)
         currentClass = newClass
     }
