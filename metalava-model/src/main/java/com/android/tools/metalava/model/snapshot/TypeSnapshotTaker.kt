@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 
 /**
@@ -48,7 +49,10 @@ class TypeSnapshotTaker(private val codebase: Codebase) : TypeTransformer {
         return if (annotations.isEmpty()) {
             this
         } else {
-            error("Cannot copy ${this} as they have annotations")
+            DefaultTypeModifiers(
+                annotations.map { it.snapshot(codebase) },
+                nullability,
+            )
         }
     }
 
