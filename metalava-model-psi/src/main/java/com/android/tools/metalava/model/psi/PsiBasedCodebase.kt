@@ -551,18 +551,6 @@ open class PsiBasedCodebase(
         // Set emit to true for source classes but false for classpath classes
         classItem.emit = !classItem.isFromClassPath()
 
-        if (!initializing) {
-            // Workaround: we're pulling in .aidl files from .jar files. These are
-            // marked @hide, but since we only see the .class files we don't know that.
-            if (
-                classItem.simpleName().startsWith("I") &&
-                    classItem.isFromClassPath() &&
-                    psiClass.interfaces.any { it.qualifiedName == "android.os.IInterface" }
-            ) {
-                classItem.hidden = true
-            }
-        }
-
         if (initializing) {
             // If initializing then keep track of the class in [packageClasses]. This is not needed
             // after initializing as [packageClasses] is not needed then.

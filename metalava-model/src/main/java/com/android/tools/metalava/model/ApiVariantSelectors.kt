@@ -345,6 +345,19 @@ sealed class ApiVariantSelectors {
             // Inheritance is only done on a few Item types, ignore the rest.
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
+            if (item is ClassItem) {
+                // Workaround: we're pulling in .aidl files from .jar files. These are
+                // marked @hide, but since we only see the .class files we don't know that.
+                if (
+                    item.simpleName().startsWith("I") &&
+                        item.isFromClassPath() &&
+                        item.interfaceTypes().any { it.qualifiedName == "android.os.IInterface" }
+                ) {
+                    hidden = true
+                    return
+                }
+            }
+
             if (showability.show()) {
                 // If the showability is recursive then set inheritableHidden to false, that will
                 // unhide any contents of this item too, unless they hide themselves.
