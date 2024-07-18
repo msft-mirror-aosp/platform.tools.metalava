@@ -33,7 +33,7 @@ sealed class ApiVariantSelectors {
      *
      * Initially set to [originallyHidden] but updated due to inheritance.
      */
-    internal abstract var inheritableHidden: Boolean
+    internal abstract val inheritableHidden: Boolean
 
     /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
@@ -41,7 +41,7 @@ sealed class ApiVariantSelectors {
      *
      * Initially set to [inheritableHidden] but updated due to show annotations.
      */
-    abstract var hidden: Boolean
+    abstract val hidden: Boolean
 
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
@@ -49,7 +49,7 @@ sealed class ApiVariantSelectors {
      * Initially set to `true` if the [Item.documentation] contains `@doconly` but updated due to
      * inheritance.
      */
-    abstract var docOnly: Boolean
+    abstract val docOnly: Boolean
 
     /**
      * Indicates whether the [Item] should be in the removed API surface variant.
@@ -57,7 +57,7 @@ sealed class ApiVariantSelectors {
      * Initially set to `true` if the [Item.documentation] contains `@removed` but updated due to
      * inheritance.
      */
-    abstract var removed: Boolean
+    abstract val removed: Boolean
 
     /** Determines whether this item will be shown as part of the API or not. */
     abstract val showability: Showability
@@ -102,23 +102,14 @@ sealed class ApiVariantSelectors {
         override val originallyHidden: Boolean
             get() = false
 
-        override var inheritableHidden: Boolean
+        override val inheritableHidden: Boolean
             get() = false
-            set(value) {
-                error("Cannot set `inheritableHidden` to $value")
-            }
 
-        override var hidden: Boolean
+        override val hidden: Boolean
             get() = false
-            set(value) {
-                error("Cannot set `hidden` to $value")
-            }
 
-        override var docOnly: Boolean
+        override val docOnly: Boolean
             get() = false
-            set(value) {
-                error("Cannot set `docOnly` to $value")
-            }
 
         override var removed: Boolean
             get() = false
@@ -373,7 +364,7 @@ sealed class ApiVariantSelectors {
                     val containingPackageSelectors = item.containingPackage().variantSelectors
                     // Only unhide the package, do not affect anything that might inherit from that
                     // package.
-                    containingPackageSelectors.hidden = false
+                    (containingPackageSelectors as Mutable).hidden = false
                 }
             } else if (showability.hide()) {
                 inheritableHidden = true
