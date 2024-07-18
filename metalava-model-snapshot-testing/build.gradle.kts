@@ -32,4 +32,12 @@ dependencies {
     // Include the text model's test runner so that the test suite will run its signature based
     // tests on a snapshot of the codebase it produces.
     testImplementation(testFixtures(project(":metalava-model-text")))
+
+    // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite` against a
+    // SourceModelProvider.
+    testImplementation(testFixtures(project(":metalava-model-source")))
+
+    // Include the turbine model's SourceModelProvider so that the test suite will run its
+    // Java based tests on a snapshot of the codebase it produces.
+    testImplementation(project(":metalava-model-turbine"))
 }
