@@ -128,81 +128,101 @@ sealed interface ApiVariantSelectors {
      * [docOnly] will be initialized to `true` if it's [item]'s documentation contains `@doconly`.
      *
      * [removed] will be initialized to `true` if it's [item]'s documentation contains `@removed`.
+     *
+     * This uses bits in [propertyHasBeenSetBits] and [propertyValueBits] to handle lazy
+     * initialization and store the value. The main purpose of using bit masks is not primarily
+     * performance or to reduce storage (although keeping that down is a factor) but rather to
+     * support lazy initialization with optional setters without duplicating lots of complicated
+     * code.
      */
     private class Mutable(private val item: Item) : ApiVariantSelectors {
 
         /**
-         * The status of the properties, i.e. whether they have been set/initialized and their value
-         * if they have.
+         * Contains a bit for each lazy boolean property indicating whether it has been set, either
+         * implicitly during initialization or explicitly via its setter.
+         *
+         * If a bit is set in here then the corresponding bit in [propertyValueBits] contains the
+         * value.
          */
-        private var flags: Int = 0
+        private var propertyHasBeenSetBits = 0
 
         /**
-         * Get the value of a property from [flags], initializing it if it has not yet been set.
+         * Contains a bit for each lazy boolean property indicating its value.
          *
-         * The property is determined by the [setFlag] and [valueFlag] parameters
-         *
-         * @param setFlag the bit mask in [flags] which indicates whether the associated property's
-         *   value has been set.
-         * @param valueFlag the bit mask in [flags] containing the value of the associated property
-         *   if and only if it has been set, i.e. [setFlag] is set.
+         * A bit in here represents the value of the property if and only if the corresponding bit
+         * has been set in [propertyHasBeenSetBits]. Otherwise, the value of the bit is undefined.
          */
-        inline fun lazyGet(setFlag: Int, valueFlag: Int, initializer: () -> Boolean): Boolean =
-            if ((flags and setFlag) == 0) {
-                val result = initializer()
-                flags = flags or setFlag
-                if (result) flags = flags or valueFlag
+        private var propertyValueBits = 0
+
+        /**
+         * Get the value of a property from [propertyValueBits], initializing it if it has not yet
+         * been set.
+         *
+         * @param propertyBitMask the bit mask in [propertyHasBeenSetBits] and [propertyValueBits]
+         *   which indicates whether the associated property's value has been set and if so what its
+         *   value is.
+         * @param initialValueProvider a lambda which returns the initial value of the property if
+         *   it has not yet been set.
+         */
+        private inline fun lazyGet(propertyBitMask: Int, initialValueProvider: () -> Boolean) =
+            // Check to see if the property has been set first before accessing the value.
+            if ((propertyHasBeenSetBits and propertyBitMask) == 0) {
+                // The property has not been set so get the initial value and store it.
+                val result = initialValueProvider()
+                // Record that the property has been set.
+                propertyHasBeenSetBits = propertyHasBeenSetBits or propertyBitMask
+                // Record the value.
+                if (result) propertyValueBits = propertyValueBits or propertyBitMask
+                // Return the result.
                 result
-            } else (flags and valueFlag) != 0
+            } else {
+                // The property has been set so get its value.
+                (propertyValueBits and propertyBitMask) != 0
+            }
 
         /**
-         * Set the value of a property in [flags], skipping initializing it that has not already
-         * been done.
+         * Set the value of a property in [propertyValueBits], skipping initializing it that has not
+         * already been done.
          *
-         * The property is determined by the [setFlag] and [valueFlag] parameters
-         *
-         * @param setFlag the bit mask in [flags] which indicates whether the associated property's
-         *   value has been set.
-         * @param valueFlag the bit mask in [flags] in which the value of the associated property
-         *   will be stored.
-         * @param value the value of the property.
+         * @param propertyBitMask the bit mask in [propertyHasBeenSetBits] and [propertyValueBits]
+         *   which indicates whether the associated property's value has been set and if so what its
+         *   value is.
+         * @param value the new value of the property.
          */
-        fun lazySet(setFlag: Int, valueFlag: Int, value: Boolean) {
-            flags =
-                (flags or setFlag).let { intermediate ->
-                    if (value) {
-                        intermediate or valueFlag
-                    } else {
-                        intermediate and valueFlag.inv()
-                    }
-                }
+        private fun lazySet(propertyBitMask: Int, value: Boolean) {
+            // Record that the property has been set.
+            propertyHasBeenSetBits = propertyHasBeenSetBits or propertyBitMask
+            if (value) {
+                // The value is true so set the bit.
+                propertyValueBits = propertyValueBits or propertyBitMask
+            } else {
+                // The value is false so clear the bit.
+                propertyValueBits = propertyValueBits and propertyBitMask.inv()
+            }
         }
 
         override val originallyHidden: Boolean
             get() =
-                lazyGet(ORIGINALLY_HIDDEN_HAS_BEEN_SET, ORIGINALLY_HIDDEN_VALUE) {
+                lazyGet(ORIGINALLY_HIDDEN_BIT_MASK) {
                     item.documentation.isHidden || item.hasHideAnnotation()
                 }
 
         override var hidden: Boolean
-            get() =
-                lazyGet(HIDDEN_HAS_BEEN_SET, HIDDEN_VALUE) {
-                    originallyHidden && !item.hasShowAnnotation()
-                }
+            get() = lazyGet(HIDDEN_BIT_MASK) { originallyHidden && !item.hasShowAnnotation() }
             set(value) {
-                lazySet(HIDDEN_HAS_BEEN_SET, HIDDEN_VALUE, value)
+                lazySet(HIDDEN_BIT_MASK, value)
             }
 
         override var docOnly: Boolean
-            get() = lazyGet(DOCONLY_HAS_BEEN_SET, DOCONLY_VALUE) { item.documentation.isDocOnly }
+            get() = lazyGet(DOCONLY_BIT_MASK) { item.documentation.isDocOnly }
             set(value) {
-                lazySet(DOCONLY_HAS_BEEN_SET, DOCONLY_VALUE, value)
+                lazySet(DOCONLY_BIT_MASK, value)
             }
 
         override var removed: Boolean
-            get() = lazyGet(REMOVED_HAS_BEEN_SET, REMOVED_VALUE) { item.documentation.isRemoved }
+            get() = lazyGet(REMOVED_BIT_MASK) { item.documentation.isRemoved }
             set(value) {
-                lazySet(REMOVED_HAS_BEEN_SET, REMOVED_VALUE, value)
+                lazySet(REMOVED_BIT_MASK, value)
             }
 
         /** Cache of [showability]. */
@@ -258,38 +278,61 @@ sealed interface ApiVariantSelectors {
             }
         }
 
-        companion object {
-            /**
-             * The number of bits in [flags] that is needed for each property.
-             *
-             * The bits are as follows:
-             * 1. If set then the value of the property has been set, either by the initializer when
-             *    first read, or explicitly by the setter, if there is one. If unset then the value
-             *    of the property has not yet been set.
-             * 2. This is only valid if the preceding bit has been set in which case this is the
-             *    value of the property.
-             */
-            private const val BITS_PER_PROPERTY = 2
+        override fun toString(): String {
+            return buildString {
+                append(item.describe())
+                append(" {")
+                for ((bitPosition, propertyName) in propertyNamePerBit.withIndex()) {
+                    append(propertyName)
+                    append("=")
+                    if ((propertyHasBeenSetBits and bitPosition) == 0) {
+                        append("<not-set>")
+                    } else if ((propertyValueBits and bitPosition) == 0) {
+                        append("false")
+                    } else {
+                        append("true")
+                    }
+                    append(",")
+                }
+                append("showability=")
+                if (::_showability.isInitialized) {
+                    append(_showability)
+                } else {
+                    append("<not-set>")
+                }
+                append("}")
+            }
+        }
 
+        companion object {
             // `originallyHidden` related constants
-            private const val ORIGINALLY_HIDDEN_OFFSET: Int = 0
-            private const val ORIGINALLY_HIDDEN_HAS_BEEN_SET: Int = 1 shl ORIGINALLY_HIDDEN_OFFSET
-            private const val ORIGINALLY_HIDDEN_VALUE: Int = 1 shl (ORIGINALLY_HIDDEN_OFFSET + 1)
+            private const val ORIGINALLY_HIDDEN_BIT_POSITION: Int = 0
+            private const val ORIGINALLY_HIDDEN_BIT_MASK: Int = 1 shl ORIGINALLY_HIDDEN_BIT_POSITION
 
             // `hidden` related constants
-            private const val HIDDEN_OFFSET: Int = ORIGINALLY_HIDDEN_OFFSET + BITS_PER_PROPERTY
-            private const val HIDDEN_HAS_BEEN_SET: Int = 1 shl HIDDEN_OFFSET
-            private const val HIDDEN_VALUE: Int = 1 shl (HIDDEN_OFFSET + 1)
+            private const val HIDDEN_BIT_POSITION: Int = ORIGINALLY_HIDDEN_BIT_POSITION + 1
+            private const val HIDDEN_BIT_MASK: Int = 1 shl HIDDEN_BIT_POSITION
 
             // `docOnly` related constants
-            private const val DOCONLY_OFFSET: Int = HIDDEN_OFFSET + BITS_PER_PROPERTY
-            private const val DOCONLY_HAS_BEEN_SET: Int = 1 shl DOCONLY_OFFSET
-            private const val DOCONLY_VALUE: Int = 1 shl (DOCONLY_OFFSET + 1)
+            private const val DOCONLY_BIT_POSITION: Int = HIDDEN_BIT_POSITION + 1
+            private const val DOCONLY_BIT_MASK: Int = 1 shl DOCONLY_BIT_POSITION
 
             // `removed` related constants
-            private const val REMOVED_OFFSET: Int = DOCONLY_OFFSET + BITS_PER_PROPERTY
-            private const val REMOVED_HAS_BEEN_SET: Int = 1 shl REMOVED_OFFSET
-            private const val REMOVED_VALUE: Int = 1 shl (REMOVED_OFFSET + 1)
+            private const val REMOVED_BIT_POSITION: Int = DOCONLY_BIT_POSITION + 1
+            private const val REMOVED_BIT_MASK: Int = 1 shl REMOVED_BIT_POSITION
+
+            /** The count of the number of bits used. */
+            private const val COUNT_BITS_USED = REMOVED_BIT_POSITION + 1
+
+            /** Map from bit to the associated property name, used in toString() */
+            private val propertyNamePerBit =
+                Array(COUNT_BITS_USED) { "" }
+                    .also { array ->
+                        array[ORIGINALLY_HIDDEN_BIT_POSITION] = "originallyHidden"
+                        array[HIDDEN_BIT_POSITION] = "hidden"
+                        array[DOCONLY_BIT_POSITION] = "docOnly"
+                        array[REMOVED_BIT_POSITION] = "removed"
+                    }
         }
     }
 }
