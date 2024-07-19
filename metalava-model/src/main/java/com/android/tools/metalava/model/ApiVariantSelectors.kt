@@ -272,11 +272,12 @@ sealed class ApiVariantSelectors {
                 lazySet(HIDDEN_BIT_MASK, value)
             }
 
-        override var docOnly: Boolean
-            get() = lazyGetAfterInherit(DOCONLY_BIT_MASK) { item.documentation.isDocOnly }
-            set(value) {
-                lazySet(DOCONLY_BIT_MASK, value)
-            }
+        override val docOnly: Boolean
+            get() =
+                lazyGet(DOCONLY_BIT_MASK) {
+                    (item.parent()?.variantSelectors?.docOnly == true) ||
+                        item.documentation.isDocOnly
+                }
 
         override var removed: Boolean
             get() = lazyGetAfterInherit(REMOVED_BIT_MASK) { item.documentation.isRemoved }
@@ -326,9 +327,6 @@ sealed class ApiVariantSelectors {
                     item.containingPackage()?.variantSelectors ?: return
                 if (containingPackageSelectors.inheritableHidden) {
                     inheritableHidden = true
-                }
-                if (containingPackageSelectors.docOnly) {
-                    docOnly = true
                 }
                 return
             }
@@ -386,9 +384,6 @@ sealed class ApiVariantSelectors {
                     } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
-                    if (containingClassSelectors.docOnly) {
-                        docOnly = true
-                    }
                     if (containingClassSelectors.removed) {
                         removed = true
                     }
@@ -398,9 +393,6 @@ sealed class ApiVariantSelectors {
                     val containingPackageSelectors = item.containingPackage().variantSelectors
                     if (containingPackageSelectors.inheritableHidden) {
                         inheritableHidden = true
-                    }
-                    if (containingPackageSelectors.docOnly) {
-                        docOnly = true
                     }
                     if (containingPackageSelectors.removed) {
                         removed = true
@@ -548,7 +540,10 @@ sealed class ApiVariantSelectors {
                 if (inheritIntoWasCalled) selectors.inheritIntoWasCalled = true
                 inheritableHidden?.let { selectors.inheritableHidden = it }
                 hidden?.let { selectors.hidden = it }
-                docOnly?.let { selectors.docOnly = it }
+                docOnly?.let {
+                    // It is expected to be set so force it to be initialized.
+                    selectors.docOnly
+                }
                 removed?.let { selectors.removed = it }
                 showability?.let { selectors._showability = it }
             }

@@ -43,6 +43,10 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                 message = "$message (originallyHidden)"
             )
         }
+
+        expectedState.docOnly?.let { expected ->
+            assertEquals(expected, docOnly, message = "$message (docOnly)")
+        }
     }
 
     @Test
@@ -235,12 +239,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             assertEquals(false, selectors.docOnly, message = "docOnly")
 
             // Check the state after initializing `docOnly`.
-            testableSelectorsState =
-                testableSelectorsState.copy(
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                    docOnly = false,
-                )
+            testableSelectorsState = testableSelectorsState.copy(docOnly = false)
             selectors.assertEquals(testableSelectorsState, message = "after `docOnly` initialized")
         }
     }
@@ -281,23 +280,10 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             assertEquals(true, fooSelectors.docOnly, message = "foo docOnly")
 
             // Check the states after initializing `docOnly`.
-            pkgSelectorsState =
-                pkgSelectorsState.copy(
-                    originallyHidden = false,
-                    inheritableHidden = false,
-                    docOnly = true,
-                    removed = false,
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                )
+            pkgSelectorsState = pkgSelectorsState.copy(docOnly = true)
             pkgSelectors.assertEquals(pkgSelectorsState, message = "after pkg")
 
-            fooSelectorsState =
-                fooSelectorsState.copy(
-                    docOnly = true,
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                )
+            fooSelectorsState = fooSelectorsState.copy(docOnly = true)
             fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
         }
     }
