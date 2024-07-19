@@ -33,7 +33,7 @@ sealed class ApiVariantSelectors {
      *
      * Initially set to [originallyHidden] but updated due to inheritance.
      */
-    protected abstract var inheritableHidden: Boolean
+    internal abstract var inheritableHidden: Boolean
 
     /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
@@ -249,15 +249,15 @@ sealed class ApiVariantSelectors {
             }
 
         /** Cache of [showability]. */
-        private lateinit var _showability: Showability
+        internal var _showability: Showability? = null
 
         override val showability: Showability
             get() =
-                if (::_showability.isInitialized) _showability
-                else {
-                    _showability = item.codebase.annotationManager.getShowabilityForItem(item)
-                    _showability
-                }
+                _showability
+                    ?: let {
+                        _showability = item.codebase.annotationManager.getShowabilityForItem(item)
+                        _showability!!
+                    }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
 
@@ -337,27 +337,50 @@ sealed class ApiVariantSelectors {
         override fun toString(): String {
             return buildString {
                 append(item.describe())
-                append(" {")
+                append(" {\n")
                 for ((bitPosition, propertyName) in propertyNamePerBit.withIndex()) {
+                    val bitMask = 1 shl bitPosition
+                    append("    ")
                     append(propertyName)
                     append("=")
-                    if ((propertyHasBeenSetBits and bitPosition) == 0) {
+                    if ((propertyHasBeenSetBits and bitMask) == 0) {
                         append("<not-set>")
-                    } else if ((propertyValueBits and bitPosition) == 0) {
+                    } else if ((propertyValueBits and bitMask) == 0) {
                         append("false")
                     } else {
                         append("true")
                     }
-                    append(",")
+                    append(",\n")
                 }
-                append("showability=")
-                if (::_showability.isInitialized) {
-                    append(_showability)
-                } else {
+                append("    showability=")
+                if (_showability == null) {
                     append("<not-set>")
+                } else {
+                    append(_showability)
                 }
+                append(",\n")
                 append("}")
             }
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Mutable) return false
+
+            if (item != other.item) return false
+            if (propertyHasBeenSetBits != other.propertyHasBeenSetBits) return false
+            if (propertyValueBits != other.propertyValueBits) return false
+            if (_showability != other._showability) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = item.hashCode()
+            result = 31 * result + propertyHasBeenSetBits
+            result = 31 * result + propertyValueBits
+            result = 31 * result + _showability.hashCode()
+            return result
         }
 
         companion object {
@@ -397,5 +420,52 @@ sealed class ApiVariantSelectors {
                         array[REMOVED_BIT_POSITION] = "removed"
                     }
         }
+    }
+
+    /**
+     * Encapsulates the expected state of a [Mutable] instance.
+     *
+     * A data class was chosen for this because the nature of the [Mutable] class is such that
+     * generally, once a property has been set it is not changed (not strictly true for packages).
+     * Tests will typically, test the state, make a change (e.g. get the value of a property), check
+     * the new state and so on. The [copy] method generated for data classes makes it easy to
+     * incrementally modify the state without having to repeat all the previous changes.
+     *
+     * For `var` properties in [Mutable] each corresponding optional parameter will have no effect
+     * if `null` but otherwise will be used to set the corresponding `var` property in the returned
+     * object.
+     *
+     * The `val` properties like [originallyHidden] cannot be set to a specific value. So, all that
+     * this can do is force it to be initialized. That means that the [ApiVariantSelectors] returned
+     * from [createSelectorsforTesting] will only verify whether it is set or not-set as expected.
+     * It cannot test if the value is expected. That will need to be done by the caller.
+     */
+    data class TestableSelectorsState(
+        val item: Item,
+        val originallyHidden: Boolean? = null,
+        val inheritableHidden: Boolean? = null,
+        val hidden: Boolean? = null,
+        val docOnly: Boolean? = null,
+        val removed: Boolean? = null,
+        val showability: Showability? = null,
+    ) {
+
+        /**
+         * Create a [Mutable] instance whose state matches this that can be used as the expected
+         * state in a test.
+         */
+        fun createSelectorsforTesting(): ApiVariantSelectors =
+            Mutable(item).also { selectors ->
+                // If originally hidden is set then force it to be initialized.
+                originallyHidden?.let {
+                    // It is expected to be set so force it to be initialized.
+                    selectors.originallyHidden
+                }
+                inheritableHidden?.let { selectors.inheritableHidden = it }
+                hidden?.let { selectors.hidden = it }
+                docOnly?.let { selectors.docOnly = it }
+                removed?.let { selectors.removed = it }
+                showability?.let { selectors._showability = it }
+            }
     }
 }
