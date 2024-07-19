@@ -108,15 +108,12 @@ class ApiPredicate(
 
         val itemSelectors = item.variantSelectors
 
-        var visible =
-            item.isPublic ||
-                item.isProtected ||
-                (item.isInternal &&
-                    item.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
+        // If the item or any of its containing classes are inaccessible then ignore it.
+        if (!itemSelectors.accessible) return false
+
         var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
-        if (!visible || hidden) {
-            return false
-        }
+        if (hidden) return false
+
         if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
             return false
         }
@@ -153,18 +150,13 @@ class ApiPredicate(
             }
 
         while (clazz != null) {
-            visible =
-                visible and
-                    (clazz.isPublic ||
-                        clazz.isProtected ||
-                        (clazz.isInternal && clazz.hasShowAnnotation()))
             hasShowAnnotation =
                 hasShowAnnotation or (config.ignoreShown || clazz.hasShowAnnotation())
             hidden = hidden or clazz.hidden
             clazz = clazz.containingClass()
         }
 
-        return visible && hasShowAnnotation && !hidden
+        return hasShowAnnotation && !hidden
     }
 
     /**
