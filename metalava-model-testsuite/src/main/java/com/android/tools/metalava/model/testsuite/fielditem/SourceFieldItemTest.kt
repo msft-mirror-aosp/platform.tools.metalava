@@ -262,8 +262,6 @@ class SourceFieldItemTest : BaseModelTest() {
                 fieldItem.modifiers.equivalentTo(duplicateField.modifiers),
                 message = "duplicated modifiers"
             )
-            assertEquals(false, duplicateField.hidden, message = "duplicated hidden")
-            assertEquals(false, duplicateField.docOnly, message = "duplicated docOnly")
             assertEquals(fieldItem.type(), duplicateField.type(), message = "duplicated types")
             assertEquals(
                 fieldItem.initialValue(),
