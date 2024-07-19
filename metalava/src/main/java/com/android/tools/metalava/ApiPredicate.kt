@@ -140,23 +140,30 @@ class ApiPredicate(
         // then ignore this item.
         if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
 
-        var hasShowAnnotation = config.ignoreShown || item.hasShowAnnotation()
-
-        var clazz: ClassItem? =
+        val closestClass: ClassItem? =
             when (item) {
                 is MemberItem -> item.containingClass()
                 is ClassItem -> item
                 else -> null
             }
 
-        while (clazz != null) {
-            hasShowAnnotation =
-                hasShowAnnotation or (config.ignoreShown || clazz.hasShowAnnotation())
-            hidden = hidden or clazz.hidden
-            clazz = clazz.containingClass()
+        if (!config.ignoreShown) {
+            var hasShowAnnotation = item.hasShowAnnotation()
+            var showClass = closestClass
+            while (showClass != null && !hasShowAnnotation) {
+                hasShowAnnotation = showClass.hasShowAnnotation()
+                showClass = showClass.containingClass()
+            }
+            if (!hasShowAnnotation) return false
         }
 
-        return hasShowAnnotation && !hidden
+        var hiddenClass = closestClass
+        while (hiddenClass != null) {
+            if (hiddenClass.hidden) return false
+            hiddenClass = hiddenClass.containingClass()
+        }
+
+        return true
     }
 
     /**
