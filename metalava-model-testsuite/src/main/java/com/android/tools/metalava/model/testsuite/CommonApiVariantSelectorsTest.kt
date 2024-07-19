@@ -311,12 +311,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             assertEquals(false, selectors.removed, message = "removed")
 
             // Check the state after initializing `removed`.
-            testableSelectorsState =
-                testableSelectorsState.copy(
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                    removed = false,
-                )
+            testableSelectorsState = testableSelectorsState.copy(removed = false)
             selectors.assertEquals(testableSelectorsState, message = "after `removed` initialized")
         }
     }
@@ -357,22 +352,10 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             assertEquals(true, fooSelectors.removed, message = "foo removed")
 
             // Check the states after initializing `removed`.
-            pkgSelectorsState =
-                pkgSelectorsState.copy(
-                    originallyHidden = false,
-                    inheritableHidden = false,
-                    removed = true,
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                )
+            pkgSelectorsState = pkgSelectorsState.copy(removed = true)
             pkgSelectors.assertEquals(pkgSelectorsState, message = "after pkg")
 
-            fooSelectorsState =
-                fooSelectorsState.copy(
-                    removed = true,
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                )
+            fooSelectorsState = fooSelectorsState.copy(removed = true)
             fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
         }
     }
