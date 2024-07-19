@@ -320,4 +320,60 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             selectors.assertEquals(testableSelectorsState, message = "after `removed` initialized")
         }
     }
+
+    @Test
+    fun `Test removed`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /** @removed */
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val pkgItem = codebase.assertPackage("test.pkg")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val pkgSelectors = pkgItem.variantSelectors
+            val fooSelectors = fooClass.variantSelectors
+
+            var pkgSelectorsState = TestableSelectorsState(item = pkgItem)
+            var fooSelectorsState = TestableSelectorsState(item = fooClass)
+
+            // Check the states before initializing any property.
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "initial pkg")
+            fooSelectors.assertEquals(fooSelectorsState, message = "initial foo")
+
+            // Get the `removed` property, do foo first to show it can inherit properly.
+            assertEquals(true, fooSelectors.removed, message = "foo removed")
+
+            // Check the states after initializing `removed`.
+            pkgSelectorsState =
+                pkgSelectorsState.copy(
+                    originallyHidden = false,
+                    inheritableHidden = false,
+                    removed = true,
+                    inheritIntoWasCalled = true,
+                    showability = Showability.NO_EFFECT,
+                )
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "after pkg")
+
+            fooSelectorsState =
+                fooSelectorsState.copy(
+                    removed = true,
+                    inheritIntoWasCalled = true,
+                    showability = Showability.NO_EFFECT,
+                )
+            fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
+        }
+    }
 }
