@@ -246,6 +246,63 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test docOnly`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /** @doconly */
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val pkgItem = codebase.assertPackage("test.pkg")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val pkgSelectors = pkgItem.variantSelectors
+            val fooSelectors = fooClass.variantSelectors
+
+            var pkgSelectorsState = TestableSelectorsState(item = pkgItem)
+            var fooSelectorsState = TestableSelectorsState(item = fooClass)
+
+            // Check the states before initializing any property.
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "initial pkg")
+            fooSelectors.assertEquals(fooSelectorsState, message = "initial foo")
+
+            // Get the `docOnly` property, do foo first to show it can inherit properly.
+            assertEquals(true, fooSelectors.docOnly, message = "foo docOnly")
+
+            // Check the states after initializing `docOnly`.
+            pkgSelectorsState =
+                pkgSelectorsState.copy(
+                    originallyHidden = false,
+                    inheritableHidden = false,
+                    docOnly = true,
+                    removed = false,
+                    inheritIntoWasCalled = true,
+                    showability = Showability.NO_EFFECT,
+                )
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "after pkg")
+
+            fooSelectorsState =
+                fooSelectorsState.copy(
+                    docOnly = true,
+                    inheritIntoWasCalled = true,
+                    showability = Showability.NO_EFFECT,
+                )
+            fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
+        }
+    }
+
+    @Test
     fun `Test not removed`() {
         runCodebaseTest(
             java(
