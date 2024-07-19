@@ -104,12 +104,14 @@ class ApiPredicate(
                 false
             }
 
+        val itemSelectors = item.variantSelectors
+
         var visible =
             item.isPublic ||
                 item.isProtected ||
                 (item.isInternal &&
                     item.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
-        var hidden = item.hidden && !visibleForAdditionalOverridePurpose
+        var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
         if (!visible || hidden) {
             return false
         }
@@ -129,12 +131,12 @@ class ApiPredicate(
                     it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
                 } == true
         ) {
-            return item.removed == matchRemoved
+            return itemSelectors.removed == matchRemoved
         }
 
         var hasShowAnnotation = config.ignoreShown || item.hasShowAnnotation()
-        var docOnly = item.docOnly
-        var removed = item.removed
+        var docOnly = itemSelectors.docOnly
+        var removed = itemSelectors.removed
 
         var clazz: ClassItem? =
             when (item) {
