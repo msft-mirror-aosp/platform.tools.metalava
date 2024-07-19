@@ -452,14 +452,6 @@ internal open class TurbineCodebaseInitialiser(
         // Create constructors
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
 
-        // Add to the codebase
-        codebase.registerClass(classItem)
-
-        // Add the class to corresponding PackageItem
-        if (isTopClass) {
-            pkgItem.addTopClass(classItem)
-        }
-
         // Do not emit to signature file if it is from classpath
         if (isFromClassPath) {
             pkgItem.emit = false
@@ -714,9 +706,7 @@ internal open class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            val nestedClassItem =
-                createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
-            classItem.addNestedClass(nestedClassItem)
+            createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
         }
     }
 

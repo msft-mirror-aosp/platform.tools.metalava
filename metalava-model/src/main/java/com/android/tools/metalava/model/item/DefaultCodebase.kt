@@ -98,7 +98,7 @@ open class DefaultCodebase(
     override fun findClass(className: String): ClassItem? = findClassInCodebase(className)
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    fun registerClass(classItem: DefaultClassItem) {
+    internal fun registerClass(classItem: DefaultClassItem) {
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
