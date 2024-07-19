@@ -419,6 +419,7 @@ internal open class TurbineCodebaseInitialiser(
                 source = sourceFile,
                 classKind = getClassKind(cls.kind()),
                 containingClass = containingClassItem,
+                containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
                 simpleName = simpleName,
                 fullName = fullName,
@@ -454,7 +455,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
-            classItem.setContainingPackage(pkgItem)
             pkgItem.addTopClass(classItem)
         }
 

@@ -606,6 +606,7 @@ private constructor(
                 modifiers = modifiers,
                 classKind = classKind,
                 containingClass = outerClass,
+                containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
@@ -628,7 +629,6 @@ private constructor(
             classToTypeItemFactory[cl] = typeItemFactory
         }
 
-        cl.setContainingPackage(pkg)
         if (outerClass == null) {
             // Add the class to the package, it will only be added to the TextCodebase once the
             // package body has been parsed.
