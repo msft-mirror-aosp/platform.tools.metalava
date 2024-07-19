@@ -81,39 +81,39 @@ class ApiPredicate(
         val addAdditionalOverrides: Boolean = false,
     )
 
-    override fun test(member: Item): Boolean {
+    override fun test(item: Item): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
         // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
-        if (member !is ClassItem && !member.emit) {
+        if (item !is ClassItem && !item.emit) {
             return false
         }
 
         // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
-        if (member is TypeParameterItem) {
+        if (item is TypeParameterItem) {
             return true
         }
 
-        if (!config.allowClassesFromClasspath && member.isFromClassPath()) {
+        if (!config.allowClassesFromClasspath && item.isFromClassPath()) {
             return false
         }
 
         val visibleForAdditionalOverridePurpose =
             if (config.addAdditionalOverrides) {
-                member is MethodItem && member.isRequiredOverridingMethodForTextStub()
+                item is MethodItem && item.isRequiredOverridingMethodForTextStub()
             } else {
                 false
             }
 
         var visible =
-            member.isPublic ||
-                member.isProtected ||
-                (member.isInternal &&
-                    member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
-        var hidden = member.hidden && !visibleForAdditionalOverridePurpose
+            item.isPublic ||
+                item.isProtected ||
+                (item.isInternal &&
+                    item.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
+        var hidden = item.hidden && !visibleForAdditionalOverridePurpose
         if (!visible || hidden) {
             return false
         }
-        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(member)) {
+        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
             return false
         }
 
@@ -124,22 +124,22 @@ class ApiPredicate(
         // Only the class definition is marked visible, and class attributes are
         // not affected.
         if (
-            member is ClassItem &&
-                member.superClass()?.let {
+            item is ClassItem &&
+                item.superClass()?.let {
                     it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
                 } == true
         ) {
-            return member.removed == matchRemoved
+            return item.removed == matchRemoved
         }
 
-        var hasShowAnnotation = config.ignoreShown || member.hasShowAnnotation()
-        var docOnly = member.docOnly
-        var removed = member.removed
+        var hasShowAnnotation = config.ignoreShown || item.hasShowAnnotation()
+        var docOnly = item.docOnly
+        var removed = item.removed
 
         var clazz: ClassItem? =
-            when (member) {
-                is MemberItem -> member.containingClass()
-                is ClassItem -> member
+            when (item) {
+                is MemberItem -> item.containingClass()
+                is ClassItem -> item
                 else -> null
             }
 
