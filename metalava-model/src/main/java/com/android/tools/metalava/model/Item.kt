@@ -509,6 +509,9 @@ abstract class AbstractItem(
             variantSelectors.removed = value
         }
 
+    final override val showability: Showability
+        get() = variantSelectors.showability
+
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
     final override val originallyDeprecated
@@ -537,10 +540,6 @@ abstract class AbstractItem(
 
     companion object {
         private var nextRank = AtomicInteger()
-    }
-
-    final override val showability: Showability by lazy {
-        codebase.annotationManager.getShowabilityForItem(this)
     }
 
     final override fun suppressedIssues(): Set<String> {
