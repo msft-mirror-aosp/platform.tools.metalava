@@ -60,7 +60,6 @@ interface Item : Reportable {
      *
      * @see originallyHidden
      * @see hidden
-     * @see docOnly
      * @see removed
      */
     val variantSelectors: ApiVariantSelectors
@@ -103,13 +102,6 @@ interface Item : Reportable {
      * has been marked as deprecated.
      */
     val effectivelyDeprecated: Boolean
-
-    /**
-     * True if this element is only intended for documentation
-     *
-     * @see variantSelectors
-     */
-    val docOnly: Boolean
 
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
@@ -491,10 +483,6 @@ abstract class AbstractItem(
     /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
     final override val hidden
         get() = variantSelectors.hidden
-
-    /** Manually delegate to [ApiVariantSelectors.docOnly] as property delegates are expensive. */
-    final override val docOnly: Boolean
-        get() = variantSelectors.docOnly
 
     /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
     final override val removed: Boolean
