@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Reporter
@@ -61,10 +60,8 @@ internal open class TurbineBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    override fun newClassRegistered(classItem: DefaultClassItem) {
-        if (!classItem.isNestedClass()) {
-            topLevelClassesFromSource.add(classItem)
-        }
+    fun addTopLevelClassFromSource(classItem: ClassItem) {
+        topLevelClassesFromSource.add(classItem)
     }
 
     fun initialize(
