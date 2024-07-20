@@ -19,14 +19,30 @@ package com.android.tools.metalava.model.snapshot
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+
+/** Stack of [SnapshotTypeItemFactory] */
+internal typealias TypeItemFactoryStack = ArrayList<SnapshotTypeItemFactory>
+
+/** Push new [SnapshotTypeItemFactory] onto the top of the stack. */
+internal fun TypeItemFactoryStack.push(factory: SnapshotTypeItemFactory) {
+    add(factory)
+}
+
+/** Pop [SnapshotTypeItemFactory] from the top of the stack. */
+internal fun TypeItemFactoryStack.pop() {
+    removeLast()
+}
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker : DelegatedVisitor {
@@ -37,9 +53,15 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
      */
     private lateinit var codebase: DefaultCodebase
 
-    /** Takes a snapshot of [TypeItem]s. */
-    private val typeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { SnapshotTypeItemFactory(codebase) }
+    /**
+     * Stack of [SnapshotTypeItemFactory] that contain information about the [TypeParameterItem]s
+     * that are in scope and can resolve a type variable reference to the parameter.
+     */
+    private val typeItemFactoryStack = TypeItemFactoryStack()
+
+    /** Get the current [SnapshotTypeItemFactory], i.e. the closest enclosing one. */
+    private val typeItemFactory
+        get() = typeItemFactoryStack.last()
 
     /**
      * The current [PackageItem], set in [visitPackage], cleared in [afterVisitPackage], relies on
@@ -58,7 +80,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
     private fun ModifierList.snapshot() = (this as DefaultModifierList).snapshot(codebase)
 
     override fun visitCodebase(codebase: Codebase) {
-        this.codebase =
+        val newCodebase =
             DefaultCodebase(
                 location = codebase.location,
                 description = "snapshot of ${codebase.description}",
@@ -68,6 +90,13 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
             )
+
+        typeItemFactoryStack.push(SnapshotTypeItemFactory(newCodebase))
+        this.codebase = newCodebase
+    }
+
+    override fun afterVisitCodebase(codebase: Codebase) {
+        typeItemFactoryStack.pop()
     }
 
     override fun visitPackage(pkg: PackageItem) {
@@ -89,7 +118,44 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
         currentPackage = null
     }
 
+    /**
+     * Create a snapshot of this [TypeParameterList] and an associated [SnapshotTypeItemFactory].
+     *
+     * @param description the description to use when failing to resolve a type parameter by name.
+     */
+    private fun TypeParameterList.snapshot(description: String) =
+        if (this == TypeParameterList.NONE) TypeParameterListAndFactory(this, typeItemFactory)
+        else
+            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+                typeItemFactory,
+                description,
+                this,
+                { typeParameterItem ->
+                    DefaultTypeParameterItem(
+                        codebase = codebase,
+                        itemLanguage = typeParameterItem.itemLanguage,
+                        modifiers = typeParameterItem.modifiers.snapshot(),
+                        name = typeParameterItem.name(),
+                        isReified = typeParameterItem.isReified()
+                    )
+                },
+                // Create, set and return the [BoundsTypeItem] list.
+                { typeItemFactory, item, typeParameterItem ->
+                    typeParameterItem
+                        .typeBounds()
+                        .map { typeItemFactory.getBoundsType(it) }
+                        .also { item.bounds = it }
+                },
+            )
+
     override fun visitClass(cls: ClassItem) {
+        // Create a TypeParameterList and SnapshotTypeItemFactory for the class.
+        val (typeParameterList, classTypeItemFactory) =
+            cls.typeParameterList.snapshot("class ${cls.qualifiedName()}")
+
+        // Push on the stack before resolving any types just in case they refer to a type parameter.
+        typeItemFactoryStack.push(classTypeItemFactory)
+
         val containingClass = currentClass
         val containingPackage = currentPackage!!
         val newClass =
@@ -107,7 +173,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 qualifiedName = cls.qualifiedName(),
                 simpleName = cls.simpleName(),
                 fullName = cls.fullName(),
-                typeParameterList = TypeParameterList.NONE,
+                typeParameterList = typeParameterList,
             )
 
         // Snapshot the super class type, if any.
@@ -125,6 +191,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
 
     override fun afterVisitClass(cls: ClassItem) {
         currentClass = currentClass?.containingClass() as? DefaultClassItem
+        typeItemFactoryStack.pop()
     }
 
     companion object {

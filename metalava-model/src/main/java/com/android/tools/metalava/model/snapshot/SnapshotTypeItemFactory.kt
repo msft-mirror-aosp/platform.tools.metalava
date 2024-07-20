@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 
 /**
@@ -97,7 +98,10 @@ internal class SnapshotTypeItemFactory(
         DefaultPrimitiveTypeItem(typeItem.modifiers.snapshot(), typeItem.kind)
 
     override fun transform(typeItem: VariableTypeItem) =
-        error("Snapshotting VariableTypeItem not supported yet")
+        DefaultVariableTypeItem(
+            typeItem.modifiers.snapshot(),
+            typeParameterScope.getTypeParameter(typeItem.name),
+        )
 
     override fun transform(typeItem: WildcardTypeItem) =
         DefaultWildcardTypeItem(
