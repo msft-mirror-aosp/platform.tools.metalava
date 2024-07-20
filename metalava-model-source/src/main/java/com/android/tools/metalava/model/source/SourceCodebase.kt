@@ -16,17 +16,10 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 
 /**
  * Extends [Codebase] to add any additional members needed for [Codebase] implementations created
  * from source files.
  */
-interface SourceCodebase : Codebase {
-    /**
-     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
-     * classpath).
-     */
-    fun getTopLevelClassesFromSource(): List<ClassItem>
-}
+interface SourceCodebase : Codebase {}

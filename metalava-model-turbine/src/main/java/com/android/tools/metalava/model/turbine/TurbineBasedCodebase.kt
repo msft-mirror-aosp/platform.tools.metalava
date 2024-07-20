@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceCodebase
@@ -42,12 +41,6 @@ internal open class TurbineBasedCodebase(
     ),
     SourceCodebase {
 
-    /**
-     * A list of the top-level classes declared in the codebase's source (rather than on its
-     * classpath).
-     */
-    private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
-
     private lateinit var initializer: TurbineCodebaseInitialiser
 
     override fun resolveClass(className: String) = findOrCreateClass(className)
@@ -56,20 +49,11 @@ internal open class TurbineBasedCodebase(
         return initializer.findOrCreateClass(className)
     }
 
-    override fun getTopLevelClassesFromSource(): List<ClassItem> {
-        return topLevelClassesFromSource
-    }
-
-    fun addTopLevelClassFromSource(classItem: ClassItem) {
-        topLevelClassesFromSource.add(classItem)
-    }
-
     fun initialize(
         units: List<CompUnit>,
         classpath: List<File>,
         packageHtmlByPackageName: Map<String, File>,
     ) {
-        topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
         initializer.initialize(packageHtmlByPackageName)
     }

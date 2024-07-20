@@ -90,6 +90,20 @@ open class DefaultCodebase(
     fun findClassInCodebase(className: String) = allClassesByName[className]
 
     /**
+     * A list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    private val topLevelClassesFromSource: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
+
+    override fun getTopLevelClassesFromSource(): List<ClassItem> {
+        return topLevelClassesFromSource
+    }
+
+    fun addTopLevelClassFromSource(classItem: ClassItem) {
+        topLevelClassesFromSource.add(classItem)
+    }
+
+    /**
      * Look for classes in this [Codebase].
      *
      * This is left open so that subclasses can extend this to look for classes from elsewhere, e.g.
