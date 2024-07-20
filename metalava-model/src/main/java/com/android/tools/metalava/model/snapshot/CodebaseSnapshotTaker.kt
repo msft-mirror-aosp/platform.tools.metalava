@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.snapshot
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -25,6 +26,8 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
@@ -32,6 +35,7 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 
 /** Stack of [SnapshotTypeItemFactory] */
@@ -81,6 +85,9 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
 
     /** Take a snapshot of this [ModifierList] for [codebase]. */
     private fun ModifierList.snapshot() = (this as DefaultModifierList).snapshot(codebase)
+
+    /** General [TypeItem] specific snapshot. */
+    private fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
 
     /** [ClassTypeItem] specific snapshot. */
     private fun ClassTypeItem.snapshot() = typeItemFactory.getGeneralType(this) as ClassTypeItem
@@ -207,6 +214,26 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
         typeItemFactoryStack.pop()
     }
 
+    /** Return a factory that will create a snapshot of this list of [ParameterItem]s. */
+    private fun List<ParameterItem>.snapshot(containingCallable: CallableItem) =
+        map { parameterItem ->
+            // Retrieve the public name immediately to remove any dependencies on this in the
+            // lambda passed to publicNameProvider.
+            val publicName = parameterItem.publicName()
+            DefaultParameterItem(
+                codebase = codebase,
+                fileLocation = parameterItem.fileLocation,
+                itemLanguage = parameterItem.itemLanguage,
+                modifiers = parameterItem.modifiers.snapshot(),
+                name = parameterItem.name(),
+                publicNameProvider = { publicName },
+                containingCallable = containingCallable,
+                parameterIndex = parameterItem.parameterIndex,
+                type = parameterItem.type().snapshot(),
+                defaultValue = parameterItem.defaultValue.snapshot(),
+            )
+        }
+
     override fun visitConstructor(constructor: ConstructorItem) {
         // Create a TypeParameterList and SnapshotTypeItemFactory for the constructor.
         val (typeParameterList, constructorTypeItemFactory) =
@@ -228,9 +255,8 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
                     returnType = constructor.returnType().snapshot(),
-                    parameterItemsFactory = {
-                        // TODO: snapshot these properly.
-                        emptyList()
+                    parameterItemsFactory = { containingCallable ->
+                        constructor.parameters().snapshot(containingCallable)
                     },
                     throwsTypes =
                         constructor.throwsTypes().map { typeItemFactory.getExceptionType(it) },

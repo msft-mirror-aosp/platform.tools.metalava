@@ -84,10 +84,6 @@ com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
   test findClass()[turbine,test.pkg.SecondInFile]
   test findClass()[turbine,test.pkg.Unknown]
 
-com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorItemTest
-  Test access type parameter of outer class[text]
-  Test access type parameter of outer class[turbine]
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonCopyFieldItemTest
   test copy deprecated field from one class to another keeps field as deprecated[text]
   test copy deprecated field from one class to another keeps field as deprecated[turbine]
