@@ -129,13 +129,12 @@ abstract class BaseModelTest() :
     /**
      * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
-    interface CodebaseContext<C : Codebase> {
+    interface CodebaseContext {
         /** The newly created [Codebase]. */
-        val codebase: C
+        val codebase: Codebase
     }
 
-    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) :
-        CodebaseContext<C>
+    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) : CodebaseContext
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -191,7 +190,7 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -209,7 +208,7 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = sources,
@@ -227,7 +226,7 @@ abstract class BaseModelTest() :
     private fun runCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             sources,
@@ -248,7 +247,7 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -267,7 +266,7 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = sources,
@@ -285,7 +284,7 @@ abstract class BaseModelTest() :
     private fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet>,
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
