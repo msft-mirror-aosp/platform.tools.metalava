@@ -100,6 +100,9 @@ com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
   Test enum synthetic methods are not included in the enum class[text]
   Test enum synthetic methods are not included in the enum class[turbine]
 
+com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
+  Test getTopLevelClassesFromSource[turbine]
+
 com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
   test findClass()[text,java.io.File]
   test findClass()[text,java.lang.Comparable]
