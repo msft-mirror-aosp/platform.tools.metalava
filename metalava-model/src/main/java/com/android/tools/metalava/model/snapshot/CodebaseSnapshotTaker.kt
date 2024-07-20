@@ -38,7 +38,8 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
     private lateinit var codebase: DefaultCodebase
 
     /** Takes a snapshot of [TypeItem]s. */
-    private val typeSnapshotTaker by lazy(LazyThreadSafetyMode.NONE) { TypeSnapshotTaker(codebase) }
+    private val typeItemFactory by
+        lazy(LazyThreadSafetyMode.NONE) { SnapshotTypeItemFactory(codebase) }
 
     /**
      * The current [PackageItem], set in [visitPackage], cleared in [afterVisitPackage], relies on
@@ -111,11 +112,13 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
 
         // Snapshot the super class type, if any.
         cls.superClassType()?.let { superClassType ->
-            newClass.setSuperClassType(superClassType.transform(typeSnapshotTaker))
+            newClass.setSuperClassType(typeItemFactory.getSuperClassType(superClassType))
         }
 
         // Snapshot the interface types, if any.
-        newClass.setInterfaceTypes(cls.interfaceTypes().map { it.transform(typeSnapshotTaker) })
+        newClass.setInterfaceTypes(
+            cls.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
+        )
 
         currentClass = newClass
     }
