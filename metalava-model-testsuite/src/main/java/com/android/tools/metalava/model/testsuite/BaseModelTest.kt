@@ -21,7 +21,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -240,8 +239,8 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [sources] and then run the [test] on that
-     * [SourceCodebase].
+     * Create a [Codebase] from one of the supplied [sources] and then run the [test] on that
+     * [Codebase].
      *
      * The [sources] array should have at most one [TestFile] whose extension matches an
      * [InputFormat.extension].
@@ -260,8 +259,8 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
-     * [test] on that [SourceCodebase].
+     * Create a [Codebase] from one of the supplied [sources] [InputSet]s and then run the [test] on
+     * that [Codebase].
      *
      * The [sources] array should have at most one [InputSet] of each [InputFormat].
      */
@@ -278,8 +277,8 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
-     * [test] on that [SourceCodebase].
+     * Create a [Codebase] from one of the supplied [sources] [InputSet]s and then run the [test] on
+     * that [Codebase].
      *
      * The [sources] array should have at most one [InputSet] of each [InputFormat].
      */

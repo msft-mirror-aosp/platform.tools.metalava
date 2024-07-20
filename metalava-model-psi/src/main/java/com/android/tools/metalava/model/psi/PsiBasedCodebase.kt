@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
@@ -112,8 +111,7 @@ open class PsiBasedCodebase(
         annotationManager = annotationManager,
         trustedApi = false,
         supportsDocumentation = true,
-    ),
-    SourceCodebase {
+    ) {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
         get() = uastEnvironment.ideaProject

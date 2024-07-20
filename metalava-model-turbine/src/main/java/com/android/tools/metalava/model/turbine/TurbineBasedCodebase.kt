@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Reporter
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
@@ -38,8 +37,7 @@ internal open class TurbineBasedCodebase(
         annotationManager = annotationManager,
         trustedApi = false,
         supportsDocumentation = true,
-    ),
-    SourceCodebase {
+    ) {
 
     private lateinit var initializer: TurbineCodebaseInitialiser
 
