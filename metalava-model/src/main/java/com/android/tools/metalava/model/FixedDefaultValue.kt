@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.DefaultValue
 
-/** Encapsulates information about default values retrieved from the signature file. */
-class TextDefaultValue(private val value: String) : DefaultValue {
+/** Encapsulates information about a fixed default value. */
+internal class FixedDefaultValue(private val value: String?) : DefaultValue {
 
     /** This is always true as the text model will use [DefaultValue.NONE] for no value. */
     override fun hasDefaultValue() = true
@@ -28,4 +28,6 @@ class TextDefaultValue(private val value: String) : DefaultValue {
     override fun isDefaultValueKnown() = true
 
     override fun value() = value
+
+    override fun toString() = "DefaultValue($value)"
 }

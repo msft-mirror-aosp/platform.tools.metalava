@@ -1704,15 +1704,14 @@ private constructor(
                 when {
                     hasOptionalKeyword ->
                         // It has an optional keyword, so it has a default value but the actual
-                        // value is
-                        // not known.
+                        // value is not known.
                         DefaultValue.UNKNOWN
                     defaultValueString == null ->
-                        // It has neither an optional keyword or an actual default value.
+                        // It has neither an optional keyword nor an actual default value.
                         DefaultValue.NONE
                     else ->
                         // It has an actual default value.
-                        TextDefaultValue(defaultValueString)
+                        DefaultValue.fixedDefaultValue(defaultValueString)
                 }
             parameters.add(
                 ParameterInfo(
