@@ -37,7 +37,7 @@ internal class DefaultParameterItem(
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    private val defaultValue: DefaultValue,
+    override val defaultValue: DefaultValue,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -67,7 +67,7 @@ internal class DefaultParameterItem(
 
     override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
 
-    override fun defaultValue(): String? = defaultValue.value()
+    override fun defaultValueAsString(): String? = defaultValue.value()
 
     override fun duplicate(
         containingCallable: CallableItem,

@@ -596,14 +596,20 @@ class CommonParameterItemTest : BaseModelTest() {
             // TODO: Improve consistency of the following.
             when (parameter.itemLanguage) {
                 ItemLanguage.KOTLIN -> {
-                    assertEquals("defaultValue", "__invalid_value__", parameter.defaultValue())
+                    assertEquals(
+                        "defaultValue",
+                        "__invalid_value__",
+                        parameter.defaultValueAsString()
+                    )
                 }
                 ItemLanguage.JAVA -> {
-                    assertEquals("defaultValue", null, parameter.defaultValue())
+                    assertEquals("defaultValue", null, parameter.defaultValueAsString())
                 }
                 ItemLanguage.UNKNOWN -> {
                     val exception =
-                        assertThrows(IllegalStateException::class.java) { parameter.defaultValue() }
+                        assertThrows(IllegalStateException::class.java) {
+                            parameter.defaultValueAsString()
+                        }
                     assertEquals(
                         "defaultValue",
                         "cannot call on NONE DefaultValue",
@@ -654,7 +660,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
             assertEquals("isDefaultValueKnown", true, parameter.isDefaultValueKnown())
-            assertEquals("defaultValue", "null", parameter.defaultValue())
+            assertEquals("defaultValue", "null", parameter.defaultValueAsString())
         }
     }
 
@@ -686,7 +692,7 @@ class CommonParameterItemTest : BaseModelTest() {
 
             assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
             val exception =
-                assertThrows(IllegalStateException::class.java) { parameter.defaultValue() }
+                assertThrows(IllegalStateException::class.java) { parameter.defaultValueAsString() }
             assertEquals("defaultValue", "cannot call on UNKNOWN DefaultValue", exception.message)
         }
     }

@@ -904,7 +904,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("TestParam", paramItem.publicName())
             assertEquals(true, paramItem.hasDefaultValue())
             assertEquals(true, paramItem.isDefaultValueKnown())
-            assertEquals("5", paramItem.defaultValue())
+            assertEquals("5", paramItem.defaultValueAsString())
         }
     }
 
