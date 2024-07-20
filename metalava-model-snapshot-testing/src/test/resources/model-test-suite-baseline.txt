@@ -1,17 +1,10 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  020 - check empty file[turbine]
-  030 - check simplest class[turbine]
-  040 - check package exists[turbine]
   050 - check field exists[turbine]
   060 - check method exists[turbine]
   070 - check constructor exists[turbine]
-  080 - check inner class[turbine]
-  090 - check class hierarchy[turbine]
   100 - check class types[turbine]
-  110 - advanced package test[turbine]
   120 - check modifiers[turbine]
   130 - check classes from classpath[turbine]
-  130 - test missing symbols[turbine]
   140 - test annotations[turbine]
   150 - advanced superMethods() test on methoditem[turbine]
   160 - check field type[turbine]
@@ -20,8 +13,6 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   190 - test constructors[turbine]
   200 - test TypeParameterList name strings[turbine]
   210 Test Method exception list[turbine]
-  210 test reference between innerclass and outerclass[turbine]
-  220 test ClassItem createDefaultConstructor[turbine]
   230 test public name and default value of parameters[turbine]
   240 test documentations[turbine]
   250 - test enum class and field[turbine]
@@ -80,8 +71,6 @@ com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
   Test basic mapTypeVariables[turbine]
   Test class no super class but implements lists[text]
   Test class no super class or implements lists[text]
-  Test duplicate with type substitutions and not type use nullability annotations[turbine]
-  Test duplicate with type substitutions[turbine]
   Test duplicate without type substitutions[turbine]
   Test mapTypeVariables with concrete classes[text]
   Test mapTypeVariables with concrete classes[turbine]
@@ -264,9 +253,6 @@ com.android.tools.metalava.model.testsuite.methoditem.SourceMethodItemTest
   test duplicate() for methoditem[turbine]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test @hide in package html[turbine]
-  Test @hide in package info processed first[turbine]
-  Test @hide in package info processed last[turbine]
   Test nullability annotation in package info[turbine]
 
 com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest

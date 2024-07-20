@@ -249,7 +249,7 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
-        test: CodebaseContext<SourceCodebase>.() -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -268,7 +268,7 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
-        test: CodebaseContext<SourceCodebase>.() -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = sources,
@@ -286,13 +286,12 @@ abstract class BaseModelTest() :
     private fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet>,
-        test: CodebaseContext<SourceCodebase>.() -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
         ) { codebase ->
-            codebase as SourceCodebase
             val context = DefaultCodebaseContext(codebase)
             context.test()
         }
