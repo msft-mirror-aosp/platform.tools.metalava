@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -34,6 +35,7 @@ import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultConstructorItem
+import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -264,6 +266,38 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 )
 
             containingClass.addConstructor(newConstructor)
+        }
+    }
+
+    override fun visitMethod(method: MethodItem) {
+        // Create a TypeParameterList and SnapshotTypeItemFactory for the method.
+        val (typeParameterList, methodTypeItemFactory) =
+            method.typeParameterList.snapshot(method.describe())
+
+        // Resolve any type parameters used in the method's parameter items within the scope of
+        // the method's SnapshotTypeItemFactory.
+        methodTypeItemFactory.inScope {
+            val containingClass = currentClass!!
+            val newMethod =
+                DefaultMethodItem(
+                    codebase = codebase,
+                    fileLocation = method.fileLocation,
+                    itemLanguage = method.itemLanguage,
+                    modifiers = method.modifiers.snapshot(),
+                    documentationFactory = method.documentation::snapshot,
+                    variantSelectorsFactory = method.variantSelectors::duplicate,
+                    name = method.name(),
+                    containingClass = containingClass,
+                    typeParameterList = typeParameterList,
+                    returnType = method.returnType().snapshot(),
+                    parameterItemsFactory = { containingCallable ->
+                        method.parameters().snapshot(containingCallable)
+                    },
+                    throwsTypes = method.throwsTypes().map { typeItemFactory.getExceptionType(it) },
+                    annotationDefault = method.defaultValue(),
+                )
+
+            containingClass.addMethod(newMethod)
         }
     }
 
