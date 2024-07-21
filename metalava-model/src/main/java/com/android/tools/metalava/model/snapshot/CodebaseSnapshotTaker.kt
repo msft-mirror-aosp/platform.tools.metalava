@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -35,6 +36,7 @@ import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultConstructorItem
+import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
@@ -299,6 +301,26 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
 
             containingClass.addMethod(newMethod)
         }
+    }
+
+    override fun visitField(field: FieldItem) {
+        val containingClass = currentClass!!
+        val newField =
+            DefaultFieldItem(
+                codebase = codebase,
+                fileLocation = field.fileLocation,
+                itemLanguage = field.itemLanguage,
+                modifiers = field.modifiers.snapshot(),
+                documentationFactory = field.documentation::snapshot,
+                variantSelectorsFactory = field.variantSelectors::duplicate,
+                name = field.name(),
+                containingClass = containingClass,
+                type = field.type().snapshot(),
+                isEnumConstant = field.isEnumConstant(),
+                fieldValue = field.fieldValue?.snapshot(),
+            )
+
+        containingClass.addField(newField)
     }
 
     companion object {

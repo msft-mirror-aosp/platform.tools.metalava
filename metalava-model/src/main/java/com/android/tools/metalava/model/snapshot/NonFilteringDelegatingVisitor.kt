@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 
@@ -62,5 +63,9 @@ class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
 
     override fun visitMethod(method: MethodItem) {
         delegate.visitMethod(method)
+    }
+
+    override fun visitField(field: FieldItem) {
+        delegate.visitField(field)
     }
 }
