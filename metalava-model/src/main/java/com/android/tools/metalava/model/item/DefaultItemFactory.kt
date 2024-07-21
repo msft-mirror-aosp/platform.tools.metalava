@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -26,6 +27,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -57,7 +59,7 @@ class DefaultItemFactory(
     fun createPackageItem(
         fileLocation: FileLocation = FileLocation.UNKNOWN,
         modifiers: DefaultModifierList = DefaultModifierList(codebase),
-        documentation: ItemDocumentation = ItemDocumentation.NONE,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         qualifiedName: String,
     ): DefaultPackageItem {
         modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
@@ -66,7 +68,7 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            documentation,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             qualifiedName,
         )
@@ -76,7 +78,7 @@ class DefaultItemFactory(
     fun createClassItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation = ItemDocumentation.NONE,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         source: SourceFile? = null,
         classKind: ClassKind,
         containingClass: ClassItem?,
@@ -90,7 +92,7 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            documentation,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             source,
             classKind,
@@ -105,7 +107,7 @@ class DefaultItemFactory(
     fun createConstructorItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
         typeParameterList: TypeParameterList,
@@ -119,7 +121,7 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            documentation,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             name,
             containingClass,
@@ -134,7 +136,7 @@ class DefaultItemFactory(
     fun createFieldItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
@@ -147,7 +149,7 @@ class DefaultItemFactory(
             defaultItemLanguage,
             defaultVariantSelectorsFactory,
             modifiers,
-            documentation,
+            documentationFactory,
             name,
             containingClass,
             type,
@@ -159,7 +161,7 @@ class DefaultItemFactory(
     fun createMethodItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
         typeParameterList: TypeParameterList,
@@ -173,7 +175,7 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            documentation,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             name,
             containingClass,
@@ -190,7 +192,7 @@ class DefaultItemFactory(
         modifiers: DefaultModifierList,
         name: String,
         publicNameProvider: PublicNameProvider,
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
         defaultValue: DefaultValue,
@@ -203,7 +205,7 @@ class DefaultItemFactory(
             defaultVariantSelectorsFactory,
             name,
             publicNameProvider,
-            containingMethod,
+            containingCallable,
             parameterIndex,
             type,
             defaultValue,
