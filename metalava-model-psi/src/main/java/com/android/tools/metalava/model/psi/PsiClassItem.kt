@@ -24,16 +24,16 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.updateCopiedMethodState
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -63,14 +63,14 @@ internal constructor(
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
     PsiItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiClass
     ),
     ClassItem {
@@ -99,13 +99,10 @@ internal constructor(
     override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null
-    override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
 
     override fun containingClass(): PsiClassItem? = containingClass
-
-    override var hasPrivateConstructor: Boolean = false
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -117,22 +114,7 @@ internal constructor(
 
     override fun allInterfaces(): Sequence<ClassItem> {
         if (allInterfaces == null) {
-            val classes = mutableSetOf<PsiClass>()
-            var curr: PsiClass? = psiClass
-            while (curr != null) {
-                if (curr.isInterface && !classes.contains(curr)) {
-                    classes.add(curr)
-                }
-                addInterfaces(classes, curr.interfaces)
-                curr = curr.superClass
-            }
-            val result = mutableListOf<ClassItem>()
-            for (cls in classes) {
-                val item = codebase.findOrCreateClass(cls)
-                result.add(item)
-            }
-
-            allInterfaces = result
+            allInterfaces = computeAllInterfaces()
         }
 
         return allInterfaces!!.asSequence()
@@ -214,21 +196,6 @@ internal constructor(
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
     }
 
-    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
-        val method = template as PsiMethodItem
-        require(method.codebase == codebase) {
-            "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
-        }
-        val newMethod = PsiMethodItem.create(this, method)
-
-        // Remember which class this method was copied from.
-        newMethod.inheritedFrom = template.containingClass()
-
-        newMethod.updateCopiedMethodState()
-
-        return newMethod
-    }
-
     override fun addMethod(method: MethodItem) {
         methods.add(method as PsiMethodItem)
     }
@@ -290,8 +257,7 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadocAsItemDocumentation(psiClass, codebase)
-            val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiClass)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
@@ -318,7 +284,7 @@ internal constructor(
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
                     hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
-                    documentation = commentText,
+                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )

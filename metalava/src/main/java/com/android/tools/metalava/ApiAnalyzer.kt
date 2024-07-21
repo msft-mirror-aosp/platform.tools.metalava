@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -513,10 +514,11 @@ class ApiAnalyzer(
         }
 
         // We're now left with concrete methods in hidden parents that are implementing methods in
-        // public
-        // interfaces that are listed in this class. Create stubs for them:
+        // public interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
-            val method = cls.inheritMethodFromNonApiAncestor(it)
+            // Copy the method from the hidden class that is not part of the API into the class that
+            // is part of the API.
+            val method = it.duplicate(cls)
             /* Insert comment marker: This is useful for debugging purposes but doesn't
                belong in the stub
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
@@ -608,14 +610,10 @@ class ApiAnalyzer(
         // status of the containing package which would preventing it being propagated correctly
         // onto its contained packages.
         for (pkg in packages.packages) {
-            when {
-                config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                else -> {
-                    val showability = pkg.showability
-                    when {
-                        showability.show() -> pkg.hidden = false
-                        showability.hide() -> pkg.hidden = true
-                    }
+            pkg.showability.let { showability ->
+                when {
+                    showability.show() -> pkg.hidden = false
+                    showability.hide() -> pkg.hidden = true
                 }
             }
             val containingPackage = pkg.containingPackage()
@@ -655,8 +653,7 @@ class ApiAnalyzer(
         // package onto the top level classes and then propagate them, and removed status, down onto
         // the nested classes and members.
         val visitor =
-            object :
-                BaseItemVisitor(visitConstructorsAsMethods = true, preserveClassNesting = true) {
+            object : BaseItemVisitor(preserveClassNesting = true) {
 
                 override fun visitClass(cls: ClassItem) {
                     val containingClass = cls.containingClass()
@@ -691,17 +688,17 @@ class ApiAnalyzer(
                     }
                 }
 
-                override fun visitMethod(method: MethodItem) {
-                    val showability = method.showability
+                override fun visitCallable(callable: CallableItem) {
+                    val showability = callable.showability
                     if (showability.show()) {
-                        method.hidden = false
-                        ensureParentVisible(method)
+                        callable.hidden = false
+                        ensureParentVisible(callable)
                     } else if (showability.hide()) {
-                        method.hidden = true
+                        callable.hidden = true
                     } else {
-                        val containingClass = method.containingClass()
+                        val containingClass = callable.containingClass()
                         if (containingClass.hidden) {
-                            method.hidden = true
+                            callable.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
                                 containingClass.showability.showNonRecursive()
@@ -709,13 +706,13 @@ class ApiAnalyzer(
                             // This is a member in a class that was hidden but then unhidden;
                             // but it was unhidden by a non-recursive (single) show annotation, so
                             // don't inherit the show annotation into this item.
-                            method.hidden = true
+                            callable.hidden = true
                         }
                         if (containingClass.docOnly) {
-                            method.docOnly = true
+                            callable.docOnly = true
                         }
                         if (containingClass.removed) {
-                            method.removed = true
+                            callable.removed = true
                         }
                     }
                 }
@@ -769,12 +766,6 @@ class ApiAnalyzer(
     }
 
     private fun checkSystemPermissions(method: MethodItem) {
-        if (
-            method.isImplicitConstructor()
-        ) { // Don't warn on non-source elements like implicit default constructors
-            return
-        }
-
         val annotation = method.modifiers.findAnnotation(ANDROID_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
@@ -987,12 +978,10 @@ class ApiAnalyzer(
                 }
 
                 override fun visitMethod(method: MethodItem) {
-                    if (!method.isConstructor()) {
-                        checkTypeReferencesHidden(
-                            method,
-                            method.returnType()
-                        ) // returnType is nullable only for constructors
-                    }
+                    checkTypeReferencesHidden(
+                        method,
+                        method.returnType()
+                    ) // returnType is nullable only for constructors
                 }
 
                 /** Check that the type doesn't refer to any hidden classes. */
@@ -1191,18 +1180,18 @@ class ApiAnalyzer(
     }
 
     private fun cantStripThis(
-        methods: List<MethodItem>,
+        callables: List<CallableItem>,
         filter: Predicate<Item>,
         notStrippable: MutableSet<ClassItem>,
     ) {
-        // for each method, blow open the parameters, throws and return types. also blow open their
-        // generics
-        for (method in methods) {
-            if (!filter.test(method)) {
+        // for each callable, blow open the parameters, throws and return types. also blow open
+        // their generics
+        for (callable in callables) {
+            if (!filter.test(callable)) {
                 continue
             }
-            cantStripThis(method.typeParameterList, filter, notStrippable, method)
-            for (parameter in method.parameters()) {
+            cantStripThis(callable.typeParameterList, filter, notStrippable, callable)
+            for (parameter in callable.parameters()) {
                 cantStripThis(
                     parameter.type(),
                     parameter,
@@ -1211,12 +1200,12 @@ class ApiAnalyzer(
                     "in parameter type"
                 )
             }
-            for (thrown in method.throwsTypes()) {
+            for (thrown in callable.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
                 val classItem = thrown.erasedClass ?: continue
-                cantStripThis(classItem, filter, notStrippable, method, "as exception")
+                cantStripThis(classItem, filter, notStrippable, callable, "as exception")
             }
-            cantStripThis(method.returnType(), method, filter, notStrippable, "in return type")
+            cantStripThis(callable.returnType(), callable, filter, notStrippable, "in return type")
         }
     }
 

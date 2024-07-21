@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
@@ -81,12 +82,12 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     fun addConstructor(ctor: ConstructorItem) {
         val cls = getOrAddClass(ctor.containingClass())
-        cls.addConstructor(ctor as TextConstructorItem)
+        cls.addConstructor(ctor)
     }
 
     fun addMethod(method: MethodItem) {
         val cls = getOrAddClass(method.containingClass())
-        cls.addMethod(method as TextMethodItem)
+        cls.addMethod(method)
     }
 
     fun addField(field: FieldItem) {
@@ -99,18 +100,18 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         cls.addProperty(property)
     }
 
-    private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
+    private fun getOrAddClass(fullClass: ClassItem): DefaultClassItem {
         val cls = codebase.findClassInCodebase(fullClass.qualifiedName())
         if (cls != null) {
             return cls
         }
-        val textClass = fullClass as TextClassItem
+        val textClass = fullClass as DefaultClassItem
         val newClass =
-            TextClassItem(
-                codebase = codebase,
+            codebase.itemFactory.createClassItem(
                 fileLocation = FileLocation.UNKNOWN,
                 modifiers = textClass.modifiers,
                 classKind = textClass.classKind,
+                containingClass = null,
                 qualifiedName = textClass.qualifiedName(),
                 simpleName = textClass.simpleName(),
                 fullName = textClass.fullName(),
