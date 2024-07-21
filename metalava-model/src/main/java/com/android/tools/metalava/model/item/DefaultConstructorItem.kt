@@ -20,10 +20,10 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
@@ -33,7 +33,7 @@ class DefaultConstructorItem(
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
@@ -43,12 +43,12 @@ class DefaultConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
     private val implicitConstructor: Boolean,
 ) :
-    DefaultMethodItem(
+    DefaultCallableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
@@ -60,8 +60,6 @@ class DefaultConstructorItem(
     ConstructorItem {
 
     override var superConstructor: ConstructorItem? = null
-
-    override fun isConstructor(): Boolean = true
 
     override fun isImplicitConstructor() = implicitConstructor
 
@@ -83,7 +81,7 @@ class DefaultConstructorItem(
                     fileLocation = containingClass.fileLocation,
                     itemLanguage = itemLanguage,
                     modifiers = modifiers,
-                    documentation = ItemDocumentation.NONE,
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     variantSelectorsFactory = variantSelectorsFactory,
                     name = name,
                     containingClass = containingClass,

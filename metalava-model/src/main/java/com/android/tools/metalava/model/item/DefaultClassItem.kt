@@ -22,11 +22,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -42,7 +40,7 @@ open class DefaultClassItem(
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val source: SourceFile?,
     final override val classKind: ClassKind,
@@ -57,7 +55,7 @@ open class DefaultClassItem(
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     ClassItem {
