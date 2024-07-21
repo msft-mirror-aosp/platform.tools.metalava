@@ -204,7 +204,6 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            defaultVariantSelectorsFactory,
             name,
             publicNameProvider,
             containingCallable,
@@ -250,7 +249,6 @@ class DefaultItemFactory(
             codebase,
             defaultItemLanguage,
             modifiers,
-            defaultVariantSelectorsFactory,
             name,
             isReified,
         )

@@ -81,9 +81,15 @@ sealed class ApiVariantSelectors {
 
         /**
          * An [ApiVariantSelectors] factory that will return a new, mutable, [ApiVariantSelectors]
-         * for each [Item].
+         * for each [SelectableItem].
+         *
+         * This cannot be used on an [Item] that is not a [SelectableItem], use [IMMUTABLE_FACTORY]
+         * instead.
          */
-        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = { Mutable(it) }
+        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = {
+            if (it is SelectableItem) Mutable(it)
+            else error("Cannot create Mutable for non-SelectableItem, use Immutable instead")
+        }
     }
 
     /**
@@ -134,7 +140,7 @@ sealed class ApiVariantSelectors {
      * A mutable [ApiVariantSelectors].
      *
      * [originallyHidden] will be `true` if it's [item]'s documentation contains one of `@hide`,
-     * `@pending` or `@suppress` or its [Item] has a hide annotation associated with it.
+     * `@pending` or `@suppress` or its [SelectableItem] has a hide annotation associated with it.
      *
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
@@ -149,7 +155,7 @@ sealed class ApiVariantSelectors {
      * support lazy initialization with optional setters without duplicating lots of complicated
      * code.
      */
-    private class Mutable(private val item: Item) : ApiVariantSelectors() {
+    private class Mutable(private val item: SelectableItem) : ApiVariantSelectors() {
 
         /**
          * Contains a bit for each lazy boolean property indicating whether it has been set, either
@@ -298,7 +304,7 @@ sealed class ApiVariantSelectors {
                         _showability!!
                     }
 
-        override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
+        override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item as SelectableItem)
 
         /**
          * Records whether [inheritInto] was called as it must only be called once.
@@ -514,7 +520,7 @@ sealed class ApiVariantSelectors {
      * It cannot test if the value is expected. That will need to be done by the caller.
      */
     data class TestableSelectorsState(
-        val item: Item,
+        val item: SelectableItem,
         val originallyHidden: Boolean? = null,
         val inheritIntoWasCalled: Boolean = false,
         val inheritableHidden: Boolean? = null,

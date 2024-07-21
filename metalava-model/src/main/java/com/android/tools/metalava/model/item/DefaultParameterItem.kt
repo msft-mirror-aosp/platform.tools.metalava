@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
@@ -31,7 +31,6 @@ internal class DefaultParameterItem(
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val publicNameProvider: PublicNameProvider,
     private val containingCallable: CallableItem,
@@ -45,7 +44,7 @@ internal class DefaultParameterItem(
         itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = variantSelectorsFactory,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     ParameterItem {
 
@@ -78,7 +77,6 @@ internal class DefaultParameterItem(
             fileLocation,
             itemLanguage,
             modifiers.duplicate(),
-            variantSelectors::duplicate,
             name(),
             publicNameProvider,
             containingCallable,

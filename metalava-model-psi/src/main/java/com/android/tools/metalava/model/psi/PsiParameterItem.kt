@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
@@ -64,6 +65,7 @@ internal constructor(
         element = psiParameter,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     ParameterItem {
 
