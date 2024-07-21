@@ -362,10 +362,8 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier [AddedFinal]
-                src/test/pkg/Java.java:3: error: Constructor test.pkg.Java has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier [AddedFinal]
-                src/test/pkg/Kotlin.kt:3: error: Constructor test.pkg.Kotlin has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Kotlin.kt:4: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
                 """,
             checkCompatibilityApiReleased =
@@ -2869,7 +2867,6 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/foobar/Foo.java:8: error: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:8: error: Constructor android.foobar.Foo.Nested has added 'final' qualifier [AddedFinal]
                 src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
                 src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
                 """
@@ -4619,6 +4616,58 @@ class CompatibilityCheckTest : DriverTest() {
                       }
                       public class Parent<T> {
                         method public void foo(T! t);
+                      }
+                    }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test removal of implicit no-args constructor is flagged`() {
+        check(
+            expectedIssues =
+                "released-api.txt:8: error: Removed constructor test.pkg.RemoveNoArgsCtor() [RemovedMethod]",
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public final class KeepNoArgsCtor {
+                        ctor public KeepNoArgsCtor();
+                        ctor public KeepNoArgsCtor(optional int one, optional int two);
+                      }
+                      public final class RemoveNoArgsCtor {
+                        ctor public RemoveNoArgsCtor();
+                        ctor public RemoveNoArgsCtor(optional int one, optional int two);
+                        ctor public RemoveNoArgsCtor(String str);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            // The kotlin compiler generates a no-args constructor because all
+                            // parameters to the primary constructor have default values
+                            class KeepNoArgsCtor(one: Int = 1, two: Int = 2)
+                            class RemoveNoArgsCtor(str: String) {
+                                // This is a secondary constructor, so a no-args constructor isn't
+                                // generated even though all parameters have default values
+                                constructor(one: Int = 1, two: Int = 2): this("")
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public final class KeepNoArgsCtor {
+                        ctor public KeepNoArgsCtor();
+                        ctor public KeepNoArgsCtor(optional int one, optional int two);
+                      }
+                      public final class RemoveNoArgsCtor {
+                        ctor public RemoveNoArgsCtor(optional int one, optional int two);
+                        ctor public RemoveNoArgsCtor(String str);
                       }
                     }
                 """
