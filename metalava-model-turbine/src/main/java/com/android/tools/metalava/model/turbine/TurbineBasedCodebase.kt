@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.item.CodebaseAssembler
+import com.android.tools.metalava.model.item.CodebaseAssemblerFactory
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.Reporter
-import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 
 internal open class TurbineBasedCodebase(
@@ -27,6 +29,7 @@ internal open class TurbineBasedCodebase(
     description: String = "Unknown",
     annotationManager: AnnotationManager,
     override val reporter: Reporter,
+    private val assemblerFactory: CodebaseAssemblerFactory,
 ) :
     DefaultCodebase(
         location = location,
@@ -37,18 +40,14 @@ internal open class TurbineBasedCodebase(
         supportsDocumentation = true,
     ) {
 
-    private lateinit var initializer: TurbineCodebaseInitialiser
+    /**
+     * Create a [CodebaseAssembler] appropriate for this [Codebase].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    internal val assembler = assemblerFactory(@Suppress("LeakingThis") this)
 
     override fun resolveClass(className: String) =
-        findClass(className) ?: initializer.createClassFromUnderlyingModel(className)
-
-    fun initialize(
-        units: List<CompUnit>,
-        classpath: List<File>,
-        packageHtmlByPackageName: Map<String, File>,
-        allowReadingComments: Boolean,
-    ) {
-        initializer = TurbineCodebaseInitialiser(units, this, classpath, allowReadingComments)
-        initializer.initialize(packageHtmlByPackageName)
-    }
+        findClass(className) ?: assembler.createClassFromUnderlyingModel(className)
 }
