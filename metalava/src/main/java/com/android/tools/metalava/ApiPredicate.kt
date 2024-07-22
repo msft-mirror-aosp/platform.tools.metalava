@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import java.util.function.Predicate
 
 /**
@@ -88,8 +88,10 @@ class ApiPredicate(
             return false
         }
 
-        // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
-        if (item is TypeParameterItem) {
+        // If the item is not individually selectable (i.e. ParameterItem and TypeParameterItem)
+        // then whether it is included will always be determined by its owner. If it got to this
+        // point the chances are that its owner was selected, so just assume this is too.
+        if (item !is SelectableItem) {
             return true
         }
 
