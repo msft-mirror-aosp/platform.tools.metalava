@@ -28,7 +28,6 @@ internal open class TurbineBasedCodebase(
     description: String = "Unknown",
     annotationManager: AnnotationManager,
     override val reporter: Reporter,
-    val allowReadingComments: Boolean,
 ) :
     DefaultCodebase(
         location = location,
@@ -51,8 +50,9 @@ internal open class TurbineBasedCodebase(
         units: List<CompUnit>,
         classpath: List<File>,
         packageHtmlByPackageName: Map<String, File>,
+        allowReadingComments: Boolean,
     ) {
-        initializer = TurbineCodebaseInitialiser(units, this, classpath)
+        initializer = TurbineCodebaseInitialiser(units, this, classpath, allowReadingComments)
         initializer.initialize(packageHtmlByPackageName)
     }
 }

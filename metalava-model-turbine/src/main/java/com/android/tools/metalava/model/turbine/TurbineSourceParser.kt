@@ -53,7 +53,6 @@ internal class TurbineSourceParser(
                 description,
                 annotationManager,
                 reporter,
-                allowReadingComments,
             )
 
         val sources = sourceSet.sources
@@ -64,7 +63,7 @@ internal class TurbineSourceParser(
 
         val sourceFiles = getSourceFiles(sources)
         val units = sourceFiles.map { Parser.parse(it) }
-        codebase.initialize(units, classPath, packageHtmlByPackageName)
+        codebase.initialize(units, classPath, packageHtmlByPackageName, allowReadingComments)
 
         return codebase
     }

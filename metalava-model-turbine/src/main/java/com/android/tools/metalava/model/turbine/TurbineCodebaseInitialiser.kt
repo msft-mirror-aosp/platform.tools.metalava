@@ -110,6 +110,7 @@ internal open class TurbineCodebaseInitialiser(
     val units: List<CompUnit>,
     val codebase: TurbineBasedCodebase,
     val classpath: List<File>,
+    private val allowReadingComments: Boolean,
 ) {
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
@@ -960,17 +961,17 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun javadoc(item: Tree.TyDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
     private fun javadoc(item: Tree.VarDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
     private fun javadoc(item: Tree.MethDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
