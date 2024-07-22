@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -35,9 +37,24 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
      */
     private lateinit var codebase: DefaultCodebase
 
+    /** Takes a snapshot of [TypeItem]s. */
+    private val typeSnapshotTaker by lazy(LazyThreadSafetyMode.NONE) { TypeSnapshotTaker(codebase) }
+
+    /**
+     * The current [PackageItem], set in [visitPackage], cleared in [afterVisitPackage], relies on
+     * the [PackageItem]s being visited as a flat list, not a package hierarchy.
+     */
     private var currentPackage: DefaultPackageItem? = null
 
+    /**
+     * The current [ClassItem], that forms a stack through the [ClassItem.containingClass].
+     *
+     * Set (pushed on the stack) in [visitClass]. Reset (popped off the stack) in [afterVisitClass].
+     */
     private var currentClass: DefaultClassItem? = null
+
+    /** Take a snapshot of this [ModifierList] for [codebase]. */
+    private fun ModifierList.snapshot() = (this as DefaultModifierList).snapshot(codebase)
 
     override fun visitCodebase(codebase: Codebase) {
         this.codebase =
@@ -58,7 +75,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 codebase = codebase,
                 fileLocation = pkg.fileLocation,
                 itemLanguage = pkg.itemLanguage,
-                modifiers = DefaultModifierList(codebase),
+                modifiers = pkg.modifiers.snapshot(),
                 documentationFactory = pkg.documentation::snapshot,
                 variantSelectorsFactory = pkg.variantSelectors::duplicate,
                 qualifiedName = pkg.qualifiedName(),
@@ -73,17 +90,19 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
         val containingClass = currentClass
+        val containingPackage = currentPackage!!
         val newClass =
             DefaultClassItem(
                 codebase = codebase,
                 fileLocation = cls.fileLocation,
                 itemLanguage = cls.itemLanguage,
-                modifiers = DefaultModifierList(codebase),
+                modifiers = cls.modifiers.snapshot(),
                 documentationFactory = cls.documentation::snapshot,
                 variantSelectorsFactory = cls.variantSelectors::duplicate,
                 source = null,
                 classKind = cls.classKind,
                 containingClass = currentClass,
+                containingPackage = containingPackage,
                 qualifiedName = cls.qualifiedName(),
                 simpleName = cls.simpleName(),
                 fullName = cls.fullName(),
@@ -94,6 +113,15 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
         } else {
             containingClass.addNestedClass(newClass)
         }
+
+        // Snapshot the super class type, if any.
+        cls.superClassType()?.let { superClassType ->
+            newClass.setSuperClassType(superClassType.transform(typeSnapshotTaker))
+        }
+
+        // Snapshot the interface types, if any.
+        newClass.setInterfaceTypes(cls.interfaceTypes().map { it.transform(typeSnapshotTaker) })
+
         codebase.registerClass(newClass)
         currentClass = newClass
     }
