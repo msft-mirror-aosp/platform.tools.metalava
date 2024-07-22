@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -1212,7 +1213,7 @@ private constructor(
 
         // Parse the value string.
         val fieldValue =
-            valueString?.let { TextFieldValue(parseValue(type, valueString, tokenizer)) }
+            valueString?.let { FixedFieldValue(parseValue(type, valueString, tokenizer)) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)

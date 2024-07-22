@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.FieldValue
 
 /** Provides access to the initial values of a field. */
-class TurbineFieldValue(
+class FixedFieldValue(
     private var initialValueWithRequiredConstant: Any?,
-    private var initialValueWithoutRequiredConstant: Any?,
+    private var initialValueWithoutRequiredConstant: Any? = initialValueWithRequiredConstant,
 ) : FieldValue {
 
     override fun initialValue(requireConstant: Boolean) =
