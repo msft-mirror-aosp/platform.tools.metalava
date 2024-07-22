@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.Reporter
 import com.google.turbine.tree.Tree.CompUnit
@@ -40,11 +39,8 @@ internal open class TurbineBasedCodebase(
 
     private lateinit var initializer: TurbineCodebaseInitialiser
 
-    override fun resolveClass(className: String) = findOrCreateClass(className)
-
-    fun findOrCreateClass(className: String): ClassItem? {
-        return initializer.findOrCreateClass(className)
-    }
+    override fun resolveClass(className: String) =
+        findClass(className) ?: initializer.createClassFromUnderlyingModel(className)
 
     fun initialize(
         units: List<CompUnit>,

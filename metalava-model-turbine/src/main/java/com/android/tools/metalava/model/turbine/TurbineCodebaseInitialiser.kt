@@ -327,43 +327,40 @@ internal open class TurbineCodebaseInitialiser(
     /**
      * Create top level classes, their nested classes and all the other members.
      *
-     * All the classes are registered by name and so can be found by [findOrCreateClass].
+     * All the classes are registered by name and so can be found by
+     * [createClassFromUnderlyingModel].
      */
     private fun createTopLevelClassAndContents(classSymbol: ClassSymbol): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
         return createClass(classSymbol, null, globalTypeItemFactory)
     }
 
-    /** Tries to create a class if not already present in codebase's classmap */
-    internal fun findOrCreateClass(name: String): ClassItem? {
-        var classItem = codebase.findClass(name)
+    /** Tries to create a class from a Turbine class with [name]. */
+    internal fun createClassFromUnderlyingModel(name: String): ClassItem? {
+        // This will get the symbol for the top class even if the class name is for a nested
+        // class.
+        val topClassSym = getClassSymbol(name)
 
-        if (classItem == null) {
-            // This will get the symbol for the top class even if the class name is for a nested
-            // class.
-            val topClassSym = getClassSymbol(name)
+        // Create the top level class, if needed, along with any nested classes and register
+        // them all by name.
+        topClassSym?.let {
+            // It is possible that the top level class has already been created but just did not
+            // contain the requested nested class so check to make sure it exists before
+            // creating it.
+            val topClassName = getQualifiedName(topClassSym.binaryName())
+            codebase.findClass(topClassName)
+                ?: let {
+                    // Create and register the top level class and its nested classes.
+                    createTopLevelClassAndContents(topClassSym)
 
-            // Create the top level class, if needed, along with any nested classes and register
-            // them all by name.
-            topClassSym?.let {
-                // It is possible that the top level class has already been created but just did not
-                // contain the requested nested class so check to make sure it exists before
-                // creating it.
-                val topClassName = getQualifiedName(topClassSym.binaryName())
-                codebase.findClass(topClassName)
-                    ?: let {
-                        // Create and register the top level class and its nested classes.
-                        createTopLevelClassAndContents(topClassSym)
-
-                        // Now try and find the actual class that was requested by name. If it
-                        // exists it
-                        // should have been created in the previous call.
-                        classItem = codebase.findClass(name)
-                    }
-            }
+                    // Now try and find the actual class that was requested by name. If it exists it
+                    // should have been created in the previous call.
+                    return codebase.findClass(name)
+                }
         }
 
-        return classItem
+        // Could not be found.
+        return null
     }
 
     private fun createClass(
