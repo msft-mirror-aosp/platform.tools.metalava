@@ -43,8 +43,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -54,8 +52,6 @@ import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.Locale
 import java.util.function.Predicate
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.uast.UClass
 
 /**
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
@@ -555,12 +551,8 @@ class ApiAnalyzer(
     /** If a file facade class has no public members, don't add it to the api */
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
-            val psi = (cls as? PsiClassItem)?.psi()
             if (
-                psi != null &&
-                    psi.isKotlin() &&
-                    psi is UClass &&
-                    psi.javaPsi is KtLightClassForFacade &&
+                cls.isFileFacade() &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
