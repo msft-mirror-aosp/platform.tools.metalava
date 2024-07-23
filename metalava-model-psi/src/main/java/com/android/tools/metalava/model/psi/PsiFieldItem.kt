@@ -42,7 +42,7 @@ import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.isPublic
 import org.jetbrains.uast.UField
 
-class PsiFieldItem(
+internal class PsiFieldItem(
     override val codebase: PsiBasedCodebase,
     private val psiField: PsiField,
     containingClass: PsiClassItem,

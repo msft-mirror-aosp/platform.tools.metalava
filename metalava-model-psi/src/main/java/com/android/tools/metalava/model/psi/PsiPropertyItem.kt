@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.toUElement
 
-class PsiPropertyItem
+internal class PsiPropertyItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,

@@ -39,7 +39,7 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 
-open class PsiMethodItem(
+internal class PsiMethodItem(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),

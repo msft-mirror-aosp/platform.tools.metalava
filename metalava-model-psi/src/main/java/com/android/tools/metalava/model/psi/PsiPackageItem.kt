@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.intellij.psi.PsiPackage
 
-class PsiPackageItem
+internal class PsiPackageItem
 internal constructor(
     codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,

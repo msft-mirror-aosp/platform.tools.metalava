@@ -45,7 +45,7 @@ import org.jetbrains.uast.UMethod
  */
 internal typealias ParameterItemsFactory = (PsiCallableItem) -> List<PsiParameterItem>
 
-abstract class PsiCallableItem(
+internal abstract class PsiCallableItem(
     override val codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),

@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiElement
 
-abstract class AbstractPsiItem(
+internal abstract class AbstractPsiItem(
     final override val codebase: PsiBasedCodebase,
     element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),

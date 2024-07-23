@@ -22,7 +22,7 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.uast.UElement
 
-interface PsiItem : Item {
+internal interface PsiItem : Item {
 
     override val codebase: PsiBasedCodebase
 

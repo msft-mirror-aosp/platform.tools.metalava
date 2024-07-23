@@ -51,7 +51,7 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.getParentOfType
 
-open class PsiClassItem
+internal class PsiClassItem
 internal constructor(
     codebase: PsiBasedCodebase,
     val psiClass: PsiClass,

@@ -50,7 +50,7 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 
-class PsiParameterItem
+internal class PsiParameterItem
 internal constructor(
     codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,

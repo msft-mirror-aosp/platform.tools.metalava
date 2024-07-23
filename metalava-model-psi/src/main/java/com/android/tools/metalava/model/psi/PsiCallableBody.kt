@@ -45,7 +45,7 @@ import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
-class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
+internal class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
 
     /**
      * Access [codebase] on demand as [callable] is not properly initialized during initialization
