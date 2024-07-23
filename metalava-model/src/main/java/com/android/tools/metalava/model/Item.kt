@@ -41,14 +41,28 @@ interface Item : Reportable {
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
      * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
+     *
+     * @see variantSelectors
      */
     val originallyHidden: Boolean
 
     /**
      * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
      * containing class/pkg)
+     *
+     * @see variantSelectors
      */
-    var hidden: Boolean
+    val hidden: Boolean
+
+    /**
+     * Tracks the properties that determine whether this [Item] will be selected for each API
+     * variant.
+     *
+     * @see originallyHidden
+     * @see hidden
+     * @see removed
+     */
+    val variantSelectors: ApiVariantSelectors
 
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
@@ -75,8 +89,10 @@ interface Item : Reportable {
     /**
      * Whether this element has been removed with @removed/@Remove (or after propagation, in some
      * containing class)
+     *
+     * @see variantSelectors
      */
-    var removed: Boolean
+    val removed: Boolean
 
     /** True if this item has been marked deprecated. */
     val originallyDeprecated: Boolean
@@ -86,9 +102,6 @@ interface Item : Reportable {
      * has been marked as deprecated.
      */
     val effectivelyDeprecated: Boolean
-
-    /** True if this element is only intended for documentation */
-    var docOnly: Boolean
 
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
@@ -168,11 +181,25 @@ interface Item : Reportable {
      */
     fun isFromClassPath(): Boolean = false
 
-    /** Is this element declared in Java (rather than Kotlin) ? */
-    fun isJava(): Boolean = true
+    /**
+     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * created from a signature file.
+     */
+    val itemLanguage: ItemLanguage
 
-    /** Is this element declared in Kotlin (rather than Java) ? */
-    fun isKotlin() = !isJava()
+    /**
+     * Is this element declared in Java (rather than Kotlin) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isJava() = itemLanguage.isJava()
+
+    /**
+     * Is this element declared in Kotlin (rather than Java) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isKotlin() = itemLanguage.isKotlin()
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
@@ -415,7 +442,7 @@ interface Item : Reportable {
 /** Base [Item] implementation that is common to all models. */
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
-    internal val itemLanguage: ItemLanguage,
+    final override val itemLanguage: ItemLanguage,
     final override val modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -444,15 +471,7 @@ abstract class AbstractItem(
      * The leaking of `this` is safe as the implementations do not do access anything that has not
      * been initialized.
      */
-    internal val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
+    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 
     /**
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
@@ -462,25 +481,15 @@ abstract class AbstractItem(
         get() = variantSelectors.originallyHidden
 
     /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    final override var hidden
+    final override val hidden
         get() = variantSelectors.hidden
-        set(value) {
-            variantSelectors.hidden = value
-        }
-
-    /** Manually delegate to [ApiVariantSelectors.docOnly] as property delegates are expensive. */
-    final override var docOnly: Boolean
-        get() = variantSelectors.docOnly
-        set(value) {
-            variantSelectors.docOnly = value
-        }
 
     /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
-    final override var removed: Boolean
+    final override val removed: Boolean
         get() = variantSelectors.removed
-        set(value) {
-            variantSelectors.removed = value
-        }
+
+    final override val showability: Showability
+        get() = variantSelectors.showability
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -510,10 +519,6 @@ abstract class AbstractItem(
 
     companion object {
         private var nextRank = AtomicInteger()
-    }
-
-    final override val showability: Showability by lazy {
-        codebase.annotationManager.getShowabilityForItem(this)
     }
 
     final override fun suppressedIssues(): Set<String> {

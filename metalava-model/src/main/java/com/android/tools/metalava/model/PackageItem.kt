@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface PackageItem : Item {
+interface PackageItem : SelectableItem {
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
      * file.
@@ -53,9 +53,6 @@ interface PackageItem : Item {
         superMethods: Boolean,
         duplicate: Boolean,
     ) = codebase.findPackage(qualifiedName())
-
-    val isDefault
-        get() = qualifiedName().isEmpty()
 
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()

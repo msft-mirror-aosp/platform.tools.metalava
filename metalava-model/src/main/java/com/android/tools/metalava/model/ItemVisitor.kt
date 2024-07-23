@@ -17,19 +17,19 @@
 package com.android.tools.metalava.model
 
 interface ItemVisitor {
-    fun visit(cls: ClassItem)
+    fun visit(cls: ClassItem) {}
 
-    fun visit(field: FieldItem)
+    fun visit(field: FieldItem) {}
 
-    fun visit(constructor: ConstructorItem)
+    fun visit(constructor: ConstructorItem) {}
 
-    fun visit(method: MethodItem)
+    fun visit(method: MethodItem) {}
 
-    fun visit(pkg: PackageItem)
+    fun visit(pkg: PackageItem) {}
 
-    fun visit(packageList: PackageList)
+    fun visit(packageList: PackageList) {}
 
-    fun visit(parameter: ParameterItem)
+    fun visit(parameter: ParameterItem) {}
 
-    fun visit(property: PropertyItem)
+    fun visit(property: PropertyItem) {}
 }

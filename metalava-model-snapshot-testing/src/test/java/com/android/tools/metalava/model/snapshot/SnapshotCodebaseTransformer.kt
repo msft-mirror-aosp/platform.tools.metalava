@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.snapshot
 
-import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 
-class TextFieldValue(private val value: Any?) : FieldValue {
-    override fun initialValue(requireConstant: Boolean): Any? {
-        return value
+/** A [CodebaseTransformer] that will return a snapshot of the supplied [Codebase]. */
+// @AutoService(CodebaseTransformer.class)
+class SnapshotCodebaseTransformer : CodebaseTransformer {
+    override fun transform(codebase: Codebase): Codebase {
+        return CodebaseSnapshotTaker.takeSnapshot(codebase)
     }
 }

@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
-
-import com.android.tools.metalava.model.item.FieldValue
-
-/** Provides access to the initial values of a field. */
-class TurbineFieldValue(
-    private var initialValueWithRequiredConstant: Any?,
-    private var initialValueWithoutRequiredConstant: Any?,
-) : FieldValue {
-
-    override fun initialValue(requireConstant: Boolean) =
-        if (requireConstant) initialValueWithRequiredConstant
-        else initialValueWithoutRequiredConstant
-}
+/**
+ * Contains classes to support running tests on a [com.android.tools.metalava.model.Codebase] created from another
+ * [Codebase].
+ */
+package com.android.tools.metalava.model.testing.transformer;

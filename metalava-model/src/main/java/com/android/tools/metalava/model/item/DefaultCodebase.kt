@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
 
@@ -52,6 +53,9 @@ open class DefaultCodebase(
         trustedApi,
         supportsDocumentation,
     ) {
+
+    override val reporter: Reporter
+        get() = unsupported("reporter is not available")
 
     /** Map from package name to [DefaultPackageItem] of all packages in this. */
     private val packagesByName = HashMap<String, DefaultPackageItem>(PACKAGE_ESTIMATE)
@@ -86,6 +90,20 @@ open class DefaultCodebase(
     fun findClassInCodebase(className: String) = allClassesByName[className]
 
     /**
+     * A list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    private val topLevelClassesFromSource: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
+
+    override fun getTopLevelClassesFromSource(): List<ClassItem> {
+        return topLevelClassesFromSource
+    }
+
+    fun addTopLevelClassFromSource(classItem: ClassItem) {
+        topLevelClassesFromSource.add(classItem)
+    }
+
+    /**
      * Look for classes in this [Codebase].
      *
      * This is left open so that subclasses can extend this to look for classes from elsewhere, e.g.
@@ -94,7 +112,7 @@ open class DefaultCodebase(
     override fun findClass(className: String): ClassItem? = findClassInCodebase(className)
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    fun registerClass(classItem: DefaultClassItem) {
+    internal fun registerClass(classItem: DefaultClassItem) {
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {

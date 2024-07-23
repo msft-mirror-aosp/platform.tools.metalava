@@ -18,15 +18,17 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.findPackage
+import com.android.tools.metalava.reporter.Reporter
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.parse.Parser
 import java.io.File
 
 internal class TurbineSourceParser(
+    private val reporter: Reporter,
     private val annotationManager: AnnotationManager,
     private val allowReadingComments: Boolean
 ) : SourceParser {
@@ -43,10 +45,16 @@ internal class TurbineSourceParser(
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-    ): TurbineBasedCodebase {
+    ): Codebase {
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val codebase =
-            TurbineBasedCodebase(rootDir, description, annotationManager, allowReadingComments)
+            TurbineBasedCodebase(
+                rootDir,
+                description,
+                annotationManager,
+                reporter,
+                allowReadingComments,
+            )
 
         val sources = sourceSet.sources
 
@@ -67,7 +75,7 @@ internal class TurbineSourceParser(
             .map { SourceFile(it.path, it.readText()) }
     }
 
-    override fun loadFromJar(apiJar: File): SourceCodebase {
+    override fun loadFromJar(apiJar: File): Codebase {
         TODO("b/299044569 handle this")
     }
 
