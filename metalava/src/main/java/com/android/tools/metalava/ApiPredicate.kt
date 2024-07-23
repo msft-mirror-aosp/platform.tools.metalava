@@ -136,8 +136,11 @@ class ApiPredicate(
             return itemSelectors.removed == matchRemoved
         }
 
+        // If docOnly items are not included and this item is docOnly then ignore it.
+        if (!includeDocOnly && itemSelectors.docOnly) return false
+
         var hasShowAnnotation = config.ignoreShown || item.hasShowAnnotation()
-        var docOnly = itemSelectors.docOnly
+
         var removed = itemSelectors.removed
 
         var clazz: ClassItem? =
@@ -156,7 +159,6 @@ class ApiPredicate(
             hasShowAnnotation =
                 hasShowAnnotation or (config.ignoreShown || clazz.hasShowAnnotation())
             hidden = hidden or clazz.hidden
-            docOnly = docOnly or clazz.docOnly
             removed = removed or clazz.removed
             clazz = clazz.containingClass()
         }
@@ -165,11 +167,7 @@ class ApiPredicate(
             removed = matchRemoved
         }
 
-        if (docOnly && includeDocOnly) {
-            docOnly = false
-        }
-
-        return visible && hasShowAnnotation && !hidden && !docOnly && removed == matchRemoved
+        return visible && hasShowAnnotation && !hidden && removed == matchRemoved
     }
 
     /**
