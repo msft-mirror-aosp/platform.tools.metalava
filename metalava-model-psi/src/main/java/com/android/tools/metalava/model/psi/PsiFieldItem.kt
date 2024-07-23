@@ -89,7 +89,7 @@ class PsiFieldItem(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val modifiers = modifiers(codebase, psiField)
+            val modifiers = PsiModifierItem.create(codebase, psiField)
 
             val isEnumConstant = psiField is PsiEnumConstant
 

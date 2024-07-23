@@ -95,7 +95,7 @@ private constructor(
                     is KtPropertyAccessor -> sourcePsi.property
                     else -> sourcePsi ?: psiMethod
                 }
-            val modifiers = modifiers(codebase, psiMethod)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.

@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiModifierListOwner
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.uast.UElement
 
@@ -54,16 +53,6 @@ internal constructor(
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
-    }
-
-    companion object {
-
-        internal fun modifiers(
-            codebase: PsiBasedCodebase,
-            element: PsiModifierListOwner,
-        ): DefaultModifierList {
-            return PsiModifierItem.create(codebase, element)
-        }
     }
 }
 

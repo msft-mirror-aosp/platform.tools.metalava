@@ -85,7 +85,7 @@ private constructor(
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
-            val modifiers = modifiers(codebase, psiMethod)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, constructorTypeItemFactory) =
