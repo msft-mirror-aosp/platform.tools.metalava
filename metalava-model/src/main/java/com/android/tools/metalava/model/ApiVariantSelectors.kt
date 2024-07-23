@@ -280,7 +280,12 @@ sealed class ApiVariantSelectors {
                 }
 
         override var removed: Boolean
-            get() = lazyGetAfterInherit(REMOVED_BIT_MASK) { item.documentation.isRemoved }
+            get() =
+                lazyGet(REMOVED_BIT_MASK) {
+                    (item.parent()?.variantSelectors?.removed == true) ||
+                        item.documentation.isRemoved
+                }
+            // This is only used for testing.
             set(value) {
                 lazySet(REMOVED_BIT_MASK, value)
             }
@@ -384,18 +389,12 @@ sealed class ApiVariantSelectors {
                     } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
-                    if (containingClassSelectors.removed) {
-                        removed = true
-                    }
                 } else if (item is ClassItem) {
                     // This will only be executed for top level classes, i.e. containing class is
                     // null. They inherit their properties from the containing package.
                     val containingPackageSelectors = item.containingPackage().variantSelectors
                     if (containingPackageSelectors.inheritableHidden) {
                         inheritableHidden = true
-                    }
-                    if (containingPackageSelectors.removed) {
-                        removed = true
                     }
                 }
             }
