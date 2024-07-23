@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
@@ -150,8 +149,6 @@ abstract class PsiCallableItem(
 val PsiMethod.psiParameters: List<PsiParameter>
     get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()
 
-val defaultEvaluator = DefaultJavaEvaluator(null, null)
-
 /**
  * Get the JVM-like descriptor of this [CallableItem] for just parameters (not return type) and
  * using dots ('.') instead of slash (`/`) and dollar sign (`$`) characters.
@@ -159,11 +156,18 @@ val defaultEvaluator = DefaultJavaEvaluator(null, null)
  * Due to legacy reasons it will return `null` for the constructor of an inner class.
  */
 fun CallableItem.getCallableParameterDescriptorUsingDots(): String? {
-    val psiCallableItem = this as PsiCallableItem
-    val psiMethod = psiCallableItem.psiMethod
-    return defaultEvaluator.getMethodDescription(
-        psiMethod,
-        includeName = false,
-        includeReturn = false
+    return if (
+        isConstructor() &&
+            containingClass().isNestedClass() &&
+            !containingClass().modifiers.isStatic()
     )
+        null
+    else
+        buildString {
+            append("(")
+            for (parameter in parameters()) {
+                append(parameter.type().internalName().replace('/', '.').replace('$', '.'))
+            }
+            append(")")
+        }
 }
