@@ -35,13 +35,14 @@ internal constructor(
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         element = psiPackage
     ),
-    PackageItem {
+    PackageItem,
+    PsiItem {
 
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()

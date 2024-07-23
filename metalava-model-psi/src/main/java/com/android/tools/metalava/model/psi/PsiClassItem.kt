@@ -68,13 +68,14 @@ internal constructor(
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         element = psiClass
     ),
-    ClassItem {
+    ClassItem,
+    PsiItem {
 
     init {
         emit = !modifiers.isExpect()

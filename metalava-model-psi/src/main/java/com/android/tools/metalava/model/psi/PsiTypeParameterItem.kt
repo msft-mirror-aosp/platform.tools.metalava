@@ -34,14 +34,15 @@ internal class PsiTypeParameterItem(
     private val name: String,
     modifiers: DefaultModifierList
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         element = psiClass,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
-    TypeParameterItem {
+    TypeParameterItem,
+    PsiItem {
 
     override fun name() = name
 
