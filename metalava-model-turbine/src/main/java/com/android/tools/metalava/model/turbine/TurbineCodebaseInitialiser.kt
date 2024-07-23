@@ -312,7 +312,8 @@ internal open class TurbineCodebaseInitialiser(
                 continue
             }
 
-            createTopLevelClassAndContents(classSymbol)
+            val classItem = createTopLevelClassAndContents(classSymbol)
+            codebase.addTopLevelClassFromSource(classItem)
         }
 
         codebase.resolveSuperTypes()
@@ -326,9 +327,9 @@ internal open class TurbineCodebaseInitialiser(
      *
      * All the classes are registered by name and so can be found by [findOrCreateClass].
      */
-    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol) {
+    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
-        createClass(classSymbol, null, globalTypeItemFactory)
+        return createClass(classSymbol, null, globalTypeItemFactory)
     }
 
     /** Tries to create a class if not already present in codebase's classmap */
@@ -451,14 +452,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Create constructors
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
-
-        // Add to the codebase
-        codebase.registerClass(classItem)
-
-        // Add the class to corresponding PackageItem
-        if (isTopClass) {
-            pkgItem.addTopClass(classItem)
-        }
 
         // Do not emit to signature file if it is from classpath
         if (isFromClassPath) {
@@ -714,9 +707,7 @@ internal open class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            val nestedClassItem =
-                createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
-            classItem.addNestedClass(nestedClassItem)
+            createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
         }
     }
 

@@ -101,18 +101,13 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 variantSelectorsFactory = cls.variantSelectors::duplicate,
                 source = null,
                 classKind = cls.classKind,
-                containingClass = currentClass,
+                containingClass = containingClass,
                 containingPackage = containingPackage,
                 qualifiedName = cls.qualifiedName(),
                 simpleName = cls.simpleName(),
                 fullName = cls.fullName(),
                 typeParameterList = TypeParameterList.NONE,
             )
-        if (containingClass == null) {
-            currentPackage!!.addTopClass(newClass)
-        } else {
-            containingClass.addNestedClass(newClass)
-        }
 
         // Snapshot the super class type, if any.
         cls.superClassType()?.let { superClassType ->
@@ -122,7 +117,6 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
         // Snapshot the interface types, if any.
         newClass.setInterfaceTypes(cls.interfaceTypes().map { it.transform(typeSnapshotTaker) })
 
-        codebase.registerClass(newClass)
         currentClass = newClass
     }
 

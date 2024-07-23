@@ -630,15 +630,6 @@ private constructor(
             classToTypeItemFactory[cl] = typeItemFactory
         }
 
-        if (outerClass == null) {
-            // Add the class to the package, it will only be added to the TextCodebase once the
-            // package body has been parsed.
-            pkg.addTopClass(cl)
-        } else {
-            outerClass.addNestedClass(cl)
-        }
-        codebase.registerClass(cl)
-
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(tokenizer, cl, typeItemFactory)
     }
