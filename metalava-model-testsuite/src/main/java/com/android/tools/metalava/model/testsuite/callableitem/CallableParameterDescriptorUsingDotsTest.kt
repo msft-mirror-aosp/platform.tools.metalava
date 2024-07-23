@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.model.testsuite.callableitem
 
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
