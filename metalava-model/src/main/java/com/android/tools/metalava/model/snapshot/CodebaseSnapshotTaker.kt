@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -40,6 +41,7 @@ import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
+import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 
 /** Stack of [SnapshotTypeItemFactory] */
@@ -321,6 +323,24 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
             )
 
         containingClass.addField(newField)
+    }
+
+    override fun visitProperty(property: PropertyItem) {
+        val containingClass = currentClass!!
+        val newProperty =
+            DefaultPropertyItem(
+                codebase = codebase,
+                fileLocation = property.fileLocation,
+                itemLanguage = property.itemLanguage,
+                modifiers = property.modifiers.snapshot(),
+                documentationFactory = property.documentation::snapshot,
+                variantSelectorsFactory = property.variantSelectors::duplicate,
+                name = property.name(),
+                containingClass = containingClass,
+                type = property.type().snapshot(),
+            )
+
+        containingClass.addProperty(newProperty)
     }
 
     companion object {

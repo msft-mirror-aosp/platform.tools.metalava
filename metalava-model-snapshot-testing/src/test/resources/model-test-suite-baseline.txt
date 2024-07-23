@@ -55,9 +55,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test nullability annotation in package info[turbine]
 
-com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
-  Test access type parameter of outer class[text]
-
 com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
   test sourcefile classes[turbine]
   test sourcefile imports[turbine]
@@ -87,9 +84,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeItemT
   Test asClass[turbine,T[]]
   Test asClass[turbine,T]
   Test asClass[turbine,java.util.Map.Entry<String, T>]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test property type variable types[text]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test interface types[turbine]
