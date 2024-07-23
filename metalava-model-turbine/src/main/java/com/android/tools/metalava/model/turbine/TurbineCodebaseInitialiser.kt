@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -649,23 +650,24 @@ internal open class TurbineCodebaseInitialiser(
         tyParams: ImmutableMap<TyVarSymbol, TyVarInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         description: String,
-    ): Pair<TypeParameterList, TurbineTypeItemFactory> {
+    ): TypeParameterListAndFactory<TurbineTypeItemFactory> {
 
-        if (tyParams.isEmpty()) return Pair(TypeParameterList.NONE, enclosingClassTypeItemFactory)
-
-        // Create a list of [TypeParameterItem]s from turbine specific classes.
-        val (typeParameters, typeItemFactory) =
-            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-                enclosingClassTypeItemFactory,
-                description,
-                tyParams.toList(),
-                { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
-                { typeItemFactory, item, (_, tParam) ->
-                    createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
-                },
+        if (tyParams.isEmpty())
+            return TypeParameterListAndFactory(
+                TypeParameterList.NONE,
+                enclosingClassTypeItemFactory
             )
 
-        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
+        // Create a list of [TypeParameterItem]s from turbine specific classes.
+        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+            enclosingClassTypeItemFactory,
+            description,
+            tyParams.toList(),
+            { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
+            { typeItemFactory, item, (_, tParam) ->
+                createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
+            },
+        )
     }
 
     /**

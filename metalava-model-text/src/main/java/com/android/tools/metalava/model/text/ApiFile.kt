@@ -45,6 +45,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -829,7 +830,7 @@ private constructor(
         // Create type parameter list and factory from the string and optional outer class factory.
         val (typeParameterList, typeItemFactory) =
             if (typeParameterListString == "")
-                Pair(TypeParameterList.NONE, outerClassTypeItemFactory)
+                TypeParameterListAndFactory(TypeParameterList.NONE, outerClassTypeItemFactory)
             else
                 createTypeParameterList(
                     outerClassTypeItemFactory,
@@ -995,7 +996,7 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             } else {
-                Pair(TypeParameterList.NONE, classTypeItemFactory)
+                TypeParameterListAndFactory(TypeParameterList.NONE, classTypeItemFactory)
             }
 
         tokenizer.assertIdent(token)
@@ -1061,7 +1062,7 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             } else {
-                Pair(TypeParameterList.NONE, classTypeItemFactory)
+                TypeParameterListAndFactory(TypeParameterList.NONE, classTypeItemFactory)
             }
 
         tokenizer.assertIdent(token)
@@ -1454,7 +1455,7 @@ private constructor(
     private fun parseTypeParameterList(
         tokenizer: Tokenizer,
         enclosingTypeItemFactory: TextTypeItemFactory,
-    ): Pair<TypeParameterList, TextTypeItemFactory> {
+    ): TypeParameterListAndFactory<TextTypeItemFactory> {
         var token: String
         val start = tokenizer.offset() - 1
         var balance = 1
@@ -1468,7 +1469,7 @@ private constructor(
         }
         val typeParameterListString = tokenizer.getStringFromOffset(start)
         return if (typeParameterListString.isEmpty()) {
-            Pair(TypeParameterList.NONE, enclosingTypeItemFactory)
+            TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         } else {
             // Use the file location as a part of the description of the scope as at this point
             // there is no other information available.
@@ -1494,7 +1495,7 @@ private constructor(
         enclosingTypeItemFactory: TextTypeItemFactory,
         scopeDescription: String,
         typeParameterListString: String
-    ): Pair<TypeParameterList, TextTypeItemFactory> {
+    ): TypeParameterListAndFactory<TextTypeItemFactory> {
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
         val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
@@ -1502,23 +1503,18 @@ private constructor(
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two
         // stages to handle cycles between the parameters.
-        val (typeParameters, typeItemFactory) =
-            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-                enclosingTypeItemFactory,
-                scopeDescription,
-                typeParameterStrings,
-                // Create a `TextTypeParameterItem` from the type parameter string.
-                { createTypeParameterItem(codebase, it) },
-                // Create, set and return the [BoundsTypeItem] list.
-                { typeItemFactory, item, typeParameterString ->
-                    val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
-                    boundsStringList
-                        .map { typeItemFactory.getBoundsType(it) }
-                        .also { item.bounds = it }
-                },
-            )
-
-        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
+        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+            enclosingTypeItemFactory,
+            scopeDescription,
+            typeParameterStrings,
+            // Create a `TextTypeParameterItem` from the type parameter string.
+            { createTypeParameterItem(codebase, it) },
+            // Create, set and return the [BoundsTypeItem] list.
+            { typeItemFactory, item, typeParameterString ->
+                val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
+                boundsStringList.map { typeItemFactory.getBoundsType(it) }.also { item.bounds = it }
+            },
+        )
     }
 
     /**
