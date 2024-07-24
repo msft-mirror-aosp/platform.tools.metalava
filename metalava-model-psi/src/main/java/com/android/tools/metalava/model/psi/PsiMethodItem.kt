@@ -136,7 +136,7 @@ open class PsiMethodItem(
                 psiMethod,
                 fileLocation,
                 targetContainingClass,
-                name,
+                name(),
                 modifiers.duplicate(),
                 documentation::duplicate,
                 returnType.convertType(typeVariableMap),
@@ -145,7 +145,7 @@ open class PsiMethodItem(
                 throwsTypes,
             )
             .also { duplicated ->
-                duplicated.inheritedFrom = containingClass
+                duplicated.inheritedFrom = containingClass()
 
                 duplicated.updateCopiedMethodState()
             }

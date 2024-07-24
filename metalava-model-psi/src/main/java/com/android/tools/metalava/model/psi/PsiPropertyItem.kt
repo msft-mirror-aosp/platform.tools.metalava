@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -28,7 +30,7 @@ import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem
 private constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
     containingClass: PsiClassItem,
     name: String,
@@ -40,15 +42,18 @@ private constructor(
     override val constructorParameter: PsiParameterItem?,
     override val backingField: PsiFieldItem?
 ) :
-    PsiMemberItem(
+    DefaultMemberItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation(psiMethod),
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiMethod,
-        containingClass = containingClass,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
+        containingClass = containingClass,
     ),
-    PropertyItem {
+    PropertyItem,
+    PsiItem {
 
     override fun type(): TypeItem = fieldType
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
@@ -23,6 +24,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.isNonNullAnnotation
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
@@ -34,7 +36,7 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 
 class PsiFieldItem(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiField: PsiField,
     containingClass: PsiClassItem,
     name: String,
@@ -44,15 +46,18 @@ class PsiFieldItem(
     private val isEnumConstant: Boolean,
     override val fieldValue: PsiFieldValue?,
 ) :
-    PsiMemberItem(
+    DefaultMemberItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation(psiField),
+        itemLanguage = psiField.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiField,
-        containingClass = containingClass,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
+        containingClass = containingClass,
     ),
-    FieldItem {
+    FieldItem,
+    PsiItem {
 
     override var property: PsiPropertyItem? = null
 
@@ -77,7 +82,7 @@ class PsiFieldItem(
                 psiField,
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
-            .also { duplicated -> duplicated.inheritedFrom = containingClass }
+            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
     override var inheritedFrom: ClassItem? = null
 
