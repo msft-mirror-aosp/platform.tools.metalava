@@ -22,8 +22,6 @@ import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -32,10 +30,10 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
@@ -48,14 +46,15 @@ import kotlin.collections.HashMap
 internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Boolean = false) {
 
     /**
-     * The cache key, incorporates the information from [TypeUse] and [kotlinStyleNulls] as well as
-     * the type string as they can all affect the created [TypeItem].
+     * The cache key, incorporates some information from [ContextNullability] and [kotlinStyleNulls]
+     * as well as the type string as they can all affect the created [TypeItem].
      *
-     * e.g. [TypeUse.SUPER_TYPE] will cause the type to be treated as a super class and so always be
+     * e.g. [ContextNullability.forceNonNull] will cause the type to always be
      * [TypeNullability.NONNULL] even if [kotlinStyleNulls] is `false` which would normally cause it
      * to be [TypeNullability.PLATFORM]. However, when [kotlinStyleNulls] is `true` then there is no
-     * difference between [TypeUse.SUPER_TYPE] and [TypeUse.GENERAL] as they will both cause a class
-     * type with no nullability suffix to be treated as [TypeNullability.NONNULL].
+     * difference between [ContextNullability.forceNonNull] and [ContextNullability.none] as they
+     * will both cause a class type with no nullability suffix to be treated as
+     * [TypeNullability.NONNULL].
      *
      * That information is encapsulated in the [forceClassToBeNonNull] property.
      */
@@ -69,39 +68,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     internal var cacheHit = 0
     internal var cacheSize = 0
 
-    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
-    val superAnnotationType
-        get() = createJavaLangSuperType(JAVA_LANG_ANNOTATION)
-
-    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
-    val superEnumType
-        get() = createJavaLangSuperType(JAVA_LANG_ENUM)
-
-    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
-    val superObjectType
-        get() = createJavaLangSuperType(JAVA_LANG_OBJECT)
-
-    /**
-     * Create a [ClassTypeItem] for a standard java.lang class suitable for use by a super class or
-     * interface.
-     */
-    private fun createJavaLangSuperType(standardClassName: String): ClassTypeItem {
-        return getSuperType(standardClassName, TypeParameterScope.empty)
-    }
-
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType: ReferenceTypeItem
         get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty) as ReferenceTypeItem
-
-    /**
-     * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
-     * type, e.g. in an `extends` or `implements` list.
-     */
-    fun getSuperType(
-        type: String,
-        typeParameterScope: TypeParameterScope,
-    ): ClassTypeItem =
-        obtainTypeFromString(type, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -110,8 +79,8 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
-        typeUse: TypeUse = TypeUse.GENERAL,
-    ): TypeItem = cachedParseType(type, typeParameterScope, emptyList(), typeUse)
+        contextNullability: ContextNullability = ContextNullability.none,
+    ): TypeItem = cachedParseType(type, typeParameterScope, emptyList(), contextNullability)
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -125,14 +94,15 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem> = emptyList(),
-        typeUse: TypeUse = TypeUse.GENERAL,
+        contextNullability: ContextNullability = ContextNullability.none,
     ): TypeItem {
         requests++
 
         // Class types used as super types, i.e. in an extends or implements list are forced to be
         // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
         // same cache key for both so that they reuse cached types where possible.
-        val forceClassToBeNonNull = typeUse == TypeUse.SUPER_TYPE || kotlinStyleNulls
+        val forceClassToBeNonNull =
+            contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
 
         // Don't use the cache when there are type-use annotations not contained in the string.
         return if (annotations.isEmpty()) {
@@ -416,7 +386,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         val qualifiedName =
             if (outerClassType != null) {
-                // This is an inner type, add the prefix of the outer name
+                // This is a nested type, add the prefix of the outer name
                 "${outerClassType.qualifiedName}.$name"
             } else if (!name.contains('.')) {
                 // Reverse the effect of [TypeItem.stripJavaLangPrefix].
@@ -429,7 +399,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         val arguments =
             argumentStrings.map { cachedParseType(it, typeParameterScope) as TypeArgumentTypeItem }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
-        // the leading annotations (they belong to the inner class type).
+        // the leading annotations (they belong to the nested class type).
         val classModifiers =
             if (remainder != null) {
                 modifiers(classAnnotations, TypeNullability.NONNULL)
@@ -445,7 +415,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                     "Could not parse type `$type`. Found unexpected string after type parameters: $remainder"
                 )
             }
-            // This is an inner class type, recur with the new outer class
+            // This is a nested class type, recur with the new outer class
             return createClassType(
                 remainder.substring(1),
                 classType,
@@ -465,7 +435,6 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         return DefaultTypeModifiers.create(
             annotations,
             nullability,
-            "Type modifiers created by the text model are immutable because they are cached",
         )
     }
 
@@ -479,7 +448,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             trimmed = trimmed.substring(end).trim()
         }
         return Pair(trimmed, annotations)
@@ -520,7 +491,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 break
             }
             val annotationSource = trimmed.substring(start)
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             // Cut this annotation off, so now the next one can end at the last index.
             trimmed = trimmed.substring(0, start).trim()
         }
@@ -530,7 +503,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     /**
      * Given [type] which represents a class, splits the string into the qualified name of the
      * class, the remainder of the type string, and a list of type-use annotations. The remainder of
-     * the type string might be the type parameter list, inner class names, or a combination
+     * the type string might be the type parameter list, nested class names, or a combination
      *
      * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
      * "<java.lang.@C String", listOf("@A", "@B")).

@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.intellij.psi.PsiPackage
 
 class PsiPackageItem
@@ -28,7 +30,7 @@ internal constructor(
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentationFactory: ItemDocumentationFactory,
     override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -36,7 +38,7 @@ internal constructor(
     PsiItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiPackage
     ),
     PackageItem {
@@ -44,38 +46,23 @@ internal constructor(
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
 
-    override fun topLevelClasses(): Sequence<ClassItem> =
-        classes.toList().asSequence().filter { it.isTopLevelClass() }
-
-    lateinit var containingPackageField: PsiPackageItem
+    override fun topLevelClasses(): List<ClassItem> =
+        // Return a copy to avoid a ConcurrentModificationException.
+        classes.toList()
 
     override fun containingClass(): ClassItem? = null
 
     override fun psi() = psiPackage
 
+    lateinit var containingPackageField: PackageItem
+
     override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
         else {
             if (!::containingPackageField.isInitialized) {
-                var parentPackage = qualifiedName
-                while (true) {
-                    val index = parentPackage.lastIndexOf('.')
-                    if (index == -1) {
-                        containingPackageField = codebase.findPackage("")!!
-                        return containingPackageField
-                    }
-                    parentPackage = parentPackage.substring(0, index)
-                    val pkg = codebase.findPackage(parentPackage)
-                    if (pkg != null) {
-                        containingPackageField = pkg
-                        return pkg
-                    }
-                }
-
-                @Suppress("UNREACHABLE_CODE") null
-            } else {
-                containingPackageField
+                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
             }
+            containingPackageField
         }
     }
 
@@ -108,27 +95,6 @@ internal constructor(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is PackageItem && qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int = qualifiedName.hashCode()
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        // Take a copy of the list just in case additional classes are added during iteration. Those
-        // classes will have their [PsiClassItem.finishInitialization] called so there is no need to
-        // handle them here.
-        val initialClasses = ArrayList(classes)
-        for (cls in initialClasses) {
-            if (cls is PsiClassItem) cls.finishInitialization()
-        }
-    }
-
     override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {
@@ -137,10 +103,9 @@ internal constructor(
             psiPackage: PsiPackage,
             extraDocs: String?,
             overviewHtml: String?,
-            fromClassPath: Boolean
+            fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
-            val modifiers = modifiers(codebase, psiPackage, commentText)
+            val modifiers = modifiers(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
@@ -152,7 +117,8 @@ internal constructor(
                     codebase = codebase,
                     psiPackage = psiPackage,
                     qualifiedName = qualifiedName,
-                    documentation = commentText,
+                    documentationFactory =
+                        PsiItemDocumentation.factory(psiPackage, codebase, extraDocs),
                     overviewDocumentation = overviewHtml,
                     modifiers = modifiers,
                     fromClassPath = fromClassPath

@@ -29,8 +29,6 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
-import org.junit.Assert.assertThrows
-import org.junit.ComparisonFailure
 import org.junit.Test
 
 class SignatureInputOutputTest : Assertions {
@@ -57,15 +55,18 @@ class SignatureInputOutputTest : Assertions {
                     val signatureWriter =
                         SignatureWriter(
                             writer = printWriter,
-                            filterEmit = { true },
-                            filterReference = { true },
-                            preFiltered = false,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = format,
+                        )
+                    codebase.accept(
+                        signatureWriter.createFilteringVisitor(
+                            filterEmit = { true },
+                            filterReference = { true },
+                            preFiltered = true,
                             showUnannotated = false,
                             apiVisitorConfig = ApiVisitor.Config(),
                         )
-                    codebase.accept(signatureWriter)
+                    )
                 }
                 stringWriter.toString()
             }
@@ -316,7 +317,7 @@ class SignatureInputOutputTest : Assertions {
 
             assertThat(param.hasDefaultValue()).isTrue()
             assertThat(param.isDefaultValueKnown()).isTrue()
-            assertThat(param.defaultValue()).isEqualTo("3")
+            assertThat(param.defaultValueAsString()).isEqualTo("3")
         }
     }
 
@@ -494,26 +495,24 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, format) { codebase ->
             val method = codebase.assertClass("test.pkg.MyTest").methods().single()
             // Return type has platform nullability
-            assertThat(method.hasNullnessInfo()).isFalse()
+            assertThat(method.returnType().modifiers.isPlatformNullability).isTrue()
 
             val annotationArrayArray = method.returnType()
             assertThat(annotationArrayArray).isInstanceOf(ArrayTypeItem::class.java)
-            assertThat(annotationArrayArray.modifiers.annotations().map { it.qualifiedName })
+            assertThat(annotationArrayArray.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("androidx.annotation.A")
 
             val annotationArray = (annotationArrayArray as ArrayTypeItem).componentType
             assertThat(annotationArray).isInstanceOf(ArrayTypeItem::class.java)
-            assertThat(annotationArray.modifiers.annotations().map { it.qualifiedName })
+            assertThat(annotationArray.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("androidx.annotation.B")
 
             val annotation = (annotationArray as ArrayTypeItem).componentType
             assertThat(annotation).isInstanceOf(ClassTypeItem::class.java)
             assertThat((annotation as ClassTypeItem).qualifiedName)
                 .isEqualTo("java.lang.annotation.Annotation")
-            assertThat(annotation.modifiers.annotations().map { it.qualifiedName })
+            assertThat(annotation.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("androidx.annotation.C")
-
-            // TODO (b/300081840): test nullability of types
         }
     }
 
@@ -531,10 +530,10 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, format) { codebase ->
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val superClassType = fooClass.superClassType()
-            assertThat(superClassType!!.modifiers.annotations().map { it.qualifiedName })
+            assertThat(superClassType!!.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("test.pkg.A")
             val interfaceType = fooClass.interfaceTypes().single()
-            assertThat(interfaceType.modifiers.annotations().map { it.qualifiedName })
+            assertThat(interfaceType.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("test.pkg.B")
         }
     }
@@ -549,24 +548,7 @@ class SignatureInputOutputTest : Assertions {
                 }
             """
                 .trimIndent()
-        val exception =
-            assertThrows(ComparisonFailure::class.java) {
-                runInputOutputTest(api, kotlinStyleFormat) {}
-            }
-
-        // Note that the List type argument is "String". not "String?" as it is above.
-        assertThat(exception.actual)
-            .isEqualTo(
-                """
-                // Signature format: 5.0
-                // - kotlin-name-type-order=yes
-                package test.pkg {
-                  public interface Foo extends kotlin.collections.List<java.lang.String> {
-                  }
-                }
-            """
-                    .trimIndent()
-            )
+        runInputOutputTest(api, kotlinStyleFormat) {}
     }
 
     @Test
@@ -579,24 +561,7 @@ class SignatureInputOutputTest : Assertions {
                 }
             """
                 .trimIndent()
-        val exception =
-            assertThrows(ComparisonFailure::class.java) {
-                runInputOutputTest(api, kotlinStyleFormat) {}
-            }
-
-        // Note that the List type argument is "String". not "String?" as it is above.
-        assertThat(exception.actual)
-            .isEqualTo(
-                """
-                // Signature format: 5.0
-                // - kotlin-name-type-order=yes
-                package test.pkg {
-                  public class Foo implements kotlin.collections.List<java.lang.String> {
-                  }
-                }
-            """
-                    .trimIndent()
-            )
+        runInputOutputTest(api, kotlinStyleFormat) {}
     }
 
     companion object {

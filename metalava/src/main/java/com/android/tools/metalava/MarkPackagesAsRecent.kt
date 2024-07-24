@@ -30,7 +30,7 @@ class MarkPackagesAsRecent(val filter: PackageFilter) :
     ApiVisitor(
         filterEmit = apiPredicate(),
         filterReference = apiPredicate(),
-        includeEmptyOuterClasses = true
+        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
     ) {
     override fun include(cls: ClassItem): Boolean {
         return filter.matches(cls.containingPackage())

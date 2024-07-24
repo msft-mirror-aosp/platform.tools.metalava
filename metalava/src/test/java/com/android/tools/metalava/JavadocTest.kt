@@ -17,8 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
-import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -29,6 +30,8 @@ class JavadocTest : DriverTest() {
     private fun checkStubs(
         @Language("JAVA") source: String,
         warnings: String? = "",
+        expectedFail: String? = null,
+        apiLint: String? = null,
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
@@ -40,8 +43,10 @@ class JavadocTest : DriverTest() {
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
             stubFiles = arrayOf(java(source)),
+            expectedFail = expectedFail,
             expectedIssues = warnings,
             checkCompilation = true,
+            apiLint = apiLint,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
@@ -179,6 +184,112 @@ class JavadocTest : DriverTest() {
                     @Deprecated
                     public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                     @Deprecated public boolean importance;
+                    }
+                    """
+        )
+    }
+
+    @Test
+    fun `Check allowReadingComments = false`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
+            docStubs = false,
+            // Enable API lint to make sure that some issues will be reported.
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            // These warnings prove that lint is enabled and will report MutableBareField and
+            // MissingNullability, issues that would be reported on test.hidden.Hidden if it was not
+            // hidden by the package-info.java.
+            warnings =
+                """
+                    src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
+                    src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.io.IOException;
+                    import test.pkg2.OtherClass;
+
+                    /**
+                     *  Blah blah {@link OtherClass} blah blah.
+                     *  Referencing <b>field</b> {@link OtherClass#foo},
+                     *  and referencing method {@link OtherClass#bar(int,
+                     *   boolean)}.
+                     *  And relative method reference {@link #baz()}.
+                     *  And relative field reference {@link #importance}.
+                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
+                     *  And here's one in the same package: {@link LocalClass}.
+                     *
+                     *  @deprecated
+                     *  @see OtherClass
+                     *  @see OtherClass#bar(int, boolean)
+                     */
+                    @SuppressWarnings("all")
+                    public class SomeClass {
+                       /**
+                       * My method.
+                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
+                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
+                       * @throws IOException when blah blah blah
+                       * @throws {@link RuntimeException} when blah blah blah
+                       */
+                       public void baz(int focus) throws IOException;
+                       public boolean importance;
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    @SuppressWarnings("all")
+                    public class OtherClass {
+                        public static final int FOCUS_INPUT = 1;
+                        public static final int FOCUS_ACCESSIBILITY = 2;
+                        public String foo;
+                        public void bar(int baz, boolean bar);
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg1;
+
+                    @SuppressWarnings("all")
+                    public class LocalClass {
+                    }
+                    """
+                    ),
+                    // Make sure that hiding a package by using `@hide` in the Javadoc of a
+                    // package-info.java file still works when allowReadingComments = false.
+                    java(
+                        """
+                            /** @hide */
+                            package test.hidden;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.hidden;
+
+                            public class Hidden {
+                                public String bareMutableFieldMissingNullability;
+                            }
+                        """,
+                    )
+                ),
+            source =
+                """
+                    package test.pkg1;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SomeClass {
+                    public SomeClass() { throw new RuntimeException("Stub!"); }
+                    public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                    public boolean importance;
                     }
                     """
         )

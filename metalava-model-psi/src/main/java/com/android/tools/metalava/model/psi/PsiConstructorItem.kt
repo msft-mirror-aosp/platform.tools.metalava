@@ -21,7 +21,9 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
@@ -35,26 +37,28 @@ class PsiConstructorItem
 private constructor(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
-    parameters: List<PsiParameterItem>,
+    documentationFactory: ItemDocumentationFactory,
+    parameterItemsFactory: ParameterItemsFactory,
     returnType: ClassTypeItem,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
-    PsiMethodItem(
+    PsiCallableItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         psiMethod = psiMethod,
+        fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
         returnType = returnType,
-        parameters = parameters,
+        parameterItemsFactory = parameterItemsFactory,
         typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
     ),
@@ -62,20 +66,15 @@ private constructor(
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
-    override fun isConstructor(): Boolean = true
-
     override var superConstructor: ConstructorItem? = null
 
-    override fun superMethods(): List<MethodItem> = emptyList()
+    /** Override to specialize the return type. */
+    override fun returnType() = super.returnType() as ClassTypeItem
 
-    /**
-     * Override to handle providing the location for a synthetic/implicit constructor which has no
-     * associated file.
-     */
-    override val fileLocation: FileLocation
-        get() =
-            super<PsiMethodItem>.fileLocation.takeIf { it != FileLocation.UNKNOWN }
-                ?: containingClass().fileLocation
+    /** Override to make sure that [type] is a [ClassTypeItem]. */
+    override fun setType(type: TypeItem) {
+        super.setType(type as ClassTypeItem)
+    }
 
     companion object {
         internal fun create(
@@ -86,8 +85,7 @@ private constructor(
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
-            val commentText = javadoc(psiMethod)
-            val modifiers = modifiers(codebase, psiMethod, commentText)
+            val modifiers = modifiers(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, constructorTypeItemFactory) =
@@ -97,16 +95,17 @@ private constructor(
                     "constructor $name",
                     psiMethod
                 )
-            val parameters = parameterList(codebase, psiMethod, constructorTypeItemFactory)
             val constructor =
                 PsiConstructorItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentation = commentText,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
-                    parameters = parameters,
+                    parameterItemsFactory = { containingCallable ->
+                        parameterList(containingCallable, constructorTypeItemFactory)
+                    },
                     returnType = containingClass.type(),
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
@@ -132,11 +131,14 @@ private constructor(
                 PsiConstructorItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
+                    // Use the location of the containing class for the implicit default
+                    // constructor.
+                    fileLocation = containingClass.fileLocation,
                     containingClass = containingClass,
                     name = name,
-                    documentation = "",
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     modifiers = modifiers,
-                    parameters = emptyList(),
+                    parameterItemsFactory = { emptyList() },
                     returnType = containingClass.type(),
                     implicitConstructor = true,
                     typeParameterList = TypeParameterList.NONE,

@@ -39,6 +39,7 @@ Available Issues                             |  Category                |   Defa
   ActionValue                                |  api_lint                |   error
   AddSealed                                  |  compatibility           |   error
   AddedAbstractMethod                        |  compatibility           |   error
+  AddedAnnotation                            |  compatibility           |   error
   AddedClass                                 |  compatibility           |   hidden
   AddedField                                 |  compatibility           |   hidden
   AddedFinal                                 |  compatibility           |   error
@@ -57,7 +58,7 @@ Available Issues                             |  Category                |   Defa
   BannedThrow                                |  api_lint                |   error
   BecameUnchecked                            |  compatibility           |   error
   BothPackageInfoAndHtml                     |  documentation           |   warning
-  BroadcastBehavior                          |  documentation           |   lint
+  BroadcastBehavior                          |  documentation           |   error
   BrokenArtifactFile                         |  documentation           |   error
   BuilderSetStyle                            |  api_lint                |   warning
   CallbackInterface                          |  api_lint                |   hidden
@@ -80,6 +81,7 @@ Available Issues                             |  Category                |   Defa
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
   ConfigFieldName                            |  api_lint                |   error
+  ConfigFileProblem                          |  unknown                 |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
@@ -94,10 +96,9 @@ Available Issues                             |  Category                |   Defa
   EqualsAndHashCode                          |  api_lint                |   error
   ExceptionName                              |  api_lint                |   error
   ExecutorRegistration                       |  api_lint                |   warning
-  ExpectedPlatformType                       |  unknown                 |   hidden
   ExtendsDeprecated                          |  unknown                 |   hidden
   ExtendsError                               |  api_lint                |   error
-  FlaggedApiLiteral                          |  api_lint                |   hidden
+  FlaggedApiLiteral                          |  api_lint                |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                |   error
   ForbiddenTag                               |  unknown                 |   error
   FractionFloat                              |  api_lint                |   error
@@ -106,6 +107,7 @@ Available Issues                             |  Category                |   Defa
   GenericException                           |  api_lint                |   error
   GetterOnBuilder                            |  api_lint                |   warning
   GetterSetterNames                          |  api_lint                |   error
+  GetterSetterNullability                    |  api_lint                |   warning_error_when_new
   HeavyBitSet                                |  api_lint                |   error
   HiddenAbstractMethod                       |  unknown                 |   error
   HiddenSuperclass                           |  documentation           |   warning
@@ -121,14 +123,14 @@ Available Issues                             |  Category                |   Defa
   InternalClasses                            |  api_lint                |   error
   InternalError                              |  unknown                 |   error
   InternalField                              |  api_lint                |   error
-  InvalidFeatureEnforcement                  |  documentation           |   lint
+  InvalidFeatureEnforcement                  |  documentation           |   error
   InvalidNullConversion                      |  compatibility           |   error
   InvalidNullabilityAnnotation               |  unknown                 |   error
   InvalidNullabilityAnnotationWarning        |  unknown                 |   warning
   InvalidNullabilityOverride                 |  api_lint                |   error
   InvalidSyntax                              |  unknown                 |   error
   IoError                                    |  unknown                 |   error
-  KotlinDefaultParameterOrder                |  api_lint_androidx_misc  |   error
+  KotlinDefaultParameterOrder                |  api_lint                |   error
   KotlinKeyword                              |  api_lint                |   error
   KotlinOperator                             |  api_lint                |   info
   ListenerInterface                          |  api_lint                |   error
@@ -142,10 +144,11 @@ Available Issues                             |  Category                |   Defa
   MissingBuildMethod                         |  api_lint                |   warning
   MissingColumn                              |  documentation           |   warning
   MissingGetterMatchingBuilder               |  api_lint                |   warning
+  MissingInnerNullability                    |  api_lint                |   hidden
   MissingJvmstatic                           |  api_lint                |   warning
   MissingNullability                         |  api_lint                |   error
-  MissingPermission                          |  documentation           |   lint
-  MultipleThreadAnnotations                  |  documentation           |   lint
+  MissingPermission                          |  documentation           |   error
+  MultipleThreadAnnotations                  |  documentation           |   error
   MutableBareField                           |  api_lint                |   error
   NoArtifactData                             |  documentation           |   hidden
   NoByteOrShort                              |  api_lint                |   warning
@@ -154,6 +157,7 @@ Available Issues                             |  Category                |   Defa
   NotCloseable                               |  api_lint                |   warning
   Nullable                                   |  documentation           |   hidden
   NullableCollection                         |  api_lint                |   warning
+  NullableCollectionElement                  |  api_lint                |   warning
   OnNameExpected                             |  api_lint                |   warning
   OperatorRemoval                            |  compatibility           |   error
   OptionalBuilderConstructorArgument         |  api_lint                |   warning
@@ -174,6 +178,7 @@ Available Issues                             |  Category                |   Defa
   ReferencesDeprecated                       |  unknown                 |   hidden
   ReferencesHidden                           |  unknown                 |   error
   RegistrationName                           |  api_lint                |   error
+  RemovedAnnotation                          |  compatibility           |   error
   RemovedClass                               |  compatibility           |   error
   RemovedDeprecatedClass                     |  compatibility           |   inherit
   RemovedDeprecatedField                     |  compatibility           |   inherit
@@ -185,17 +190,17 @@ Available Issues                             |  Category                |   Defa
   RemovedJvmDefaultWithCompatibility         |  compatibility           |   error
   RemovedMethod                              |  compatibility           |   error
   RemovedPackage                             |  compatibility           |   error
-  RequiresPermission                         |  documentation           |   lint
+  RequiresPermission                         |  documentation           |   error
   ResourceFieldName                          |  api_lint                |   error
   ResourceStyleFieldName                     |  api_lint                |   error
   ResourceValueFieldName                     |  api_lint                |   error
   RethrowRemoteException                     |  api_lint                |   error
   ReturningUnexpectedConstant                |  unknown                 |   warning
   SamShouldBeLast                            |  api_lint                |   warning
-  SdkConstant                                |  documentation           |   lint
+  SdkConstant                                |  documentation           |   error
   ServiceName                                |  api_lint                |   error
   SetterReturnsThis                          |  api_lint                |   warning
-  ShowingMemberInHiddenClass                 |  unknown                 |   error
+  ShowingMemberInHiddenClass                 |  api_lint                |   error
   SingleMethodInterface                      |  api_lint                |   error
   SingletonConstructor                       |  api_lint                |   error
   SingularCallback                           |  api_lint                |   error
@@ -205,16 +210,16 @@ Available Issues                             |  Category                |   Defa
   StaticUtils                                |  api_lint                |   error
   StreamFiles                                |  api_lint                |   warning
   SuperfluousPrefix                          |  unknown                 |   warning
-  Todo                                       |  documentation           |   lint
+  Todo                                       |  documentation           |   error
   TopLevelBuilder                            |  api_lint                |   warning
   UnavailableSymbol                          |  documentation           |   warning
   UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  unknown                 |   error
   UniqueKotlinOperator                       |  api_lint                |   error
   UnmatchedMergeAnnotation                   |  unknown                 |   error
-  UnresolvedClass                            |  documentation           |   lint
+  UnresolvedClass                            |  documentation           |   error
   UnresolvedImport                           |  unknown                 |   info
-  UnresolvedLink                             |  documentation           |   lint
+  UnresolvedLink                             |  documentation           |   error
   UseIcu                                     |  api_lint                |   warning
   UseParcelFileDescriptor                    |  api_lint                |   error
   UserHandle                                 |  api_lint                |   warning

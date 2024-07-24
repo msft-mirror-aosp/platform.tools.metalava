@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -24,6 +25,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
@@ -69,8 +71,8 @@ class CommonParameterItemTest : BaseModelTest() {
             } else {
                 assertEquals("java.lang.Deprecated", annotation.qualifiedName)
             }
-            assertEquals("deprecated", true, parameterItem.deprecated)
             assertEquals("originallyDeprecated", true, parameterItem.originallyDeprecated)
+            assertEquals("effectivelyDeprecated", true, parameterItem.effectivelyDeprecated)
         }
     }
 
@@ -108,8 +110,8 @@ class CommonParameterItemTest : BaseModelTest() {
         ) {
             val parameterItem =
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
-            assertEquals("deprecated", false, parameterItem.deprecated)
             assertEquals("originallyDeprecated", false, parameterItem.originallyDeprecated)
+            assertEquals("effectivelyDeprecated", false, parameterItem.effectivelyDeprecated)
         }
     }
 
@@ -298,7 +300,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method4" to "T",
                     "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
@@ -358,7 +362,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method4" to "T?",
                     "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
@@ -427,7 +433,7 @@ class CommonParameterItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test nullability of Kotlin varargs`() {
+    fun `Test nullability of Kotlin varargs last`() {
         runCodebaseTest(
             kotlin(
                 """
@@ -457,16 +463,237 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nullable" to "java.lang.String?...",
                     "nonNull" to "java.lang.String...",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
-                val expectedType = expectedTypes[name]!!
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
                 // Compare the kotlin style format of the parameter to ensure that only the
                 // outermost type is affected by the not-type-use nullability annotation.
-                val type = method.parameters().single().type()
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage("$name type")
+                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin varargs not-last`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    fun nullable(vararg p: Any?, i: String = "") {}
+                    fun nonNull(vararg p: Any, i: String = "") {}
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "java.lang.Object?[]",
+                    "nonNull" to "java.lang.Object[]",
+                )
+            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+                val name = method.name()
+                val parameterItem = method.parameters().first()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
                 assertWithMessage(name)
                     .that(type.toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin varargs last in inline reified fun`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    inline fun <reified T> nullable(vararg elements: T?) = listOf(*elements)
+                    inline fun <reified T> nonNull(vararg elements: T) = listOf(*elements)
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "T?...",
+                    "nonNull" to "T...",
+                )
+            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+                val name = method.name()
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage("$name type")
+                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test no default value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - concise-default-values=no
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(s: String?): void;
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void method(String s) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun method(s: String?) {}
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", false, parameter.hasDefaultValue())
+            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
+            // TODO: Improve consistency of the following.
+            when (parameter.itemLanguage) {
+                ItemLanguage.KOTLIN -> {
+                    assertEquals(
+                        "defaultValue",
+                        "__invalid_value__",
+                        parameter.defaultValueAsString()
+                    )
+                }
+                ItemLanguage.JAVA -> {
+                    assertEquals("defaultValue", null, parameter.defaultValueAsString())
+                }
+                ItemLanguage.UNKNOWN -> {
+                    val exception =
+                        assertThrows(IllegalStateException::class.java) {
+                            parameter.defaultValueAsString()
+                        }
+                    assertEquals(
+                        "defaultValue",
+                        "cannot call on NONE DefaultValue",
+                        exception.message
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Test null default value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - concise-default-values=no
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(s: String? = null): void;
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void method(@other.DefaultValue("null") String s) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun method(s: String? = null) {}
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+            assertEquals("isDefaultValueKnown", true, parameter.isDefaultValueKnown())
+            assertEquals("defaultValue", "null", parameter.defaultValueAsString())
+        }
+    }
+
+    @Test
+    fun `Test unknown default value`() {
+        runCodebaseTest(
+            // Neither Kotlin nor Java has a way to specify an unknown default property. Kotlin and
+            // Java both treat no default and unknown default as the same. Only signature file can
+            // specify that it has a default but does not know what its value is. It does that by
+            // using the `optional` pseudo modifier.
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - concise-default-values=yes
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(optional s: String?): void;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+
+            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
+            val exception =
+                assertThrows(IllegalStateException::class.java) { parameter.defaultValueAsString() }
+            assertEquals("defaultValue", "cannot call on UNKNOWN DefaultValue", exception.message)
         }
     }
 }

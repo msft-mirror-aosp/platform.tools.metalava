@@ -54,9 +54,6 @@ private constructor(
         /** Configuration for the issues that will be stored in the baseline file. */
         val issueConfiguration: IssueConfiguration,
 
-        /** True if this should only store errors in the baseline, false otherwise. */
-        val baselineErrorsOnly: Boolean,
-
         /** True if this should delete empty baseline files, false otherwise. */
         val deleteEmptyBaselines: Boolean,
 
@@ -87,27 +84,14 @@ private constructor(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(location: IssueLocation, message: String, issue: Issues.Issue): Boolean {
-        val elementId =
-            location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
+    fun mark(key: BaselineKey, message: String, issue: Issues.Issue): Boolean {
+        val elementId = key.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
     }
 
     private fun MutableMap<String, String>.findOldMessageByElementId(elementId: String): String? {
         get(elementId)?.let {
             return it
-        }
-
-        // Previously, text properties used "Field" as their prefix not "property", and psi
-        // properties used "field" as their prefix, so try with those.
-        if (elementId.startsWith("property ")) {
-            val withoutPrefix = elementId.removePrefix("property ")
-            get("field $withoutPrefix")?.let {
-                return it
-            }
-            get("Field $withoutPrefix")?.let {
-                return it
-            }
         }
 
         return null
@@ -118,12 +102,6 @@ private constructor(
             map[issue]
                 ?: run {
                     if (updateFile != null) {
-                        if (
-                            config.baselineErrorsOnly &&
-                                config.issueConfiguration.getSeverity(issue) != Severity.ERROR
-                        ) {
-                            return true
-                        }
                         val new = HashMap<String, String>()
                         map[issue] = new
                         new

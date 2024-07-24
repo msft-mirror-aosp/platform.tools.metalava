@@ -17,10 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.fixUpTypeNullability
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -34,8 +33,8 @@ private constructor(
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
-    private val fieldType: PsiTypeItem,
+    documentationFactory: ItemDocumentationFactory,
+    private var fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
     override val setter: PsiMethodItem?,
     override val constructorParameter: PsiParameterItem?,
@@ -44,36 +43,20 @@ private constructor(
     PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiMethod,
         containingClass = containingClass,
         name = name,
     ),
     PropertyItem {
 
-    override var emit: Boolean = !modifiers.isExpect()
-
     override fun type(): TypeItem = fieldType
 
+    override fun setType(type: TypeItem) {
+        fieldType = type as PsiTypeItem
+    }
+
     override fun psi() = psiMethod
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-        fieldType.fixUpTypeNullability(this)
-    }
 
     companion object {
         /**
@@ -106,12 +89,13 @@ private constructor(
             backingField: PsiFieldItem? = null
         ): PsiPropertyItem {
             val psiMethod = getter.psiMethod
-            val documentation =
+            // Get the appropriate element from which to retrieve the documentation.
+            val psiElement =
                 when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor -> javadoc(sourcePsi.property)
-                    else -> javadoc(sourcePsi ?: psiMethod)
+                    is KtPropertyAccessor -> sourcePsi.property
+                    else -> sourcePsi ?: psiMethod
                 }
-            val modifiers = modifiers(codebase, psiMethod, documentation)
+            val modifiers = modifiers(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.
@@ -128,7 +112,8 @@ private constructor(
                         } else null
                     }
                 annotations?.forEach { uAnnotation ->
-                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                    val annotationItem =
+                        UAnnotationItem.create(codebase, uAnnotation) ?: return@forEach
                     if (annotationItem !in modifiers.annotations()) {
                         modifiers.addAnnotation(annotationItem)
                     }
@@ -140,7 +125,7 @@ private constructor(
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentation = documentation,
+                    documentationFactory = PsiItemDocumentation.factory(psiElement, codebase),
                     modifiers = modifiers,
                     fieldType = type,
                     getter = getter,

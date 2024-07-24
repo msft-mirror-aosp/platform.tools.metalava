@@ -16,20 +16,18 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.bestGuessAtFullName
+import com.android.tools.metalava.model.item.CodebaseAssembler
+import com.android.tools.metalava.model.item.CodebaseAssemblerFactory
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
-import java.util.ArrayList
 import java.util.HashMap
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
@@ -39,49 +37,46 @@ internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
-) : DefaultCodebase(location, "Codebase", true, annotationManager) {
-    internal val mPackages = HashMap<String, TextPackageItem>(300)
-    internal val mAllClasses = HashMap<String, TextClassItem>(30000)
+    assemblerFactory: CodebaseAssemblerFactory = { codebase ->
+        TextCodebaseAssembler(codebase as TextCodebase)
+    },
+) :
+    DefaultCodebase(
+        location = location,
+        description = "Codebase",
+        preFiltered = true,
+        annotationManager = annotationManager,
+        trustedApi = true,
+        supportsDocumentation = false,
+    ) {
 
-    private val externalClasses = HashMap<String, ClassItem>()
+    /**
+     * Create a [CodebaseAssembler] appropriate for this [Codebase].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    internal val assembler = assemblerFactory(this) as TextCodebaseAssembler
 
-    override fun trustedApi(): Boolean = true
+    /**
+     * Map from fully qualified class name to a [ClassItem] that has been retrieved from a
+     * [ClassResolver], if any.
+     */
+    private val externalClassesByName = HashMap<String, ClassItem>()
 
-    override fun getPackages(): PackageList {
-        val list = ArrayList<PackageItem>(mPackages.values)
-        list.sortWith(PackageItem.comparator)
-        return PackageList(this, list)
-    }
-
-    override fun size(): Int {
-        return mPackages.size
-    }
-
-    /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
-    fun findClassInCodebase(className: String) = mAllClasses[className]
-
-    override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
+    /**
+     * Override to first search within this [Codebase] and then look for classes that have been
+     * loaded by a [classResolver].
+     */
+    override fun findClass(className: String) =
+        super.findClass(className) ?: externalClassesByName[className]
 
     override fun resolveClass(className: String) = getOrCreateClass(className)
 
-    override fun supportsDocumentation(): Boolean = false
-
-    fun addPackage(pInfo: TextPackageItem) {
-        // track the set of organized packages in the API
-        mPackages[pInfo.name()] = pInfo
-
-        // accumulate a direct map of all the classes in the API
-        for (cl in pInfo.allClasses()) {
-            mAllClasses[cl.qualifiedName()] = cl as TextClassItem
-        }
-    }
-
-    fun registerClass(cls: TextClassItem) {
-        val qualifiedName = cls.qualifiedName
-        mAllClasses[qualifiedName] = cls
-
-        // A real class exists so a stub will not be created.
-        requiredStubKindForClass.remove(qualifiedName)
+    override fun newClassRegistered(classItem: DefaultClassItem) {
+        // A real class exists so a stub will not be created so the hint as to the kind of class
+        // that the stubs should be is no longer needed.
+        requiredStubKindForClass.remove(classItem.qualifiedName())
     }
 
     /**
@@ -112,7 +107,7 @@ internal class TextCodebase(
         val qualifiedName = classTypeItem.qualifiedName
 
         // If a real class already exists then a stub will not need to be created.
-        if (mAllClasses[qualifiedName] != null) return
+        if (allClassesByName[qualifiedName] != null) return
 
         val existing = requiredStubKindForClass.put(qualifiedName, stubKind)
         if (existing != null && existing != stubKind) {
@@ -125,24 +120,24 @@ internal class TextCodebase(
     /**
      * Gets an existing, or creates a new [ClassItem].
      *
-     * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
-     * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
-     * empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
+     * Tries to find [qualifiedName] in [allClassesByName]. If not found, then if a [classResolver]
+     * is provided it will invoke that and return the [ClassItem] it returns if any. Otherwise, it
+     * will create an empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
      * [StubKind.CLASS] if no specific [StubKind] was required.
      *
      * Initializes outer classes and packages for the created class as needed.
      *
-     * @param name the name of the class.
+     * @param qualifiedName the fully qualified name of the class.
      * @param isOuterClass if `true` then this is searching for an outer class of a class in this
      *   codebase, in which case this must only search classes in this codebase, otherwise it can
      *   search for external classes too.
      */
     fun getOrCreateClass(
-        name: String,
+        qualifiedName: String,
         isOuterClass: Boolean = false,
     ): ClassItem {
         // Check this codebase first, if found then return it.
-        mAllClasses[name]?.let { found ->
+        allClassesByName[qualifiedName]?.let { found ->
             return found
         }
 
@@ -151,87 +146,81 @@ internal class TextCodebase(
         if (!isOuterClass && classResolver != null) {
             // Check to see whether the class has already been retrieved from the resolver. If it
             // has then return it.
-            externalClasses[name]?.let { found ->
+            externalClassesByName[qualifiedName]?.let { found ->
                 return found
             }
 
             // Else try and resolve the class.
-            val classItem = classResolver.resolveClass(name)
+            val classItem = classResolver.resolveClass(qualifiedName)
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
                 // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClasses[name] = classItem
+                externalClassesByName[qualifiedName] = classItem
                 return classItem
             }
         }
 
-        // Build a stub class of the required kind.
-        val requiredStubKind = requiredStubKindForClass.remove(name) ?: StubKind.CLASS
-        val stubClass =
-            StubClassBuilder.build(this, name) {
-                // Apply stub kind specific mutations to the stub class being built.
-                requiredStubKind.mutator(this)
+        val fullName = bestGuessAtFullName(qualifiedName)
+
+        val outerClass =
+            if (fullName.contains('.')) {
+                // We created a new nested class stub. We need to fully initialize it with outer
+                // classes, themselves possibly stubs
+                val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
+                // Pass classResolver = null, so it only looks in this codebase for the outer class.
+                val outerClass = getOrCreateClass(outerName, isOuterClass = true)
+
+                // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
+                // another.
+                if (outerClass.codebase != this) {
+                    throw IllegalStateException(
+                        "Outer class $outerClass is from ${outerClass.codebase} but" +
+                            " inner class $qualifiedName is from ${this}"
+                    )
+                }
+
+                // As outerClass and stubClass are from the same codebase the outerClass must be a
+                // DefaultClassItem so cast it to one so that the code below can use
+                // DefaultClassItem methods.
+                outerClass as DefaultClassItem
+            } else {
+                null
             }
 
-        registerClass(stubClass)
-        stubClass.emit = false
-
-        val fullName = stubClass.fullName()
-        if (fullName.contains('.')) {
-            // We created a new inner class stub. We need to fully initialize it with outer classes,
-            // themselves possibly stubs
-            val outerName = name.substring(0, name.lastIndexOf('.'))
-            // Pass classResolver = null, so it only looks in this codebase for the outer class.
-            val outerClass = getOrCreateClass(outerName, isOuterClass = true)
-
-            // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
-            // another.
-            if (outerClass.codebase != stubClass.codebase) {
-                throw IllegalStateException(
-                    "Outer class $outerClass is from ${outerClass.codebase} but" +
-                        " inner class $stubClass is from ${stubClass.codebase}"
-                )
-            }
-
-            stubClass.containingClass = outerClass
-            outerClass.addInnerClass(stubClass)
-        } else {
-            // Add to package
-            val endIndex = name.lastIndexOf('.')
-            val pkgPath = if (endIndex != -1) name.substring(0, endIndex) else ""
-            val pkg =
+        // Find/create package
+        val pkg =
+            if (outerClass == null) {
+                val endIndex = qualifiedName.lastIndexOf('.')
+                val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
                 findPackage(pkgPath)
                     ?: run {
                         val newPkg =
-                            TextPackageItem(
-                                this,
-                                pkgPath,
-                                DefaultModifierList(this, DefaultModifierList.PUBLIC),
-                                FileLocation.UNKNOWN
-                            )
+                            assembler.itemFactory.createPackageItem(qualifiedName = pkgPath)
                         addPackage(newPkg)
                         newPkg.emit = false
                         newPkg
                     }
-            stubClass.setContainingPackage(pkg)
-            pkg.addClass(stubClass)
-        }
+            } else {
+                outerClass.containingPackage() as DefaultPackageItem
+            }
+
+        // Build a stub class of the required kind.
+        val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
+        val stubClass =
+            StubClassBuilder.build(
+                codebase = this,
+                qualifiedName = qualifiedName,
+                fullName = fullName,
+                containingClass = outerClass,
+                containingPackage = pkg,
+            ) {
+                // Apply stub kind specific mutations to the stub class being built.
+                requiredStubKind.mutator(this)
+            }
+
+        stubClass.emit = false
+
         return stubClass
-    }
-
-    override fun findPackage(pkgName: String): TextPackageItem? {
-        return mPackages[pkgName]
-    }
-
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem {
-        return DefaultAnnotationItem.create(this, source)
-    }
-
-    override fun toString(): String {
-        return description
     }
 
     override fun unsupported(desc: String?): Nothing {

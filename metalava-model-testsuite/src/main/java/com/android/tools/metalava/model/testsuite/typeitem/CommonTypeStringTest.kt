@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.typeUseAnnotationFilter
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
@@ -162,12 +163,16 @@ class CommonTypeStringTest : BaseModelTest() {
         runCodebaseTest(javaTestFiles(), signatureTestFile()) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val param = method.parameters().single()
-            val type = param.type()
+            val type =
+                param.type().let { unfilteredType ->
+                    val filter =
+                        parameters.typeStringConfiguration.filter ?: return@let unfilteredType
+                    unfilteredType.transform(typeUseAnnotationFilter(filter))
+                }
             val typeString =
                 type.toTypeString(
                     annotations = parameters.typeStringConfiguration.annotations,
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
-                    filter = parameters.typeStringConfiguration.filter,
                     spaceBetweenParameters =
                         parameters.typeStringConfiguration.spaceBetweenParameters,
                 )
@@ -752,6 +757,76 @@ class CommonTypeStringTest : BaseModelTest() {
                                     "test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ..."
                             )
                         )
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "platform object wildcard bound",
+                    sourceType = "java.util.List<?>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.List<?>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotations, no kotlin nulls",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString = "java.util.List<?>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.List<? extends java.lang.Object!>!",
+                            ),
+                        )
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "non-null object wildcard bound",
+                    sourceType = "java.util.List<? extends @libcore.util.NonNull Object>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.List<?>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotations, no kotlin nulls",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.util.List<? extends java.lang.@libcore.util.NonNull Object>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.List<?>!",
+                            ),
+                        )
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "nullable object wildcard bound",
+                    sourceType = "java.util.List<? extends @libcore.util.Nullable Object>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.List<?>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotations, no kotlin nulls",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.util.List<? extends java.lang.@libcore.util.Nullable Object>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.List<? extends java.lang.Object?>!",
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 )
     }
 }

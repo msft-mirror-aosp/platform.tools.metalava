@@ -18,17 +18,21 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.actualItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -37,27 +41,15 @@ import java.io.FileWriter
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.Writer
+import java.util.regex.Pattern
 
 internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = true,
-        inlineInheritedFields = true,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the documentation
-        methodComparator = MethodItem.sourceOrderComparator,
-        filterEmit = FilterPredicate(apiPredicate(docStubs, config)),
-        filterReference = apiPredicate(docStubs, config),
-        includeEmptyOuterClasses = true,
-        config = config.apiVisitorConfig,
-    ) {
+) : DelegatedVisitor {
 
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
@@ -183,7 +175,7 @@ internal class StubWriter(
     /** The writer to write the stubs file to */
     private var textWriter: PrintWriter = errorTextWriter
 
-    private var stubWriter: BaseItemVisitor? = null
+    private var stubWriter: DelegatedVisitor? = null
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -209,22 +201,9 @@ internal class StubWriter(
 
             stubWriter =
                 if (kotlin) {
-                    KotlinStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    error("Generating Kotlin stubs is not supported")
                 } else {
-                    JavaStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterEmit,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    JavaStubWriter(textWriter, modifierListWriter, config)
                 }
 
             // Copyright statements from the original file?
@@ -248,40 +227,132 @@ internal class StubWriter(
         stubWriter?.visitConstructor(constructor)
     }
 
-    override fun afterVisitConstructor(constructor: ConstructorItem) {
-        stubWriter?.afterVisitConstructor(constructor)
-    }
-
     override fun visitMethod(method: MethodItem) {
         stubWriter?.visitMethod(method)
-    }
-
-    override fun afterVisitMethod(method: MethodItem) {
-        stubWriter?.afterVisitMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
     }
 
-    override fun afterVisitField(field: FieldItem) {
-        stubWriter?.afterVisitField(field)
+    /**
+     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * classes. It will delegate any visitor calls that pass through its filter to this [StubWriter]
+     * instance.
+     */
+    fun createFilteringVisitor(
+        preFiltered: Boolean,
+        apiVisitorConfig: ApiVisitor.Config,
+    ): ItemVisitor {
+        val filterReference =
+            ApiPredicate(
+                includeDocOnly = docStubs,
+                config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            )
+        val filterEmit = FilterPredicate(filterReference)
+        return FilteringApiVisitor(
+            delegate = this,
+            preserveClassNesting = true,
+            inlineInheritedFields = true,
+            // Methods are by default sorted in source order in stubs, to encourage methods
+            // that are near each other in the source to show up near each other in the
+            // documentation
+            callableComparator = CallableItem.sourceOrderComparator,
+            filterEmit = filterEmit,
+            filterReference = filterReference,
+            preFiltered = preFiltered,
+            // Make sure that package private constructors that are needed to compile safely are
+            // visited, so they will appear in the stubs.
+            visitStubsConstructorIfNeeded = true,
+            config = apiVisitorConfig,
+        )
     }
 }
 
-private fun apiPredicate(docStubs: Boolean, config: StubWriterConfig) =
-    ApiPredicate(
-        includeDocOnly = docStubs,
-        config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
-    )
-
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
     if (config.includeDocumentationInStubs) {
-        val documentation = item.fullyQualifiedDocumentation()
-        if (documentation.isNotBlank()) {
-            val trimmed = trimDocIndent(documentation)
-            writer.println(trimmed)
+        val documentation = item.documentation
+        val text = documentation.fullyQualifiedDocumentation()
+        if (text.isNotBlank()) {
+            val trimmed = trimDocIndent(text)
+            val output = revertDocumentationDeprecationChange(item, trimmed)
+            writer.println(output)
             writer.println()
         }
+    }
+}
+
+/** Regular expression to match the start of a doc comment. */
+private const val DOC_COMMENT_START_RE = """\Q/**\E"""
+/**
+ * Regular expression to match the end of a block comment. If the block comment is at the start of a
+ * line, preceded by some white space then it includes all that white space.
+ */
+private const val BLOCK_COMMENT_END_RE = """(?m:^\s*)?\Q*/\E"""
+
+/**
+ * Regular expression to match the start of a line Javadoc tag, i.e. a Javadoc tag at the beginning
+ * of a line. Optionally, includes the preceding white space and a `*` forming a left hand border.
+ */
+private const val START_OF_LINE_TAG_RE = """(?m:^\s*)\Q*\E\s*@"""
+
+/**
+ * A [Pattern[] for matching an `@deprecated` tag and its associated text. If the tag is at the
+ * start of the line then it includes everything from the start of the line. It includes everything
+ * up to the end of the comment (apart from the line for the end of the comment) or the start of the
+ * next line tag.
+ */
+private val deprecatedTagPattern =
+    """((?m:^\s*\*\s*)?@deprecated\b(?m:\s*.*?))($START_OF_LINE_TAG_RE|$BLOCK_COMMENT_END_RE)"""
+        .toPattern(Pattern.DOTALL)
+
+/** A [Pattern] that matches a blank, i.e. white space only, doc comment. */
+private val blankDocCommentPattern = """$DOC_COMMENT_START_RE\s*$BLOCK_COMMENT_END_RE""".toPattern()
+
+/**
+ * Revert the documentation change that accompanied a deprecation change.
+ *
+ * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc tag
+ * with text that explains why it is being deprecated and what will replace it. When the deprecation
+ * change is being reverted then this will remove the `@deprecated` tag and its associated text to
+ * avoid warnings when compiling and misleading information being written into the Javadoc.
+ */
+fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
+    val actualItem = currentItem.actualItem
+    // The documentation does not need to be reverted if...
+    if (
+        // the current item is not being reverted
+        currentItem === actualItem
+        // or if the current item and the actual item have the same deprecation setting
+        ||
+            currentItem.effectivelyDeprecated == actualItem.effectivelyDeprecated
+            // or if the actual item is deprecated
+            ||
+            actualItem.effectivelyDeprecated
+    )
+        return docs
+
+    // Find the `@deprecated` tag.
+    val deprecatedTagMatcher = deprecatedTagPattern.matcher(docs)
+    if (!deprecatedTagMatcher.find()) {
+        // Nothing to do as the documentation does not include @deprecated.
+        return docs
+    }
+
+    // Remove the @deprecated tag and associated text.
+    val withoutDeprecated =
+        // The part before the `@deprecated` tag.
+        docs.substring(0, deprecatedTagMatcher.start(1)) +
+            // The part after the `@deprecated` tag.
+            docs.substring(deprecatedTagMatcher.end(1))
+
+    // Check to see if the resulting document comment is empty and if it is then discard it all
+    // together.
+    val emptyDocCommentMatcher = blankDocCommentPattern.matcher(withoutDeprecated)
+    return if (emptyDocCommentMatcher.matches()) {
+        ""
+    } else {
+        withoutDeprecated
     }
 }

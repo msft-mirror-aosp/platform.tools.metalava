@@ -26,6 +26,7 @@ import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -81,17 +82,19 @@ class MergeSignaturesCommand :
         OptionsDelegate.disallowAccess()
 
         try {
-            val codebase = ApiFile.parseApi(files)
+            val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
             createReportFile(progressTracker, codebase, out, description = "Merged file") {
                 SignatureWriter(
-                    writer = it,
-                    filterEmit = { true },
-                    filterReference = { true },
-                    preFiltered = true,
-                    fileFormat = signatureFormat.fileFormat,
-                    showUnannotated = false,
-                    apiVisitorConfig = ApiVisitor.Config(),
-                )
+                        writer = it,
+                        fileFormat = signatureFormat.fileFormat,
+                    )
+                    .createFilteringVisitor(
+                        filterEmit = { true },
+                        filterReference = { true },
+                        preFiltered = true,
+                        showUnannotated = false,
+                        apiVisitorConfig = ApiVisitor.Config(),
+                    )
             }
         } catch (e: ApiParseException) {
             throw MetalavaCliException(stderr = e.message)

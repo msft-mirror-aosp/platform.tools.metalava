@@ -19,9 +19,11 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.isNonNullAnnotation
+import com.android.tools.metalava.model.item.FieldValue
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
@@ -37,26 +39,28 @@ class PsiFieldItem(
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
-    private val fieldType: TypeItem,
+    documentationFactory: ItemDocumentationFactory,
+    private var fieldType: TypeItem,
     private val isEnumConstant: Boolean,
-    private val fieldValue: PsiFieldValue?,
+    override val fieldValue: PsiFieldValue?,
 ) :
     PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiField,
         containingClass = containingClass,
         name = name,
     ),
     FieldItem {
 
-    override var emit: Boolean = !modifiers.isExpect()
-
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
+
+    override fun setType(type: TypeItem) {
+        fieldType = type
+    }
 
     override fun initialValue(requireConstant: Boolean): Any? {
         return fieldValue?.initialValue(requireConstant)
@@ -66,56 +70,26 @@ class PsiFieldItem(
 
     override fun psi(): PsiField = psiField
 
-    override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
-        val duplicated =
-            create(
+    override fun duplicate(targetContainingClass: ClassItem) =
+        create(
                 codebase,
                 targetContainingClass as PsiClassItem,
                 psiField,
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
-        duplicated.inheritedFrom = containingClass
-        duplicated.finishInitialization()
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        return duplicated
-    }
+            .also { duplicated -> duplicated.inheritedFrom = containingClass }
 
     override var inheritedFrom: ClassItem? = null
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
 
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             psiField: PsiField,
-            enclosingClassTypeItemFactory: PsiTypeItemFactory
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val commentText = javadoc(psiField)
-            val modifiers = modifiers(codebase, psiField, commentText)
+            val modifiers = modifiers(codebase, psiField)
 
             val isEnumConstant = psiField is PsiEnumConstant
 
@@ -144,7 +118,7 @@ class PsiFieldItem(
                 psiField = psiField,
                 containingClass = containingClass,
                 name = name,
-                documentation = commentText,
+                documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 modifiers = modifiers,
                 fieldType = fieldType,
                 isEnumConstant = isEnumConstant,
@@ -183,9 +157,9 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
  * Wrapper around a [PsiField] that will provide access to the initial value of the field, if
  * available, or `null` otherwise.
  */
-class PsiFieldValue(private val psiField: PsiField) {
+class PsiFieldValue(private val psiField: PsiField) : FieldValue {
 
-    fun initialValue(requireConstant: Boolean): Any? {
+    override fun initialValue(requireConstant: Boolean): Any? {
         val constant = psiField.computeConstantValue()
         // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
         // Those fields hold [Class] object, but the constant value should not be of [PsiType].

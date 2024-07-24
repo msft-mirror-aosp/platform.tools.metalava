@@ -17,10 +17,12 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -296,7 +298,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     /** Dump the package structure of [codebase] to a string for easy comparison. */
     private fun dumpPackageStructure(codebase: Codebase) = buildString {
         codebase.getPackages().packages.map { packageItem ->
-            append("${packageItem.qualifiedName()}\n")
+            append("${packageItem.qualifiedName().let {if (it == "") "<root>" else it}}\n")
             for (classItem in packageItem.allClasses()) {
                 append("    ${classItem.qualifiedName()}\n")
             }
@@ -310,6 +312,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             assertEquals(
                 """
+                    <root>
                     test.pkg
                         test.pkg.Outer
                         test.pkg.Outer.Middle
@@ -472,6 +475,88 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .toString()
             )
             .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
+    }
+
+    @Test
+    fun `Test for current API surface`() {
+        val testFiles =
+            listOf(
+                signature(
+                    "not-current.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Foo {
+                                ctor public Foo();
+                                method public void method(int notCurrent);
+                                method public void extensibleMethod(int parameter) throws Throwable;
+                                field public int field;
+                            }
+                            public class Outer {
+                            }
+                            public class Outer.Middle {
+                            }
+                            public class Outer.Middle.Inner {
+                            }
+                        }
+                    """
+                ),
+                signature(
+                    "current.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Foo {
+                                ctor public Foo(int currentCtorParameter);
+                                method public void extensibleMethod(int parameter) throws Exception;
+                                method public void currentMethod(int currentMethodParameter);
+                                field public int currentField;
+                            }
+                            public class Outer.Middle.Inner {
+                                method public void currentInnerMethod();
+                            }
+                        }
+                    """
+                )
+            )
+
+        val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
+        val signatureFiles =
+            files.map { file ->
+                SignatureFile(file, forCurrentApiSurface = file.name == "current.txt")
+            }
+        val codebase = ApiFile.parseApi(signatureFiles)
+
+        val current = buildList {
+            codebase.accept(
+                object : BaseItemVisitor() {
+                    override fun visitItem(item: Item) {
+                        if (item.emit) {
+                            add(item)
+                        }
+                    }
+                }
+            )
+        }
+
+        assertEquals(
+            """
+                package <root>
+                package test.pkg
+                class test.pkg.Foo
+                constructor test.pkg.Foo.Foo(int)
+                parameter currentCtorParameter
+                method test.pkg.Foo.extensibleMethod(int)
+                parameter parameter
+                method test.pkg.Foo.currentMethod(int)
+                parameter currentMethodParameter
+                field Foo.currentField
+                class test.pkg.Outer.Middle.Inner
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
+            current.joinToString("\n")
+        )
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {

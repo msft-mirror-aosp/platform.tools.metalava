@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import java.util.function.Predicate
 
 @MetalavaApi
-interface MethodItem : MemberItem, TypeParameterListOwner {
+interface MethodItem : CallableItem, InheritableItem {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
@@ -27,14 +27,12 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     val property: PropertyItem?
         get() = null
 
-    /** Whether this method is a constructor */
-    @MetalavaApi fun isConstructor(): Boolean
-
-    /** The type of this field. Returns the containing class for constructors */
-    @MetalavaApi fun returnType(): TypeItem
-
-    /** The list of parameters */
-    @MetalavaApi fun parameters(): List<ParameterItem>
+    @Deprecated(
+        message =
+            "There is no point in calling this method on MethodItem as it always returns false",
+        ReplaceWith("")
+    )
+    override fun isConstructor() = false
 
     /** Returns true if this method is a Kotlin extension method */
     fun isExtensionMethod(): Boolean
@@ -42,13 +40,26 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
 
-    override fun type() = returnType()
-
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
-
-    /** Returns the main documentation for the method (the documentation before any tags). */
-    fun findMainDocumentation(): String
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ): MethodItem? {
+        val correspondingClassItem = containingClass().findCorrespondingItemIn(codebase)
+        val correspondingMethodItem =
+            correspondingClassItem?.findMethod(
+                this,
+                includeSuperClasses = superMethods,
+                includeInterfaces = superMethods,
+            )
+        return if (
+            correspondingMethodItem != null &&
+                duplicate &&
+                correspondingMethodItem.containingClass() !== correspondingClassItem
+        )
+            correspondingMethodItem.duplicate(correspondingClassItem)
+        else correspondingMethodItem
+    }
 
     fun allSuperMethods(): Sequence<MethodItem> {
         val original = superMethods().firstOrNull() ?: return emptySequence()
@@ -56,52 +67,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
             val superMethods = item.superMethods()
             superMethods.firstOrNull()
         }
-    }
-
-    /** Types of exceptions that this method can throw */
-    fun throwsTypes(): List<ExceptionTypeItem>
-
-    /** Returns true if this method throws the given exception */
-    fun throws(qualifiedName: String): Boolean {
-        for (type in throwsTypes()) {
-            val throwableClass = type.erasedClass ?: continue
-            if (throwableClass.extends(qualifiedName)) {
-                return true
-            }
-        }
-
-        return false
-    }
-
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ExceptionTypeItem> {
-        if (throwsTypes().isEmpty()) {
-            return emptyList()
-        }
-        return filteredThrowsTypes(predicate, LinkedHashSet())
-    }
-
-    private fun filteredThrowsTypes(
-        predicate: Predicate<Item>,
-        throwsTypes: LinkedHashSet<ExceptionTypeItem>
-    ): LinkedHashSet<ExceptionTypeItem> {
-        for (exceptionType in throwsTypes()) {
-            if (exceptionType is VariableTypeItem) {
-                throwsTypes.add(exceptionType)
-            } else {
-                val classItem = exceptionType.erasedClass ?: continue
-                if (predicate.test(classItem)) {
-                    throwsTypes.add(exceptionType)
-                } else {
-                    // Excluded, but it may have super class throwables that are included; if so,
-                    // include those.
-                    classItem
-                        .allSuperClasses()
-                        .firstOrNull { superClass -> predicate.test(superClass) }
-                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
-                }
-            }
-        }
-        return throwsTypes
     }
 
     /**
@@ -117,10 +82,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
     fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? {
-        if (isConstructor()) {
-            return null
-        }
-
         val superMethods = superMethods()
         for (method in superMethods) {
             if (predicate.test(method)) {
@@ -138,85 +99,11 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return null
     }
 
-    override fun baselineElementId() = buildString {
-        append(containingClass().qualifiedName())
-        append("#")
-        append(name())
-        append("(")
-        parameters().joinTo(this) { it.type().toSimpleType() }
-        append(")")
-    }
-
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
-    override fun toStringForItem(): String {
-        return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
-    }
-
     companion object {
-        private fun compareMethods(
-            o1: MethodItem,
-            o2: MethodItem,
-            overloadsInSourceOrder: Boolean
-        ): Int {
-            val name1 = o1.name()
-            val name2 = o2.name()
-            if (name1 == name2) {
-                if (overloadsInSourceOrder) {
-                    val rankDelta = o1.sortingRank - o2.sortingRank
-                    if (rankDelta != 0) {
-                        return rankDelta
-                    }
-                }
-
-                // Compare by the rest of the signature to ensure stable output (we don't need to
-                // sort
-                // by return value or modifiers or modifiers or throws-lists since methods can't be
-                // overloaded
-                // by just those attributes
-                val p1 = o1.parameters()
-                val p2 = o2.parameters()
-                val p1n = p1.size
-                val p2n = p2.size
-                for (i in 0 until minOf(p1n, p2n)) {
-                    val compareTypes =
-                        p1[i]
-                            .type()
-                            .toTypeString()
-                            .compareTo(p2[i].type().toTypeString(), ignoreCase = true)
-                    if (compareTypes != 0) {
-                        return compareTypes
-                    }
-                    // (Don't compare names; they're not part of the signatures)
-                }
-                return p1n.compareTo(p2n)
-            }
-
-            return name1.compareTo(name2)
-        }
-
-        val comparator: Comparator<MethodItem> = Comparator { o1, o2 ->
-            compareMethods(o1, o2, false)
-        }
-        val sourceOrderComparator: Comparator<MethodItem> = Comparator { o1, o2 ->
-            val delta = o1.sortingRank - o2.sortingRank
-            if (delta == 0) {
-                // Within a source file all the items will have unique sorting ranks, but since
-                // we copy methods in from hidden super classes it's possible for ranks to clash,
-                // and in that case we'll revert to a signature based comparison
-                comparator.compare(o1, o2)
-            } else {
-                delta
-            }
-        }
-        val sourceOrderForOverloadedMethodsComparator: Comparator<MethodItem> =
-            Comparator { o1, o2 ->
-                compareMethods(o1, o2, true)
-            }
-
         /**
          * Compare two types to see if they are considered the same.
          *
@@ -262,7 +149,10 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
                 return false
             }
 
-            if (method.deprecated != superMethod.deprecated && !method.deprecated) {
+            if (
+                method.effectivelyDeprecated != superMethod.effectivelyDeprecated &&
+                    !method.effectivelyDeprecated
+            ) {
                 return false
             }
 
@@ -314,162 +204,27 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         }
     }
 
-    fun formatParameters(): String? {
-        // TODO: Generalize, allow callers to control whether to include annotations, whether to
-        // erase types,
-        // whether to include names, etc
-        if (parameters().isEmpty()) {
-            return ""
-        }
-        val sb = StringBuilder()
-        for (parameter in parameters()) {
-            if (sb.isNotEmpty()) {
-                sb.append(", ")
-            }
-            sb.append(parameter.type().toTypeString())
-        }
-
-        return sb.toString()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        return when {
-            modifiers.hasJvmSyntheticAnnotation() -> false
-            isConstructor() -> false
-            (returnType() !is PrimitiveTypeItem) -> true
-            parameters().any { it.type() !is PrimitiveTypeItem } -> true
+    /**
+     * Check whether this method is a synthetic enum method.
+     *
+     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
+     * Kotlin.
+     */
+    fun isEnumSyntheticMethod(): Boolean {
+        if (!containingClass().isEnum()) return false
+        val parameters = parameters()
+        return when (parameters.size) {
+            0 -> name().let { name -> name == JAVA_ENUM_VALUES || name == "getEntries" }
+            1 -> name() == JAVA_ENUM_VALUE_OF && parameters[0].type().isString()
             else -> false
         }
     }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
-            if (!modifiers.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        @Suppress("LoopToCallChain") // The quickfix is wrong! (covered by AnnotationStatisticsTest)
-        for (parameter in parameters()) {
-            if (!parameter.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        return true
-    }
-
-    override fun implicitNullness(): TypeNullability? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // toString has known nullness
-        if (name() == "toString" && parameters().isEmpty()) {
-            return TypeNullability.NONNULL
-        }
-
-        return null
-    }
-
-    fun isImplicitConstructor(): Boolean {
-        return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
-    }
-
-    /**
-     * Finds uncaught exceptions actually thrown inside this method (as opposed to ones declared in
-     * the signature)
-     */
-    fun findThrownExceptions(): Set<ClassItem> = codebase.unsupported()
 
     /** If annotation method, returns the default value as a source expression */
     fun defaultValue(): String = ""
 
     fun hasDefaultValue(): Boolean {
         return defaultValue() != ""
-    }
-
-    /**
-     * Returns true if overloads of the method should be checked separately when checking signature
-     * of the method.
-     *
-     * This works around the issue of actual method not generating overloads for @JvmOverloads
-     * annotation when the default is specified on expect side
-     * (https://youtrack.jetbrains.com/issue/KT-57537).
-     */
-    fun shouldExpandOverloads(): Boolean = false
-
-    /**
-     * Returns true if this method is a signature match for the given method (e.g. can be
-     * overriding). This checks that the name and parameter lists match, but ignores differences in
-     * parameter names, return value types and throws list types.
-     */
-    fun matches(other: MethodItem): Boolean {
-        if (this === other) return true
-
-        if (name() != other.name()) {
-            return false
-        }
-
-        val parameters1 = parameters()
-        val parameters2 = other.parameters()
-
-        if (parameters1.size != parameters2.size) {
-            return false
-        }
-
-        for (i in parameters1.indices) {
-            val parameter1Type = parameters1[i].type()
-            val parameter2Type = parameters2[i].type()
-            if (parameter1Type == parameter2Type) continue
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) continue
-
-            val convertedType =
-                parameter1Type.convertType(other.containingClass(), containingClass())
-            if (convertedType != parameter2Type) return false
-        }
-        return true
-    }
-
-    /**
-     * Returns whether this method has any types in its signature that does not match the given
-     * filter
-     */
-    fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
-        for (parameter in parameters()) {
-            if (parameter.type().hasHiddenType(filterReference)) return true
-        }
-
-        if (returnType().hasHiddenType(filterReference)) return true
-
-        for (typeParameter in typeParameterList) {
-            if (typeParameter.typeBounds().any { it.hasHiddenType(filterReference) }) return true
-        }
-
-        return false
-    }
-
-    /** Checks if there is a reference to a hidden class anywhere in the type. */
-    private fun TypeItem.hasHiddenType(filterReference: Predicate<Item>): Boolean {
-        return when (this) {
-            is PrimitiveTypeItem -> false
-            is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
-            is ClassTypeItem ->
-                asClass()?.let { !filterReference.test(it) } == true ||
-                    outerClassType?.hasHiddenType(filterReference) == true ||
-                    arguments.any { it.hasHiddenType(filterReference) }
-            is VariableTypeItem -> !filterReference.test(asTypeParameter)
-            is WildcardTypeItem ->
-                extendsBound?.hasHiddenType(filterReference) == true ||
-                    superBound?.hasHiddenType(filterReference) == true
-            else -> throw IllegalStateException("Unrecognized type: $this")
-        }
     }
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
@@ -615,8 +370,8 @@ private fun MethodItem.isOverrideable(): Boolean = !modifiers.isPrivate() && !mo
  * this method.
  */
 fun MethodItem.computeSuperMethods(): List<MethodItem> {
-    // Constructors and methods that are not overrideable will have no super methods.
-    if (isConstructor() || !isOverrideable()) {
+    // Methods that are not overrideable will have no super methods.
+    if (!isOverrideable()) {
         return emptyList()
     }
 
@@ -700,5 +455,19 @@ private fun MethodItem.appendSuperMethodsFromInterfaces(
         }
         // A method could not be found in this interface so search its interfaces.
         ?: appendSuperMethodsFromInterfaces(methods, itfClass)
+    }
+}
+
+/**
+ * Update the state of a [MethodItem] that has been copied from one [ClassItem] to another.
+ *
+ * This will update the [MethodItem] on which it is called to ensure that it is consistent with the
+ * [ClassItem] to which it now belongs. Called from the implementations of [MethodItem.duplicate]
+ * and [ClassItem.inheritMethodFromNonApiAncestor].
+ */
+fun MethodItem.updateCopiedMethodState() {
+    val mutableModifiers = mutableModifiers()
+    if (mutableModifiers.isDefault() && !containingClass().isInterface()) {
+        mutableModifiers.setDefault(false)
     }
 }

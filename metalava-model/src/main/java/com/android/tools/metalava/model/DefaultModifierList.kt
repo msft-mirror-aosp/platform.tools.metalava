@@ -107,7 +107,7 @@ class DefaultModifierList(
         return isSet(DEFAULT)
     }
 
-    fun isDeprecated(): Boolean {
+    override fun isDeprecated(): Boolean {
         return isSet(DEPRECATED)
     }
 
@@ -235,7 +235,7 @@ class DefaultModifierList(
         set(VARARG, vararg)
     }
 
-    fun setDeprecated(deprecated: Boolean) {
+    override fun setDeprecated(deprecated: Boolean) {
         set(DEPRECATED, deprecated)
     }
 
@@ -255,7 +255,8 @@ class DefaultModifierList(
         set(ACTUAL, actual)
     }
 
-    override fun addAnnotation(annotation: AnnotationItem) {
+    override fun addAnnotation(annotation: AnnotationItem?) {
+        annotation ?: return
         if (annotations == null) {
             annotations = mutableListOf()
         }
@@ -289,12 +290,33 @@ class DefaultModifierList(
     fun duplicate(): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
-            if (annotations == null || annotations.isEmpty()) {
+            if (annotations.isNullOrEmpty()) {
                 null
             } else {
                 annotations.toMutableList()
             }
         return DefaultModifierList(codebase, flags, newAnnotations)
+    }
+
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * While [duplicate] makes a shallow copy for use within the same [Codebase] this method creates
+     * a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): DefaultModifierList {
+        val annotations = this.annotations
+        val newAnnotations =
+            if (annotations.isNullOrEmpty()) {
+                null
+            } else {
+                mutableListOf<AnnotationItem>().apply {
+                    annotations.mapTo(this) { it.snapshot(targetCodebase) }
+                }
+            }
+        return DefaultModifierList(targetCodebase, flags, newAnnotations)
     }
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
@@ -320,7 +342,7 @@ class DefaultModifierList(
                     same == DEPRECATED &&
                         // Only differ in deprecated: not significant if implied by containing class
                         isDeprecated() &&
-                        (owner as? MethodItem)?.containingClass()?.deprecated == true
+                        (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
                 ) {
                     return true
                 }
@@ -348,9 +370,13 @@ class DefaultModifierList(
     }
 
     companion object {
-        const val PRIVATE = 0
-        const val INTERNAL = 1
-        const val PACKAGE_PRIVATE = 2
+        /**
+         * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility
+         * flags are explicitly set.
+         */
+        const val PACKAGE_PRIVATE = 0
+        const val PRIVATE = 1
+        const val INTERNAL = 2
         const val PROTECTED = 3
         const val PUBLIC = 4
         const val VISIBILITY_MASK = 0b111
@@ -367,9 +393,9 @@ class DefaultModifierList(
         // corresponding enum
         // constant's ordinal.
         init {
+            check(PACKAGE_PRIVATE == VisibilityLevel.PACKAGE_PRIVATE.ordinal)
             check(PRIVATE == VisibilityLevel.PRIVATE.ordinal)
             check(INTERNAL == VisibilityLevel.INTERNAL.ordinal)
-            check(PACKAGE_PRIVATE == VisibilityLevel.PACKAGE_PRIVATE.ordinal)
             check(PROTECTED == VisibilityLevel.PROTECTED.ordinal)
             check(PUBLIC == VisibilityLevel.PUBLIC.ordinal)
             // Calculate the mask required to hold as many different values as there are

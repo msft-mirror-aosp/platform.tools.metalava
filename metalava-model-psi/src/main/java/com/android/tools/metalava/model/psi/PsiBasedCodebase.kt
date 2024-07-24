@@ -20,17 +20,17 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.CLASS_ESTIMATE
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
@@ -70,7 +70,6 @@ import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 
 const val PACKAGE_ESTIMATE = 500
-const val CLASS_ESTIMATE = 15000
 const val METHOD_ESTIMATE = 1000
 
 /**
@@ -101,9 +100,18 @@ open class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
-    private val reporter: Reporter,
-    val fromClasspath: Boolean = false
-) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
+    override val reporter: Reporter,
+    val allowReadingComments: Boolean,
+    val fromClasspath: Boolean = false,
+) :
+    AbstractCodebase(
+        location = location,
+        description = description,
+        preFiltered = false,
+        annotationManager = annotationManager,
+        trustedApi = false,
+        supportsDocumentation = true,
+    ) {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
         get() = uastEnvironment.ideaProject
@@ -112,7 +120,7 @@ open class PsiBasedCodebase(
      * Returns the compilation units used in this codebase (may be empty when the codebase is not
      * loaded from source, such as from .jar files or from signature files)
      */
-    internal var units: List<PsiFile> = emptyList()
+    private var units: List<PsiFile> = emptyList()
 
     /**
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
@@ -127,10 +135,10 @@ open class PsiBasedCodebase(
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
-     * Map from classes to the set of methods for each (but only for classes where we've called
-     * [findMethod]
+     * Map from classes to the set of callables for each (but only for classes where we've called
+     * [findCallableByPsiMethod]
      */
-    private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiMethodItem>>
+    private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
@@ -141,9 +149,6 @@ open class PsiBasedCodebase(
      * [fixUpTypeNullability].
      */
     private var packageClasses: MutableMap<String, MutableList<PsiClassItem>>? = null
-
-    /** A set of packages to hide */
-    private lateinit var hiddenPackages: MutableMap<String, Boolean?>
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -180,14 +185,7 @@ open class PsiBasedCodebase(
         this.units = psiFiles
 
         this.uastEnvironment = uastEnvironment
-        // there are currently ~230 packages in the public SDK, but here we need to account for
-        // internal ones too
-        val hiddenPackages: MutableSet<String> = packages.hiddenPackages
         val packageDocs = packages.packageDocs
-        this.hiddenPackages = HashMap(100)
-        for (pkgName in hiddenPackages) {
-            this.hiddenPackages[pkgName] = true
-        }
 
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
@@ -241,9 +239,6 @@ open class PsiBasedCodebase(
                         if (comment != null) {
                             val packageName = packageStatement.packageName
                             val text = comment.text
-                            if (text.contains("@hide")) {
-                                this.hiddenPackages[packageName] = true
-                            }
                             if (packageDocs[packageName] != null) {
                                 reporter.report(
                                     Issues.BOTH_PACKAGE_INFO_AND_HTML,
@@ -300,19 +295,15 @@ open class PsiBasedCodebase(
     }
 
     /**
-     * Finish initializing a [PsiClassItem] by calling [PsiClassItem.finishedInitialization].
+     * Finish initializing a [PsiClassItem].
      *
      * This must only be called when [initializing] is `false`.
-     *
-     * It will invoke [PsiClassItem.finishInitialization] immediately and add it directly to the
-     * [PsiPackageItem].
      */
     private fun finishClassInitialization(classItem: PsiClassItem) {
         if (initializing) {
             error("incorrectly called on $classItem when initializing=`true`")
         }
 
-        classItem.finishInitialization()
         val pkgName = getPackageName(classItem.psiClass)
         val pkg = findPackage(pkgName)
         if (pkg == null) {
@@ -334,7 +325,7 @@ open class PsiBasedCodebase(
      * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
      *   interfaces referenced from the source code but provided on the class path.
      */
-    internal fun finishInitialization(packages: PackageDocs?) {
+    private fun finishInitialization(packages: PackageDocs?) {
 
         // Next construct packages
         val packageDocs = packages?.packageDocs ?: emptyMap()
@@ -363,14 +354,8 @@ open class PsiBasedCodebase(
 
         emptyPackage = findPackage("")!!
 
-        // Finish initialization
-        // Take a copy of the list just in case additional classes are added during iteration that
-        // require additional packages to be added. Those classes will have their
-        // [PsiClassItem.finishInitialization] called so there is no need to handle them here.
-        val initialPackages = ArrayList(packageMap.values)
-        for (pkg in initialPackages) {
-            pkg.finishInitialization()
-        }
+        // Resolve the super types of all the classes that have been loaded.
+        resolveSuperTypes()
 
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
@@ -449,9 +434,6 @@ open class PsiBasedCodebase(
         packageItem.emit = !packageItem.isFromClassPath()
 
         packageMap[pkgName] = packageItem
-        if (isPackageHidden(pkgName)) {
-            packageItem.hidden = true
-        }
 
         sortedClasses?.let { packageItem.addClasses(it) }
         return packageItem
@@ -460,9 +442,7 @@ open class PsiBasedCodebase(
     internal fun initializeFromJar(
         uastEnvironment: UastEnvironment,
         jarFile: File,
-        preFiltered: Boolean = false,
     ) {
-        this.preFiltered = preFiltered
         initializing = true
         hideClassesFromJars = false
 
@@ -472,7 +452,6 @@ open class PsiBasedCodebase(
         val facade = JavaPsiFacade.getInstance(project)
         val scope = GlobalSearchScope.allScope(project)
 
-        hiddenPackages = HashMap(100)
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
         packageClasses!![""] = ArrayList()
@@ -543,33 +522,6 @@ open class PsiBasedCodebase(
         list.add(cls)
     }
 
-    private fun isPackageHidden(packageName: String): Boolean {
-        val hidden = hiddenPackages[packageName]
-        if (hidden == true) {
-            return true
-        } else if (hidden == null) {
-            // Compute for all prefixes of this package
-            var pkg = packageName
-            while (true) {
-                if (hiddenPackages[pkg] != null) {
-                    hiddenPackages[packageName] = hiddenPackages[pkg]
-                    if (hiddenPackages[pkg] == true) {
-                        return true
-                    }
-                }
-                val last = pkg.lastIndexOf('.')
-                if (last == -1) {
-                    hiddenPackages[packageName] = false
-                    break
-                } else {
-                    pkg = pkg.substring(0, last)
-                }
-            }
-        }
-
-        return false
-    }
-
     /**
      * Create top level classes, their inner classes and all the other members.
      *
@@ -596,18 +548,6 @@ open class PsiBasedCodebase(
             )
         // Set emit to true for source classes but false for classpath classes
         classItem.emit = !classItem.isFromClassPath()
-
-        if (!initializing) {
-            // Workaround: we're pulling in .aidl files from .jar files. These are
-            // marked @hide, but since we only see the .class files we don't know that.
-            if (
-                classItem.simpleName().startsWith("I") &&
-                    classItem.isFromClassPath() &&
-                    psiClass.interfaces.any { it.qualifiedName == "android.os.IInterface" }
-            ) {
-                classItem.hidden = true
-            }
-        }
 
         if (initializing) {
             // If initializing then keep track of the class in [packageClasses]. This is not needed
@@ -774,8 +714,8 @@ open class PsiBasedCodebase(
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
-    internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
-        getFactory().createDocCommentFromText(string, parent)
+    internal fun getComment(documentation: String, parent: PsiElement? = null): PsiDocComment =
+        getFactory().createDocCommentFromText(documentation, parent)
 
     private fun getPackageName(clz: PsiClass): String {
         var top: PsiClass? = clz
@@ -794,15 +734,15 @@ open class PsiBasedCodebase(
         return fullName.substring(0, fullName.length - 1 - name!!.length)
     }
 
-    internal fun findMethod(method: PsiMethod): PsiMethodItem {
+    internal fun findCallableByPsiMethod(method: PsiMethod): PsiCallableItem {
         val containingClass = method.containingClass
         val cls = findOrCreateClass(containingClass!!)
 
         // Ensure initialized/registered via [#registerMethods]
         if (methodMap[cls] == null) {
-            val map = HashMap<PsiMethod, PsiMethodItem>(40)
-            registerMethods(cls.methods(), map)
-            registerMethods(cls.constructors(), map)
+            val map = HashMap<PsiMethod, PsiCallableItem>(40)
+            registerCallablesByPsiMethod(cls.methods(), map)
+            registerCallablesByPsiMethod(cls.constructors(), map)
             methodMap[cls] = map
         }
 
@@ -820,9 +760,6 @@ open class PsiBasedCodebase(
                     PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
                 methods[method] = extra
                 methods[updatedMethod] = extra
-                if (!initializing) {
-                    extra.finishInitialization()
-                }
 
                 return extra
             }
@@ -838,19 +775,19 @@ open class PsiBasedCodebase(
         return cls.findField(field.name)
     }
 
-    private fun registerMethods(
-        methods: List<MethodItem>,
-        map: MutableMap<PsiMethod, PsiMethodItem>
+    private fun registerCallablesByPsiMethod(
+        callables: List<CallableItem>,
+        map: MutableMap<PsiMethod, PsiCallableItem>
     ) {
-        for (method in methods) {
-            val psiMethod = (method as PsiMethodItem).psiMethod
-            map[psiMethod] = method
+        for (callable in callables) {
+            val psiMethod = (callable as PsiCallableItem).psiMethod
+            map[psiMethod] = callable
             if (psiMethod is UMethod) {
                 // Register LC method as a key too
-                // so that we can find the corresponding [MethodItem]
-                // Otherwise, we will end up creating a new [MethodItem]
+                // so that we can find the corresponding [CallableItem]
+                // Otherwise, we will end up creating a new [CallableItem]
                 // without source PSI, resulting in wrong modifier.
-                map[psiMethod.javaPsi] = method
+                map[psiMethod.javaPsi] = callable
             }
         }
     }
@@ -902,14 +839,10 @@ open class PsiBasedCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): AnnotationItem {
+    ): AnnotationItem? {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
-
-    override fun supportsDocumentation(): Boolean = true
-
-    override fun toString(): String = description
 
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
     internal fun registerClass(classItem: PsiClassItem) {
@@ -919,12 +852,12 @@ open class PsiBasedCodebase(
             reporter.report(
                 Issues.DUPLICATE_SOURCE_CLASS,
                 classItem,
-                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.issueLocation.path}"
+                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.fileLocation.path}"
             )
             return
         }
 
-        classMap[qualifiedName] = classItem
+        addClass(classItem)
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {

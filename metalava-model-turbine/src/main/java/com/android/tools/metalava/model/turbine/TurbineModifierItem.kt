@@ -39,7 +39,6 @@ internal object TurbineModifierItem {
         codebase: Codebase,
         flag: Int,
         annotations: List<AnnotationItem>?,
-        isDeprecatedViaDoc: Boolean,
     ): DefaultModifierList {
         val modifierItem =
             when (flag) {
@@ -50,7 +49,7 @@ internal object TurbineModifierItem {
                     DefaultModifierList(codebase, computeFlag(flag), annotations?.toMutableList())
                 }
             }
-        modifierItem.setDeprecated(isDeprecated(annotations) || isDeprecatedViaDoc)
+        modifierItem.setDeprecated(isDeprecated(annotations))
         return modifierItem
     }
 
@@ -58,6 +57,8 @@ internal object TurbineModifierItem {
      * Given flag value corresponding to Turbine modifiers compute the equivalent flag in Metalava.
      */
     private fun computeFlag(flag: Int): Int {
+        // If no visibility flag is provided, result remains 0, implying a 'package-private' default
+        // state.
         var result = 0
 
         if (flag and TurbineFlag.ACC_STATIC != 0) {
