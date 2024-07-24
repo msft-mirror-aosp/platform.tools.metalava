@@ -1,4 +1,5 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation resolve
   annotation toSource() with char values
   annotation toSource() with class values
   annotation toSource() with compound expression values

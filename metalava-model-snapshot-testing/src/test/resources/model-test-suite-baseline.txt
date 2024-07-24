@@ -3,6 +3,8 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   240 test documentations[turbine]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation resolve[text]
+  annotation resolve[turbine]
   annotation toSource() with char values[text]
   annotation toSource() with class values[text]
   annotation toSource() with compound expression values[text]
