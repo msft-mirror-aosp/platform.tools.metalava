@@ -14,6 +14,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values[text]
   annotation with type cast values[text]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test isFromClassPath[text]
+  Test isFromClassPath[turbine]
+
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[turbine]
 
