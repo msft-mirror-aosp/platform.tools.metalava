@@ -43,10 +43,6 @@ internal constructor(
     MemberItem,
     PsiItem {
 
-    init {
-        emit = !modifiers.isExpect()
-    }
-
     final override fun name() = name
 
     final override fun containingClass() = containingClass
