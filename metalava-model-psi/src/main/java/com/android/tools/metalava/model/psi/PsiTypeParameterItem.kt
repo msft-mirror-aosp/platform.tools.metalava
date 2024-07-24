@@ -16,12 +16,10 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
@@ -29,42 +27,26 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiClass: PsiTypeParameter,
-    private val name: String,
+    name: String,
     modifiers: DefaultModifierList
 ) :
-    AbstractPsiItem(
+    DefaultTypeParameterItem(
         codebase = codebase,
-        element = psiClass,
+        itemLanguage = psiClass.itemLanguage,
         modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        name = name,
+        isReified = isReified(psiClass)
     ),
     TypeParameterItem,
     PsiItem {
 
-    override fun name() = name
-
-    /** Must only be used by [type] to cache its result. */
-    private lateinit var variableTypeItem: VariableTypeItem
-
-    override fun type(): VariableTypeItem {
-        if (!::variableTypeItem.isInitialized) {
-            variableTypeItem = codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
-        }
-        return variableTypeItem
-    }
-
     override fun psi() = psiClass
 
-    override fun typeBounds(): List<BoundsTypeItem> = bounds
-
-    override fun isReified(): Boolean {
-        return isReified(psiClass as? PsiTypeParameter)
+    override fun createVariableTypeItem(): VariableTypeItem {
+        return codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
     }
-
-    internal lateinit var bounds: List<BoundsTypeItem>
 
     companion object {
         fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {

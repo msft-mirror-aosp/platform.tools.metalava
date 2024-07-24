@@ -29,7 +29,7 @@ import com.android.tools.metalava.reporter.FileLocation
  * their [Item] implementations.
  */
 abstract class DefaultItem(
-    final override val codebase: Codebase,
+    override val codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,

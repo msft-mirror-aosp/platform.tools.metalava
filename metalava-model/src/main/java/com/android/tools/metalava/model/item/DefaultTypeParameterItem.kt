@@ -29,7 +29,7 @@ import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
-class DefaultTypeParameterItem(
+open class DefaultTypeParameterItem(
     codebase: Codebase,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
@@ -46,15 +46,25 @@ class DefaultTypeParameterItem(
     ),
     TypeParameterItem {
 
-    lateinit var bounds: List<BoundsTypeItem>
+    final override fun name() = name
 
-    override fun name() = name
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var variableTypeItem: VariableTypeItem
 
     override fun type(): VariableTypeItem {
-        return DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+        if (!::variableTypeItem.isInitialized) {
+            variableTypeItem = createVariableTypeItem()
+        }
+        return variableTypeItem
     }
 
-    override fun typeBounds(): List<BoundsTypeItem> = bounds
+    /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
+    protected open fun createVariableTypeItem(): VariableTypeItem =
+        DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
 
-    override fun isReified(): Boolean = isReified
+    lateinit var bounds: List<BoundsTypeItem>
+
+    final override fun typeBounds(): List<BoundsTypeItem> = bounds
+
+    final override fun isReified(): Boolean = isReified
 }
