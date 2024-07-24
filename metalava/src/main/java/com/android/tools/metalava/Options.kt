@@ -55,6 +55,7 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriterConfig
@@ -73,6 +74,7 @@ import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.EnumSet
 import java.util.Optional
 import java.util.function.Predicate
 import kotlin.properties.ReadWriteProperty
@@ -981,6 +983,7 @@ class Options(
                 executionEnvironment = executionEnvironment,
                 baseline = baseline,
                 errorMessage = null,
+                allowableCategories = EnumSet.of(Issues.Category.UNKNOWN),
             )
 
         reporterApiLint =
@@ -988,6 +991,8 @@ class Options(
                 executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
+                allowableCategories =
+                    EnumSet.of(Issues.Category.API_LINT, Issues.Category.DOCUMENTATION),
             )
 
         reporterCompatibilityReleased =
@@ -995,6 +1000,7 @@ class Options(
                 executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
+                allowableCategories = EnumSet.of(Issues.Category.COMPATIBILITY),
             )
 
         // Build "all baselines" and "all reporters"
@@ -1028,6 +1034,7 @@ class Options(
         executionEnvironment: ExecutionEnvironment,
         baseline: Baseline?,
         errorMessage: String?,
+        allowableCategories: Set<Issues.Category>,
     ) =
         DefaultReporter(
             environment = executionEnvironment.reporterEnvironment,
@@ -1036,6 +1043,7 @@ class Options(
             errorMessage = errorMessage,
             reportableFilter = reportableFilter,
             config = issueReportingOptions.reporterConfig,
+            allowableCategories = allowableCategories,
         )
 
     fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
