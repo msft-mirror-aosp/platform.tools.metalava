@@ -427,6 +427,7 @@ internal open class TurbineCodebaseInitialiser(
                 simpleName = simpleName,
                 fullName = fullName,
                 typeParameterList = typeParameters,
+                isFromClassPath = isFromClassPath,
             )
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 

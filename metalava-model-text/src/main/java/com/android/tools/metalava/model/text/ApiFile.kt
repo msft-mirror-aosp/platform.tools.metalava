@@ -616,6 +616,7 @@ private constructor(
                 simpleName = className,
                 fullName = fullName,
                 typeParameterList = typeParameterList,
+                isFromClassPath = false,
             )
         cl.markForCurrentApiSurface()
 

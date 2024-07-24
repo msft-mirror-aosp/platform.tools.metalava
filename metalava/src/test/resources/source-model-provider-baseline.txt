@@ -202,7 +202,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   memberDoc crash[turbine]
 
 com.android.tools.metalava.lint.ApiLintTest
-  Check package layering[turbine]
   CompletableFuture and plain Future not allowed[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
   Typedef must be hidden[turbine]
