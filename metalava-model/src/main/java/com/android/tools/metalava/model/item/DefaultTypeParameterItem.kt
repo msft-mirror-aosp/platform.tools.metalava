@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
@@ -29,7 +30,7 @@ import com.android.tools.metalava.reporter.FileLocation
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
 class DefaultTypeParameterItem(
-    codebase: DefaultCodebase,
+    codebase: Codebase,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     private val name: String,
