@@ -74,7 +74,6 @@ import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.util.EnumSet
 import java.util.Optional
 import java.util.function.Predicate
 import kotlin.properties.ReadWriteProperty
@@ -656,15 +655,9 @@ class Options(
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
-    /** [Reporter] for general use. */
+    /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     lateinit var reporter: Reporter
-
-    /**
-     * [Reporter] for "api-lint".
-     *
-     * Initialized in [parse].
-     */
-    lateinit var reporterApiLint: Reporter
+        private set
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
@@ -672,7 +665,7 @@ class Options(
      *
      * Initialized in [parse].
      */
-    lateinit var reporterCompatibilityReleased: Reporter
+    private lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -978,29 +971,38 @@ class Options(
 
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
-        reporter =
+        val reporterUnknown =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = baseline,
                 errorMessage = null,
-                allowableCategories = EnumSet.of(Issues.Category.UNKNOWN),
             )
 
-        reporterApiLint =
+        val reporterApiLint =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
-                allowableCategories =
-                    EnumSet.of(Issues.Category.API_LINT, Issues.Category.DOCUMENTATION),
             )
 
-        reporterCompatibilityReleased =
+        // [Reporter] for "check-compatibility:*:released".
+        // i.e.
+        //      [ARG_CHECK_COMPATIBILITY_API_RELEASED] and
+        //      [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED].
+        val reporterCompatibilityReleased =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
-                allowableCategories = EnumSet.of(Issues.Category.COMPATIBILITY),
+            )
+
+        // A Reporter that will redirect issues to the appropriate reporter based on the issue's
+        // Category.
+        reporter =
+            CategoryRedirectingReporter(
+                defaultReporter = reporterUnknown,
+                apiLintReporter = reporterApiLint,
+                compatibilityReporter = reporterCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
@@ -1010,15 +1012,13 @@ class Options(
             listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
 
         // Reporters are non-null.
-        // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
-                    issueReportingOptions.bootstrapReporter,
-                    reporter,
-                    reporterApiLint,
-                    reporterCompatibilityReleased,
-                )
-                .map { it as DefaultReporter }
+                issueReportingOptions.bootstrapReporter,
+                reporterUnknown,
+                reporterApiLint,
+                reporterCompatibilityReleased,
+            )
 
         updateClassPath()
 
@@ -1034,7 +1034,6 @@ class Options(
         executionEnvironment: ExecutionEnvironment,
         baseline: Baseline?,
         errorMessage: String?,
-        allowableCategories: Set<Issues.Category>,
     ) =
         DefaultReporter(
             environment = executionEnvironment.reporterEnvironment,
@@ -1043,7 +1042,6 @@ class Options(
             errorMessage = errorMessage,
             reportableFilter = reportableFilter,
             config = issueReportingOptions.reporterConfig,
-            allowableCategories = allowableCategories,
         )
 
     fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null

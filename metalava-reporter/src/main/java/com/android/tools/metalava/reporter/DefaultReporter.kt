@@ -23,7 +23,6 @@ import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
-import java.util.EnumSet
 import java.util.function.Predicate
 
 class DefaultReporter(
@@ -44,8 +43,6 @@ class DefaultReporter(
 
     /** Additional config properties. */
     private val config: Config = Config(),
-    private val allowableCategories: Set<Issues.Category> =
-        EnumSet.allOf(Issues.Category::class.java),
 ) : Reporter {
 
     /** A list of [Report] objects containing all the reported issues. */
@@ -90,10 +87,6 @@ class DefaultReporter(
         location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
-        if (id.category !in allowableCategories)
-            error(
-                "issue '$id' is in category ${id.category} but must be in one of $allowableCategories"
-            )
         val severity = issueConfiguration.getSeverity(id)
         val upgradedSeverity =
             if (severity == WARNING && config.warningsAsErrors) {
@@ -252,15 +245,6 @@ class DefaultReporter(
     fun writeErrorMessage(writer: PrintWriter) {
         if (hasErrors()) {
             errorMessage?.let { writer.write(it) }
-        }
-    }
-
-    fun getBaselineDescription(): String {
-        val file = baseline?.file
-        return if (file != null) {
-            "baseline ${file.path}"
-        } else {
-            "no baseline"
         }
     }
 
