@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -25,6 +26,10 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultCallableItem
+import com.android.tools.metalava.model.item.ParameterItemsFactory
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -35,8 +40,8 @@ import org.jetbrains.uast.UMethod
 
 internal class PsiConstructorItem
 private constructor(
-    codebase: PsiBasedCodebase,
-    psiMethod: PsiMethod,
+    override val codebase: PsiBasedCodebase,
+    override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: PsiClassItem,
     name: String,
@@ -49,20 +54,23 @@ private constructor(
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
-    PsiCallableItem(
+    DefaultCallableItem(
         codebase = codebase,
-        psiMethod = psiMethod,
         fileLocation = fileLocation,
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
         containingClass = containingClass,
         typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
+        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
     ),
-    ConstructorItem {
+    ConstructorItem,
+    PsiCallableItem {
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
@@ -107,7 +115,7 @@ private constructor(
                         parameterList(
                             codebase,
                             psiMethod,
-                            containingCallable,
+                            containingCallable as PsiCallableItem,
                             constructorTypeItemFactory,
                         )
                     },
