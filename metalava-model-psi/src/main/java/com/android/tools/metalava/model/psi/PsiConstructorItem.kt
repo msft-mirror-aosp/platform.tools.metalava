@@ -18,15 +18,13 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.item.DefaultCallableItem
+import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
@@ -54,7 +52,7 @@ private constructor(
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
-    DefaultCallableItem(
+    DefaultConstructorItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = psiMethod.itemLanguage,
@@ -68,21 +66,9 @@ private constructor(
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        implicitConstructor = implicitConstructor,
     ),
-    ConstructorItem,
     PsiCallableItem {
-
-    override fun isImplicitConstructor(): Boolean = implicitConstructor
-
-    override var superConstructor: ConstructorItem? = null
-
-    /** Override to specialize the return type. */
-    override fun returnType() = super.returnType() as ClassTypeItem
-
-    /** Override to make sure that [type] is a [ClassTypeItem]. */
-    override fun setType(type: TypeItem) {
-        super.setType(type as ClassTypeItem)
-    }
 
     companion object {
         internal fun create(

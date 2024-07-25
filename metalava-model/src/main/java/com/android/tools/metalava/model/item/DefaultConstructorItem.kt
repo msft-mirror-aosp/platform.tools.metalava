@@ -32,7 +32,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultConstructorItem(
+open class DefaultConstructorItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
@@ -65,17 +65,17 @@ class DefaultConstructorItem(
     ),
     ConstructorItem {
 
-    override var superConstructor: ConstructorItem? = null
+    final override var superConstructor: ConstructorItem? = null
 
     /** Override to specialize the return type. */
-    override fun returnType() = super.returnType() as ClassTypeItem
+    final override fun returnType() = super.returnType() as ClassTypeItem
 
     /** Override to make sure that [type] is a [ClassTypeItem]. */
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         super.setType(type as ClassTypeItem)
     }
 
-    override fun isImplicitConstructor() = implicitConstructor
+    final override fun isImplicitConstructor() = implicitConstructor
 
     companion object {
         fun createDefaultConstructor(
