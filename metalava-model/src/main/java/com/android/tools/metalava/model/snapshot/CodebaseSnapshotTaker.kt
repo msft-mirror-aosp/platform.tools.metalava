@@ -68,6 +68,16 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
     private lateinit var codebase: DefaultCodebase
 
     /**
+     * The original [Codebase] that is being snapshotted construction.
+     *
+     * Initialized in [visitCodebase].
+     */
+    private lateinit var originalCodebase: Codebase
+
+    private val globalTypeItemFactory by
+        lazy(LazyThreadSafetyMode.NONE) { SnapshotTypeItemFactory(codebase) }
+
+    /**
      * Stack of [SnapshotTypeItemFactory] that contain information about the [TypeParameterItem]s
      * that are in scope and can resolve a type variable reference to the parameter.
      */
@@ -100,6 +110,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
     private fun ClassTypeItem.snapshot() = typeItemFactory.getGeneralType(this) as ClassTypeItem
 
     override fun visitCodebase(codebase: Codebase) {
+        this.originalCodebase = codebase
         val newCodebase =
             DefaultCodebase(
                 location = codebase.location,
@@ -112,8 +123,8 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
                 assemblerFactory = { this },
             )
 
-        typeItemFactoryStack.push(SnapshotTypeItemFactory(newCodebase))
         this.codebase = newCodebase
+        typeItemFactoryStack.push(globalTypeItemFactory)
     }
 
     override fun afterVisitCodebase(codebase: Codebase) {
@@ -344,9 +355,28 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
         containingClass.addProperty(newProperty)
     }
 
-    // Placeholder CodebaseAssembler implementation.
+    /**
+     * Take a snapshot of [qualifiedName].
+     *
+     * TODO(b/353737744): Handle resolving nested classes.
+     */
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
-        return null
+        // Resolve the class in the original codebase, if possible.
+        val originalClass = originalCodebase.resolveClass(qualifiedName) ?: return null
+
+        // Take a snapshot of the class, that should add a new class to the snapshot codebase.
+        val visitor = NonFilteringDelegatingVisitor(this)
+        val originalPackage = originalClass.containingPackage()
+
+        // Set up the state for taking a snapshot of a class.
+        typeItemFactoryStack.push(globalTypeItemFactory)
+        visitPackage(originalPackage)
+        originalClass.accept(visitor)
+        afterVisitPackage(originalPackage)
+        typeItemFactoryStack.pop()
+
+        // Find the newly added class.
+        return codebase.findClass(originalClass.qualifiedName())!!
     }
 
     companion object {
