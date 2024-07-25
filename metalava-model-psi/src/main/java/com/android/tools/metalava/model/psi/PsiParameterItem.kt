@@ -311,13 +311,13 @@ internal constructor(
 
     companion object {
         internal fun create(
+            codebase: PsiBasedCodebase,
             containingCallable: PsiCallableItem,
             fingerprint: MethodFingerprint,
             psiParameter: PsiParameter,
             parameterIndex: Int,
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
-            val codebase = containingCallable.codebase
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
             val psiType = psiParameter.type

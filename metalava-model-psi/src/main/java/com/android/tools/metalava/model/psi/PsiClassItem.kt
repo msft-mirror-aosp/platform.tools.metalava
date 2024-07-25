@@ -405,6 +405,7 @@ internal constructor(
                 val constructorParameters =
                     item.primaryConstructor
                         ?.parameters()
+                        ?.map { it as PsiParameterItem }
                         ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
                         ?.associateBy { it.name() }
                         .orEmpty()
