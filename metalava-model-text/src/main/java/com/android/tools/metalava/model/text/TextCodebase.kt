@@ -58,6 +58,10 @@ internal class TextCodebase(
      */
     internal val assembler = assemblerFactory(this) as TextCodebaseAssembler
 
+    init {
+        assembler.initialize()
+    }
+
     /**
      * Map from fully qualified class name to a [ClassItem] that has been retrieved from a
      * [ClassResolver], if any.
