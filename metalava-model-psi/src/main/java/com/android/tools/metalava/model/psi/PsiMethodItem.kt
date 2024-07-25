@@ -24,8 +24,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.computeSuperMethods
-import com.android.tools.metalava.model.item.DefaultCallableItem
+import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
@@ -59,7 +58,7 @@ internal class PsiMethodItem(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
 ) :
-    DefaultCallableItem(
+    DefaultMethodItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = psiMethod.itemLanguage,
@@ -74,25 +73,9 @@ internal class PsiMethodItem(
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
     ),
-    MethodItem,
     PsiCallableItem {
 
-    override var inheritedFrom: ClassItem? = null
-
     override var property: PsiPropertyItem? = null
-
-    @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
-
-    private var superMethods: List<MethodItem>? = null
-
-    override fun superMethods(): List<MethodItem> {
-        if (superMethods == null) {
-            superMethods = computeSuperMethods()
-        }
-
-        return superMethods!!
-    }
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {

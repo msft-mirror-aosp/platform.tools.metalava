@@ -64,7 +64,7 @@ open class DefaultMethodItem(
     ),
     MethodItem {
 
-    override var inheritedFrom: ClassItem? = null
+    final override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -84,7 +84,7 @@ open class DefaultMethodItem(
      * that name and parameter list types match. Parameter names, Return types and Throws list types
      * are not matched
      */
-    override fun superMethods(): List<MethodItem> {
+    final override fun superMethods(): List<MethodItem> {
         if (!::superMethodList.isInitialized) {
             superMethodList = computeSuperMethods()
         }
@@ -92,7 +92,7 @@ open class DefaultMethodItem(
     }
 
     @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
+    final override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
