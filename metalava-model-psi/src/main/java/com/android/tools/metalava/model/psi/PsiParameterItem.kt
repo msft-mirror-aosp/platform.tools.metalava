@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
@@ -30,7 +31,6 @@ import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.DefaultValueFactory
 import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiParameter
@@ -49,7 +49,7 @@ internal constructor(
     private val containingCallable: PsiCallableItem,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
-    private var type: PsiTypeItem,
+    private var type: TypeItem,
     defaultValueFactory: DefaultValueFactory,
 ) :
     AbstractPsiItem(
@@ -112,7 +112,7 @@ internal constructor(
             }
             // Note: this will return `true` if the interface is defined in Kotlin, hence why we
             // need the prior check as well
-            return LambdaUtil.isFunctionalType(type.psiType)
+            return type.let { it is ClassTypeItem && it.isFunctionalType() }
             // Method is defined in Kotlin source
         } else {
             // For Kotlin declarations we can re-use the existing utilities for calculating whether
