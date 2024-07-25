@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.bestGuessAtFullName
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.CodebaseAssemblerFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -48,15 +47,11 @@ internal class TextCodebase(
         annotationManager = annotationManager,
         trustedApi = true,
         supportsDocumentation = false,
+        assemblerFactory = assemblerFactory
     ) {
 
-    /**
-     * Create a [CodebaseAssembler] appropriate for this [Codebase].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    internal val assembler = assemblerFactory(this) as TextCodebaseAssembler
+    override val assembler
+        get() = super.assembler as TextCodebaseAssembler
 
     init {
         assembler.initialize()

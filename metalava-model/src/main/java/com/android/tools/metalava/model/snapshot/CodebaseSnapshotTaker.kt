@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultConstructorItem
@@ -58,7 +59,7 @@ internal fun TypeItemFactoryStack.pop() {
 }
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
-class CodebaseSnapshotTaker : DelegatedVisitor {
+class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
     /**
      * The [Codebase] that is under construction.
      *
@@ -108,6 +109,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
+                assemblerFactory = { this },
             )
 
         typeItemFactoryStack.push(SnapshotTypeItemFactory(newCodebase))
@@ -340,6 +342,11 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
             )
 
         containingClass.addProperty(newProperty)
+    }
+
+    // Placeholder CodebaseAssembler implementation.
+    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
+        return null
     }
 
     companion object {
