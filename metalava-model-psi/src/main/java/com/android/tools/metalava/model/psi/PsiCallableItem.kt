@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -75,20 +74,12 @@ internal abstract class PsiCallableItem(
         // places.
         parameterItemsFactory = { parameterItemsFactory(it as PsiCallableItem) },
         throwsTypes = throwsTypes,
+        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
     ),
     CallableItem,
     PsiItem {
 
     override fun psi() = psiMethod
-
-    /**
-     * Create the [CallableBody] during initialization of this callable to allow it to contain an
-     * immutable reference to this object.
-     *
-     * The leaking of `this` is ok as [PsiCallableBody] does not access any properties of this that
-     * may be uninitialized during its initialization.
-     */
-    override val body: CallableBody = PsiCallableBody(@Suppress("LeakingThis") this)
 
     override fun shouldExpandOverloads(): Boolean {
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false

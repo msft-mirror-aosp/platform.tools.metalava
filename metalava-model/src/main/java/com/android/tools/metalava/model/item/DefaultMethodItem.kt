@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -43,6 +44,7 @@ open class DefaultMethodItem(
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
     private val annotationDefault: String = "",
 ) :
     DefaultCallableItem(
@@ -58,6 +60,7 @@ open class DefaultMethodItem(
         returnType,
         parameterItemsFactory,
         throwsTypes,
+        callableBodyFactory,
     ),
     MethodItem {
 
@@ -111,6 +114,7 @@ open class DefaultMethodItem(
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,
+                callableBodyFactory = body::duplicate,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()

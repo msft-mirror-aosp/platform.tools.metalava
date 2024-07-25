@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -43,6 +45,7 @@ class DefaultConstructorItem(
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
 ) :
     DefaultCallableItem(
@@ -58,6 +61,7 @@ class DefaultConstructorItem(
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
+        callableBodyFactory = callableBodyFactory,
     ),
     ConstructorItem {
 
@@ -99,6 +103,7 @@ class DefaultConstructorItem(
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
+                    callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
                     // This is not an implicit constructor as it was not created by the compiler.
                     implicitConstructor = false,
                 )
