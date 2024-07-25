@@ -244,6 +244,7 @@ class CommonParameterItemTest : BaseModelTest() {
             // actual parameter name. Probably, because it was compiled with an older version of
             // javac, and/or without the appropriate options to record the parameter name.
             val expectedNames = listOf("p", "p1", "p2", "p3", "p4")
+            assertEquals("parameter count", parameterItems.size, expectedNames.size)
             for (i in parameterItems.indices) {
                 val parameterItem = parameterItems[i]
                 val expectedName = expectedNames[i]
@@ -419,7 +420,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nonNull" to "java.lang.String!...",
                     "platform" to "java.lang.String!...!",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
@@ -500,7 +503,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nullable" to "java.lang.Object?[]",
                     "nonNull" to "java.lang.Object[]",
                 )
-            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+            val methods = codebase.assertClass("test.pkg.TestKt").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val parameterItem = method.parameters().first()
 
@@ -535,7 +540,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nullable" to "T?...",
                     "nonNull" to "T...",
                 )
-            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+            val methods = codebase.assertClass("test.pkg.TestKt").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val parameterItem = method.parameters().single()
 
