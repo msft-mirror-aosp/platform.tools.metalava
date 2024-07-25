@@ -28,13 +28,13 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class DefaultParameterItem(
+open class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     private val name: String,
-    private val publicNameProvider: PublicNameProvider,
+    protected val publicNameProvider: PublicNameProvider,
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
@@ -59,25 +59,25 @@ internal class DefaultParameterItem(
      * Create the [DefaultValue] during initialization of this parameter to allow it to contain an
      * immutable reference to this object.
      */
-    override val defaultValue = defaultValueFactory(this)
+    final override val defaultValue = defaultValueFactory(this)
 
-    override fun name(): String = name
+    final override fun name(): String = name
 
-    override fun publicName(): String? = publicNameProvider(this)
+    final override fun publicName(): String? = publicNameProvider(this)
 
-    override fun containingCallable(): CallableItem = containingCallable
+    final override fun containingCallable(): CallableItem = containingCallable
 
-    override fun type(): TypeItem = type
+    final override fun type(): TypeItem = type
 
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 
-    override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
+    final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
 
-    override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
+    final override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
 
-    override fun defaultValueAsString(): String? = defaultValue.value()
+    final override fun defaultValueAsString(): String? = defaultValue.value()
 
     override fun duplicate(
         containingCallable: CallableItem,

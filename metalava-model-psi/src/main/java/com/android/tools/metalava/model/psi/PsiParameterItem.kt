@@ -17,17 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultValueFactory
 import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -42,57 +39,37 @@ import org.jetbrains.uast.UParameter
 
 internal class PsiParameterItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     internal val psiParameter: PsiParameter,
-    private val name: String,
-    private val publicNameProvider: PublicNameProvider,
-    private val containingCallable: PsiCallableItem,
-    override val parameterIndex: Int,
     modifiers: DefaultModifierList,
-    private var type: TypeItem,
+    name: String,
+    publicNameProvider: PublicNameProvider,
+    containingCallable: PsiCallableItem,
+    parameterIndex: Int,
+    type: TypeItem,
     defaultValueFactory: DefaultValueFactory,
 ) :
-    AbstractPsiItem(
+    DefaultParameterItem(
         codebase = codebase,
-        element = psiParameter,
+        fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
+        itemLanguage = psiParameter.itemLanguage,
         modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        name = name,
+        publicNameProvider = publicNameProvider,
+        containingCallable = containingCallable,
+        parameterIndex = parameterIndex,
+        type = type,
+        defaultValueFactory = defaultValueFactory,
     ),
-    ParameterItem,
     PsiItem {
 
     override var property: PsiPropertyItem? = null
 
-    override fun name(): String = name
-
     override fun psi() = psiParameter
-
-    override fun publicName() = publicNameProvider(this)
-
-    override fun hasDefaultValue() = defaultValue.hasDefaultValue()
-
-    override fun isDefaultValueKnown() = defaultValue.isDefaultValueKnown()
-
-    override fun defaultValueAsString() = defaultValue.value()
-
-    override val defaultValue: DefaultValue = defaultValueFactory(this)
 
     // Note receiver parameter used to be named $receiver in previous UAST versions, now it is
     // $this$functionName
     internal fun isReceiver(): Boolean = parameterIndex == 0 && name().startsWith("\$this\$")
-
-    override fun type(): TypeItem = type
-
-    override fun setType(type: TypeItem) {
-        this.type = type as PsiTypeItem
-    }
-
-    override fun containingCallable(): CallableItem = containingCallable
-
-    override fun isVarArgs(): Boolean {
-        return psiParameter.isVarArgs || modifiers.isVarArg()
-    }
 
     override fun isSamCompatibleOrKotlinLambda(): Boolean {
         // Method is defined in Java source
@@ -106,13 +83,13 @@ internal constructor(
             // with trailing lambda syntax), but in reality the amount of Java methods with a Kotlin
             // interface with a single abstract method from an external dependency should be
             // minimal, so just checking source will make this easier to maintain in the future.
-            val cls = type.asClass()
+            val cls = type().asClass()
             if (cls != null && cls.isKotlin()) {
                 return cls.isInterface() && cls.modifiers.isFunctional()
             }
             // Note: this will return `true` if the interface is defined in Kotlin, hence why we
             // need the prior check as well
-            return type.let { it is ClassTypeItem && it.isFunctionalType() }
+            return type().let { it is ClassTypeItem && it.isFunctionalType() }
             // Method is defined in Kotlin source
         } else {
             // For Kotlin declarations we can re-use the existing utilities for calculating whether
@@ -139,12 +116,12 @@ internal constructor(
         PsiParameterItem(
             codebase = codebase,
             psiParameter = psiParameter,
-            name = name,
+            modifiers = modifiers.duplicate(),
+            name = name(),
             publicNameProvider = publicNameProvider,
             containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
-            modifiers = modifiers.duplicate(),
-            type = type.convertType(typeVariableMap) as PsiTypeItem,
+            type = type().convertType(typeVariableMap) as PsiTypeItem,
             defaultValueFactory = defaultValue::duplicate,
         )
 
@@ -198,11 +175,11 @@ internal constructor(
                 PsiParameterItem(
                     codebase = codebase,
                     psiParameter = psiParameter,
+                    modifiers = modifiers,
                     name = name,
                     publicNameProvider = { (it as PsiParameterItem).getPublicName() },
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
-                    modifiers = modifiers,
                     // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
                     // underlying PsiType.
                     type = type as PsiTypeItem,
