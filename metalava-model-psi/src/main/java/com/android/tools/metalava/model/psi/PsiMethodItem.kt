@@ -58,13 +58,13 @@ internal class PsiMethodItem(
         codebase = codebase,
         psiMethod = psiMethod,
         fileLocation = fileLocation,
-        containingClass = containingClass,
-        name = name,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
-        typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
     ),
     MethodItem {
@@ -91,7 +91,7 @@ internal class PsiMethodItem(
             val ktParameters =
                 ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
                     ?: return false
-            return ktParameters.size < parameters.size
+            return ktParameters.size < parameters().size
         }
 
         return false
@@ -140,9 +140,13 @@ internal class PsiMethodItem(
                 modifiers.duplicate(),
                 documentation::duplicate,
                 returnType.convertType(typeVariableMap),
-                { methodItem -> parameters.map { it.duplicate(methodItem, typeVariableMap) } },
+                { methodItem ->
+                    parameters().map {
+                        (it as PsiParameterItem).duplicate(methodItem, typeVariableMap)
+                    }
+                },
                 typeParameterList,
-                throwsTypes,
+                throwsTypes(),
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -230,7 +234,12 @@ internal class PsiMethodItem(
                     modifiers = modifiers,
                     returnType = returnType,
                     parameterItemsFactory = { containingCallable ->
-                        parameterList(containingCallable, methodTypeItemFactory)
+                        parameterList(
+                            codebase,
+                            psiMethod,
+                            containingCallable,
+                            methodTypeItemFactory,
+                        )
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),

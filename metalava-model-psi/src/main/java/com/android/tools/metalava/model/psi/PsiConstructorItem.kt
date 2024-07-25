@@ -51,15 +51,15 @@ private constructor(
 ) :
     PsiCallableItem(
         codebase = codebase,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
         psiMethod = psiMethod,
         fileLocation = fileLocation,
-        containingClass = containingClass,
+        modifiers = modifiers,
+        documentationFactory = documentationFactory,
         name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
-        typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
     ),
     ConstructorItem {
@@ -104,7 +104,12 @@ private constructor(
                     documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
                     parameterItemsFactory = { containingCallable ->
-                        parameterList(containingCallable, constructorTypeItemFactory)
+                        parameterList(
+                            codebase,
+                            psiMethod,
+                            containingCallable,
+                            constructorTypeItemFactory,
+                        )
                     },
                     returnType = containingClass.type(),
                     implicitConstructor = false,
