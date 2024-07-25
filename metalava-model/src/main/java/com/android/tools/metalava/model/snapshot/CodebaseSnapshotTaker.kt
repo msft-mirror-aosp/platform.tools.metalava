@@ -263,6 +263,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                     },
                     throwsTypes =
                         constructor.throwsTypes().map { typeItemFactory.getExceptionType(it) },
+                    callableBodyFactory = constructor.body::snapshot,
                     implicitConstructor = constructor.isImplicitConstructor(),
                 )
 
@@ -295,6 +296,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                         method.parameters().snapshot(containingCallable)
                     },
                     throwsTypes = method.throwsTypes().map { typeItemFactory.getExceptionType(it) },
+                    callableBodyFactory = method.body::snapshot,
                     annotationDefault = method.defaultValue(),
                 )
 
