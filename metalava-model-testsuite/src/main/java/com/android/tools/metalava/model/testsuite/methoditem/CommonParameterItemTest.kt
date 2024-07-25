@@ -561,6 +561,61 @@ class CommonParameterItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test parameter isVarArgs`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void varArgsMethod(String... p);
+                        method public void nonVarArgsMethod(String[] p);
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void varArgsMethod(String... p) {}
+                        public void nonVarArgsMethod(String[] p) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun varArgsMethod(vararg p: String) {}
+                        fun nonVarArgsMethod(p: Array<String>) {}
+                    }
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "varArgsMethod" to true,
+                    "nonVarArgsMethod" to false,
+                )
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
+                val name = method.name()
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter if expected
+                val expectedVarArgs = expectedTypes[name]
+                assertWithMessage("$name isVarArgs")
+                    .that(parameterItem.isVarArgs())
+                    .isEqualTo(expectedVarArgs)
+            }
+        }
+    }
+
+    @Test
     fun `Test no default value`() {
         runCodebaseTest(
             signature(

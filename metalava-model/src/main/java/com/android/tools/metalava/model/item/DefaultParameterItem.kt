@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -49,6 +50,11 @@ internal class DefaultParameterItem(
     ),
     ParameterItem {
 
+    init {
+        // Set the varargs modifier to true if the type is a varargs.
+        type.let { if (it is ArrayTypeItem && it.isVarargs) modifiers.setVarArg(true) }
+    }
+
     /**
      * Create the [DefaultValue] during initialization of this parameter to allow it to contain an
      * immutable reference to this object.
@@ -60,8 +66,6 @@ internal class DefaultParameterItem(
     override fun publicName(): String? = publicNameProvider(this)
 
     override fun containingCallable(): CallableItem = containingCallable
-
-    override fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     override fun type(): TypeItem = type
 
