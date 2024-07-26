@@ -203,6 +203,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
                 simpleName = cls.simpleName(),
                 fullName = cls.fullName(),
                 typeParameterList = typeParameterList,
+                isFromClassPath = cls.isFromClassPath(),
             )
 
         // Snapshot the super class type, if any.
