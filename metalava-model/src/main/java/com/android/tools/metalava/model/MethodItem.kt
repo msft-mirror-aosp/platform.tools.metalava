@@ -221,7 +221,7 @@ interface MethodItem : CallableItem, InheritableItem {
     }
 
     /** If annotation method, returns the default value as a source expression */
-    fun defaultValue(): String = ""
+    fun defaultValue(): String
 
     fun hasDefaultValue(): Boolean {
         return defaultValue() != ""

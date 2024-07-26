@@ -17,8 +17,11 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -29,8 +32,8 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultConstructorItem(
-    codebase: DefaultCodebase,
+open class DefaultConstructorItem(
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
@@ -42,6 +45,7 @@ class DefaultConstructorItem(
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
 ) :
     DefaultCallableItem(
@@ -57,24 +61,25 @@ class DefaultConstructorItem(
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
+        callableBodyFactory = callableBodyFactory,
     ),
     ConstructorItem {
 
-    override var superConstructor: ConstructorItem? = null
+    final override var superConstructor: ConstructorItem? = null
 
     /** Override to specialize the return type. */
-    override fun returnType() = super.returnType() as ClassTypeItem
+    final override fun returnType() = super.returnType() as ClassTypeItem
 
     /** Override to make sure that [type] is a [ClassTypeItem]. */
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         super.setType(type as ClassTypeItem)
     }
 
-    override fun isImplicitConstructor() = implicitConstructor
+    final override fun isImplicitConstructor() = implicitConstructor
 
     companion object {
         fun createDefaultConstructor(
-            codebase: DefaultCodebase,
+            codebase: Codebase,
             itemLanguage: ItemLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
@@ -98,6 +103,7 @@ class DefaultConstructorItem(
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
+                    callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
                     // This is not an implicit constructor as it was not created by the compiler.
                     implicitConstructor = false,
                 )
