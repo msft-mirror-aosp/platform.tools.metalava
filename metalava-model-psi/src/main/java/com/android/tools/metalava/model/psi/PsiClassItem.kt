@@ -125,13 +125,6 @@ internal constructor(
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
-    /**
-     * If this item was created by filtering down a different codebase, this temporarily points to
-     * the original item during construction. This is used to let us initialize for example throws
-     * lists later, when all classes in the codebase have been initialized.
-     */
-    internal var source: PsiClassItem? = null
-
     override fun nestedClasses(): List<PsiClassItem> = nestedClasses
 
     override fun constructors(): List<ConstructorItem> = constructors
