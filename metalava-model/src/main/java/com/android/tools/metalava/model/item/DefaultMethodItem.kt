@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -30,7 +32,7 @@ import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultMethodItem(
-    codebase: DefaultCodebase,
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
@@ -42,6 +44,7 @@ open class DefaultMethodItem(
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
     private val annotationDefault: String = "",
 ) :
     DefaultCallableItem(
@@ -57,10 +60,11 @@ open class DefaultMethodItem(
         returnType,
         parameterItemsFactory,
         throwsTypes,
+        callableBodyFactory,
     ),
     MethodItem {
 
-    override var inheritedFrom: ClassItem? = null
+    final override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -80,7 +84,7 @@ open class DefaultMethodItem(
      * that name and parameter list types match. Parameter names, Return types and Throws list types
      * are not matched
      */
-    override fun superMethods(): List<MethodItem> {
+    final override fun superMethods(): List<MethodItem> {
         if (!::superMethodList.isInitialized) {
             superMethodList = computeSuperMethods()
         }
@@ -88,7 +92,7 @@ open class DefaultMethodItem(
     }
 
     @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
+    final override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
@@ -110,6 +114,7 @@ open class DefaultMethodItem(
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,
+                callableBodyFactory = body::duplicate,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
