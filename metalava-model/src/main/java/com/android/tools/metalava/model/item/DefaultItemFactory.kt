@@ -212,8 +212,9 @@ class DefaultItemFactory(
             containingCallable,
             parameterIndex,
             type,
-            defaultValue,
-        )
+        ) {
+            defaultValue
+        }
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(
