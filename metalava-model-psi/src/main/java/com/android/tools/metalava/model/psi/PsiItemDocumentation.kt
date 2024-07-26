@@ -78,9 +78,8 @@ internal class PsiItemDocumentation(
             return null
         }
 
-        // We can't just use element.docComment here because we may have modified
-        // the comment and then the comment snapshot in PSI isn't up to date with our
-        // latest changes
+        // We can't just use element.docComment here because we may have modified the comment and
+        // then the comment snapshot in PSI isn't up-to-date with our latest changes
         val docComment = item.codebase.getComment(text)
         val tagComment =
             if (value == null) {
@@ -104,10 +103,10 @@ internal class PsiItemDocumentation(
             index--
         }
         index++
-        if (index < text.length) {
-            return text.substring(0, index)
+        return if (index < text.length) {
+            text.substring(0, index)
         } else {
-            return text
+            text
         }
     }
 
@@ -122,37 +121,29 @@ internal class PsiItemDocumentation(
         return comment.text.substring(0, end)
     }
 
-    override fun fullyQualifiedDocumentation(documentation: String) =
-        toFullyQualifiedDocumentation(item, documentation)
-
-    private fun toFullyQualifiedDocumentation(owner: PsiItem, documentation: String): String {
+    override fun fullyQualifiedDocumentation(documentation: String): String {
         if (documentation.isBlank() || !containsLinkTags(documentation)) {
             return documentation
         }
 
-        val codebase = owner.codebase
+        val codebase = item.codebase
         val comment =
             try {
-                codebase.getComment(documentation, owner.psi())
+                codebase.getComment(documentation, psi)
             } catch (throwable: Throwable) {
                 // TODO: Get rid of line comments as documentation
                 // Invalid comment
                 if (documentation.startsWith("//") && documentation.contains("/**")) {
-                    return toFullyQualifiedDocumentation(
-                        owner,
+                    return fullyQualifiedDocumentation(
                         documentation.substring(documentation.indexOf("/**"))
                     )
                 }
-                codebase.getComment(documentation, owner.psi())
+                codebase.getComment(documentation, psi)
             }
-        val sb = StringBuilder(documentation.length)
-        expand(owner, comment, sb)
-
-        return sb.toString()
+        return buildString(documentation.length) { expand(comment, this) }
     }
 
-    private fun reportUnresolvedDocReference(owner: Item, unresolved: String) {
-        @Suppress("ConstantConditionIf")
+    private fun reportUnresolvedDocReference(unresolved: String) {
         if (!REPORT_UNRESOLVED_SYMBOLS) {
             return
         }
@@ -162,18 +153,17 @@ internal class PsiItemDocumentation(
         }
 
         // References are sometimes split across lines and therefore have newlines, leading
-        // asterisks
-        // etc in the middle: clean this up before emitting reference into error message
+        // asterisks etc. in the middle: clean this up before emitting reference into error message
         val cleaned = unresolved.replace("\n", "").replace("*", "").replace("  ", " ")
 
         item.codebase.reporter.report(
             Issues.UNRESOLVED_LINK,
-            owner,
+            item,
             "Unresolved documentation reference: $cleaned"
         )
     }
 
-    private fun expand(owner: PsiItem, element: PsiElement, sb: StringBuilder) {
+    private fun expand(element: PsiElement, sb: StringBuilder) {
         when {
             element is PsiWhiteSpace -> {
                 sb.append(element.text)
@@ -182,7 +172,7 @@ internal class PsiItemDocumentation(
                 assert(element.firstChild == null)
                 val text = element.text
                 // Auto-fix some docs in the framework which starts with R.styleable in @attr
-                if (text.startsWith("R.styleable#") && owner.documentation.contains("@attr")) {
+                if (text.startsWith("R.styleable#") && item.documentation.contains("@attr")) {
                     sb.append("android.")
                 }
 
@@ -193,7 +183,7 @@ internal class PsiItemDocumentation(
                 var resolved = element.reference?.resolve()
 
                 // Workaround: relative references doesn't work from a class item to its members
-                if (resolved == null && owner is ClassItem) {
+                if (resolved == null && item is ClassItem) {
                     // For some reason, resolving relative methods and field references at the root
                     // level isn't working right.
                     if (PREPEND_LOCAL_CLASS && text.startsWith("#")) {
@@ -202,7 +192,7 @@ internal class PsiItemDocumentation(
                             // definitely a field
                             end = text.length
                             val fieldName = text.substring(1, end)
-                            val field = owner.findField(fieldName)
+                            val field = item.findField(fieldName)
                             if (field != null) {
                                 resolved = (field as? PsiFieldItem)?.psi()
                             }
@@ -210,7 +200,7 @@ internal class PsiItemDocumentation(
                         if (resolved == null) {
                             val methodName = text.substring(1, end)
                             resolved =
-                                (owner as PsiClassItem)
+                                (item as PsiClassItem)
                                     .psi()
                                     .findMethodsByName(methodName, true)
                                     .firstOrNull()
@@ -220,7 +210,7 @@ internal class PsiItemDocumentation(
 
                 if (resolved is PsiMember) {
                     val containingClass = resolved.containingClass
-                    if (containingClass != null && !samePackage(owner, containingClass)) {
+                    if (containingClass != null && !samePackage(containingClass)) {
                         val referenceText = element.reference?.element?.text ?: text
                         if (!PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
                             sb.append(text)
@@ -259,11 +249,11 @@ internal class PsiItemDocumentation(
                 } else {
                     if (resolved == null) {
                         val referenceText = element.reference?.element?.text ?: text
-                        if (text.startsWith("#") && owner is ClassItem) {
+                        if (text.startsWith("#") && item is ClassItem) {
                             // Unfortunately resolving references is broken from class javadocs
                             // to members using just a relative reference, #.
                         } else {
-                            reportUnresolvedDocReference(owner, referenceText)
+                            reportUnresolvedDocReference(referenceText)
                         }
                     }
                     sb.append(text)
@@ -272,7 +262,7 @@ internal class PsiItemDocumentation(
             element is PsiJavaCodeReferenceElement -> {
                 val resolved = element.resolve()
                 if (resolved is PsiClass) {
-                    if (samePackage(owner, resolved) || resolved is PsiTypeParameter) {
+                    if (samePackage(resolved) || resolved is PsiTypeParameter) {
                         sb.append(element.text)
                     } else {
                         sb.append(resolved.qualifiedName)
@@ -289,13 +279,13 @@ internal class PsiItemDocumentation(
                 } else {
                     val text = element.text
                     if (resolved == null) {
-                        reportUnresolvedDocReference(owner, text)
+                        reportUnresolvedDocReference(text)
                     }
                     sb.append(text)
                 }
             }
             element is PsiInlineDocTag -> {
-                val handled = handleTag(element, owner, sb)
+                val handled = handleTag(element, sb)
                 if (!handled) {
                     sb.append(element.text)
                 }
@@ -303,7 +293,7 @@ internal class PsiItemDocumentation(
             element.firstChild != null -> {
                 var curr = element.firstChild
                 while (curr != null) {
-                    expand(owner, curr, sb)
+                    expand(curr, sb)
                     curr = curr.nextSibling
                 }
             }
@@ -314,7 +304,7 @@ internal class PsiItemDocumentation(
         }
     }
 
-    fun handleTag(element: PsiInlineDocTag, owner: PsiItem, sb: StringBuilder): Boolean {
+    private fun handleTag(element: PsiInlineDocTag, sb: StringBuilder): Boolean {
         val name = element.name
         if (name == "code" || name == "literal") {
             // @code: don't attempt to rewrite this
@@ -380,7 +370,7 @@ internal class PsiItemDocumentation(
         }
 
         var resolved = reference?.resolve()
-        if (resolved == null && owner is ClassItem) {
+        if (resolved == null && item is ClassItem) {
             // For some reason, resolving relative methods and field references at the root
             // level isn't working right.
             if (PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
@@ -389,7 +379,7 @@ internal class PsiItemDocumentation(
                     // definitely a field
                     end = referenceText.length
                     val fieldName = referenceText.substring(1, end)
-                    val field = owner.findField(fieldName)
+                    val field = item.findField(fieldName)
                     if (field != null) {
                         resolved = (field as? PsiFieldItem)?.psi()
                     }
@@ -397,7 +387,7 @@ internal class PsiItemDocumentation(
                 if (resolved == null) {
                     val methodName = referenceText.substring(1, end)
                     resolved =
-                        (owner as PsiClassItem)
+                        (item as PsiClassItem)
                             .psi()
                             .findMethodsByName(methodName, true)
                             .firstOrNull()
@@ -409,7 +399,7 @@ internal class PsiItemDocumentation(
             when (resolved) {
                 is PsiClass -> {
                     val text = element.text
-                    if (samePackage(owner, resolved)) {
+                    if (samePackage(resolved)) {
                         sb.append(text)
                         return true
                     }
@@ -452,7 +442,7 @@ internal class PsiItemDocumentation(
                                 sb.append(text)
                                 return true
                             }
-                    if (samePackage(owner, containing)) {
+                    if (samePackage(containing)) {
                         sb.append(text)
                         return true
                     }
@@ -525,7 +515,7 @@ internal class PsiItemDocumentation(
                 }
             }
         } else {
-            reportUnresolvedDocReference(owner, referenceText)
+            reportUnresolvedDocReference(referenceText)
         }
 
         return false
@@ -599,18 +589,17 @@ internal class PsiItemDocumentation(
         }
     }
 
-    private fun samePackage(owner: PsiItem, cls: PsiClass): Boolean {
-        @Suppress("ConstantConditionIf")
+    private fun samePackage(cls: PsiClass): Boolean {
         if (INCLUDE_SAME_PACKAGE) {
             // doclava seems to have REAL problems with this
             return false
         }
-        val pkg = packageName(owner) ?: return false
+        val pkg = packageName() ?: return false
         return cls.qualifiedName == "$pkg.${cls.name}"
     }
 
-    private fun packageName(owner: PsiItem): String? {
-        var curr: Item? = owner
+    private fun packageName(): String? {
+        var curr: Item? = item
         while (curr != null) {
             if (curr is PackageItem) {
                 return curr.qualifiedName()
@@ -698,7 +687,7 @@ internal class PsiItemDocumentation(
                 val comments = element.comments
                 if (comments.isNotEmpty()) {
                     val sb = StringBuilder()
-                    comments.asSequence().joinTo(buffer = sb, separator = "\n") { it.text }
+                    comments.joinTo(buffer = sb, separator = "\n") { it.text }
                     return sb.toString()
                 } else {
                     // Temporary workaround: UAST seems to not return document nodes
