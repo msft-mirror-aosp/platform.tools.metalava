@@ -233,7 +233,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 containingCallable = containingCallable,
                 parameterIndex = parameterItem.parameterIndex,
                 type = parameterItem.type().snapshot(),
-                defaultValue = parameterItem.defaultValue.snapshot(),
+                defaultValueFactory = parameterItem.defaultValue::snapshot,
             )
         }
 

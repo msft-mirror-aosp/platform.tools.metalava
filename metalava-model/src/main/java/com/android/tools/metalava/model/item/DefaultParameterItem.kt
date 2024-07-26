@@ -37,7 +37,7 @@ internal class DefaultParameterItem(
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    override val defaultValue: DefaultValue,
+    defaultValueFactory: DefaultValueFactory,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -48,6 +48,12 @@ internal class DefaultParameterItem(
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     ParameterItem {
+
+    /**
+     * Create the [DefaultValue] during initialization of this parameter to allow it to contain an
+     * immutable reference to this object.
+     */
+    override val defaultValue = defaultValueFactory(this)
 
     override fun name(): String = name
 
@@ -83,6 +89,6 @@ internal class DefaultParameterItem(
             containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),
-            defaultValue,
+            defaultValue::duplicate,
         )
 }
