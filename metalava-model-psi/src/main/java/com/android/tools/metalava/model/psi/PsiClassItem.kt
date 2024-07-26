@@ -38,10 +38,8 @@ import com.android.tools.metalava.model.isRetention
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
-import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -548,44 +546,17 @@ internal constructor(
                 //     @file:JvmName("-ViewModelExtensions") // Hide from Java sources in the IDE.
                 return false
             }
+
             if (psiClass is UClass && psiClass.sourcePsi == null) {
                 // Top level kt classes (FooKt for Foo.kt) do not have implicit default constructor
                 return false
             }
 
             val constructors = psiClass.constructors
-            if (
-                constructors.isEmpty() &&
-                    !psiClass.isInterface &&
-                    !psiClass.isAnnotationType &&
-                    !psiClass.isEnum
-            ) {
-                if (PsiUtil.hasDefaultConstructor(psiClass)) {
-                    return true
-                }
-
-                // The above method isn't always right; for example, for the
-                // ContactsContract.Presence class
-                // in the framework, which looks like this:
-                //    @Deprecated
-                //    public static final class Presence extends StatusUpdates {
-                //    }
-                // javac makes a default constructor:
-                //    public final class android.provider.ContactsContract$Presence extends
-                // android.provider.ContactsContract$StatusUpdates {
-                //        public android.provider.ContactsContract$Presence();
-                //    }
-                // but the above method returns false. So add some of our own heuristics:
-                if (
-                    psiClass.hasModifierProperty(PsiModifier.FINAL) &&
-                        !psiClass.hasModifierProperty(PsiModifier.ABSTRACT) &&
-                        psiClass.hasModifierProperty(PsiModifier.PUBLIC)
-                ) {
-                    return true
-                }
-            }
-
-            return false
+            return constructors.isEmpty() &&
+                !psiClass.isInterface &&
+                !psiClass.isAnnotationType &&
+                !psiClass.isEnum
         }
     }
 }
