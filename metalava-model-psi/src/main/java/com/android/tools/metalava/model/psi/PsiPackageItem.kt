@@ -28,9 +28,9 @@ internal class PsiPackageItem
 internal constructor(
     codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
-    private val qualifiedName: String,
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
+    private val qualifiedName: String,
     override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -44,16 +44,20 @@ internal constructor(
     PackageItem,
     PsiItem {
 
-    // Note - top level classes only
-    private val classes: MutableList<ClassItem> = mutableListOf()
+    override fun psi() = psiPackage
+
+    private val topClasses = mutableListOf<ClassItem>()
+
+    override fun qualifiedName(): String = qualifiedName
+
+    override fun isFromClassPath(): Boolean = fromClassPath
 
     override fun topLevelClasses(): List<ClassItem> =
         // Return a copy to avoid a ConcurrentModificationException.
-        classes.toList()
+        topClasses.toList()
 
+    // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
-
-    override fun psi() = psiPackage
 
     lateinit var containingPackageField: PackageItem
 
@@ -67,36 +71,20 @@ internal constructor(
         }
     }
 
-    fun addClass(cls: PsiClassItem) {
-        if (!cls.isTopLevelClass()) {
-            // TODO: Stash in a list somewhere to make allClasses() faster?
+    fun addTopClass(classItem: PsiClassItem) {
+        if (!classItem.isTopLevelClass()) {
             return
         }
 
-        /*
-        // Temp debugging:
-        val q = cls.qualifiedName()
-        for (c in classes) {
-            if (q == c.qualifiedName()) {
-                assert(false, { "Unexpectedly found class $q already listed in $this" })
-                return
-            }
-        }
-        */
-
-        classes.add(cls)
-        cls.containingPackage = this
+        topClasses.add(classItem)
+        classItem.containingPackage = this
     }
 
     fun addClasses(classList: List<PsiClassItem>) {
         for (cls in classList) {
-            addClass(cls)
+            addTopClass(cls)
         }
     }
-
-    override fun qualifiedName(): String = qualifiedName
-
-    override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {
         fun create(
@@ -117,11 +105,11 @@ internal constructor(
                 PsiPackageItem(
                     codebase = codebase,
                     psiPackage = psiPackage,
-                    qualifiedName = qualifiedName,
+                    modifiers = modifiers,
                     documentationFactory =
                         PsiItemDocumentation.factory(psiPackage, codebase, extraDocs),
+                    qualifiedName = qualifiedName,
                     overviewDocumentation = overviewHtml,
-                    modifiers = modifiers,
                     fromClassPath = fromClassPath
                 )
             return pkg

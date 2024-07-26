@@ -306,10 +306,10 @@ internal class PsiBasedCodebase(
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage != null) {
                 val packageItem = registerPackage(pkgName, psiPackage, null)
-                packageItem.addClass(classItem)
+                packageItem.addTopClass(classItem)
             }
         } else {
-            pkg.addClass(classItem)
+            pkg.addTopClass(classItem)
         }
     }
 
