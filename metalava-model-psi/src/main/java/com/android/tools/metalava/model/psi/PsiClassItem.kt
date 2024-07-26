@@ -118,19 +118,6 @@ internal constructor(
         return allInterfaces!!.asSequence()
     }
 
-    private fun addInterfaces(result: MutableSet<PsiClass>, interfaces: Array<out PsiClass>) {
-        for (itf in interfaces) {
-            if (itf.isInterface && !result.contains(itf)) {
-                result.add(itf)
-                addInterfaces(result, itf.interfaces)
-                val superClass = itf.superClass
-                if (superClass != null) {
-                    addInterfaces(result, arrayOf(superClass))
-                }
-            }
-        }
-    }
-
     private lateinit var nestedClasses: List<PsiClassItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
@@ -154,7 +141,7 @@ internal constructor(
 
     override fun fields(): List<FieldItem> = fields
 
-    final override var primaryConstructor: PsiConstructorItem? = null
+    override var primaryConstructor: PsiConstructorItem? = null
         private set
 
     /** Must only be used by [type] to cache its result. */

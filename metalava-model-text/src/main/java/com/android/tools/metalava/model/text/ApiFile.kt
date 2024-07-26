@@ -1763,9 +1763,6 @@ private constructor(
                 )
 
             parameter.markForCurrentApiSurface()
-            if (type is ArrayTypeItem && type.isVarargs) {
-                modifiers.setVarArg(true)
-            }
 
             return parameter
         }
