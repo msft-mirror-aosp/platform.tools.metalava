@@ -45,7 +45,7 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 
-class PsiAnnotationItem
+internal class PsiAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
@@ -331,7 +331,7 @@ private fun createValue(
     }
 }
 
-class PsiAnnotationSingleAttributeValue(
+internal class PsiAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: PsiAnnotationMemberValue
 ) : DefaultAnnotationSingleAttributeValue({ psiValue.text }, { getValue(psiValue) }) {
@@ -362,7 +362,7 @@ class PsiAnnotationSingleAttributeValue(
             when (val resolved = psiValue.resolve()) {
                 is PsiField -> return codebase.findField(resolved)
                 is PsiClass -> return codebase.findOrCreateClass(resolved)
-                is PsiMethod -> return codebase.findMethod(resolved)
+                is PsiMethod -> return codebase.findCallableByPsiMethod(resolved)
             }
         }
         return null

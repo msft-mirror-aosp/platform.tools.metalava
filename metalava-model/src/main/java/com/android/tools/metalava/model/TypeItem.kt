@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.TypeItem.Companion.equals
 import java.util.Objects
 import java.util.function.Predicate
 
@@ -72,7 +71,6 @@ interface TypeItem {
      *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
      * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
      *   "List<String!>?".
-     * @param filter Specifies a filter to apply to the type annotations, if any.
      * @param spaceBetweenParameters Controls whether there should be a space between class type
      *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
      *   "java.util.Map<java.lang.Integer,java.lang.Number>".
@@ -80,7 +78,6 @@ interface TypeItem {
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
-        filter: Predicate<Item>? = null,
         spaceBetweenParameters: Boolean = false
     ): String
 
@@ -175,8 +172,14 @@ interface TypeItem {
      * return this instance, otherwise it will return a new instance with a new [TypeModifiers].
      */
     fun substitute(nullability: TypeNullability) =
-        if (modifiers.nullability() == nullability) this
+        if (modifiers.nullability == nullability) this
         else substitute(modifiers.substitute(nullability))
+
+    /**
+     * Return a [TypeItem] instance of the same type as this one that was produced by the [TypeItem]
+     * appropriate [TypeTransformer.transform] method.
+     */
+    fun transform(transformer: TypeTransformer): TypeItem
 
     companion object {
         /** Shortens types, if configured */
@@ -190,7 +193,7 @@ interface TypeItem {
 
         /**
          * Removes java.lang. prefixes from types, unless it's in a subpackage such as
-         * java.lang.reflect. For simplicity we may also leave inner classes in the java.lang
+         * java.lang.reflect. For simplicity we may also leave nested classes in the java.lang
          * package untouched.
          *
          * NOTE: We only remove this from the front of the type; e.g. we'll replace
@@ -383,11 +386,10 @@ abstract class DefaultTypeItem(
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
-        filter: Predicate<Item>?,
         spaceBetweenParameters: Boolean
     ): String {
         return toTypeString(
-            TypeStringConfiguration(annotations, kotlinStyleNulls, filter, spaceBetweenParameters)
+            TypeStringConfiguration(annotations, kotlinStyleNulls, spaceBetweenParameters)
         )
     }
 
@@ -432,17 +434,14 @@ abstract class DefaultTypeItem(
          * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
          *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
          *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
-         * @param filter A filter to apply to the type annotations, if any.
          * @param spaceBetweenParameters Whether to include a space between class type params.
          */
         private data class TypeStringConfiguration(
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
-            val filter: Predicate<Item>? = null,
             val spaceBetweenParameters: Boolean = false,
         ) {
-            val isDefault =
-                !annotations && !kotlinStyleNulls && filter == null && !spaceBetweenParameters
+            val isDefault = !annotations && !kotlinStyleNulls && !spaceBetweenParameters
         }
 
         private fun StringBuilder.appendTypeString(
@@ -468,7 +467,7 @@ abstract class DefaultTypeItem(
                             arrayModifiers.add(deepComponentType.modifiers)
                             deepComponentType = deepComponentType.componentType
                         }
-                        val suffixes = arrayModifiers.map { it.nullability().suffix }.reversed()
+                        val suffixes = arrayModifiers.map { it.nullability.suffix }.reversed()
 
                         // Print the innermost component type.
                         appendTypeString(deepComponentType, configuration)
@@ -495,7 +494,7 @@ abstract class DefaultTypeItem(
                             append("[]")
                         }
                         if (configuration.kotlinStyleNulls) {
-                            append(type.modifiers.nullability().suffix)
+                            append(type.modifiers.nullability.suffix)
                         }
                     }
                 }
@@ -531,7 +530,7 @@ abstract class DefaultTypeItem(
                         append(">")
                     }
                     if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
+                        append(type.modifiers.nullability.suffix)
                     }
                 }
                 is VariableTypeItem -> {
@@ -540,7 +539,7 @@ abstract class DefaultTypeItem(
                     }
                     append(type.name)
                     if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
+                        append(type.modifiers.nullability.suffix)
                     }
                 }
                 is WildcardTypeItem -> {
@@ -587,7 +586,7 @@ abstract class DefaultTypeItem(
 
             // When nullability information is included, excluded bounds imply non-null when
             // kotlinStyleNulls is true and platform when it is false.
-            val nullability = extendsBound.modifiers.nullability()
+            val nullability = extendsBound.modifiers.nullability
             if (configuration.kotlinStyleNulls && nullability == TypeNullability.NONNULL)
                 return false
             if (!configuration.kotlinStyleNulls && nullability == TypeNullability.PLATFORM)
@@ -602,17 +601,9 @@ abstract class DefaultTypeItem(
             trailingSpace: Boolean = true
         ) {
             val annotations =
-                modifiers.annotations().filter { annotation ->
+                modifiers.annotations.filter { annotation ->
                     // If Kotlin-style nulls are printed, nullness annotations shouldn't be.
-                    if (configuration.kotlinStyleNulls && annotation.isNullnessAnnotation()) {
-                        return@filter false
-                    }
-
-                    val filter = configuration.filter ?: return@filter true
-                    val qualifiedName = annotation.qualifiedName
-                    val annotationClass =
-                        annotation.codebase.findClass(qualifiedName) ?: return@filter true
-                    filter.test(annotationClass)
+                    !(configuration.kotlinStyleNulls && annotation.isNullnessAnnotation())
                 }
             if (annotations.isEmpty()) return
 
@@ -687,7 +678,7 @@ abstract class DefaultTypeItem(
                 return qualifiedName
             }
 
-            // If class name contains $, it's not an ambiguous inner class name.
+            // If class name contains $, it's not an ambiguous nested class name.
             if (qualifiedName.indexOf('$') != -1) {
                 return qualifiedName.replace('.', '/')
             }
@@ -721,6 +712,9 @@ interface TypeArgumentTypeItem : TypeItem {
 
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): TypeArgumentTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem
 }
 
 /**
@@ -734,6 +728,9 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
 
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ReferenceTypeItem
 }
 
 /**
@@ -749,6 +746,9 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
 sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ExceptionTypeItem
+
     /**
      * Get the erased [ClassItem], if any.
      *
@@ -839,6 +839,10 @@ interface PrimitiveTypeItem : TypeItem {
         return this
     }
 
+    override fun transform(transformer: TypeTransformer): PrimitiveTypeItem {
+        return transformer.transform(this)
+    }
+
     override fun equalToType(other: TypeItem?): Boolean {
         return (other as? PrimitiveTypeItem)?.kind == kind
     }
@@ -899,6 +903,10 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         )
     }
 
+    override fun transform(transformer: TypeTransformer): ArrayTypeItem {
+        return transformer.transform(this)
+    }
+
     override fun equalToType(other: TypeItem?): Boolean {
         if (other !is ArrayTypeItem) return false
         return isVarargs == other.isVarargs && componentType.equalToType(other.componentType)
@@ -922,7 +930,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      */
     val arguments: List<TypeArgumentTypeItem>
 
-    /** The outer class type of this class, if it is an inner type. */
+    /** The outer class type of this class, if it is a nested type. */
     val outerClassType: ClassTypeItem?
 
     /**
@@ -952,6 +960,12 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
+
+    /**
+     * Check to see whether this type is a functional type, i.e. references a function interface,
+     * which is an interface with at most one abstract method.
+     */
+    fun isFunctionalType(): Boolean = error("unsupported")
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
@@ -996,6 +1010,10 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
             outerClassType = outerClassType?.convertType(typeParameterBindings),
             arguments = arguments.mapIfNotSame { it.convertType(typeParameterBindings) },
         )
+    }
+
+    override fun transform(transformer: TypeTransformer): ClassTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -1061,6 +1079,10 @@ interface LambdaTypeItem : ClassTypeItem {
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ) = super.substitute(modifiers, outerClassType, arguments) as LambdaTypeItem
+
+    override fun transform(transformer: TypeTransformer): LambdaTypeItem {
+        return transformer.transform(this)
+    }
 }
 
 /** Represents a type variable type. */
@@ -1095,7 +1117,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
-        val nullability = modifiers.nullability()
+        val nullability = modifiers.nullability
         return typeParameterBindings[asTypeParameter]?.let { replacement ->
             val replacementNullability =
                 when {
@@ -1107,7 +1129,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
                     // then use the nullability of the use of the type parameter as while at worst
                     // it may also have no nullability information, it could have some, e.g. from a
                     // declaration nullability annotation.
-                    replacement.modifiers.nullability() == TypeNullability.PLATFORM -> nullability
+                    replacement.modifiers.nullability == TypeNullability.PLATFORM -> nullability
                     else -> null
                 }
 
@@ -1121,6 +1143,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             // The type parameter binding does not contain a replacement for this variable so use
             // this as is.
             this
+    }
+
+    override fun transform(transformer: TypeTransformer): VariableTypeItem {
+        return transformer.transform(this)
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
@@ -1197,6 +1223,10 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         )
     }
 
+    override fun transform(transformer: TypeTransformer): WildcardTypeItem {
+        return transformer.transform(this)
+    }
+
     override fun equalToType(other: TypeItem?): Boolean {
         if (other !is WildcardTypeItem) return false
         return extendsBound?.equalToType(other.extendsBound) != false &&
@@ -1207,6 +1237,26 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     override fun asClass(): ClassItem? = null
 }
+
+/**
+ * Create a [TypeTransformer] that will remove any type annotations for which [filter] returns false
+ * when called against the [AnnotationItem]'s [ClassItem] return by [AnnotationItem.resolve]. If
+ * that returns `null` then the [AnnotationItem] will be kept.
+ */
+fun typeUseAnnotationFilter(filter: Predicate<Item>): TypeTransformer =
+    object : BaseTypeTransformer() {
+        override fun transform(modifiers: TypeModifiers): TypeModifiers {
+            if (modifiers.annotations.isEmpty()) return modifiers
+            return modifiers.substitute(
+                annotations =
+                    modifiers.annotations.filter { annotationItem ->
+                        // If the annotation cannot be resolved then keep it.
+                        val annotationClass = annotationItem.resolve() ?: return@filter true
+                        filter.test(annotationClass)
+                    }
+            )
+        }
+    }
 
 /**
  * Map the items in this list to a new list if [transform] returns at least one item which is not

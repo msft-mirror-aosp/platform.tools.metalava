@@ -49,6 +49,9 @@ Usage: metalava main [options] [flags]...
   The default sub-command that is run if no sub-command is specified.
 
 Options:
+  --config-file <file>                       A configuration file that can be consumed by Metalava. This can be
+                                             specified multiple times in which case later config files will
+                                             override/merge with earlier ones.
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
                                              files. Any classes that cannot be found will be treated as empty.",
@@ -142,9 +145,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---hide-package <package>
-                                             Remove the given packages from the API even if they have not been marked
-                                             with @hide
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
 --show-unannotated
@@ -177,8 +177,6 @@ API sources:
 
 
 Extracting Signature Files:
---dex-api <file>
-                                             Generate a DEX signature descriptor file listing the APIs
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>

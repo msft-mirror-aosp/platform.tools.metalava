@@ -78,7 +78,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals("test.pkg", packageItem.qualifiedName())
-            assertEquals(1, packageItem.topLevelClasses().count(), message = "")
+            assertEquals(1, packageItem.topLevelClasses().size, message = "")
         }
     }
 
@@ -159,7 +159,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("Test.InnerTestClass", innerClassItem.fullName())
             assertEquals("InnerTestClass", innerClassItem.simpleName())
             assertEquals(classItem, innerClassItem.containingClass())
-            assertEquals(1, classItem.innerClasses().count(), message = "")
+            assertEquals(1, classItem.nestedClasses().count(), message = "")
         }
     }
 
@@ -252,8 +252,8 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val rootPackageItem = codebase.assertPackage("")
             val classItem = codebase.assertClass("test.pkg.Test")
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            assertEquals(1, packageItem.topLevelClasses().count())
-            assertEquals(0, parentPackageItem.topLevelClasses().count())
+            assertEquals(1, packageItem.topLevelClasses().size)
+            assertEquals(0, parentPackageItem.topLevelClasses().size)
             assertEquals(parentPackageItem, packageItem.containingPackage())
             assertEquals(rootPackageItem, parentPackageItem.containingPackage())
             assertEquals(null, rootPackageItem.containingPackage())
@@ -900,11 +900,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val paramItem = methodItem.parameters().single()
 
             assertEquals("parameter", paramItem.name())
-            assertEquals(methodItem, paramItem.containingMethod())
+            assertEquals(methodItem, paramItem.containingCallable())
             assertEquals("TestParam", paramItem.publicName())
             assertEquals(true, paramItem.hasDefaultValue())
             assertEquals(true, paramItem.isDefaultValueKnown())
-            assertEquals("5", paramItem.defaultValue())
+            assertEquals("5", paramItem.defaultValueAsString())
         }
     }
 
@@ -970,11 +970,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     .trimIndent()
             assertEquals(null, innerClassItem.getSourceFile())
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation)
-            assertEquals("/** Class documentation */", classItem.documentation)
-            assertEquals("/** Field Doc */", fieldItem.documentation)
-            assertEquals("", fieldItem1.documentation)
-            assertEquals("", pkgItem.documentation)
+            assertEquals(methodComment, methodItem.documentation.text)
+            assertEquals("/** Class documentation */", classItem.documentation.text)
+            assertEquals("/** Field Doc */", fieldItem.documentation.text)
+            assertEquals("", fieldItem1.documentation.text)
+            assertEquals("", pkgItem.documentation.text)
             assertEquals(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
@@ -1043,14 +1043,16 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
+            val classSelectors = classItem.variantSelectors
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val fieldItem = classItem.assertField("Field")
-            val innerFieldItem = innerClassItem.assertField("InnerField")
+            val innerClassSelectors = innerClassItem.variantSelectors
+            val fieldSelectors = classItem.assertField("Field").variantSelectors
+            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
 
-            assertEquals(false, classItem.docOnly)
-            assertEquals(true, innerClassItem.docOnly)
-            assertEquals(false, innerFieldItem.docOnly)
-            assertEquals(true, fieldItem.docOnly)
+            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
+            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
+            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
+            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }

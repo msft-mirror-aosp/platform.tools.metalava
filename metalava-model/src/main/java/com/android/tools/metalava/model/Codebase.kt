@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /**
@@ -32,6 +33,9 @@ interface Codebase {
      */
     val location: File
 
+    /** [Reporter] to which any issues found within the [Codebase] can be reported. */
+    val reporter: Reporter
+
     /** The manager of annotations within this codebase. */
     val annotationManager: AnnotationManager
 
@@ -40,6 +44,12 @@ interface Codebase {
 
     /** The rough size of the codebase (package count) */
     fun size(): Int
+
+    /**
+     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    fun getTopLevelClassesFromSource(): List<ClassItem>
 
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
@@ -102,12 +112,18 @@ object UnsetMinSdkVersion : MinSdkVersion()
 
 const val CLASS_ESTIMATE = 15000
 
-abstract class DefaultCodebase(
+abstract class AbstractCodebase(
     final override var location: File,
     final override var description: String,
     final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
+    private val trustedApi: Boolean,
+    private val supportsDocumentation: Boolean,
 ) : Codebase {
+
+    final override fun trustedApi() = trustedApi
+
+    final override fun supportsDocumentation() = supportsDocumentation
 
     override fun unsupported(desc: String?): Nothing {
         error(
@@ -115,6 +131,8 @@ abstract class DefaultCodebase(
                 ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
         )
     }
+
+    final override fun toString() = description
 
     override fun dispose() {
         description += " [disposed]"
