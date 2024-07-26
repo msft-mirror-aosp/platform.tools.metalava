@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
@@ -293,22 +294,7 @@ internal constructor(
                 classKind == ClassKind.ANNOTATION_TYPE &&
                     !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
-                // By policy, include explicit retention policy annotation if missing
-                val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-                modifiers.addAnnotation(
-                    codebase.createAnnotation(
-                        buildString {
-                            append('@')
-                            append(java.lang.annotation.Retention::class.qualifiedName)
-                            append('(')
-                            append(java.lang.annotation.RetentionPolicy::class.qualifiedName)
-                            append('.')
-                            append(defaultRetentionPolicy.name)
-                            append(')')
-                        },
-                        item,
-                    )
-                )
+                modifiers.addDefaultRetentionPolicyAnnotation(item)
             }
 
             // create methods

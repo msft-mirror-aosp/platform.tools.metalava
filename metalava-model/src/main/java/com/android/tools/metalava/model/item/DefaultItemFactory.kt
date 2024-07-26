@@ -88,6 +88,7 @@ class DefaultItemFactory(
         simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
         fullName: String = simpleName,
         typeParameterList: TypeParameterList,
+        isFromClassPath: Boolean,
     ) =
         DefaultClassItem(
             codebase,
@@ -104,6 +105,7 @@ class DefaultItemFactory(
             simpleName,
             fullName,
             typeParameterList,
+            isFromClassPath,
         )
 
     /** Create a [ConstructorItem]. */
