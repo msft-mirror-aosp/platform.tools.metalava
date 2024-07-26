@@ -31,8 +31,17 @@ private fun getAndroidJarFromEnv(apiLevel: Int): File {
     return jar
 }
 
+/**
+ * Check to see if this file is the top level metalava directory by looking for a `metalava-model`
+ * directory.
+ */
+private fun File.isMetalavaRootDir(): Boolean = resolve("metalava-model").isDirectory
+
+/** Get a [File] for the public `android.jar` of the specified [apiLevel]. */
 fun getAndroidJar(apiLevel: Int = API_LEVEL): File {
-    val localFile = File("../../prebuilts/sdk/$apiLevel/public/android.jar")
+    val metalavaDir = getMetalavaDir()
+
+    val localFile = metalavaDir.resolve("../../prebuilts/sdk/$apiLevel/public/android.jar")
     if (localFile.exists()) {
         return localFile
     } else {
@@ -40,4 +49,32 @@ fun getAndroidJar(apiLevel: Int = API_LEVEL): File {
         if (androidJar.exists()) return androidJar
         return getAndroidJarFromEnv(apiLevel)
     }
+}
+
+/** Get a [File] for the [apiSurface] `android.txt` of the specified [apiLevel]. */
+fun getAndroidTxt(apiLevel: Int = API_LEVEL, apiSurface: String = "public"): File {
+    val metalavaDir = getMetalavaDir()
+
+    val localFile = metalavaDir.resolve("../../prebuilts/sdk/$apiLevel/$apiSurface/api/android.txt")
+    if (!localFile.exists()) {
+        error("Missing ${localFile.absolutePath} file in the SDK")
+    }
+
+    return localFile
+}
+
+private fun getMetalavaDir(): File {
+    // This is either running in tools/metalava or tools/metalava/subproject-dir and we need to look
+    // in prebuilts/sdk, so first find tools/metalava then resolve relative to that.
+    val cwd = File("").absoluteFile
+    val metalavaDir =
+        if (cwd.isMetalavaRootDir()) cwd
+        else {
+            val parent = cwd.parentFile
+            if (parent.isMetalavaRootDir()) parent
+            else {
+                throw IllegalArgumentException("Could not find metalava-model in $cwd")
+            }
+        }
+    return metalavaDir
 }

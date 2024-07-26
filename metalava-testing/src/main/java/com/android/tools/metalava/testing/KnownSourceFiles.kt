@@ -21,17 +21,63 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 
 object KnownSourceFiles {
 
+    val notTypeUseNonNullSource: TestFile =
+        TestFiles.java(
+            """
+                package not.type.use;
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val notTypeUseNullableSource: TestFile =
+        TestFiles.java(
+            """
+                package not.type.use;
+                public @interface Nullable {
+                }
+            """
+        )
+
+    val typeUseOnlyNonNullSource: TestFile =
+        TestFiles.java(
+            """
+                package type.use.only;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target(TYPE_USE)
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val typeUseOnlyNullableSource: TestFile =
+        TestFiles.java(
+            """
+                package type.use.only;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target(TYPE_USE)
+                public @interface Nullable {
+                }
+            """
+        )
+
+    val androidAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package android.annotation;
+            """
+        )
+
     val nonNullSource: TestFile =
         TestFiles.java(
-                """
+            """
     package android.annotation;
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.Target;
-
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.ElementType.METHOD;
-    import static java.lang.annotation.ElementType.PARAMETER;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.CLASS;
     /**
      * Denotes that a parameter, field or method return value can never be null.
      * @paramDoc This value must never be {@code null}.
@@ -39,21 +85,20 @@ object KnownSourceFiles {
      * @hide
      */
     @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(SOURCE)
+    @Retention(CLASS)
     @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
     public @interface NonNull {
     }
     """
-            )
-            .indented()
+        )
 
     val nullableSource: TestFile =
         TestFiles.java(
-                """
+            """
     package android.annotation;
     import java.lang.annotation.*;
     import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import static java.lang.annotation.RetentionPolicy.CLASS;
     /**
      * Denotes that a parameter, field or method return value can be null.
      * @paramDoc This value may be {@code null}.
@@ -61,17 +106,24 @@ object KnownSourceFiles {
      * @hide
      */
     @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(SOURCE)
+    @Retention(CLASS)
     @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
     public @interface Nullable {
     }
     """
-            )
-            .indented()
+        )
+
+    val libcodeUtilHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package libcore.util;
+            """
+        )
 
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
-                """
+            """
     package libcore.util;
     import static java.lang.annotation.ElementType.*;
     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -82,12 +134,11 @@ object KnownSourceFiles {
     public @interface NonNull {
     }
     """
-            )
-            .indented()
+        )
 
     val libcoreNullableSource: TestFile =
         TestFiles.java(
-                """
+            """
     package libcore.util;
     import static java.lang.annotation.ElementType.*;
     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -98,6 +149,59 @@ object KnownSourceFiles {
     public @interface Nullable {
     }
     """
-            )
-            .indented()
+        )
+
+    /**
+     * The version of the Jetbrains nullness annotations used by metalava is not type-use, but the
+     * latest version is.
+     */
+    val jetbrainsNullableTypeUseSource: TestFile =
+        TestFiles.java(
+            """
+    package org.jetbrains.annotations;
+    @java.lang.annotation.Target({ java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.TYPE_USE })
+    public @interface Nullable {}
+            """
+        )
+
+    val androidxAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package androidx.annotation;
+            """
+        )
+
+    /** TYPE_USE version of [com.android.tools.metalava.intRangeAnnotationSource] */
+    val intRangeTypeUseSource =
+        java(
+            """
+        package androidx.annotation;
+        import java.lang.annotation.*;
+        import static java.lang.annotation.ElementType.*;
+        import static java.lang.annotation.RetentionPolicy.SOURCE;
+        @Retention(SOURCE)
+        @Target({METHOD,PARAMETER,FIELD,LOCAL_VARIABLE,ANNOTATION_TYPE,TYPE_USE})
+        public @interface IntRange {
+            long from() default Long.MIN_VALUE;
+            long to() default Long.MAX_VALUE;
+        }
+        """
+        )
+
+    val supportParameterName =
+        java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface ParameterName {
+                    String value();
+                }
+            """
+        )
 }

@@ -20,6 +20,7 @@ import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
@@ -46,16 +47,19 @@ import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.util.isArrayInitializer
 
-class UAnnotationItem
+internal class UAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
-    originalName: String?
+    originalName: String,
+    qualifiedName: String,
 ) :
     DefaultAnnotationItem(
-        codebase,
-        originalName,
-        { getAnnotationAttributes(codebase, uAnnotation) }
+        codebase = codebase,
+        fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
+        originalName = originalName,
+        qualifiedName = qualifiedName,
+        attributesGetter = { getAnnotationAttributes(codebase, uAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -65,7 +69,7 @@ private constructor(
     }
 
     override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName ?: return null)
+        return codebase.findOrCreateClass(originalName)
     }
 
     override fun isNonNull(): Boolean {
@@ -97,13 +101,16 @@ private constructor(
         fun create(
             codebase: PsiBasedCodebase,
             uAnnotation: UAnnotation,
-            qualifiedName: String? = uAnnotation.qualifiedName
-        ): UAnnotationItem {
-            return UAnnotationItem(codebase, uAnnotation, qualifiedName)
-        }
-
-        fun create(codebase: PsiBasedCodebase, original: UAnnotationItem): UAnnotationItem {
-            return UAnnotationItem(codebase, original.uAnnotation, original.originalName)
+        ): AnnotationItem? {
+            val originalName = uAnnotation.qualifiedName ?: return null
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
+            return UAnnotationItem(
+                codebase = codebase,
+                uAnnotation = uAnnotation,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+            )
         }
 
         private fun getAttributes(
@@ -225,7 +232,7 @@ private constructor(
                         sb,
                         value,
                         // Normalize the input name of the annotation.
-                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
+                        codebase.annotationManager.normalizeInputName(value.qualifiedName!!),
                         target,
                         showDefaultAttrs
                     )
@@ -301,7 +308,7 @@ private fun createValue(codebase: PsiBasedCodebase, value: UExpression): Annotat
     }
 }
 
-class UAnnotationSingleAttributeValue(
+internal class UAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: UExpression
 ) : DefaultAnnotationSingleAttributeValue({ getText(psiValue) }, { getValue(psiValue) }) {
@@ -343,7 +350,7 @@ class UAnnotationSingleAttributeValue(
             when (val resolved = psiValue.resolve()) {
                 is PsiField -> return codebase.findField(resolved)
                 is PsiClass -> return codebase.findOrCreateClass(resolved)
-                is PsiMethod -> return codebase.findMethod(resolved)
+                is PsiMethod -> return codebase.findCallableByPsiMethod(resolved)
             }
         }
         return null

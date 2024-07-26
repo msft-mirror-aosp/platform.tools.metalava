@@ -19,11 +19,13 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
     id("maven-publish")
+
+    // This project provides an implementation of the metalava-model.
+    id("metalava-model-provider-plugin")
 }
 
 dependencies {
-    implementation(project(":metalava-model"))
-    implementation(project(":metalava-reporter"))
+    implementation(project(":metalava-model-source"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
     implementation(libs.androidToolsExternalIntellijCore)
@@ -33,6 +35,9 @@ dependencies {
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
 
+    testImplementation(testFixtures(project(":metalava-model")))
+    // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite`.
+    testImplementation(testFixtures(project(":metalava-model-source")))
     testImplementation(project(":metalava-model-testsuite"))
     testImplementation(project(":metalava-testing"))
     testImplementation(libs.androidLintTests)

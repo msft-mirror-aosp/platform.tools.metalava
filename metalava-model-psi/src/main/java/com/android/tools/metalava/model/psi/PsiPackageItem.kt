@@ -17,63 +17,53 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.intellij.psi.PsiPackage
 
-class PsiPackageItem(
-    override val codebase: PsiBasedCodebase,
+internal class PsiPackageItem
+internal constructor(
+    codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
-    modifiers: PsiModifierItem,
-    documentation: String,
+    modifiers: DefaultModifierList,
+    documentationFactory: ItemDocumentationFactory,
+    override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiPackage
     ),
-    PackageItem {
+    PackageItem,
+    PsiItem {
 
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
 
-    override fun topLevelClasses(): Sequence<ClassItem> =
-        classes.toList().asSequence().filter { it.isTopLevelClass() }
+    override fun topLevelClasses(): List<ClassItem> =
+        // Return a copy to avoid a ConcurrentModificationException.
+        classes.toList()
 
-    lateinit var containingPackageField: PsiPackageItem
+    override fun containingClass(): ClassItem? = null
 
-    override fun containingClass(strict: Boolean): ClassItem? = null
+    override fun psi() = psiPackage
 
-    override fun containingPackage(strict: Boolean): PackageItem? {
-        if (!strict) {
-            return this
-        }
+    lateinit var containingPackageField: PackageItem
+
+    override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
         else {
             if (!::containingPackageField.isInitialized) {
-                var parentPackage = qualifiedName
-                while (true) {
-                    val index = parentPackage.lastIndexOf('.')
-                    if (index == -1) {
-                        containingPackageField = codebase.findPackage("")!!
-                        return containingPackageField
-                    }
-                    parentPackage = parentPackage.substring(0, index)
-                    val pkg = codebase.findPackage(parentPackage)
-                    if (pkg != null) {
-                        containingPackageField = pkg
-                        return pkg
-                    }
-                }
-
-                @Suppress("UNREACHABLE_CODE") null
-            } else {
-                containingPackageField
+                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
             }
+            containingPackageField
         }
     }
 
@@ -106,37 +96,6 @@ class PsiPackageItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is PackageItem && qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int = qualifiedName.hashCode()
-
-    override fun toString(): String = "package $qualifiedName"
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-        val initialClasses = ArrayList(classes)
-        var original =
-            initialClasses.size // classes added after this point will have indices >= original
-        for (cls in initialClasses) {
-            if (cls is PsiClassItem) cls.finishInitialization()
-        }
-
-        // Finish initialization of any additional classes that were registered during
-        // the above initialization (recursively)
-        while (original < classes.size) {
-            val added = ArrayList(classes.subList(original, classes.size))
-            original = classes.size
-            for (cls in added) {
-                if (cls is PsiClassItem) cls.finishInitialization()
-            }
-        }
-    }
-
     override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {
@@ -144,10 +103,10 @@ class PsiPackageItem(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
             extraDocs: String?,
-            fromClassPath: Boolean
+            overviewHtml: String?,
+            fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
-            val modifiers = modifiers(codebase, psiPackage, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
@@ -159,25 +118,12 @@ class PsiPackageItem(
                     codebase = codebase,
                     psiPackage = psiPackage,
                     qualifiedName = qualifiedName,
-                    documentation = commentText,
+                    documentationFactory =
+                        PsiItemDocumentation.factory(psiPackage, codebase, extraDocs),
+                    overviewDocumentation = overviewHtml,
                     modifiers = modifiers,
                     fromClassPath = fromClassPath
                 )
-            pkg.modifiers.setOwner(pkg)
-            return pkg
-        }
-
-        fun create(codebase: PsiBasedCodebase, original: PsiPackageItem): PsiPackageItem {
-            val pkg =
-                PsiPackageItem(
-                    codebase = codebase,
-                    psiPackage = original.psiPackage,
-                    qualifiedName = original.qualifiedName,
-                    documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    fromClassPath = original.isFromClassPath()
-                )
-            pkg.modifiers.setOwner(pkg)
             return pkg
         }
     }

@@ -16,14 +16,13 @@
 
 package com.android.tools.metalava.model
 
-open class DefaultModifierList(
+class DefaultModifierList(
     override val codebase: Codebase,
-    protected var flags: Int = PACKAGE_PRIVATE,
-    protected open var annotations: MutableList<AnnotationItem>? = null
+    private var flags: Int = PACKAGE_PRIVATE,
+    private var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
-    private lateinit var owner: Item
-
-    private var isComputingSuppressCompatibilityMetaAnnotations: Boolean = false
+    /** Set in [DefaultItem] initialization. */
+    internal lateinit var owner: Item
 
     private operator fun set(mask: Int, set: Boolean) {
         flags =
@@ -44,17 +43,6 @@ open class DefaultModifierList(
 
     override fun owner(): Item {
         return owner
-    }
-
-    fun setOwner(owner: Item) {
-        this.owner = owner
-
-        if (owner.hasInheritedGenericType()) {
-            // https://youtrack.jetbrains.com/issue/KTIJ-19087
-            // Incorrect nullness annotation was added to generic parameter
-            // whose nullability is determined at subclass declaration site.
-            annotations?.removeIf { it.isNullnessAnnotation() }
-        }
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {
@@ -119,7 +107,7 @@ open class DefaultModifierList(
         return isSet(DEFAULT)
     }
 
-    fun isDeprecated(): Boolean {
+    override fun isDeprecated(): Boolean {
         return isSet(DEPRECATED)
     }
 
@@ -165,6 +153,14 @@ open class DefaultModifierList(
 
     override fun isData(): Boolean {
         return isSet(DATA)
+    }
+
+    override fun isExpect(): Boolean {
+        return isSet(EXPECT)
+    }
+
+    override fun isActual(): Boolean {
+        return isSet(ACTUAL)
     }
 
     override fun setVisibilityLevel(level: VisibilityLevel) {
@@ -239,19 +235,28 @@ open class DefaultModifierList(
         set(VARARG, vararg)
     }
 
-    fun setDeprecated(deprecated: Boolean) {
+    override fun setDeprecated(deprecated: Boolean) {
         set(DEPRECATED, deprecated)
     }
 
-    fun setSuspend(suspend: Boolean) {
+    override fun setSuspend(suspend: Boolean) {
         set(SUSPEND, suspend)
     }
 
-    fun setCompanion(companion: Boolean) {
+    override fun setCompanion(companion: Boolean) {
         set(COMPANION, companion)
     }
 
-    override fun addAnnotation(annotation: AnnotationItem) {
+    override fun setExpect(expect: Boolean) {
+        set(EXPECT, expect)
+    }
+
+    override fun setActual(actual: Boolean) {
+        set(ACTUAL, actual)
+    }
+
+    override fun addAnnotation(annotation: AnnotationItem?) {
+        annotation ?: return
         if (annotations == null) {
             annotations = mutableListOf()
         }
@@ -262,23 +267,12 @@ open class DefaultModifierList(
         annotations?.remove(annotation)
     }
 
-    override fun clearAnnotations(annotation: AnnotationItem) {
-        annotations?.clear()
+    override fun removeAnnotations(predicate: (AnnotationItem) -> Boolean) {
+        annotations?.removeAll(predicate)
     }
 
-    override fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        if (isComputingSuppressCompatibilityMetaAnnotations) {
-            // Re-entrant call, abort.
-            return false
-        }
-        val result =
-            try {
-                isComputingSuppressCompatibilityMetaAnnotations = true
-                super.hasSuppressCompatibilityMetaAnnotations()
-            } finally {
-                isComputingSuppressCompatibilityMetaAnnotations = false
-            }
-        return result
+    override fun clearAnnotations(annotation: AnnotationItem) {
+        annotations?.clear()
     }
 
     override fun isEmpty(): Boolean {
@@ -289,15 +283,40 @@ open class DefaultModifierList(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
+    /**
+     * Copy this, so it can be used on (and possibly modified by) another [Item] from the same
+     * codebase.
+     */
     fun duplicate(): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
-            if (annotations == null || annotations.isEmpty()) {
+            if (annotations.isNullOrEmpty()) {
                 null
             } else {
                 annotations.toMutableList()
             }
         return DefaultModifierList(codebase, flags, newAnnotations)
+    }
+
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * While [duplicate] makes a shallow copy for use within the same [Codebase] this method creates
+     * a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): DefaultModifierList {
+        val annotations = this.annotations
+        val newAnnotations =
+            if (annotations.isNullOrEmpty()) {
+                null
+            } else {
+                mutableListOf<AnnotationItem>().apply {
+                    annotations.mapTo(this) { it.snapshot(targetCodebase) }
+                }
+            }
+        return DefaultModifierList(targetCodebase, flags, newAnnotations)
     }
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
@@ -323,7 +342,7 @@ open class DefaultModifierList(
                     same == DEPRECATED &&
                         // Only differ in deprecated: not significant if implied by containing class
                         isDeprecated() &&
-                        (owner as? MethodItem)?.containingClass()?.deprecated == true
+                        (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
                 ) {
                     return true
                 }
@@ -332,7 +351,7 @@ open class DefaultModifierList(
         return false
     }
 
-    final override fun equals(other: Any?): Boolean {
+    override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
@@ -344,16 +363,20 @@ open class DefaultModifierList(
         return true
     }
 
-    final override fun hashCode(): Int {
+    override fun hashCode(): Int {
         var result = flags
         result = 31 * result + (annotations?.hashCode() ?: 0)
         return result
     }
 
     companion object {
-        const val PRIVATE = 0
-        const val INTERNAL = 1
-        const val PACKAGE_PRIVATE = 2
+        /**
+         * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility
+         * flags are explicitly set.
+         */
+        const val PACKAGE_PRIVATE = 0
+        const val PRIVATE = 1
+        const val INTERNAL = 2
         const val PROTECTED = 3
         const val PUBLIC = 4
         const val VISIBILITY_MASK = 0b111
@@ -370,9 +393,9 @@ open class DefaultModifierList(
         // corresponding enum
         // constant's ordinal.
         init {
+            check(PACKAGE_PRIVATE == VisibilityLevel.PACKAGE_PRIVATE.ordinal)
             check(PRIVATE == VisibilityLevel.PRIVATE.ordinal)
             check(INTERNAL == VisibilityLevel.INTERNAL.ordinal)
-            check(PACKAGE_PRIVATE == VisibilityLevel.PACKAGE_PRIVATE.ordinal)
             check(PROTECTED == VisibilityLevel.PROTECTED.ordinal)
             check(PUBLIC == VisibilityLevel.PUBLIC.ordinal)
             // Calculate the mask required to hold as many different values as there are
@@ -409,10 +432,12 @@ open class DefaultModifierList(
         const val CONST = 1 shl 21
         const val DATA = 1 shl 22
         const val VALUE = 1 shl 23
+        const val EXPECT = 1 shl 24
+        const val ACTUAL = 1 shl 25
 
         /**
          * Modifiers considered significant to include signature files (and similarly to consider
-         * whether an override of a method is different from its super implementation
+         * whether an override of a method is different from its super implementation)
          */
         private const val EQUIVALENCE_MASK =
             VISIBILITY_MASK or
