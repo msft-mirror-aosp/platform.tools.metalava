@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -35,6 +36,7 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.item.DefaultItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -52,26 +54,28 @@ import org.jetbrains.uast.getParentOfType
 
 internal class PsiClassItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
-    private val name: String,
-    private val fullName: String,
-    private val qualifiedName: String,
-    private val hasImplicitDefaultConstructor: Boolean,
-    override val classKind: ClassKind,
-    override val typeParameterList: TypeParameterList,
-    private val superClassType: ClassTypeItem?,
-    private var interfaceTypes: List<ClassTypeItem>,
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
+    override val classKind: ClassKind,
+    private val qualifiedName: String,
+    private val simpleName: String,
+    private val fullName: String,
+    override val typeParameterList: TypeParameterList,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
+    private val isFromClassPath: Boolean,
+    private val hasImplicitDefaultConstructor: Boolean,
+    private val superClassType: ClassTypeItem?,
+    private var interfaceTypes: List<ClassTypeItem>
 ) :
-    AbstractPsiItem(
+    DefaultItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation.fromPsiElement(psiClass),
+        itemLanguage = psiClass.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiClass
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ),
     ClassItem,
     PsiItem {
@@ -81,7 +85,7 @@ internal constructor(
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
 
-    override fun simpleName(): String = name
+    override fun simpleName(): String = simpleName
 
     override fun fullName(): String = fullName
 
@@ -89,7 +93,7 @@ internal constructor(
 
     override fun psi() = psiClass
 
-    override fun isFromClassPath(): Boolean = fromClassPath
+    override fun isFromClassPath(): Boolean = isFromClassPath
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
@@ -259,17 +263,17 @@ internal constructor(
                 PsiClassItem(
                     codebase = codebase,
                     psiClass = psiClass,
-                    name = simpleName,
-                    fullName = fullName,
-                    qualifiedName = qualifiedName,
+                    modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     classKind = classKind,
+                    qualifiedName = qualifiedName,
+                    simpleName = simpleName,
+                    fullName = fullName,
                     typeParameterList = typeParameterList,
+                    isFromClassPath = fromClassPath,
+                    hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
-                    hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
-                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
-                    modifiers = modifiers,
-                    fromClassPath = fromClassPath,
                 )
             item.containingClass = containingClassItem
 
