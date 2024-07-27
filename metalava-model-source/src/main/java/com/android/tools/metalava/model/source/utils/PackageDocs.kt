@@ -18,32 +18,78 @@ package com.android.tools.metalava.model.source.utils
 
 import com.android.tools.metalava.model.source.SourceSet
 
-data class PackageDocs(
-    val packageDocs: MutableMap<String, String>,
-    val overviewDocs: MutableMap<String, String>,
-)
+/** Set of [PackageDoc] for every documented package defined in the source. */
+class PackageDocs(
+    val packages: MutableMap<String, MutablePackageDoc>,
+) {
+    operator fun get(packageName: String): PackageDoc {
+        return packages[packageName] ?: PackageDoc.EMPTY
+    }
+
+    companion object {
+        // It would usually be unsafe to use a mutable map in a shared object like this but this
+        // is safe as the only use of this does not modify this map. This is also only temporary as
+        // PackageDocs.packages will be changed to an immutable Map soon.
+        // TODO(b/352480646): Change to emptyMap().
+        val EMPTY: PackageDocs = PackageDocs(mutableMapOf())
+    }
+}
+
+/** Package specific documentation. */
+interface PackageDoc {
+    val comment: String?
+    val overview: String?
+
+    companion object {
+        val EMPTY =
+            object : PackageDoc {
+                override val comment
+                    get() = null
+
+                override val overview
+                    get() = null
+            }
+    }
+}
+
+/** Mutable package specific documentation for use in [gatherPackageJavadoc]. */
+data class MutablePackageDoc(
+    val qualifiedName: String,
+    override var comment: String? = null,
+    override var overview: String? = null,
+) : PackageDoc
+
+/** The kinds of package documentation file. */
+private enum class PackageDocumentationKind {
+    PACKAGE {
+        override fun update(packageDoc: MutablePackageDoc, contents: String) {
+            packageDoc.comment = packageHtmlToJavadoc(contents)
+        }
+    },
+    OVERVIEW {
+        override fun update(packageDoc: MutablePackageDoc, contents: String) {
+            packageDoc.overview = contents
+        }
+    };
+
+    /** Update kind appropriate property in [packageDoc] with [contents]. */
+    abstract fun update(packageDoc: MutablePackageDoc, contents: String)
+}
 
 fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
-    val packageComments = HashMap<String, String>(100)
-    val overviewHtml = HashMap<String, String>(10)
+    val packages = mutableMapOf<String, MutablePackageDoc>()
     val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
     for (file in sourceSet.sources) {
-        var javadoc = false
-        val map =
+        val documentationFile =
             when (file.name) {
                 PACKAGE_HTML -> {
-                    javadoc = true
-                    packageComments
+                    PackageDocumentationKind.PACKAGE
                 }
                 OVERVIEW_HTML -> {
-                    overviewHtml
+                    PackageDocumentationKind.OVERVIEW
                 }
                 else -> continue
             }
-        var contents = file.readText(Charsets.UTF_8)
-        if (javadoc) {
-            contents = packageHtmlToJavadoc(contents)
-        }
 
         // Figure out the package: if there is a java file in the same directory, get the package
         // name from the java file. Otherwise, guess from the directory path + source roots.
@@ -60,8 +106,12 @@ fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
             val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
             pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
         }
-        map[pkg] = contents
+
+        val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
+
+        val contents = file.readText(Charsets.UTF_8)
+        documentationFile.update(packageDoc, contents)
     }
 
-    return PackageDocs(packageComments, overviewHtml)
+    return PackageDocs(packages)
 }

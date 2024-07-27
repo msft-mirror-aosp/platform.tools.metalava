@@ -33,6 +33,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.utils.MutablePackageDoc
+import com.android.tools.metalava.model.source.utils.PackageDoc
 import com.android.tools.metalava.model.source.utils.PackageDocs
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
@@ -195,13 +197,14 @@ internal class PsiBasedCodebase(
         val (packageInfoFiles, psiClasses) = splitPsiFilesIntoClassesAndPackageInfoFiles(psiFiles)
 
         // Process the package-info.java files.
-        val packages = gatherPackageJavadoc(sourceSet)
-        val packageDocs = packages.packageDocs
+        val packageDocs = gatherPackageJavadoc(sourceSet)
+        val packages = packageDocs.packages
         for (psiFile in packageInfoFiles) {
             val (packageName, comment) =
                 getOptionalPackageNameCommentPairFromPackageInfoFile(psiFile) ?: continue
 
-            if (packageDocs[packageName] != null) {
+            val mutablePackageDoc = packages.computeIfAbsent(packageName, ::MutablePackageDoc)
+            if (mutablePackageDoc.comment != null) {
                 reporter.report(
                     Issues.BOTH_PACKAGE_INFO_AND_HTML,
                     psiFile,
@@ -209,7 +212,9 @@ internal class PsiBasedCodebase(
                         "a package.html file for the same package"
                 )
             }
-            packageDocs[packageName] = comment
+
+            // Always set this as package-info.java comment is preferred over package.html comment.
+            mutablePackageDoc.comment = comment
         }
 
         // Process the `PsiClass`es.
@@ -217,7 +222,7 @@ internal class PsiBasedCodebase(
             topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
         }
 
-        finishInitialization(packages)
+        finishInitialization(packageDocs)
     }
 
     /**
@@ -390,11 +395,9 @@ internal class PsiBasedCodebase(
      * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
      *   interfaces referenced from the source code but provided on the class path.
      */
-    private fun finishInitialization(packages: PackageDocs?) {
+    private fun finishInitialization(packageDocs: PackageDocs) {
 
         // Next construct packages
-        val packageDocs = packages?.packageDocs ?: emptyMap()
-        val overviewDocs = packages?.overviewDocs ?: emptyMap()
         for ((pkgName, classes) in packageClasses!!) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
@@ -402,13 +405,13 @@ internal class PsiBasedCodebase(
                 continue
             }
 
+            val packageDoc = packageDocs[pkgName]
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             registerPackage(
                 pkgName,
                 psiPackage,
                 sortedClasses,
-                packageDocs[pkgName],
-                overviewDocs[pkgName],
+                packageDoc,
             )
         }
 
@@ -485,15 +488,14 @@ internal class PsiBasedCodebase(
         pkgName: String,
         psiPackage: PsiPackage,
         sortedClasses: List<PsiClassItem>?,
-        packageHtml: String? = null,
-        overviewHtml: String? = null,
+        packageDoc: PackageDoc = PackageDoc.EMPTY,
     ): PsiPackageItem {
         val packageItem =
             PsiPackageItem.create(
                 this,
                 psiPackage,
-                packageHtml,
-                overviewHtml,
+                packageDoc.comment,
+                packageDoc.overview,
                 fromClassPath = fromClasspath || !initializing
             )
         packageItem.emit = !packageItem.isFromClassPath()
@@ -571,7 +573,7 @@ internal class PsiBasedCodebase(
         }
 
         // When loading from a jar there is no package documentation.
-        finishInitialization(null)
+        finishInitialization(PackageDocs.EMPTY)
     }
 
     private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
