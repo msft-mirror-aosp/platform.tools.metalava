@@ -52,6 +52,8 @@ import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.source.SourceItemDocumentation
+import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.utils.findPackage
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -84,6 +86,7 @@ import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.model.TurbineTyKind
+import com.google.turbine.parse.Parser
 import com.google.turbine.processing.ModelFactory
 import com.google.turbine.processing.TurbineElements
 import com.google.turbine.processing.TurbineTypes
@@ -111,7 +114,6 @@ import javax.lang.model.element.TypeElement
  * parsed Tree
  */
 internal open class TurbineCodebaseInitialiser(
-    private val units: List<CompUnit>,
     private val codebase: TurbineBasedCodebase,
     private val classpath: List<File>,
     private val allowReadingComments: Boolean,
@@ -152,12 +154,16 @@ internal open class TurbineCodebaseInitialiser(
     private lateinit var turbineElements: TurbineElements
 
     /**
-     * Binds the units with the help of Turbine's binder.
+     * Populates [codebase] from the [sourceSet].
      *
      * Then creates the packages, classes and their members, as well as sets up various class
      * hierarchies using the binder's output
      */
-    fun initialize(packageHtmlByPackageName: Map<String, File>) {
+    fun initialize(sourceSet: SourceSet) {
+        val sources = sourceSet.sources
+        val sourceFiles = getSourceFiles(sources)
+        val units = sourceFiles.map { Parser.parse(it) }
+
         // Bind the units
         try {
             val procInfo =
@@ -201,10 +207,13 @@ internal open class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        createAllPackages(packageHtmlByPackageName)
+        // Scan the files looking for package.html files and return a map from name to file just in
+        // case they are needed to create packages.
+        val packageHtmlByPackageName = findPackageHtmlFileByPackageName(sources)
+
+        createAllPackages(units, packageHtmlByPackageName)
         createAllClasses()
     }
-
     /** Map from file path to the [TurbineSourceFile]. */
     private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
 
@@ -236,7 +245,10 @@ internal open class TurbineCodebaseInitialiser(
     private fun CompUnit.isPackageInfo() =
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
-    private fun createAllPackages(packageHtmlByPackageName: Map<String, File>) {
+    private fun createAllPackages(
+        units: List<CompUnit>,
+        packageHtmlByPackageName: Map<String, File>,
+    ) {
         // First, find all package-info.java files and create packages for them.
         for (unit in units) {
             // Only process package-info.java files in this loop.
@@ -1084,4 +1096,44 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
+}
+
+/**
+ * Finds `package.html` files in the source and returns a mapping from the package name, obtained
+ * from the file path, to the file.
+ */
+private fun findPackageHtmlFileByPackageName(files: List<File>): Map<String, File> {
+    return files
+        .filter { it.isFile && it.name == "package.html" }
+        .associateBy({ findPackageName(it) }) { it }
+}
+
+private fun getSourceFiles(sources: List<File>): List<SourceFile> {
+    return sources
+        .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
+        .map { SourceFile(it.path, it.readText()) }
+}
+
+/**
+ * Attempts to find the package name by looking for any Java class files in the same directory, if
+ * unsuccessful, it will guess based on the directory structure.
+ */
+private fun findPackageName(file: File): String {
+    // First try to find a package name using the utility method which might analyze the java
+    // file
+    file.parentFile
+        .listFiles()
+        ?.filter { it.isFile && it.extension == "java" }
+        ?.forEach { javaFile ->
+            findPackage(javaFile)?.let {
+                return it
+            }
+        }
+
+    // If no class file with package declaration was found, deduce from the directory structure
+    return file.parentFile.absolutePath
+        .split(File.separatorChar)
+        .dropWhile { it != "java" }
+        .drop(1)
+        .joinToString(".")
 }
