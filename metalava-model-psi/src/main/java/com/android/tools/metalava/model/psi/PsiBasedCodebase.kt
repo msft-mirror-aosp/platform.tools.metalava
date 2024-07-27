@@ -180,10 +180,7 @@ internal class PsiBasedCodebase(
     ) {
         initializing = true
 
-        val packages = gatherPackageJavadoc(sourceSet)
-
         this.uastEnvironment = uastEnvironment
-        val packageDocs = packages.packageDocs
 
         packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
@@ -194,9 +191,49 @@ internal class PsiBasedCodebase(
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
-        // A set to track @JvmMultifileClasses that have already been added to
-        // [topLevelClassesFromSource]
+        // Split the `PsiFile`s into `PsiClass`es and `package-info.java` `PsiJavaFile`s.
+        val (packageInfoFiles, psiClasses) = splitPsiFilesIntoClassesAndPackageInfoFiles(psiFiles)
+
+        // Process the package-info.java files.
+        val packages = gatherPackageJavadoc(sourceSet)
+        val packageDocs = packages.packageDocs
+        for (psiFile in packageInfoFiles) {
+            val (packageName, comment) =
+                getOptionalPackageNameCommentPairFromPackageInfoFile(psiFile) ?: continue
+
+            if (packageDocs[packageName] != null) {
+                reporter.report(
+                    Issues.BOTH_PACKAGE_INFO_AND_HTML,
+                    psiFile,
+                    "It is illegal to provide both a package-info.java file and " +
+                        "a package.html file for the same package"
+                )
+            }
+            packageDocs[packageName] = comment
+        }
+
+        // Process the `PsiClass`es.
+        for (psiClass in psiClasses) {
+            topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
+        }
+
+        finishInitialization(packages)
+    }
+
+    /**
+     * Split the [psiFiles] into separate `package-info.java` [PsiJavaFile]s and [PsiClass]es.
+     *
+     * During the processing this checks each [PsiFile] for unresolved imports and each [PsiClass]
+     * for syntax errors.
+     */
+    private fun splitPsiFilesIntoClassesAndPackageInfoFiles(
+        psiFiles: List<PsiFile>
+    ): Pair<List<PsiJavaFile>, List<PsiClass>> {
+        // A set to track `@JvmMultifileClass`es that have already been added to psiClasses.
         val multiFileClassNames = HashSet<FqName>()
+
+        val psiClasses = mutableListOf<PsiClass>()
+        val packageInfoFiles = mutableListOf<PsiJavaFile>()
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
@@ -205,18 +242,7 @@ internal class PsiBasedCodebase(
             val classes = getPsiClassesFromPsiFile(psiFile)
             when {
                 classes.isEmpty() && psiFile is PsiJavaFile -> {
-                    val (packageName, comment) =
-                        getOptionalPackageNameCommentPairFromPackageInfoFile(psiFile) ?: continue
-
-                    if (packageDocs[packageName] != null) {
-                        reporter.report(
-                            Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                            psiFile,
-                            "It is illegal to provide both a package-info.java file and " +
-                                "a package.html file for the same package"
-                        )
-                    }
-                    packageDocs[packageName] = comment
+                    packageInfoFiles.add(psiFile)
                 }
                 else -> {
                     for (psiClass in classes) {
@@ -233,13 +259,12 @@ internal class PsiBasedCodebase(
                             }
                         }
 
-                        topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
+                        psiClasses.add(psiClass)
                     }
                 }
             }
         }
-
-        finishInitialization(packages)
+        return Pair(packageInfoFiles, psiClasses)
     }
 
     /** Check to see if [psiFile] contains any unresolved imports. */
