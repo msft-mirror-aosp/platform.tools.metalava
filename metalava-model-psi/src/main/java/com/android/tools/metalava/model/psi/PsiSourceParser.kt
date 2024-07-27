@@ -28,10 +28,7 @@ import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
-import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
-import com.android.tools.metalava.model.source.utils.findPackage
-import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
@@ -326,47 +323,4 @@ internal class PsiSourceParser(
         private const val KLIB = "klib"
         private val SUPPORTED_CLASSPATH_EXT = listOf(AAR, JAR, KLIB)
     }
-}
-
-private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
-    val packageComments = HashMap<String, String>(100)
-    val overviewHtml = HashMap<String, String>(10)
-    val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
-    for (file in sourceSet.sources) {
-        var javadoc = false
-        val map =
-            when (file.name) {
-                PACKAGE_HTML -> {
-                    javadoc = true
-                    packageComments
-                }
-                OVERVIEW_HTML -> {
-                    overviewHtml
-                }
-                else -> continue
-            }
-        var contents = file.readText(Charsets.UTF_8)
-        if (javadoc) {
-            contents = packageHtmlToJavadoc(contents)
-        }
-
-        // Figure out the package: if there is a java file in the same directory, get the package
-        // name from the java file. Otherwise, guess from the directory path + source roots.
-        // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
-        var pkg =
-            file.parentFile
-                ?.listFiles()
-                ?.filter { it.name.endsWith(SdkConstants.DOT_JAVA) }
-                ?.asSequence()
-                ?.mapNotNull { findPackage(it) }
-                ?.firstOrNull()
-        if (pkg == null) {
-            // Strip the longest prefix source root.
-            val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
-            pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
-        }
-        map[pkg] = contents
-    }
-
-    return PackageDocs(packageComments, overviewHtml)
 }

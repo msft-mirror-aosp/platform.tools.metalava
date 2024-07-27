@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.source.utils.PackageDocs
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
