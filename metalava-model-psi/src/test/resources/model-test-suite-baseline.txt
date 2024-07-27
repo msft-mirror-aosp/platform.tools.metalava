@@ -10,6 +10,12 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
+com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
+  Test package location (package-html)[java,k1]
+  Test package location (package-html)[java,k2]
+  Test package location (package-info)[java,k1]
+  Test package location (package-info)[java,k2]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]
