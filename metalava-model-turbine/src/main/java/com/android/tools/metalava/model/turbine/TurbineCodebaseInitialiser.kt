@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -51,9 +52,11 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.FieldValue
-import com.android.tools.metalava.model.source.SourceItemDocumentation
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.findPackage
+import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -207,14 +210,25 @@ internal open class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        // Scan the files looking for package.html files and return a map from name to file just in
-        // case they are needed to create packages.
-        val packageHtmlByPackageName = findPackageHtmlFileByPackageName(sources)
-
         // Split units into package-info.java units and normal class units.
         val (packageInfoUnits, classUnits) = units.partition { it.isPackageInfo() }
 
-        createAllPackages(packageInfoUnits, classUnits, packageHtmlByPackageName)
+        // Scan the files looking for package.html and overview.html files and combine that with
+        // information from package-info.java units to create a comprehensive set of package
+        // documentation just in case they are needed during package creation.
+        val packageDocs =
+            gatherPackageJavadoc(codebase.reporter, sourceSet, packageInfoUnits) { unit ->
+                val pkg = unit.pkg().orElse(null) ?: return@gatherPackageJavadoc null
+                val source = unit.source().source()
+                val file = File(unit.source().path())
+                val fileLocation = FileLocation.forFile(file)
+                val comment = getHeaderComments(source)
+                val packageName = extractNameFromIdent(pkg.name())
+                val modifiers = DefaultModifierList.createPublic(codebase)
+                MutablePackageDoc(packageName, fileLocation, modifiers, comment)
+            }
+
+        createAllPackages(packageDocs, classUnits)
         createAllClasses()
     }
     /** Map from file path to the [TurbineSourceFile]. */
@@ -249,22 +263,12 @@ internal open class TurbineCodebaseInitialiser(
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
     private fun createAllPackages(
-        packageInfoUnits: List<CompUnit>,
+        packageDocs: PackageDocs,
         classUnits: List<CompUnit>,
-        packageHtmlByPackageName: Map<String, File>,
     ) {
-        // Create packages for all the package-info.java files.
-        for (unit in packageInfoUnits) {
-            val source = unit.source().source()
-            val sourceFile = createTurbineSourceFile(unit)
-            val doc = getHeaderComments(source)
-            createPackage(getPackageName(unit), sourceFile, doc.toItemDocumentationFactory())
-        }
-
-        // Then, create package items for package.html files.
-        for ((name, file) in packageHtmlByPackageName.entries) {
-            codebase.findPackage(name)
-                ?: createPackage(name, null, SourceItemDocumentation.fromHTML(file.readText()))
+        // Create packages for all the documentation packages.
+        for ((packageName, packageDoc) in packageDocs) {
+            createPackage(packageName, packageDoc)
         }
 
         // Then, create or find a package for every class.
@@ -285,15 +289,15 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun createPackage(
         name: String,
-        sourceFile: TurbineSourceFile?,
-        documentationFactory: ItemDocumentationFactory,
+        packageDoc: PackageDoc,
     ): PackageItem {
         codebase.findPackage(name)?.let {
             error("Duplicate package-info.java files found for $name")
         }
 
-        val modifiers = TurbineModifierItem.create(codebase, 0, null)
-        val fileLocation = TurbineFileLocation.forTree(sourceFile)
+        val fileLocation = packageDoc.fileLocation
+        val modifiers = packageDoc.modifiers ?: DefaultModifierList.createPublic(codebase)
+        val documentationFactory = (packageDoc.comment ?: "").toItemDocumentationFactory()
         val turbinePkgItem =
             itemFactory.createPackageItem(fileLocation, modifiers, documentationFactory, name)
         codebase.addPackage(turbinePkgItem)
@@ -1096,42 +1100,8 @@ internal open class TurbineCodebaseInitialiser(
     internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }
 
-/**
- * Finds `package.html` files in the source and returns a mapping from the package name, obtained
- * from the file path, to the file.
- */
-private fun findPackageHtmlFileByPackageName(files: List<File>): Map<String, File> {
-    return files
-        .filter { it.isFile && it.name == "package.html" }
-        .associateBy({ findPackageName(it) }) { it }
-}
-
 private fun getSourceFiles(sources: List<File>): List<SourceFile> {
     return sources
         .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
         .map { SourceFile(it.path, it.readText()) }
-}
-
-/**
- * Attempts to find the package name by looking for any Java class files in the same directory, if
- * unsuccessful, it will guess based on the directory structure.
- */
-private fun findPackageName(file: File): String {
-    // First try to find a package name using the utility method which might analyze the java
-    // file
-    file.parentFile
-        .listFiles()
-        ?.filter { it.isFile && it.extension == "java" }
-        ?.forEach { javaFile ->
-            findPackage(javaFile)?.let {
-                return it
-            }
-        }
-
-    // If no class file with package declaration was found, deduce from the directory structure
-    return file.parentFile.absolutePath
-        .split(File.separatorChar)
-        .dropWhile { it != "java" }
-        .drop(1)
-        .joinToString(".")
 }
