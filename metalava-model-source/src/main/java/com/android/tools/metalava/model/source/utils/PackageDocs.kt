@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.source.utils
 
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.reporter.FileLocation
+import java.io.File
 
 /** Set of [PackageDoc] for every documented package defined in the source. */
 class PackageDocs(
@@ -37,12 +39,16 @@ class PackageDocs(
 
 /** Package specific documentation. */
 interface PackageDoc {
+    val fileLocation: FileLocation
     val comment: String?
     val overview: String?
 
     companion object {
         val EMPTY =
             object : PackageDoc {
+                override val fileLocation: FileLocation
+                    get() = FileLocation.UNKNOWN
+
                 override val comment
                     get() = null
 
@@ -55,6 +61,7 @@ interface PackageDoc {
 /** Mutable package specific documentation for use in [gatherPackageJavadoc]. */
 data class MutablePackageDoc(
     val qualifiedName: String,
+    override var fileLocation: FileLocation = FileLocation.UNKNOWN,
     override var comment: String? = null,
     override var overview: String? = null,
 ) : PackageDoc
@@ -62,18 +69,19 @@ data class MutablePackageDoc(
 /** The kinds of package documentation file. */
 private enum class PackageDocumentationKind {
     PACKAGE {
-        override fun update(packageDoc: MutablePackageDoc, contents: String) {
+        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
             packageDoc.comment = packageHtmlToJavadoc(contents)
+            packageDoc.fileLocation = FileLocation.forFile(file)
         }
     },
     OVERVIEW {
-        override fun update(packageDoc: MutablePackageDoc, contents: String) {
+        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
             packageDoc.overview = contents
         }
     };
 
     /** Update kind appropriate property in [packageDoc] with [contents]. */
-    abstract fun update(packageDoc: MutablePackageDoc, contents: String)
+    abstract fun update(packageDoc: MutablePackageDoc, contents: String, file: File)
 }
 
 fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
@@ -110,7 +118,7 @@ fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
         val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
 
         val contents = file.readText(Charsets.UTF_8)
-        documentationFile.update(packageDoc, contents)
+        documentationFile.update(packageDoc, contents, file)
     }
 
     return PackageDocs(packages)

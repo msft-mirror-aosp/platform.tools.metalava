@@ -202,18 +202,21 @@ internal class PsiBasedCodebase(
         for (psiFile in packageInfoFiles) {
             val (packageName, comment) =
                 getOptionalPackageNameCommentPairFromPackageInfoFile(psiFile) ?: continue
+            val fileLocation = PsiFileLocation.fromPsiElement(psiFile)
 
             val mutablePackageDoc = packages.computeIfAbsent(packageName, ::MutablePackageDoc)
             if (mutablePackageDoc.comment != null) {
                 reporter.report(
                     Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                    psiFile,
+                    null,
                     "It is illegal to provide both a package-info.java file and " +
-                        "a package.html file for the same package"
+                        "a package.html file for the same package",
+                    fileLocation,
                 )
             }
 
-            // Always set this as package-info.java comment is preferred over package.html comment.
+            // Always set this as package-info.java is preferred over package.html.
+            mutablePackageDoc.fileLocation = fileLocation
             mutablePackageDoc.comment = comment
         }
 
@@ -494,8 +497,7 @@ internal class PsiBasedCodebase(
             PsiPackageItem.create(
                 this,
                 psiPackage,
-                packageDoc.comment,
-                packageDoc.overview,
+                packageDoc,
                 fromClassPath = fromClasspath || !initializing
             )
         packageItem.emit = !packageItem.isFromClassPath()
