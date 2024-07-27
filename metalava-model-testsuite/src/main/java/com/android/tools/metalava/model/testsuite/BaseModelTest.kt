@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.testing.TemporaryFolderOwner
+import java.io.File
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -132,9 +133,19 @@ abstract class BaseModelTest() :
     interface CodebaseContext {
         /** The newly created [Codebase]. */
         val codebase: Codebase
+
+        /** Replace any test run specific directories in [string] with a placeholder string. */
+        fun removeTestSpecificDirectories(string: String): String
     }
 
-    private class DefaultCodebaseContext(override val codebase: Codebase) : CodebaseContext
+    inner class DefaultCodebaseContext(
+        override val codebase: Codebase,
+        private val mainSourceDir: File,
+    ) : CodebaseContext {
+        override fun removeTestSpecificDirectories(string: String): String {
+            return cleanupString(string, mainSourceDir)
+        }
+    }
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -167,7 +178,7 @@ abstract class BaseModelTest() :
                         commonSourceDir = commonSourceDir,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
-                    val context = DefaultCodebaseContext(codebase)
+                    val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
                     context.test()
                 }
             }
