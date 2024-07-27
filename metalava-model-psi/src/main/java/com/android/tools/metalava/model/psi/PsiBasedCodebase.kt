@@ -196,96 +196,43 @@ internal class PsiBasedCodebase(
 
         // A set to track @JvmMultifileClasses that have already been added to
         // [topLevelClassesFromSource]
-        val multifileClassNames = HashSet<FqName>()
+        val multiFileClassNames = HashSet<FqName>()
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
-            // Visiting psiFile directly would eagerly load the entire file even though we only need
-            // the importList here.
-            (psiFile as? PsiJavaFile)
-                ?.importList
-                ?.accept(
-                    object : JavaRecursiveElementVisitor() {
-                        override fun visitImportStatement(element: PsiImportStatement) {
-                            super.visitImportStatement(element)
-                            if (element.resolve() == null) {
-                                reporter.report(
-                                    Issues.UNRESOLVED_IMPORT,
-                                    element,
-                                    "Unresolved import: `${element.qualifiedName}`"
-                                )
-                            }
-                        }
-                    }
-                )
+            checkForUnresolvedImports(psiFile)
 
-            var classes = (psiFile as? PsiClassOwner)?.classes?.toList() ?: emptyList()
-            if (classes.isEmpty()) {
-                val uFile =
-                    UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
-                classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
-            }
+            val classes = getPsiClassesFromPsiFile(psiFile)
             when {
                 classes.isEmpty() && psiFile is PsiJavaFile -> {
-                    // package-info.java ?
-                    val packageStatement = psiFile.packageStatement
-                    // Look for javadoc on the package statement; this is NOT handed to us on
-                    // the PsiPackage!
-                    if (packageStatement != null) {
-                        val comment =
-                            PsiTreeUtil.getPrevSiblingOfType(
-                                packageStatement,
-                                PsiDocComment::class.java
-                            )
-                        if (comment != null) {
-                            val packageName = packageStatement.packageName
-                            val text = comment.text
-                            if (packageDocs[packageName] != null) {
-                                reporter.report(
-                                    Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                                    psiFile,
-                                    "It is illegal to provide both a package-info.java file and " +
-                                        "a package.html file for the same package"
-                                )
-                            }
-                            packageDocs[packageName] = text
-                        }
+                    val (packageName, comment) =
+                        getOptionalPackageNameCommentPairFromPackageInfoFile(psiFile) ?: continue
+
+                    if (packageDocs[packageName] != null) {
+                        reporter.report(
+                            Issues.BOTH_PACKAGE_INFO_AND_HTML,
+                            psiFile,
+                            "It is illegal to provide both a package-info.java file and " +
+                                "a package.html file for the same package"
+                        )
                     }
+                    packageDocs[packageName] = comment
                 }
                 else -> {
                     for (psiClass in classes) {
-                        psiClass.accept(
-                            object : JavaRecursiveElementVisitor() {
-                                override fun visitErrorElement(element: PsiErrorElement) {
-                                    super.visitErrorElement(element)
-                                    reporter.report(
-                                        Issues.INVALID_SYNTAX,
-                                        element,
-                                        "Syntax error: `${element.errorDescription}`"
-                                    )
-                                }
+                        checkForSyntaxErrors(psiClass)
 
-                                override fun visitCodeBlock(block: PsiCodeBlock) {
-                                    // Ignore to avoid eagerly parsing all method bodies.
-                                }
-
-                                override fun visitDocComment(comment: PsiDocComment) {
-                                    // Ignore to avoid eagerly parsing all doc comments.
-                                    // Doc comments cannot contain error elements.
-                                }
-                            }
-                        )
-
-                        // Multifile classes appear identically from each file they're defined in,
+                        // Multi file classes appear identically from each file they're defined in,
                         // don't add duplicates
-                        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacade
-                        if (ktLightClass?.multiFileClass == true) {
-                            if (multifileClassNames.contains(ktLightClass.facadeClassFqName)) {
+                        val multiFileClassName = getOptionalMultiFileClassName(psiClass)
+                        if (multiFileClassName != null) {
+                            if (multiFileClassName in multiFileClassNames) {
                                 continue
                             } else {
-                                multifileClassNames.add(ktLightClass.facadeClassFqName)
+                                multiFileClassNames.add(multiFileClassName)
                             }
                         }
+
                         topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
                     }
                 }
@@ -293,6 +240,98 @@ internal class PsiBasedCodebase(
         }
 
         finishInitialization(packages)
+    }
+
+    /** Check to see if [psiFile] contains any unresolved imports. */
+    private fun checkForUnresolvedImports(psiFile: PsiFile?) {
+        // Visiting psiFile directly would eagerly load the entire file even though we only need
+        // the importList here.
+        (psiFile as? PsiJavaFile)
+            ?.importList
+            ?.accept(
+                object : JavaRecursiveElementVisitor() {
+                    override fun visitImportStatement(element: PsiImportStatement) {
+                        super.visitImportStatement(element)
+                        if (element.resolve() == null) {
+                            reporter.report(
+                                Issues.UNRESOLVED_IMPORT,
+                                element,
+                                "Unresolved import: `${element.qualifiedName}`"
+                            )
+                        }
+                    }
+                }
+            )
+    }
+
+    /** Get, the possibly empty, list of [PsiClass]es from the [psiFile]. */
+    private fun getPsiClassesFromPsiFile(psiFile: PsiFile): List<PsiClass> {
+        // First, check for Java classes, return any that are found.
+        (psiFile as? PsiClassOwner)?.classes?.toList()?.let { if (it.isNotEmpty()) return it }
+
+        // Then, check for Kotlin classes, returning any that are found, or an empty list.
+        val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
+        return uFile?.classes?.map { it }?.toList() ?: emptyList()
+    }
+
+    /**
+     * Get the optional [Pair] of package name and comment from [psiFile].
+     *
+     * @param psiFile most likely a `package-info.java` file.
+     */
+    private fun getOptionalPackageNameCommentPairFromPackageInfoFile(
+        psiFile: PsiJavaFile
+    ): Pair<String, String>? {
+        val packageStatement = psiFile.packageStatement
+        // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
+        if (packageStatement != null) {
+            val comment =
+                PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
+            if (comment != null) {
+                val packageName = packageStatement.packageName
+                return Pair(packageName, comment.text)
+            }
+        }
+
+        // No comment could be found.
+        return null
+    }
+
+    /** Check the [psiClass] for any syntax errors. */
+    private fun checkForSyntaxErrors(psiClass: PsiClass) {
+        psiClass.accept(
+            object : JavaRecursiveElementVisitor() {
+                override fun visitErrorElement(element: PsiErrorElement) {
+                    super.visitErrorElement(element)
+                    reporter.report(
+                        Issues.INVALID_SYNTAX,
+                        element,
+                        "Syntax error: `${element.errorDescription}`"
+                    )
+                }
+
+                override fun visitCodeBlock(block: PsiCodeBlock) {
+                    // Ignore to avoid eagerly parsing all method bodies.
+                }
+
+                override fun visitDocComment(comment: PsiDocComment) {
+                    // Ignore to avoid eagerly parsing all doc comments.
+                    // Doc comments cannot contain error elements.
+                }
+            }
+        )
+    }
+
+    /** Get the optional multi file class name. */
+    private fun getOptionalMultiFileClassName(psiClass: PsiClass): FqName? {
+        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacade
+        val multiFileClassName =
+            if (ktLightClass?.multiFileClass == true) {
+                ktLightClass.facadeClassFqName
+            } else {
+                null
+            }
+        return multiFileClassName
     }
 
     /**
