@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
@@ -41,6 +42,7 @@ import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -50,7 +52,7 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.getParentOfType
 
-open class PsiClassItem
+internal class PsiClassItem
 internal constructor(
     codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
@@ -67,17 +69,14 @@ internal constructor(
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         element = psiClass
     ),
-    ClassItem {
-
-    init {
-        emit = !modifiers.isExpect()
-    }
+    ClassItem,
+    PsiItem {
 
     lateinit var containingPackage: PsiPackageItem
 
@@ -120,19 +119,6 @@ internal constructor(
         return allInterfaces!!.asSequence()
     }
 
-    private fun addInterfaces(result: MutableSet<PsiClass>, interfaces: Array<out PsiClass>) {
-        for (itf in interfaces) {
-            if (itf.isInterface && !result.contains(itf)) {
-                result.add(itf)
-                addInterfaces(result, itf.interfaces)
-                val superClass = itf.superClass
-                if (superClass != null) {
-                    addInterfaces(result, arrayOf(superClass))
-                }
-            }
-        }
-    }
-
     private lateinit var nestedClasses: List<PsiClassItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
@@ -156,7 +142,7 @@ internal constructor(
 
     override fun fields(): List<FieldItem> = fields
 
-    final override var primaryConstructor: PsiConstructorItem? = null
+    override var primaryConstructor: PsiConstructorItem? = null
         private set
 
     /** Must only be used by [type] to cache its result. */
@@ -213,6 +199,12 @@ internal constructor(
 
         retention = ClassItem.findRetention(this)
         return retention!!
+    }
+
+    override fun isFileFacade(): Boolean {
+        return psiClass.isKotlin() &&
+            psiClass is UClass &&
+            psiClass.javaPsi is KtLightClassForFacade
     }
 
     companion object {
@@ -302,22 +294,7 @@ internal constructor(
                 classKind == ClassKind.ANNOTATION_TYPE &&
                     !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
-                // By policy, include explicit retention policy annotation if missing
-                val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-                modifiers.addAnnotation(
-                    codebase.createAnnotation(
-                        buildString {
-                            append('@')
-                            append(java.lang.annotation.Retention::class.qualifiedName)
-                            append('(')
-                            append(java.lang.annotation.RetentionPolicy::class.qualifiedName)
-                            append('.')
-                            append(defaultRetentionPolicy.name)
-                            append(')')
-                        },
-                        item,
-                    )
-                )
+                modifiers.addDefaultRetentionPolicyAnnotation(item)
             }
 
             // create methods
@@ -401,6 +378,7 @@ internal constructor(
                 val constructorParameters =
                     item.primaryConstructor
                         ?.parameters()
+                        ?.map { it as PsiParameterItem }
                         ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
                         ?.associateBy { it.name() }
                         .orEmpty()

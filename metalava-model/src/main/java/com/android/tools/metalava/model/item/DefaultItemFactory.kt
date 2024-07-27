@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -82,10 +83,12 @@ class DefaultItemFactory(
         source: SourceFile? = null,
         classKind: ClassKind,
         containingClass: ClassItem?,
+        containingPackage: PackageItem,
         qualifiedName: String = "",
         simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
         fullName: String = simpleName,
         typeParameterList: TypeParameterList,
+        isFromClassPath: Boolean,
     ) =
         DefaultClassItem(
             codebase,
@@ -97,10 +100,12 @@ class DefaultItemFactory(
             source,
             classKind,
             containingClass,
+            containingPackage,
             qualifiedName,
             simpleName,
             fullName,
             typeParameterList,
+            isFromClassPath,
         )
 
     /** Create a [ConstructorItem]. */
@@ -129,6 +134,7 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            CallableBody.UNAVAILABLE_FACTORY,
             implicitConstructor,
         )
 
@@ -183,6 +189,7 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            CallableBody.UNAVAILABLE_FACTORY,
             annotationDefault,
         )
 
@@ -202,14 +209,14 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            defaultVariantSelectorsFactory,
             name,
             publicNameProvider,
             containingCallable,
             parameterIndex,
             type,
-            defaultValue,
-        )
+        ) {
+            defaultValue
+        }
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(
@@ -223,6 +230,7 @@ class DefaultItemFactory(
             codebase,
             fileLocation,
             defaultItemLanguage,
+            ItemDocumentation.NONE_FACTORY,
             defaultVariantSelectorsFactory,
             modifiers,
             name,
@@ -248,7 +256,6 @@ class DefaultItemFactory(
             codebase,
             defaultItemLanguage,
             modifiers,
-            defaultVariantSelectorsFactory,
             name,
             isReified,
         )

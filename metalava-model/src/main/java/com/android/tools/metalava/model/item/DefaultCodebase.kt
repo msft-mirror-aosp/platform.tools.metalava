@@ -44,6 +44,7 @@ open class DefaultCodebase(
     annotationManager: AnnotationManager,
     trustedApi: Boolean,
     supportsDocumentation: Boolean,
+    assemblerFactory: CodebaseAssemblerFactory,
 ) :
     AbstractCodebase(
         location,
@@ -53,6 +54,14 @@ open class DefaultCodebase(
         trustedApi,
         supportsDocumentation,
     ) {
+
+    /**
+     * Create a [CodebaseAssembler] appropriate for this [Codebase].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    open val assembler = assemblerFactory(@Suppress("LeakingThis") this)
 
     override val reporter: Reporter
         get() = unsupported("reporter is not available")
@@ -90,6 +99,20 @@ open class DefaultCodebase(
     fun findClassInCodebase(className: String) = allClassesByName[className]
 
     /**
+     * A list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    private val topLevelClassesFromSource: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
+
+    override fun getTopLevelClassesFromSource(): List<ClassItem> {
+        return topLevelClassesFromSource
+    }
+
+    fun addTopLevelClassFromSource(classItem: ClassItem) {
+        topLevelClassesFromSource.add(classItem)
+    }
+
+    /**
      * Look for classes in this [Codebase].
      *
      * This is left open so that subclasses can extend this to look for classes from elsewhere, e.g.
@@ -98,7 +121,7 @@ open class DefaultCodebase(
     override fun findClass(className: String): ClassItem? = findClassInCodebase(className)
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    fun registerClass(classItem: DefaultClassItem) {
+    internal fun registerClass(classItem: DefaultClassItem) {
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
@@ -117,10 +140,11 @@ open class DefaultCodebase(
     open fun newClassRegistered(classItem: DefaultClassItem) {}
 
     /**
-     * Provide a simple implementation that just looks for an existing class in this [Codebase].
-     * Subclasses can override this to search other sources for the class.
+     * Looks for an existing class in this [Codebase] and if that cannot be found then delegate to
+     * the [assembler] to see if it can create a class from the underlying model.
      */
-    override fun resolveClass(className: String) = findClass(className)
+    override fun resolveClass(className: String) =
+        findClass(className) ?: assembler.createClassFromUnderlyingModel(className)
 
     final override fun createAnnotation(
         source: String,
