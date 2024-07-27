@@ -96,6 +96,7 @@ import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.tree.Tree.MethDecl
 import com.google.turbine.tree.Tree.TyDecl
+import com.google.turbine.tree.Tree.VarDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import java.io.File
@@ -127,7 +128,7 @@ internal open class TurbineCodebaseInitialiser(
     private lateinit var index: TopLevelIndex
 
     /** Map between Class declaration and the corresponding source CompUnit */
-    private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf<TyDecl, CompUnit>()
+    private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf()
 
     private val globalTypeItemFactory =
         TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
@@ -187,7 +188,7 @@ internal open class TurbineCodebaseInitialiser(
             throw e
         }
         // maps class symbols to their source-based definitions
-        val sourceEnv = SimpleEnv<ClassSymbol, SourceTypeBoundClass>(sourceClassMap)
+        val sourceEnv = SimpleEnv(sourceClassMap)
         // maps class symbols to their classpath-based definitions
         val classpathEnv: CompoundEnv<ClassSymbol, TypeBoundClass> = CompoundEnv.of(envClassMap)
         // provides a unified view of both source and classpath classes
@@ -618,11 +619,10 @@ internal open class TurbineCodebaseInitialiser(
                     if (expr != null) const.elements().zip((expr as ArrayInit).exprs())
                     else const.elements().map { Pair(it, null) }
                 buildString {
-                        append("{")
-                        pairs.joinTo(this, ", ") { getSource(it.first, it.second) }
-                        append("}")
-                    }
-                    .toString()
+                    append("{")
+                    pairs.joinTo(this, ", ") { getSource(it.first, it.second) }
+                    append("}")
+                }
             }
             Kind.ENUM_CONSTANT -> getValue(const).toString()
             Kind.CLASS_LITERAL -> {
@@ -840,7 +840,7 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createParameters(
         containingCallable: CallableItem,
-        parameterDecls: List<Tree.VarDecl>?,
+        parameterDecls: List<VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ): List<ParameterItem> {
@@ -966,23 +966,19 @@ internal open class TurbineCodebaseInitialiser(
         return LookupKey(ImmutableList.copyOf(idents))
     }
 
-    private fun javadoc(item: Tree.TyDecl?): String {
+    private fun javadoc(item: TyDecl?): String {
         if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
-    private fun javadoc(item: Tree.VarDecl?): String {
+    private fun javadoc(item: VarDecl?): String {
         if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
-    private fun javadoc(item: Tree.MethDecl?): String {
+    private fun javadoc(item: MethDecl?): String {
         if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
-    }
-
-    private fun isDeprecated(javadoc: String?): Boolean {
-        return javadoc?.contains("@deprecated") ?: false
     }
 
     private fun getThrowsList(
