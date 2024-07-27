@@ -134,7 +134,7 @@ abstract class BaseModelTest() :
         val codebase: Codebase
     }
 
-    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) : CodebaseContext
+    private class DefaultCodebaseContext(override val codebase: Codebase) : CodebaseContext
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -146,7 +146,7 @@ abstract class BaseModelTest() :
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
         commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
-        test: (Codebase) -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
@@ -166,7 +166,10 @@ abstract class BaseModelTest() :
                         mainSourceDir = mainSourceDir,
                         commonSourceDir = commonSourceDir,
                     )
-                runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
+                runner.createCodebaseAndRun(inputs) { codebase ->
+                    val context = DefaultCodebaseContext(codebase)
+                    context.test()
+                }
             }
     }
 
@@ -229,12 +232,10 @@ abstract class BaseModelTest() :
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            sources,
+            inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
-        ) { codebase ->
-            val context = DefaultCodebaseContext(codebase)
-            context.test()
-        }
+            test = test,
+        )
     }
 
     /**
@@ -289,10 +290,8 @@ abstract class BaseModelTest() :
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
-        ) { codebase ->
-            val context = DefaultCodebaseContext(codebase)
-            context.test()
-        }
+            test = test,
+        )
     }
 
     /**
