@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
@@ -28,7 +27,6 @@ import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
@@ -135,9 +133,6 @@ internal class PsiSourceParser(
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
-        val units = Extractor.createUnitsForFiles(environment.ideaProject, sourceSet.sources)
-        val packageDocs = gatherPackageJavadoc(sourceSet)
-
         val codebase =
             PsiBasedCodebase(
                 location = rootDir,
@@ -146,7 +141,7 @@ internal class PsiSourceParser(
                 reporter = reporter,
                 allowReadingComments = allowReadingComments,
             )
-        codebase.initializeFromSources(environment, units, packageDocs)
+        codebase.initializeFromSources(environment, sourceSet)
         return codebase
     }
 

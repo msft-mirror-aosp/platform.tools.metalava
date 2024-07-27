@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
+import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AbstractCodebase
@@ -31,7 +32,9 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.PackageDocs
+import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
@@ -173,10 +176,11 @@ internal class PsiBasedCodebase(
 
     internal fun initializeFromSources(
         uastEnvironment: UastEnvironment,
-        psiFiles: List<PsiFile>,
-        packages: PackageDocs,
+        sourceSet: SourceSet,
     ) {
         initializing = true
+
+        val packages = gatherPackageJavadoc(sourceSet)
 
         this.uastEnvironment = uastEnvironment
         val packageDocs = packages.packageDocs
@@ -186,6 +190,9 @@ internal class PsiBasedCodebase(
         packageClasses!![""] = ArrayList()
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
+
+        // Get the list of `PsiFile`s from the `SourceSet`.
+        val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
         // A set to track @JvmMultifileClasses that have already been added to
         // [topLevelClassesFromSource]
