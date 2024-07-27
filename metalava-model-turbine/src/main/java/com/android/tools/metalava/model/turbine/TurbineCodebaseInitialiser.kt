@@ -299,7 +299,13 @@ internal open class TurbineCodebaseInitialiser(
         val modifiers = packageDoc.modifiers ?: DefaultModifierList.createPublic(codebase)
         val documentationFactory = (packageDoc.comment ?: "").toItemDocumentationFactory()
         val turbinePkgItem =
-            itemFactory.createPackageItem(fileLocation, modifiers, documentationFactory, name)
+            itemFactory.createPackageItem(
+                fileLocation,
+                modifiers,
+                documentationFactory,
+                name,
+                packageDoc.overview,
+            )
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }

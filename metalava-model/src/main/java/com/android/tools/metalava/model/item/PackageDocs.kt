@@ -40,6 +40,12 @@ interface PackageDoc {
     val fileLocation: FileLocation
     val modifiers: DefaultModifierList?
     val comment: String?
+
+    /**
+     * The contents of the optional `overview.html` file.
+     *
+     * If specified this is used for [PackageItem.overviewDocumentation].
+     */
     val overview: String?
 
     companion object {

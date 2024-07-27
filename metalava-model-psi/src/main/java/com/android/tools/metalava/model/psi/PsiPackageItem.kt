@@ -35,7 +35,7 @@ internal constructor(
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     qualifiedName: String,
-    override val overviewDocumentation: String?,
+    overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
@@ -47,6 +47,7 @@ internal constructor(
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         qualifiedName = qualifiedName,
+        overviewDocumentation = overviewDocumentation,
     ),
     PackageItem,
     PsiItem {
