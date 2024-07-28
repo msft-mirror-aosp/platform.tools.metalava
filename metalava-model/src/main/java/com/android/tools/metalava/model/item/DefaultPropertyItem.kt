@@ -18,18 +18,20 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class DefaultPropertyItem(
-    codebase: DefaultCodebase,
+open class DefaultPropertyItem(
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    apiVariantSelectorsFactory: ApiVariantSelectorsFactory,
+    documentationFactory: ItemDocumentationFactory,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: DefaultModifierList,
     name: String,
     containingClass: ClassItem,
@@ -40,16 +42,16 @@ internal class DefaultPropertyItem(
         fileLocation,
         itemLanguage,
         modifiers,
-        ItemDocumentation.NONE_FACTORY,
-        apiVariantSelectorsFactory,
+        documentationFactory,
+        variantSelectorsFactory,
         name,
         containingClass,
     ),
     PropertyItem {
 
-    override fun type(): TypeItem = type
+    final override fun type(): TypeItem = type
 
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 }
