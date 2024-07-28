@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
@@ -42,8 +43,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -53,8 +52,6 @@ import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.Locale
 import java.util.function.Predicate
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.uast.UClass
 
 /**
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
@@ -554,12 +551,8 @@ class ApiAnalyzer(
     /** If a file facade class has no public members, don't add it to the api */
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
-            val psi = (cls as? PsiClassItem)?.psi()
             if (
-                psi != null &&
-                    psi.isKotlin() &&
-                    psi is UClass &&
-                    psi.javaPsi is KtLightClassForFacade &&
+                cls.isFileFacade() &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
@@ -602,167 +595,30 @@ class ApiAnalyzer(
      * methods and fields are hidden etc
      */
     private fun propagateHiddenRemovedAndDocOnly() {
-        // Iterate over the packages first and propagate hidden and docOnly down the package nesting
-        // structure, from containing to contained packages. This relies on the packages being kept
-        // in nesting order (i.e. containing package before any contained package).
-        //
-        // This must be done separate to the updating of the classes as that can change the hidden
-        // status of the containing package which would preventing it being propagated correctly
-        // onto its contained packages.
-        for (pkg in packages.packages) {
-            pkg.showability.let { showability ->
-                when {
-                    showability.show() -> pkg.hidden = false
-                    showability.hide() -> pkg.hidden = true
-                }
-            }
-            val containingPackage = pkg.containingPackage()
-            if (containingPackage != null) {
-                if (containingPackage.hidden && !containingPackage.isDefault) {
-                    pkg.hidden = true
-                }
-                if (containingPackage.docOnly) {
-                    pkg.docOnly = true
-                }
-            }
-
-            // If this package is hidden then hide its classes. This is done here to avoid ordering
-            // issues when a class with a show annotation unhides its containing package.
-            val hidden = pkg.hidden
-            val docOnly = pkg.docOnly
-            val removed = pkg.removed
-            if (hidden || docOnly || removed) {
-                for (topLevelClass in pkg.topLevelClasses()) {
-                    val showability = topLevelClass.showability
-                    if (!showability.show() && !showability.hide()) {
-                        if (hidden) {
-                            topLevelClass.hidden = true
-                        }
-                        if (hidden) {
-                            topLevelClass.docOnly = true
-                        }
-                        if (removed) {
-                            topLevelClass.removed = true
-                        }
-                    }
-                }
-            }
-        }
-
-        // Create a visitor to propagate the propagate hidden and docOnly from the containing
-        // package onto the top level classes and then propagate them, and removed status, down onto
-        // the nested classes and members.
+        // Create a visitor to propagate hidden and docOnly from the containing package onto the top
+        // level classes and then propagate them, and removed status, down onto the nested classes
+        // and members.
         val visitor =
             object : BaseItemVisitor(preserveClassNesting = true) {
 
+                override fun visitPackage(pkg: PackageItem) {
+                    pkg.variantSelectors.inheritInto()
+                }
+
                 override fun visitClass(cls: ClassItem) {
-                    val containingClass = cls.containingClass()
-                    val showability = cls.showability
-                    if (showability.show()) {
-                        cls.hidden = false
-                        // Make containing package non-hidden if it contains a show-annotation
-                        // class. Doclava does this in PackageInfo.isHidden(). This logic is why it
-                        // is necessary to visit packages before visiting any of their classes.
-                        cls.containingPackage().hidden = false
-                        if (containingClass != null) {
-                            ensureParentVisible(cls)
-                        }
-                    } else if (showability.hide()) {
-                        cls.hidden = true
-                    } else if (containingClass != null) {
-                        if (containingClass.hidden) {
-                            cls.hidden = true
-                        } else if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // See explanation in visitMethod
-                            cls.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            cls.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            cls.removed = true
-                        }
-                    }
+                    cls.variantSelectors.inheritInto()
                 }
 
                 override fun visitCallable(callable: CallableItem) {
-                    val showability = callable.showability
-                    if (showability.show()) {
-                        callable.hidden = false
-                        ensureParentVisible(callable)
-                    } else if (showability.hide()) {
-                        callable.hidden = true
-                    } else {
-                        val containingClass = callable.containingClass()
-                        if (containingClass.hidden) {
-                            callable.hidden = true
-                        } else if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // This is a member in a class that was hidden but then unhidden;
-                            // but it was unhidden by a non-recursive (single) show annotation, so
-                            // don't inherit the show annotation into this item.
-                            callable.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            callable.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            callable.removed = true
-                        }
-                    }
+                    callable.variantSelectors.inheritInto()
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val showability = field.showability
-                    if (showability.show()) {
-                        field.hidden = false
-                        ensureParentVisible(field)
-                    } else if (showability.hide()) {
-                        field.hidden = true
-                    } else {
-                        val containingClass = field.containingClass()
-                        if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // See explanation in visitMethod
-                            field.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            field.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            field.removed = true
-                        }
-                    }
-                }
-
-                private fun ensureParentVisible(item: Item) {
-                    val parent = item.parent() ?: return
-                    if (!parent.hidden) {
-                        return
-                    }
-                    item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
-                        violatingAnnotation ->
-                        reporter.report(
-                            Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
-                            item,
-                            "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                                "hidden and should also be annotated with $violatingAnnotation"
-                        )
-                    }
+                    field.variantSelectors.inheritInto()
                 }
             }
 
-        // Just visit the top level classes as packages have already been dealt with.
-        for (topLevelClass in packages.allTopLevelClasses()) {
-            topLevelClass.accept(visitor)
-        }
+        packages.accept(visitor)
     }
 
     private fun checkSystemPermissions(method: MethodItem) {
