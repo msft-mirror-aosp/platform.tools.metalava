@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -39,12 +40,17 @@ import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.source.SourceItemDocumentation
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
@@ -104,10 +110,11 @@ import javax.lang.model.element.TypeElement
  * parsed Tree
  */
 internal open class TurbineCodebaseInitialiser(
-    val units: List<CompUnit>,
-    val codebase: TurbineBasedCodebase,
-    val classpath: List<File>,
-) {
+    private val units: List<CompUnit>,
+    private val codebase: TurbineBasedCodebase,
+    private val classpath: List<File>,
+    private val allowReadingComments: Boolean,
+) : CodebaseAssembler {
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
@@ -310,7 +317,8 @@ internal open class TurbineCodebaseInitialiser(
                 continue
             }
 
-            createTopLevelClassAndContents(classSymbol)
+            val classItem = createTopLevelClassAndContents(classSymbol)
+            codebase.addTopLevelClassFromSource(classItem)
         }
 
         codebase.resolveSuperTypes()
@@ -322,43 +330,40 @@ internal open class TurbineCodebaseInitialiser(
     /**
      * Create top level classes, their nested classes and all the other members.
      *
-     * All the classes are registered by name and so can be found by [findOrCreateClass].
+     * All the classes are registered by name and so can be found by
+     * [createClassFromUnderlyingModel].
      */
-    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol) {
+    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
-        createClass(classSymbol, null, globalTypeItemFactory)
+        return createClass(classSymbol, null, globalTypeItemFactory)
     }
 
-    /** Tries to create a class if not already present in codebase's classmap */
-    internal fun findOrCreateClass(name: String): ClassItem? {
-        var classItem = codebase.findClass(name)
+    /** Tries to create a class from a Turbine class with [qualifiedName]. */
+    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
+        // This will get the symbol for the top class even if the class name is for a nested
+        // class.
+        val topClassSym = getClassSymbol(qualifiedName)
 
-        if (classItem == null) {
-            // This will get the symbol for the top class even if the class name is for a nested
-            // class.
-            val topClassSym = getClassSymbol(name)
+        // Create the top level class, if needed, along with any nested classes and register
+        // them all by name.
+        topClassSym?.let {
+            // It is possible that the top level class has already been created but just did not
+            // contain the requested nested class so check to make sure it exists before
+            // creating it.
+            val topClassName = getQualifiedName(topClassSym.binaryName())
+            codebase.findClass(topClassName)
+                ?: let {
+                    // Create and register the top level class and its nested classes.
+                    createTopLevelClassAndContents(topClassSym)
 
-            // Create the top level class, if needed, along with any nested classes and register
-            // them all by name.
-            topClassSym?.let {
-                // It is possible that the top level class has already been created but just did not
-                // contain the requested nested class so check to make sure it exists before
-                // creating it.
-                val topClassName = getQualifiedName(topClassSym.binaryName())
-                codebase.findClass(topClassName)
-                    ?: let {
-                        // Create and register the top level class and its nested classes.
-                        createTopLevelClassAndContents(topClassSym)
-
-                        // Now try and find the actual class that was requested by name. If it
-                        // exists it
-                        // should have been created in the previous call.
-                        classItem = codebase.findClass(name)
-                    }
-            }
+                    // Now try and find the actual class that was requested by name. If it exists it
+                    // should have been created in the previous call.
+                    return codebase.findClass(qualifiedName)
+                }
         }
 
-        return classItem
+        // Could not be found.
+        return null
     }
 
     private fun createClass(
@@ -411,20 +416,29 @@ internal open class TurbineCodebaseInitialiser(
                 enclosingClassTypeItemFactory,
                 "class $qualifiedName",
             )
+        val classKind = getClassKind(cls.kind())
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
                 documentationFactory = getCommentedDoc(documentation),
                 source = sourceFile,
-                classKind = getClassKind(cls.kind()),
+                classKind = classKind,
                 containingClass = containingClassItem,
+                containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
                 simpleName = simpleName,
                 fullName = fullName,
                 typeParameterList = typeParameters,
+                isFromClassPath = isFromClassPath,
             )
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
+
+        if (classKind == ClassKind.ANNOTATION_TYPE) {
+            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
+                modifierItem.addDefaultRetentionPolicyAnnotation(classItem)
+            }
+        }
 
         // Setup the SuperClass
         if (!classItem.isInterface()) {
@@ -448,15 +462,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Create constructors
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
-
-        // Add to the codebase
-        codebase.registerClass(classItem)
-
-        // Add the class to corresponding PackageItem
-        if (isTopClass) {
-            classItem.setContainingPackage(pkgItem)
-            pkgItem.addTopClass(classItem)
-        }
 
         // Do not emit to signature file if it is from classpath
         if (isFromClassPath) {
@@ -526,8 +531,14 @@ internal open class TurbineCodebaseInitialiser(
                     }
                     else -> {
                         val name = ANNOTATION_ATTR_VALUE
+                        val value =
+                            attrs[name]
+                                ?: (exp as? Literal)?.value()
+                                    ?: error(
+                                    "Cannot find value for default 'value' attribute from $exp"
+                                )
                         attributes.add(
-                            DefaultAnnotationAttribute(name, createAttrValue(attrs[name]!!, exp))
+                            DefaultAnnotationAttribute(name, createAttrValue(value, exp))
                         )
                     }
                 }
@@ -648,23 +659,22 @@ internal open class TurbineCodebaseInitialiser(
         tyParams: ImmutableMap<TyVarSymbol, TyVarInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         description: String,
-    ): Pair<TypeParameterList, TurbineTypeItemFactory> {
+    ): TypeParameterListAndFactory<TurbineTypeItemFactory> {
 
-        if (tyParams.isEmpty()) return Pair(TypeParameterList.NONE, enclosingClassTypeItemFactory)
-
-        // Create a list of [TypeParameterItem]s from turbine specific classes.
-        val (typeParameters, typeItemFactory) =
-            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-                enclosingClassTypeItemFactory,
-                description,
-                tyParams.toList(),
-                { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
-                { typeItemFactory, item, (_, tParam) ->
-                    createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
-                },
+        if (tyParams.isEmpty())
+            return TypeParameterListAndFactory(
+                TypeParameterList.NONE,
+                enclosingClassTypeItemFactory
             )
 
-        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
+        // Create a list of [TypeParameterItem]s from turbine specific classes.
+        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+            enclosingClassTypeItemFactory,
+            description,
+            tyParams.toList(),
+            { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
+            { typeItemFactory, (_, tParam) -> createTypeParameterBounds(tParam, typeItemFactory) },
+        )
     }
 
     /**
@@ -706,9 +716,7 @@ internal open class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            val nestedClassItem =
-                createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
-            classItem.addNestedClass(nestedClassItem)
+            createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
         }
     }
 
@@ -959,17 +967,17 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun javadoc(item: Tree.TyDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
     private fun javadoc(item: Tree.VarDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
     private fun javadoc(item: Tree.MethDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
@@ -995,7 +1003,7 @@ internal open class TurbineCodebaseInitialiser(
             .toItemDocumentationFactory()
     }
 
-    private fun createInitialValue(field: FieldInfo): TurbineFieldValue {
+    private fun createInitialValue(field: FieldInfo): FieldValue {
         val optExpr = field.decl()?.init()
         val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
         val constantValue = field.value()?.getValue()
@@ -1019,7 +1027,7 @@ internal open class TurbineCodebaseInitialiser(
                     }
             }
 
-        return TurbineFieldValue(constantValue, initialValueWithoutRequiredConstant)
+        return FixedFieldValue(constantValue, initialValueWithoutRequiredConstant)
     }
 
     /**
