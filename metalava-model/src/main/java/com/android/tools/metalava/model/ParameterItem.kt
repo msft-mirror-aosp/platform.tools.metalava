@@ -88,7 +88,7 @@ interface ParameterItem : Item {
     val defaultValue: DefaultValue
 
     /** Whether this is a varargs parameter */
-    fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?
@@ -118,7 +118,9 @@ interface ParameterItem : Item {
      * - Kotlin lambda = true
      * - Any other type = false
      */
-    fun isSamCompatibleOrKotlinLambda(): Boolean = codebase.unsupported()
+    fun isSamCompatibleOrKotlinLambda(): Boolean =
+        // TODO(b/354889186): Implement correctly
+        false
 
     /**
      * Create a duplicate of this for [containingCallable].

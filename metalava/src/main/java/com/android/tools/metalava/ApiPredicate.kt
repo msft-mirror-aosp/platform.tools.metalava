@@ -108,15 +108,12 @@ class ApiPredicate(
 
         val itemSelectors = item.variantSelectors
 
-        var visible =
-            item.isPublic ||
-                item.isProtected ||
-                (item.isInternal &&
-                    item.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
+        // If the item or any of its containing classes are inaccessible then ignore it.
+        if (!itemSelectors.accessible) return false
+
         var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
-        if (!visible || hidden) {
-            return false
-        }
+        if (hidden) return false
+
         if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
             return false
         }
@@ -136,40 +133,37 @@ class ApiPredicate(
             return itemSelectors.removed == matchRemoved
         }
 
-        var hasShowAnnotation = config.ignoreShown || item.hasShowAnnotation()
-        var docOnly = itemSelectors.docOnly
-        var removed = itemSelectors.removed
+        // If docOnly items are not included and this item is docOnly then ignore it.
+        if (!includeDocOnly && itemSelectors.docOnly) return false
 
-        var clazz: ClassItem? =
+        // If removed status is not ignored and this item's status does not match what is required
+        // then ignore this item.
+        if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
+
+        val closestClass: ClassItem? =
             when (item) {
                 is MemberItem -> item.containingClass()
                 is ClassItem -> item
                 else -> null
             }
 
-        while (clazz != null) {
-            visible =
-                visible and
-                    (clazz.isPublic ||
-                        clazz.isProtected ||
-                        (clazz.isInternal && clazz.hasShowAnnotation()))
-            hasShowAnnotation =
-                hasShowAnnotation or (config.ignoreShown || clazz.hasShowAnnotation())
-            hidden = hidden or clazz.hidden
-            docOnly = docOnly or clazz.docOnly
-            removed = removed or clazz.removed
-            clazz = clazz.containingClass()
+        if (!config.ignoreShown) {
+            var hasShowAnnotation = item.hasShowAnnotation()
+            var showClass = closestClass
+            while (showClass != null && !hasShowAnnotation) {
+                hasShowAnnotation = showClass.hasShowAnnotation()
+                showClass = showClass.containingClass()
+            }
+            if (!hasShowAnnotation) return false
         }
 
-        if (ignoreRemoved) {
-            removed = matchRemoved
+        var hiddenClass = closestClass
+        while (hiddenClass != null) {
+            if (hiddenClass.hidden) return false
+            hiddenClass = hiddenClass.containingClass()
         }
 
-        if (docOnly && includeDocOnly) {
-            docOnly = false
-        }
-
-        return visible && hasShowAnnotation && !hidden && !docOnly && removed == matchRemoved
+        return true
     }
 
     /**

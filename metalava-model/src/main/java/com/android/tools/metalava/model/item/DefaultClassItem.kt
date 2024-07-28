@@ -50,6 +50,7 @@ open class DefaultClassItem(
     private val simpleName: String,
     private val fullName: String,
     final override val typeParameterList: TypeParameterList,
+    private val isFromClassPath: Boolean,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -60,6 +61,15 @@ open class DefaultClassItem(
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     ClassItem {
+
+    init {
+        if (containingClass == null) {
+            (containingPackage as DefaultPackageItem).addTopClass(this)
+        } else {
+            (containingClass as DefaultClassItem).addNestedClass(this)
+        }
+        codebase.registerClass(this)
+    }
 
     final override fun getSourceFile() = source
 
@@ -139,6 +149,8 @@ open class DefaultClassItem(
     /** Tracks whether the class has an implicit default constructor. */
     private var hasImplicitDefaultConstructor = false
 
+    final override fun isFromClassPath(): Boolean = isFromClassPath
+
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     final override fun createDefaultConstructor(): ConstructorItem {
@@ -202,7 +214,7 @@ open class DefaultClassItem(
     final override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
     /** Add a nested class to this class. */
-    fun addNestedClass(classItem: ClassItem) {
+    private fun addNestedClass(classItem: ClassItem) {
         mutableNestedClasses.add(classItem)
     }
 

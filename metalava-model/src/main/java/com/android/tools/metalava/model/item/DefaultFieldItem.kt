@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -25,8 +26,8 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultFieldItem(
-    codebase: DefaultCodebase,
+open class DefaultFieldItem(
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -50,17 +51,16 @@ class DefaultFieldItem(
     ),
     FieldItem {
 
-    override var inheritedFrom: ClassItem? = null
+    final override var inheritedFrom: ClassItem? = null
 
-    override fun type(): TypeItem = type
+    final override fun type(): TypeItem = type
 
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 
-    override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        val duplicated =
-            DefaultFieldItem(
+    override fun duplicate(targetContainingClass: ClassItem) =
+        DefaultFieldItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
@@ -73,23 +73,10 @@ class DefaultFieldItem(
                 isEnumConstant = isEnumConstant,
                 fieldValue = fieldValue,
             )
-        duplicated.inheritedFrom = containingClass()
+            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
+    final override fun initialValue(requireConstant: Boolean) =
+        fieldValue?.initialValue(requireConstant)
 
-        return duplicated
-    }
-
-    override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
-
-    override fun isEnumConstant(): Boolean = isEnumConstant
+    final override fun isEnumConstant(): Boolean = isEnumConstant
 }

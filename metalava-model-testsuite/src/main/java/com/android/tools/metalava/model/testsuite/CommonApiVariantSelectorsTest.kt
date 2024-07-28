@@ -18,6 +18,10 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectors.TestableSelectorsState
+import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -43,6 +47,10 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                 message = "$message (originallyHidden)"
             )
         }
+
+        expectedState.docOnly?.let { expected ->
+            assertEquals(expected, docOnly, message = "$message (docOnly)")
+        }
     }
 
     @Test
@@ -65,6 +73,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         originallyHidden=<not-set>,
                         inheritableHidden=<not-set>,
                         hidden=<not-set>,
+                        accessible=<not-set>,
                         docOnly=<not-set>,
                         removed=<not-set>,
                         inheritIntoWasCalled=<not-set>,
@@ -78,6 +87,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
             // Initialize the properties.
             selectors.hidden
+            selectors.accessible
             selectors.docOnly
             selectors.removed
             selectors.showability
@@ -88,6 +98,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         originallyHidden=false,
                         inheritableHidden=false,
                         hidden=false,
+                        accessible=true,
                         docOnly=false,
                         removed=false,
                         inheritIntoWasCalled=true,
@@ -235,13 +246,52 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             assertEquals(false, selectors.docOnly, message = "docOnly")
 
             // Check the state after initializing `docOnly`.
-            testableSelectorsState =
-                testableSelectorsState.copy(
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                    docOnly = false,
-                )
+            testableSelectorsState = testableSelectorsState.copy(docOnly = false)
             selectors.assertEquals(testableSelectorsState, message = "after `docOnly` initialized")
+        }
+    }
+
+    @Test
+    fun `Test docOnly`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /** @doconly */
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val pkgItem = codebase.assertPackage("test.pkg")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val pkgSelectors = pkgItem.variantSelectors
+            val fooSelectors = fooClass.variantSelectors
+
+            var pkgSelectorsState = TestableSelectorsState(item = pkgItem)
+            var fooSelectorsState = TestableSelectorsState(item = fooClass)
+
+            // Check the states before initializing any property.
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "initial pkg")
+            fooSelectors.assertEquals(fooSelectorsState, message = "initial foo")
+
+            // Get the `docOnly` property, do foo first to show it can inherit properly.
+            assertEquals(true, fooSelectors.docOnly, message = "foo docOnly")
+
+            // Check the states after initializing `docOnly`.
+            pkgSelectorsState = pkgSelectorsState.copy(docOnly = true)
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "after pkg")
+
+            fooSelectorsState = fooSelectorsState.copy(docOnly = true)
+            fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
         }
     }
 
@@ -268,13 +318,106 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             assertEquals(false, selectors.removed, message = "removed")
 
             // Check the state after initializing `removed`.
-            testableSelectorsState =
-                testableSelectorsState.copy(
-                    inheritIntoWasCalled = true,
-                    showability = Showability.NO_EFFECT,
-                    removed = false,
-                )
+            testableSelectorsState = testableSelectorsState.copy(removed = false)
             selectors.assertEquals(testableSelectorsState, message = "after `removed` initialized")
+        }
+    }
+
+    @Test
+    fun `Test removed`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /** @removed */
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val pkgItem = codebase.assertPackage("test.pkg")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val pkgSelectors = pkgItem.variantSelectors
+            val fooSelectors = fooClass.variantSelectors
+
+            var pkgSelectorsState = TestableSelectorsState(item = pkgItem)
+            var fooSelectorsState = TestableSelectorsState(item = fooClass)
+
+            // Check the states before initializing any property.
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "initial pkg")
+            fooSelectors.assertEquals(fooSelectorsState, message = "initial foo")
+
+            // Get the `removed` property, do foo first to show it can inherit properly.
+            assertEquals(true, fooSelectors.removed, message = "foo removed")
+
+            // Check the states after initializing `removed`.
+            pkgSelectorsState = pkgSelectorsState.copy(removed = true)
+            pkgSelectors.assertEquals(pkgSelectorsState, message = "after pkg")
+
+            fooSelectorsState = fooSelectorsState.copy(removed = true)
+            fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
+        }
+    }
+
+    @Test
+    fun `Test accessible`() {
+        runCodebaseTest(
+            inputSet(
+                java("""
+                        package test.pkg;
+                    """),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer {
+                            class PackagePrivateInaccessible {
+                                public class PublicInsideInaccessible {}
+                            }
+                            protected class Protected {
+                                public static final int FIELD = 0;
+                            }
+                            private void methodPrivateInaccessible() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            // Get the `accessible` property for the pkg, is always `true`.
+            val pkgItem = codebase.assertPackage("test.pkg")
+            assertEquals(true, pkgItem.variantSelectors.accessible, message = "pkg accessible")
+
+            var count = 0
+            pkgItem.accept(
+                object : BaseItemVisitor() {
+                    override fun visitItem(item: Item) {
+                        val name =
+                            when (item) {
+                                is ClassItem -> item.simpleName()
+                                is MemberItem -> item.name()
+                                else -> return
+                            }
+
+                        val expectedAccessible = !name.endsWith("Inaccessible")
+                        assertEquals(
+                            expectedAccessible,
+                            item.variantSelectors.accessible,
+                            message = "$item accessible"
+                        )
+                        count += 1
+                    }
+                }
+            )
+
+            // Make sure it actually did something.
+            assertEquals(10, count, message = "item count")
         }
     }
 }
