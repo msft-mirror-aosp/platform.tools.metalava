@@ -225,12 +225,19 @@ internal open class TurbineCodebaseInitialiser(
         // documentation just in case they are needed during package creation.
         val packageDocs =
             gatherPackageJavadoc(codebase.reporter, sourceSet, packageInfoList) {
-                (unit, packageName) ->
+                (unit, packageName, sourceTypeBoundClass) ->
                 val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
                 val comment = getHeaderComments(source).toItemDocumentationFactory()
-                val modifiers = DefaultModifierList.createPublic(codebase)
+
+                // Create a `TurbineSourceFile` for this unit. It is not used here but is used when
+                // creating annotations below.
+                createTurbineSourceFile(unit)
+                val annotations = createAnnotations(sourceTypeBoundClass.annotations())
+
+                val modifiers =
+                    DefaultModifierList.createPublic(codebase, annotations.toMutableList())
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 
@@ -275,6 +282,7 @@ internal open class TurbineCodebaseInitialiser(
     data class PackageInfoClass(
         val unit: CompUnit,
         val packageName: String,
+        val sourceTypeBoundClass: SourceTypeBoundClass,
     )
 
     /** Combine `package-info.java` synthetic classes and units */
@@ -285,11 +293,12 @@ internal open class TurbineCodebaseInitialiser(
         // Create a mapping between the package name and the unit.
         val packageInfoMap = packageInfoUnits.associateBy { getPackageName(it) }
 
-        return sourceClassMap.entries.map { (symbol) ->
+        return sourceClassMap.entries.map { (symbol, typeBoundClass) ->
             val packageName = symbol.packageName().replace('/', '.')
             PackageInfoClass(
                 unit = packageInfoMap[packageName]!!,
                 packageName = packageName,
+                sourceTypeBoundClass = typeBoundClass,
             )
         }
     }
