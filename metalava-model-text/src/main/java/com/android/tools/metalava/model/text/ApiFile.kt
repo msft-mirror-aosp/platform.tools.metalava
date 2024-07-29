@@ -52,6 +52,8 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -428,40 +430,32 @@ private constructor(
         tokenizer.assertIdent(token)
         val name: String = token
 
-        // If the same package showed up multiple times, make sure they have the same modifiers.
-        // (Packages can't have public/private/etc., but they can have annotations, which are part
-        // of ModifierList.)
-        val existing = codebase.findPackage(name)
-        val pkg =
-            if (existing != null) {
-                if (modifiers != existing.modifiers) {
-                    throw ApiParseException(
-                        String.format(
-                            "Contradicting declaration of package %s. Previously seen with modifiers \"%s\", but now with \"%s\"",
-                            name,
-                            existing.modifiers,
-                            modifiers
-                        ),
-                        tokenizer
-                    )
-                }
-                // Make sure that to mark the existing package as part of the current API surface if
-                // it is referenced in any signature file that was part of the current API surface.
-                if (!existing.emit) {
-                    existing.markForCurrentApiSurface()
-                }
-                existing
-            } else {
-                val newPackageItem =
-                    itemFactory.createPackageItem(
-                        fileLocation = tokenizer.fileLocation(),
-                        modifiers = modifiers,
-                        qualifiedName = name,
-                    )
-                newPackageItem.markForCurrentApiSurface()
-                codebase.addPackage(newPackageItem)
-                newPackageItem
+        // Wrap the modifiers and file location in a PackageDocs so that findOrCreatePackage(...)
+        // will create a package with them and will check to make sure that an existing package, if
+        // any, has matching modifiers.
+        val packageDoc =
+            MutablePackageDoc(
+                name,
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+            )
+        val packageDocs = PackageDocs(mapOf(name to packageDoc))
+        val (pkg, created) =
+            try {
+                codebase.findOrCreatePackage(name, packageDocs)
+            } catch (e: IllegalStateException) {
+                throw ApiParseException(e.message!!, tokenizer)
             }
+
+        if (created) {
+            pkg.markForCurrentApiSurface()
+        } else {
+            // Mark the existing package as part of the current API surface if it is referenced in
+            // any signature file that was part of the current API surface.
+            if (!pkg.emit) {
+                pkg.markForCurrentApiSurface()
+            }
+        }
 
         token = tokenizer.requireToken()
         if ("{" != token) {

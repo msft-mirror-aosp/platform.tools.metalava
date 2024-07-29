@@ -48,8 +48,12 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
 
     /**
      * Searches for the package with [packageName] in this tracker and if not found creates the
-     * corresponding [DefaultPackageItem], supplying additional information from [packageDocs] and
-     * adds the newly created [DefaultPackageItem] to this tracker.
+     * corresponding [DefaultPackageItem], supply additional information from [packageDocs] and adds
+     * the newly created [DefaultPackageItem] to this tracker.
+     *
+     * If the [DefaultPackageItem] exists and [PackageDocs] contains [PackageDoc.modifiers] for the
+     * package then make sure that the existing [DefaultPackageItem] has the same
+     * [DefaultPackageItem.modifiers], if not throw an exception.
      *
      * @param packageName the name of the package to create.
      * @param packageDocs provides additional information needed for creating a package.
@@ -61,14 +65,29 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
     ): FindOrCreatePackageResult {
-        // Check to see if the package already exists, if it does then return it along with
-        // `created = false` to show that this did not create the package.
-        findPackage(packageName)?.let {
-            return FindOrCreatePackageResult(it, false)
-        }
-
         // Get the `PackageDoc`, if any, to use for creating this package.
         val packageDoc = packageDocs[packageName]
+
+        // Check to see if the package already exists, if it does then return it along with
+        // `created = false` to show that this did not create the package.
+        findPackage(packageName)?.let { existing ->
+            // If the same package showed up multiple times, make sure they have the same modifiers.
+            // (Packages can't have public/private/etc., but they can have annotations, which are
+            // part of ModifierList.)
+            val modifiers = packageDoc.modifiers
+            if (modifiers != null && modifiers != existing.modifiers) {
+                error(
+                    String.format(
+                        "Contradicting declaration of package %s." +
+                            " Previously seen with modifiers \"%s\", but now with \"%s\"",
+                        packageName,
+                        existing.modifiers,
+                        modifiers
+                    ),
+                )
+            }
+            return FindOrCreatePackageResult(existing, false)
+        }
 
         val packageItem = packageItemFactory(packageName, packageDoc)
         addPackage(packageItem)
