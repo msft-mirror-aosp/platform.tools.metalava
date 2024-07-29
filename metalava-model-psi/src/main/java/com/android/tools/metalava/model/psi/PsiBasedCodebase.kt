@@ -555,10 +555,7 @@ internal class PsiBasedCodebase(
 
     override fun getPackages(): PackageList {
         // TODO: Sorting is probably not necessary here!
-        return PackageList(
-            this,
-            packageMap.values.toMutableList().sortedWith(PackageItem.comparator)
-        )
+        return PackageList(packageMap.values.toMutableList().sortedWith(PackageItem.comparator))
     }
 
     override fun size(): Int {

@@ -72,7 +72,7 @@ open class DefaultCodebase(
     final override fun getPackages(): PackageList {
         val list = packagesByName.values.toMutableList()
         list.sortWith(PackageItem.comparator)
-        return PackageList(this, list)
+        return PackageList(list)
     }
 
     final override fun size(): Int {
