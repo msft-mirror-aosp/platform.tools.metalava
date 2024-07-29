@@ -128,9 +128,6 @@ internal class PsiBasedCodebase(
      */
     internal val printer = CodePrinter(this, reporter)
 
-    /** Supports fully qualifying Javadoc. */
-    internal val docQualifier = DocQualifier(reporter)
-
     /** Map from class name to class item. Classes are added via [registerClass] */
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
 
@@ -306,10 +303,10 @@ internal class PsiBasedCodebase(
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage != null) {
                 val packageItem = registerPackage(pkgName, psiPackage, null)
-                packageItem.addClass(classItem)
+                packageItem.addTopClass(classItem)
             }
         } else {
-            pkg.addClass(classItem)
+            pkg.addTopClass(classItem)
         }
     }
 
@@ -555,10 +552,7 @@ internal class PsiBasedCodebase(
 
     override fun getPackages(): PackageList {
         // TODO: Sorting is probably not necessary here!
-        return PackageList(
-            this,
-            packageMap.values.toMutableList().sortedWith(PackageItem.comparator)
-        )
+        return PackageList(packageMap.values.toMutableList().sortedWith(PackageItem.comparator))
     }
 
     override fun size(): Int {
