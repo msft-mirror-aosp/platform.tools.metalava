@@ -89,27 +89,3 @@ interface PackageItem : SelectableItem {
         }
     }
 }
-
-/**
- * Find the closest enclosing, non-empty, package of the package called [qualifiedName].
- *
- * If the package name is `A.B.C` and `A.B` is empty of classes (and so was not added in the
- * [Codebase]) but `A` was not then this will skip `A.B` and return `A`.
- */
-fun Codebase.findClosestEnclosingNonEmptyPackage(qualifiedName: String): PackageItem {
-    if (qualifiedName.isEmpty()) error("Must not be called on root package")
-    else {
-        var parentPackage = qualifiedName
-        while (true) {
-            val index = parentPackage.lastIndexOf('.')
-            if (index == -1) {
-                return findPackage("") ?: error("Cannot find root package")
-            }
-            parentPackage = parentPackage.substring(0, index)
-            val pkg = findPackage(parentPackage)
-            if (pkg != null) {
-                return pkg
-            }
-        }
-    }
-}
