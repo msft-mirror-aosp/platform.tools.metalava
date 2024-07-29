@@ -136,7 +136,7 @@ internal open class TurbineCodebaseInitialiser(
         TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
 
     /** Creates [Item] instances for [codebase]. */
-    private val itemFactory =
+    override val itemFactory =
         DefaultItemFactory(
             codebase = codebase,
             // Turbine can only process java files.

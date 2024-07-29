@@ -61,7 +61,7 @@ open class DefaultCodebase(
      * The leaking of `this` is safe as the implementations do not access anything that has not been
      * initialized.
      */
-    open val assembler = assemblerFactory(@Suppress("LeakingThis") this)
+    val assembler = assemblerFactory(@Suppress("LeakingThis") this)
 
     override val reporter: Reporter
         get() = unsupported("reporter is not available")
