@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.source.utils.PackageDoc
+import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
