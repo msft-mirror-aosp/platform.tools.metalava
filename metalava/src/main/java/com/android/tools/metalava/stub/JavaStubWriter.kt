@@ -17,6 +17,7 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.actualItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -26,6 +27,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import java.io.PrintWriter
@@ -139,7 +141,7 @@ internal class JavaStubWriter(
         if (interfaces.isNotEmpty()) {
             val label = if (cls.isInterface()) " extends" else " implements"
             writer.print(label)
-            interfaces.forEachIndexed { index, type ->
+            interfaces.sortedWith(TypeItem.totalComparator).forEachIndexed { index, type ->
                 if (index > 0) {
                     writer.print(",")
                 }
@@ -330,9 +332,9 @@ internal class JavaStubWriter(
         writer.write("throw new RuntimeException(\"Stub!\");")
     }
 
-    private fun generateParameterList(method: MethodItem) {
+    private fun generateParameterList(callable: CallableItem) {
         writer.print("(")
-        method.parameters().asSequence().forEachIndexed { i, parameter ->
+        callable.parameters().asSequence().forEachIndexed { i, parameter ->
             if (i > 0) {
                 writer.print(", ")
             }
@@ -345,8 +347,8 @@ internal class JavaStubWriter(
         writer.print(")")
     }
 
-    private fun generateThrowsList(method: MethodItem) {
-        val throws = method.throwsTypes()
+    private fun generateThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             writer.print(" throws ")
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->

@@ -23,14 +23,15 @@ import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
 import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
 import com.android.tools.metalava.model.source.utils.findPackage
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
@@ -92,7 +93,7 @@ internal class PsiSourceParser(
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-    ): PsiBasedCodebase {
+    ): Codebase {
         return parseAbsoluteSources(
             sourceSet.absoluteCopy().extractRoots(reporter),
             commonSourceSet.absoluteCopy().extractRoots(reporter),
@@ -156,7 +157,7 @@ internal class PsiSourceParser(
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun loadFromJar(apiJar: File): SourceCodebase {
+    override fun loadFromJar(apiJar: File): Codebase {
         val environment = loadUastFromJars(listOf(apiJar))
         val codebase =
             PsiBasedCodebase(
@@ -330,7 +331,6 @@ internal class PsiSourceParser(
 private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
     val packageComments = HashMap<String, String>(100)
     val overviewHtml = HashMap<String, String>(10)
-    val hiddenPackages = HashSet<String>(100)
     val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
     for (file in sourceSet.sources) {
         var javadoc = false
@@ -366,10 +366,7 @@ private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
             pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
         }
         map[pkg] = contents
-        if (contents.contains("@hide")) {
-            hiddenPackages.add(pkg)
-        }
     }
 
-    return PackageDocs(packageComments, overviewHtml, hiddenPackages)
+    return PackageDocs(packageComments, overviewHtml)
 }
