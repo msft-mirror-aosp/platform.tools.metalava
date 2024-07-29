@@ -46,12 +46,35 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         return packagesByName[pkgName]
     }
 
+    /**
+     * Searches for the package with [packageName] in this tracker and if not found creates the
+     * corresponding [DefaultPackageItem] and adds it to the package map.
+     *
+     * @return a [FindOrCreatePackageResult] containing a [DefaultPackageItem] as well as a
+     *   [Boolean] that if `true` means a new [DefaultPackageItem] was created and if `false` means
+     *   an existing [DefaultPackageItem] was found.
+     */
+    fun findOrCreatePackage(packageName: String): FindOrCreatePackageResult {
+        // Check to see if the package already exists, if it does then return it along with
+        // `created = false` to show that this did not create the package.
+        findPackage(packageName)?.let {
+            return FindOrCreatePackageResult(it, false)
+        }
+
+        val packageItem = packageItemFactory(packageName, PackageDoc.EMPTY)
+        addPackage(packageItem)
+        return FindOrCreatePackageResult(packageItem, true)
+    }
+
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {
         packagesByName[packageItem.qualifiedName()] = packageItem
     }
 
-    /** Create and track [PackageItem]s for every entry in [packageDocs]. */
+    /**
+     * Create and track [PackageItem]s for every entry in [packageDocs] and make sure there is a
+     * root package.
+     */
     fun createInitialPackages(packageDocs: PackageDocs) {
         // Create packages for all the documentation packages.
         for ((packageName, packageDoc) in packageDocs) {
@@ -63,5 +86,10 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             val packageItem = packageItemFactory(packageName, packageDoc)
             addPackage(packageItem)
         }
+
+        // Make sure that there is a root package.
+        findOrCreatePackage("")
     }
 }
+
+data class FindOrCreatePackageResult(val packageItem: DefaultPackageItem, val created: Boolean)

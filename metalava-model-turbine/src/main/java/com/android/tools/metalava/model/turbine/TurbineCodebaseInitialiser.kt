@@ -334,25 +334,8 @@ internal open class TurbineCodebaseInitialiser(
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
     private fun createAllPackages(packageDocs: PackageDocs) {
-        // Create packages for all the documentation packages.
+        // Create packages for all the documentation packages and make sure there is a root package.
         codebase.packageTracker.createInitialPackages(packageDocs)
-
-        // Make sure that there is a root package.
-        findOrCreatePackage("")
-    }
-
-    /**
-     * Searches for the package with supplied name in the codebase's package map and if not found
-     * creates the corresponding TurbinePackageItem and adds it to the package map.
-     */
-    private fun findOrCreatePackage(name: String): DefaultPackageItem {
-        codebase.findPackage(name)?.let {
-            return it
-        }
-
-        val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)
-        codebase.addPackage(turbinePkgItem)
-        return turbinePkgItem
     }
 
     private fun createAllClasses(sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>) {
@@ -428,7 +411,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName)
+        val pkgItem = codebase.findOrCreatePackage(pkgName).packageItem
 
         // Create the sourcefile
         val sourceFile =

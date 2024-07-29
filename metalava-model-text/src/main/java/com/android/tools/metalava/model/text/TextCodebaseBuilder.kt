@@ -61,15 +61,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     private val itemFactory = codebase.assembler.itemFactory
 
-    private fun getOrAddPackage(pkgName: String): DefaultPackageItem {
-        val pkg = codebase.findPackage(pkgName)
-        if (pkg != null) {
-            return pkg
-        }
-        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgName)
-        codebase.addPackage(newPkg)
-        return newPkg
-    }
+    private fun getOrAddPackage(pkgName: String) = codebase.findOrCreatePackage(pkgName).packageItem
 
     fun addPackage(pkg: PackageItem) {
         codebase.addPackage(pkg as DefaultPackageItem)
