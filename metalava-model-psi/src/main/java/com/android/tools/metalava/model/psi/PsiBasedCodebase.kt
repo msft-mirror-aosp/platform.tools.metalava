@@ -196,29 +196,14 @@ internal class PsiBasedCodebase(
         // Split the `PsiFile`s into `PsiClass`es and `package-info.java` `PsiJavaFile`s.
         val (packageInfoFiles, psiClasses) = splitPsiFilesIntoClassesAndPackageInfoFiles(psiFiles)
 
-        // Process the package-info.java files.
-        val packageDocs = gatherPackageJavadoc(sourceSet)
-        val packages = packageDocs.packages
-        for (psiFile in packageInfoFiles) {
-            val (packageName, comment) =
-                getOptionalPackageNameCommentPairFromPackageInfoFile(psiFile) ?: continue
-            val fileLocation = PsiFileLocation.fromPsiElement(psiFile)
-
-            val mutablePackageDoc = packages.computeIfAbsent(packageName, ::MutablePackageDoc)
-            if (mutablePackageDoc.comment != null) {
-                reporter.report(
-                    Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                    null,
-                    "It is illegal to provide both a package-info.java file and " +
-                        "a package.html file for the same package",
-                    fileLocation,
-                )
-            }
-
-            // Always set this as package-info.java is preferred over package.html.
-            mutablePackageDoc.fileLocation = fileLocation
-            mutablePackageDoc.comment = comment
-        }
+        // Gather all package related javadoc.
+        val packageDocs =
+            gatherPackageJavadoc(
+                reporter,
+                sourceSet,
+                packageInfoFiles,
+                packageInfoDocExtractor = { getOptionalPackageDocFromPackageInfoFile(it) },
+            )
 
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
@@ -308,13 +293,11 @@ internal class PsiBasedCodebase(
     }
 
     /**
-     * Get the optional [Pair] of package name and comment from [psiFile].
+     * Get the optional [MutablePackageDoc] from [psiFile].
      *
      * @param psiFile most likely a `package-info.java` file.
      */
-    private fun getOptionalPackageNameCommentPairFromPackageInfoFile(
-        psiFile: PsiJavaFile
-    ): Pair<String, String>? {
+    private fun getOptionalPackageDocFromPackageInfoFile(psiFile: PsiJavaFile): MutablePackageDoc? {
         val packageStatement = psiFile.packageStatement
         // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
         if (packageStatement != null) {
@@ -322,7 +305,11 @@ internal class PsiBasedCodebase(
                 PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
             if (comment != null) {
                 val packageName = packageStatement.packageName
-                return Pair(packageName, comment.text)
+                return MutablePackageDoc(
+                    qualifiedName = packageName,
+                    fileLocation = PsiFileLocation.fromPsiElement(psiFile),
+                    comment = comment.text,
+                )
             }
         }
 
