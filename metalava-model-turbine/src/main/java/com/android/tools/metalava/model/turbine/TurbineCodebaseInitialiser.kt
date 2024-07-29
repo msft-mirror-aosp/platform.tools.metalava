@@ -222,7 +222,7 @@ internal open class TurbineCodebaseInitialiser(
                 val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
-                val comment = getHeaderComments(source)
+                val comment = getHeaderComments(source).toItemDocumentationFactory()
                 val packageName = extractNameFromIdent(pkg.name())
                 val modifiers = DefaultModifierList.createPublic(codebase)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
@@ -297,7 +297,7 @@ internal open class TurbineCodebaseInitialiser(
 
         val fileLocation = packageDoc.fileLocation
         val modifiers = packageDoc.modifiers ?: DefaultModifierList.createPublic(codebase)
-        val documentationFactory = (packageDoc.comment ?: "").toItemDocumentationFactory()
+        val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
         val turbinePkgItem =
             itemFactory.createPackageItem(
                 fileLocation,

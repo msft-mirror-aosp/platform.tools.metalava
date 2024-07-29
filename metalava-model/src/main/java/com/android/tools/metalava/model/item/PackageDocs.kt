@@ -17,6 +17,9 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.FileLocation
 
 /** Set of [PackageDoc] for every documented package defined in the source. */
@@ -39,7 +42,15 @@ class PackageDocs(
 interface PackageDoc {
     val fileLocation: FileLocation
     val modifiers: DefaultModifierList?
-    val comment: String?
+
+    /**
+     * Factory for creating an [ItemDocumentation] instance containing the package level document.
+     *
+     * This factory will be invoked when creating the associated [PackageItem].
+     *
+     * If specified this is used for [PackageItem.documentation].
+     */
+    val commentFactory: ItemDocumentationFactory?
 
     /**
      * The contents of the optional `overview.html` file.
@@ -57,7 +68,7 @@ interface PackageDoc {
                 override val modifiers: DefaultModifierList?
                     get() = null
 
-                override val comment
+                override val commentFactory
                     get() = null
 
                 override val overview
@@ -71,6 +82,6 @@ data class MutablePackageDoc(
     val qualifiedName: String,
     override var fileLocation: FileLocation = FileLocation.UNKNOWN,
     override var modifiers: DefaultModifierList? = null,
-    override var comment: String? = null,
+    override var commentFactory: ItemDocumentationFactory? = null,
     override var overview: String? = null,
 ) : PackageDoc

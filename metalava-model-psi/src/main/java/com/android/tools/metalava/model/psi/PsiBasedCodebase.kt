@@ -308,7 +308,8 @@ internal class PsiBasedCodebase(
                 return MutablePackageDoc(
                     qualifiedName = packageName,
                     fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-                    comment = comment.text,
+                    commentFactory =
+                        PsiItemDocumentation.factory(packageStatement, this, comment.text),
                 )
             }
         }

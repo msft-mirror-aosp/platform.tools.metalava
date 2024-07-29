@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -93,8 +94,7 @@ internal constructor(
                 psiPackage = psiPackage,
                 fileLocation = packageDoc.fileLocation,
                 modifiers = modifiers,
-                documentationFactory =
-                    PsiItemDocumentation.factory(psiPackage, codebase, packageDoc.comment),
+                documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
                 qualifiedName = qualifiedName,
                 overviewDocumentation = packageDoc.overview,
                 fromClassPath = fromClassPath,

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.utils
 
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.source.SourceSet
@@ -28,7 +29,7 @@ import java.io.File
 private enum class PackageDocumentationKind {
     PACKAGE {
         override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
-            packageDoc.comment = packageHtmlToJavadoc(contents)
+            packageDoc.commentFactory = packageHtmlToJavadoc(contents).toItemDocumentationFactory()
             packageDoc.fileLocation = FileLocation.forFile(file)
         }
     },
@@ -107,7 +108,7 @@ fun <P> gatherPackageJavadoc(
             packageInfoDocExtractor(packageInfoFile) ?: continue
 
         val packageDoc = packages.computeIfAbsent(packageName, ::MutablePackageDoc)
-        if (packageDoc.comment != null) {
+        if (packageDoc.commentFactory != null) {
             reporter.report(
                 Issues.BOTH_PACKAGE_INFO_AND_HTML,
                 null,
@@ -120,7 +121,7 @@ fun <P> gatherPackageJavadoc(
         // Always set this as package-info.java is preferred over package.html.
         packageDoc.fileLocation = fileLocation
         packageDoc.modifiers = modifiers
-        packageDoc.comment = comment
+        packageDoc.commentFactory = comment
     }
 
     return PackageDocs(packages)
