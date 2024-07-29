@@ -71,7 +71,6 @@ import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
 import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
 import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
 import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
-import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.lookup.LookupKey
@@ -122,11 +121,11 @@ internal open class TurbineCodebaseInitialiser(
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
-    /** Map between ClassSymbols and TurbineClass for classes present in source */
-    private lateinit var sourceClassMap: ImmutableMap<ClassSymbol, SourceTypeBoundClass>
-
-    /** Map between ClassSymbols and TurbineClass for classes present in classPath */
-    private lateinit var envClassMap: CompoundEnv<ClassSymbol, BytecodeBoundClass>
+    /**
+     * Map between ClassSymbols and TurbineClass for classes present on the source path or the class
+     * path
+     */
+    private lateinit var envClassMap: CompoundEnv<ClassSymbol, TypeBoundClass>
 
     private lateinit var index: TopLevelIndex
 
@@ -188,21 +187,25 @@ internal open class TurbineCodebaseInitialiser(
                     ClassPathBinder.bindClasspath(listOf()),
                     Optional.empty()
                 )!!
-            sourceClassMap = bindingResult.units()
-            envClassMap = bindingResult.classPathEnv()
             index = bindingResult.tli()
         } catch (e: Throwable) {
             throw e
         }
-        // maps class symbols to their source-based definitions
+        val sourceClassMap = bindingResult.units()
+        // Maps class symbols to their source-based definitions
         val sourceEnv = SimpleEnv(sourceClassMap)
-        // maps class symbols to their classpath-based definitions
-        val classpathEnv: CompoundEnv<ClassSymbol, TypeBoundClass> = CompoundEnv.of(envClassMap)
-        // provides a unified view of both source and classpath classes
-        val combinedEnv = classpathEnv.append(sourceEnv)
+
+        // Maps class symbols to their classpath-based definitions
+        val classPathEnv = bindingResult.classPathEnv()
+
+        // Provides a unified view of both source and classpath classes. Although, the `sourceEnv`
+        // is appended to the `CompoundEnv` that contains the `classPathEnv`, it is actually
+        // queried first. So, this will search for a class on the source path first and then on the
+        // class path.
+        envClassMap = CompoundEnv.of<ClassSymbol, TypeBoundClass>(classPathEnv).append(sourceEnv)
 
         // used to create language model elements for code analysis
-        val factory = ModelFactory(combinedEnv, ClassLoader.getSystemClassLoader(), index)
+        val factory = ModelFactory(envClassMap, ClassLoader.getSystemClassLoader(), index)
         // provides type-related operations within the Turbine compiler context
         val turbineTypes = TurbineTypes(factory)
         // provides access to code elements (packages, types, members) for analysis.
@@ -233,7 +236,7 @@ internal open class TurbineCodebaseInitialiser(
         }
 
         createAllPackages(packageDocs)
-        createAllClasses()
+        createAllClasses(sourceClassMap)
     }
     /** Map from file path to the [TurbineSourceFile]. */
     private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
@@ -288,7 +291,7 @@ internal open class TurbineCodebaseInitialiser(
         return turbinePkgItem
     }
 
-    private fun createAllClasses() {
+    private fun createAllClasses(sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>) {
         // Iterate over all the classes in the sources.
         for ((classSymbol, sourceBoundClass) in sourceClassMap) {
 
@@ -357,9 +360,10 @@ internal open class TurbineCodebaseInitialiser(
         containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ): ClassItem {
-
-        var cls: TypeBoundClass? = sourceClassMap[sym]
-        cls = if (cls != null) cls else envClassMap.get(sym)!!
+        // Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find
+        // it then look in the class path. It is guaranteed to be found in one of those places as
+        // otherwise there would be no `ClassSymbol`.
+        val cls = envClassMap.get(sym)!!
         val decl = (cls as? SourceTypeBoundClass)?.decl()
 
         val isTopClass = cls.owner() == null
