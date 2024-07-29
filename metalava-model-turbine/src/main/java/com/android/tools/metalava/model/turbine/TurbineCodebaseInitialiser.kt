@@ -38,7 +38,6 @@ import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocume
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
@@ -53,7 +52,6 @@ import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
@@ -270,40 +268,10 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createAllPackages(packageDocs: PackageDocs) {
         // Create packages for all the documentation packages.
-        for ((packageName, packageDoc) in packageDocs) {
-            createPackage(packageName, packageDoc)
-        }
+        codebase.packageTracker.createInitialPackages(packageDocs)
 
         // Make sure that there is a root package.
         findOrCreatePackage("")
-    }
-
-    /**
-     * Creates a package and registers it in the codebase's package map.
-     *
-     * Fails if there is a duplicate.
-     */
-    private fun createPackage(
-        name: String,
-        packageDoc: PackageDoc,
-    ): PackageItem {
-        codebase.findPackage(name)?.let {
-            error("Duplicate package-info.java files found for $name")
-        }
-
-        val fileLocation = packageDoc.fileLocation
-        val modifiers = packageDoc.modifiers ?: DefaultModifierList.createPublic(codebase)
-        val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
-        val turbinePkgItem =
-            itemFactory.createPackageItem(
-                fileLocation,
-                modifiers,
-                documentationFactory,
-                name,
-                packageDoc.overview,
-            )
-        codebase.addPackage(turbinePkgItem)
-        return turbinePkgItem
     }
 
     /**
