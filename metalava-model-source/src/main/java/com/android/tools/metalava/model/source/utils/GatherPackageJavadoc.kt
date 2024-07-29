@@ -103,7 +103,7 @@ fun <P> gatherPackageJavadoc(
 
     // Merge package-info.java documentation.
     for (packageInfoFile in packageInfoFiles) {
-        val (packageName, fileLocation, comment, _) =
+        val (packageName, fileLocation, modifiers, comment, _) =
             packageInfoDocExtractor(packageInfoFile) ?: continue
 
         val packageDoc = packages.computeIfAbsent(packageName, ::MutablePackageDoc)
@@ -119,6 +119,7 @@ fun <P> gatherPackageJavadoc(
 
         // Always set this as package-info.java is preferred over package.html.
         packageDoc.fileLocation = fileLocation
+        packageDoc.modifiers = modifiers
         packageDoc.comment = comment
     }
 

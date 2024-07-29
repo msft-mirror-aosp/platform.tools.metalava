@@ -16,18 +16,16 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.reporter.FileLocation
 
 /** Set of [PackageDoc] for every documented package defined in the source. */
 class PackageDocs(
     private val packages: Map<String, PackageDoc>,
-) : Iterable<Map.Entry<String, PackageDoc>> {
-
+) {
     operator fun get(packageName: String): PackageDoc {
         return packages[packageName] ?: PackageDoc.EMPTY
     }
-
-    override fun iterator() = packages.entries.iterator()
 
     companion object {
         val EMPTY: PackageDocs = PackageDocs(emptyMap())
@@ -37,6 +35,7 @@ class PackageDocs(
 /** Package specific documentation. */
 interface PackageDoc {
     val fileLocation: FileLocation
+    val modifiers: DefaultModifierList?
     val comment: String?
     val overview: String?
 
@@ -45,6 +44,9 @@ interface PackageDoc {
             object : PackageDoc {
                 override val fileLocation: FileLocation
                     get() = FileLocation.UNKNOWN
+
+                override val modifiers: DefaultModifierList?
+                    get() = null
 
                 override val comment
                     get() = null
@@ -59,6 +61,7 @@ interface PackageDoc {
 data class MutablePackageDoc(
     val qualifiedName: String,
     override var fileLocation: FileLocation = FileLocation.UNKNOWN,
+    override var modifiers: DefaultModifierList? = null,
     override var comment: String? = null,
     override var overview: String? = null,
 ) : PackageDoc
