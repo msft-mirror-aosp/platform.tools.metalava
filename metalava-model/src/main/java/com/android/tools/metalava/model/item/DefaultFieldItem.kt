@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -25,8 +26,8 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultFieldItem(
-    codebase: DefaultCodebase,
+open class DefaultFieldItem(
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -50,11 +51,11 @@ class DefaultFieldItem(
     ),
     FieldItem {
 
-    override var inheritedFrom: ClassItem? = null
+    final override var inheritedFrom: ClassItem? = null
 
-    override fun type(): TypeItem = type
+    final override fun type(): TypeItem = type
 
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 
@@ -74,7 +75,8 @@ class DefaultFieldItem(
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
+    final override fun initialValue(requireConstant: Boolean) =
+        fieldValue?.initialValue(requireConstant)
 
-    override fun isEnumConstant(): Boolean = isEnumConstant
+    final override fun isEnumConstant(): Boolean = isEnumConstant
 }
