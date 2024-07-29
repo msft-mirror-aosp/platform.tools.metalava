@@ -228,7 +228,13 @@ internal open class TurbineCodebaseInitialiser(
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 
-        createAllPackages(packageDocs, classUnits)
+        // Create a mapping between all the top level classes and their containing `CompUnit` so
+        // that the latter can be looked up in createClass to create a TurbineSourceFile.
+        for (unit in classUnits) {
+            unit.decls().forEach { decl -> classSourceMap[decl] = unit }
+        }
+
+        createAllPackages(packageDocs)
         createAllClasses()
     }
     /** Map from file path to the [TurbineSourceFile]. */
@@ -262,23 +268,13 @@ internal open class TurbineCodebaseInitialiser(
     private fun CompUnit.isPackageInfo() =
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
-    private fun createAllPackages(
-        packageDocs: PackageDocs,
-        classUnits: List<CompUnit>,
-    ) {
+    private fun createAllPackages(packageDocs: PackageDocs) {
         // Create packages for all the documentation packages.
         for ((packageName, packageDoc) in packageDocs) {
             createPackage(packageName, packageDoc)
         }
 
-        // Then, create or find a package for every class.
-        for (unit in classUnits) {
-            val name = getPackageName(unit)
-            findOrCreatePackage(name)
-            unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
-        }
-
-        // Finally, make sure that there is a root package.
+        // Make sure that there is a root package.
         findOrCreatePackage("")
     }
 
@@ -325,6 +321,7 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createAllClasses() {
+        // Iterate over all the classes in the sources.
         for ((classSymbol, sourceBoundClass) in sourceClassMap) {
 
             // Turbine considers package-info as class and creates one for empty packages which is
