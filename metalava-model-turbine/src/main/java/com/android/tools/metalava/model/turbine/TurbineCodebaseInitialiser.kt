@@ -214,17 +214,22 @@ internal open class TurbineCodebaseInitialiser(
         // Split units into package-info.java units and normal class units.
         val (packageInfoUnits, classUnits) = units.partition { it.isPackageInfo() }
 
+        val (packageInfoClasses, sourceClasses) =
+            separatePackageInfoClassesFromRealClasses(sourceClassMap)
+
+        val packageInfoList =
+            combinePackageInfoClassesAndUnits(packageInfoClasses, packageInfoUnits)
+
         // Scan the files looking for package.html and overview.html files and combine that with
         // information from package-info.java units to create a comprehensive set of package
         // documentation just in case they are needed during package creation.
         val packageDocs =
-            gatherPackageJavadoc(codebase.reporter, sourceSet, packageInfoUnits) { unit ->
-                val pkg = unit.pkg().orElse(null) ?: return@gatherPackageJavadoc null
+            gatherPackageJavadoc(codebase.reporter, sourceSet, packageInfoList) {
+                (unit, packageName) ->
                 val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
                 val comment = getHeaderComments(source).toItemDocumentationFactory()
-                val packageName = extractNameFromIdent(pkg.name())
                 val modifiers = DefaultModifierList.createPublic(codebase)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
@@ -236,8 +241,59 @@ internal open class TurbineCodebaseInitialiser(
         }
 
         createAllPackages(packageDocs)
-        createAllClasses(sourceClassMap)
+        createAllClasses(sourceClasses)
     }
+
+    /**
+     * Separate `package-info.java` synthetic classes from real classes.
+     *
+     * Turbine treats a `package-info.java` file as if it created a class called `package-info`.
+     * This method separates the [sourceClassMap] into two, one for the synthetic `package-info`
+     * classes and one for real classes.
+     *
+     * @param sourceClassMap the map from [ClassSymbol] to [SourceTypeBoundClass] for all classes,
+     *   real or synthetic.
+     */
+    private fun separatePackageInfoClassesFromRealClasses(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+    ): Pair<Map<ClassSymbol, SourceTypeBoundClass>, Map<ClassSymbol, SourceTypeBoundClass>> {
+        val packageInfoClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
+        val sourceClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
+        for ((symbol, typeBoundClass) in sourceClassMap) {
+            if (symbol.simpleName() == "package-info") {
+                packageInfoClasses[symbol] = typeBoundClass
+            } else {
+                sourceClasses[symbol] = typeBoundClass
+            }
+        }
+        return Pair(packageInfoClasses, sourceClasses)
+    }
+
+    /**
+     * Encapsulates information needed to create a [DefaultPackageItem] in [gatherPackageJavadoc].
+     */
+    data class PackageInfoClass(
+        val unit: CompUnit,
+        val packageName: String,
+    )
+
+    /** Combine `package-info.java` synthetic classes and units */
+    private fun combinePackageInfoClassesAndUnits(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+        packageInfoUnits: List<CompUnit>
+    ): List<PackageInfoClass> {
+        // Create a mapping between the package name and the unit.
+        val packageInfoMap = packageInfoUnits.associateBy { getPackageName(it) }
+
+        return sourceClassMap.entries.map { (symbol) ->
+            val packageName = symbol.packageName().replace('/', '.')
+            PackageInfoClass(
+                unit = packageInfoMap[packageName]!!,
+                packageName = packageName,
+            )
+        }
+    }
+
     /** Map from file path to the [TurbineSourceFile]. */
     private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
 
@@ -294,13 +350,6 @@ internal open class TurbineCodebaseInitialiser(
     private fun createAllClasses(sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>) {
         // Iterate over all the classes in the sources.
         for ((classSymbol, sourceBoundClass) in sourceClassMap) {
-
-            // Turbine considers package-info as class and creates one for empty packages which is
-            // not consistent with Psi
-            if (classSymbol.simpleName() == "package-info") {
-                continue
-            }
-
             // Ignore nested classes, they will be created when the outer class is created.
             if (sourceBoundClass.owner() != null) {
                 continue
