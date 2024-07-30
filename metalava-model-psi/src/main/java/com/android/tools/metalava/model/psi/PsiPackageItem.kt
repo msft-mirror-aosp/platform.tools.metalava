@@ -23,12 +23,15 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.source.utils.PackageDoc
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
 internal class PsiPackageItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
+    fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     qualifiedName: String,
@@ -38,7 +41,7 @@ internal constructor(
 ) :
     DefaultPackageItem(
         codebase = codebase,
-        fileLocation = PsiFileLocation.fromPsiElement(psiPackage),
+        fileLocation = fileLocation,
         itemLanguage = psiPackage.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
@@ -74,8 +77,7 @@ internal constructor(
         fun create(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
-            extraDocs: String?,
-            overviewHtml: String?,
+            packageDoc: PackageDoc,
             fromClassPath: Boolean,
         ): PsiPackageItem {
             val modifiers = PsiModifierItem.create(codebase, psiPackage)
@@ -88,12 +90,13 @@ internal constructor(
             return PsiPackageItem(
                 codebase = codebase,
                 psiPackage = psiPackage,
+                fileLocation = packageDoc.fileLocation,
                 modifiers = modifiers,
                 documentationFactory =
-                    PsiItemDocumentation.factory(psiPackage, codebase, extraDocs),
+                    PsiItemDocumentation.factory(psiPackage, codebase, packageDoc.comment),
                 qualifiedName = qualifiedName,
-                overviewDocumentation = overviewHtml,
-                fromClassPath = fromClassPath
+                overviewDocumentation = packageDoc.overview,
+                fromClassPath = fromClassPath,
             )
         }
     }
