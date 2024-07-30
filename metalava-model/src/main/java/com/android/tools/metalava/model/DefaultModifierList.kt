@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import java.lang.annotation.Retention
+import java.lang.annotation.RetentionPolicy
+
 class DefaultModifierList(
     override val codebase: Codebase,
     private var flags: Int = PACKAGE_PRIVATE,
@@ -107,7 +110,7 @@ class DefaultModifierList(
         return isSet(DEFAULT)
     }
 
-    fun isDeprecated(): Boolean {
+    override fun isDeprecated(): Boolean {
         return isSet(DEPRECATED)
     }
 
@@ -235,7 +238,7 @@ class DefaultModifierList(
         set(VARARG, vararg)
     }
 
-    fun setDeprecated(deprecated: Boolean) {
+    override fun setDeprecated(deprecated: Boolean) {
         set(DEPRECATED, deprecated)
     }
 
@@ -255,7 +258,8 @@ class DefaultModifierList(
         set(ACTUAL, actual)
     }
 
-    override fun addAnnotation(annotation: AnnotationItem) {
+    override fun addAnnotation(annotation: AnnotationItem?) {
+        annotation ?: return
         if (annotations == null) {
             annotations = mutableListOf()
         }
@@ -289,12 +293,33 @@ class DefaultModifierList(
     fun duplicate(): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
-            if (annotations == null || annotations.isEmpty()) {
+            if (annotations.isNullOrEmpty()) {
                 null
             } else {
                 annotations.toMutableList()
             }
         return DefaultModifierList(codebase, flags, newAnnotations)
+    }
+
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * While [duplicate] makes a shallow copy for use within the same [Codebase] this method creates
+     * a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): DefaultModifierList {
+        val annotations = this.annotations
+        val newAnnotations =
+            if (annotations.isNullOrEmpty()) {
+                null
+            } else {
+                mutableListOf<AnnotationItem>().apply {
+                    annotations.mapTo(this) { it.snapshot(targetCodebase) }
+                }
+            }
+        return DefaultModifierList(targetCodebase, flags, newAnnotations)
     }
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
@@ -320,7 +345,7 @@ class DefaultModifierList(
                     same == DEPRECATED &&
                         // Only differ in deprecated: not significant if implied by containing class
                         isDeprecated() &&
-                        (owner as? MethodItem)?.containingClass()?.deprecated == true
+                        (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
                 ) {
                     return true
                 }
@@ -433,4 +458,30 @@ class DefaultModifierList(
                 SUSPEND or
                 COMPANION
     }
+}
+
+/**
+ * Add a [Retention] annotation with the default [RetentionPolicy] suitable for [item].
+ *
+ * The caller must ensure that the annotation does not already have a [Retention] annotation before
+ * calling this.
+ */
+fun DefaultModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
+    // By policy, include explicit retention policy annotation if missing
+    val isKotlin = item.itemLanguage == ItemLanguage.KOTLIN
+    val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
+    addAnnotation(
+        codebase.createAnnotation(
+            buildString {
+                append('@')
+                append(Retention::class.qualifiedName)
+                append('(')
+                append(RetentionPolicy::class.qualifiedName)
+                append('.')
+                append(defaultRetentionPolicy.name)
+                append(')')
+            },
+            item,
+        )
+    )
 }
