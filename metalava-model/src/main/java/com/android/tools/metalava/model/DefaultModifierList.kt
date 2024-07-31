@@ -274,14 +274,6 @@ class DefaultModifierList(
         annotations?.removeAll(predicate)
     }
 
-    override fun clearAnnotations(annotation: AnnotationItem) {
-        annotations?.clear()
-    }
-
-    override fun isEmpty(): Boolean {
-        return flags and DEPRECATED.inv() == 0 // deprecated isn't a real modifier
-    }
-
     override fun isPackagePrivate(): Boolean {
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
