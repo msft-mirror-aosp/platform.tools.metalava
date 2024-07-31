@@ -48,20 +48,29 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
 
     /**
      * Searches for the package with [packageName] in this tracker and if not found creates the
-     * corresponding [DefaultPackageItem] and adds it to the package map.
+     * corresponding [DefaultPackageItem], supplying additional information from [packageDocs] and
+     * adds the newly created [DefaultPackageItem] to this tracker.
      *
+     * @param packageName the name of the package to create.
+     * @param packageDocs provides additional information needed for creating a package.
      * @return a [FindOrCreatePackageResult] containing a [DefaultPackageItem] as well as a
      *   [Boolean] that if `true` means a new [DefaultPackageItem] was created and if `false` means
      *   an existing [DefaultPackageItem] was found.
      */
-    fun findOrCreatePackage(packageName: String): FindOrCreatePackageResult {
+    fun findOrCreatePackage(
+        packageName: String,
+        packageDocs: PackageDocs = PackageDocs.EMPTY,
+    ): FindOrCreatePackageResult {
         // Check to see if the package already exists, if it does then return it along with
         // `created = false` to show that this did not create the package.
         findPackage(packageName)?.let {
             return FindOrCreatePackageResult(it, false)
         }
 
-        val packageItem = packageItemFactory(packageName, PackageDoc.EMPTY)
+        // Get the `PackageDoc`, if any, to use for creating this package.
+        val packageDoc = packageDocs[packageName]
+
+        val packageItem = packageItemFactory(packageName, packageDoc)
         addPackage(packageItem)
         return FindOrCreatePackageResult(packageItem, true)
     }
@@ -77,18 +86,12 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
      */
     fun createInitialPackages(packageDocs: PackageDocs) {
         // Create packages for all the documentation packages.
-        for ((packageName, packageDoc) in packageDocs) {
-            // Consistency check to ensure that there are no collisions.
-            findPackage(packageName)?.let {
-                error("Duplicate package-info.java files found for $packageName")
-            }
-
-            val packageItem = packageItemFactory(packageName, packageDoc)
-            addPackage(packageItem)
+        for (packageName in packageDocs.packageNames) {
+            findOrCreatePackage(packageName, packageDocs)
         }
 
         // Make sure that there is a root package.
-        findOrCreatePackage("")
+        findOrCreatePackage("", packageDocs)
     }
 }
 
