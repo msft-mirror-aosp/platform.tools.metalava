@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.DefaultModifierList
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
 
-/** Tests that the text model parses modifiers correctly. */
-class TextModifierListTest {
+/** Tests [DefaultModifierList] functionality. */
+class CommonModifierListTest : BaseModelTest() {
 
     @Test
     fun `test equivalentTo()`() {
