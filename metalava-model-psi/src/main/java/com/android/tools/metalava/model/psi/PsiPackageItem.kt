@@ -60,13 +60,15 @@ internal constructor(
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    fun addTopClass(classItem: PsiClassItem) {
+    override fun addTopClass(classItem: ClassItem) {
         if (!classItem.isTopLevelClass()) {
             return
         }
 
         super.addTopClass(classItem)
-        classItem.containingPackage = this
+        if (classItem is PsiClassItem) {
+            classItem.containingPackage = this
+        }
     }
 
     fun addClasses(classList: List<PsiClassItem>) {

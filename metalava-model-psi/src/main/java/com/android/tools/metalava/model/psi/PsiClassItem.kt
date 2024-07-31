@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultItem
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -80,7 +81,7 @@ internal constructor(
     ClassItem,
     PsiItem {
 
-    lateinit var containingPackage: PsiPackageItem
+    lateinit var containingPackage: DefaultPackageItem
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage

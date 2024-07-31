@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
@@ -144,7 +145,7 @@ internal class PsiBasedCodebase(
     private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
-    private lateinit var packageMap: MutableMap<String, PsiPackageItem>
+    private lateinit var packageMap: MutableMap<String, DefaultPackageItem>
 
     /**
      * Map from package name to list of classes in that package. Initialized in [initializeFromJar]
@@ -173,8 +174,6 @@ internal class PsiBasedCodebase(
 
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
-
-    private lateinit var emptyPackage: PsiPackageItem
 
     internal fun initializeFromSources(
         uastEnvironment: UastEnvironment,
@@ -382,7 +381,7 @@ internal class PsiBasedCodebase(
      * Finish initialising this codebase.
      *
      * Involves:
-     * * Constructing packages, setting [emptyPackage].
+     * * Constructing packages.
      * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
      *   interfaces referenced from the source code but provided on the class path.
      */
@@ -411,7 +410,8 @@ internal class PsiBasedCodebase(
 
         initializing = false
 
-        emptyPackage = findPackage("")!!
+        // Make sure that the empty package was created.
+        findPackage("")!!
 
         // Resolve the super types of all the classes that have been loaded.
         resolveSuperTypes()
@@ -426,7 +426,7 @@ internal class PsiBasedCodebase(
         super.dispose()
     }
 
-    private fun addParentPackages(packages: Collection<PsiPackageItem>) {
+    private fun addParentPackages(packages: Collection<DefaultPackageItem>) {
         val missingPackages =
             packages
                 .mapNotNull {
@@ -480,7 +480,7 @@ internal class PsiBasedCodebase(
         psiPackage: PsiPackage,
         sortedClasses: List<PsiClassItem>?,
         packageDoc: PackageDoc = PackageDoc.EMPTY,
-    ): PsiPackageItem {
+    ): DefaultPackageItem {
         val packageItem =
             PsiPackageItem.create(
                 this,
@@ -623,7 +623,7 @@ internal class PsiBasedCodebase(
         return packageMap.size
     }
 
-    override fun findPackage(pkgName: String): PsiPackageItem? {
+    override fun findPackage(pkgName: String): DefaultPackageItem? {
         return packageMap[pkgName]
     }
 
