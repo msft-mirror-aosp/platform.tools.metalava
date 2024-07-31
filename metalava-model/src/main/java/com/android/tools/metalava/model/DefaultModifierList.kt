@@ -356,6 +356,11 @@ class DefaultModifierList(
         return result
     }
 
+    override fun toString(): String {
+        val binaryFlags = Integer.toBinaryString(flags)
+        return "ModifierList(flags = 0b$binaryFlags, annotations = $annotations)"
+    }
+
     companion object {
         /** Create a public modifiers object. */
         fun createPublic(annotations: MutableList<AnnotationItem>? = null) =

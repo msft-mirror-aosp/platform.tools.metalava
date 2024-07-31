@@ -16,13 +16,62 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Tests [DefaultModifierList] functionality. */
 class CommonModifierListTest : BaseModelTest() {
+
+    /** Just creates a basic [Codebase] for the test to use. */
+    private fun runWithCodebase(body: CodebaseContext.() -> Unit) {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        private Foo() {}
+                    }
+                """
+            ),
+            test = body,
+        )
+    }
+
+    @Test
+    fun `test toString()`() {
+        runWithCodebase {
+            val annotation =
+                DefaultAnnotationItem.create(codebase, FileLocation.UNKNOWN, JAVA_LANG_DEPRECATED) {
+                    emptyList()
+                }!!
+            val modifiers =
+                DefaultModifierList(
+                    flags = DefaultModifierList.PUBLIC,
+                    annotations = mutableListOf(annotation),
+                )
+            assertEquals(
+                "ModifierList(flags = 0b100, annotations = [@java.lang.Deprecated])",
+                modifiers.toString()
+            )
+        }
+    }
 
     @Test
     fun `test equivalentTo()`() {
