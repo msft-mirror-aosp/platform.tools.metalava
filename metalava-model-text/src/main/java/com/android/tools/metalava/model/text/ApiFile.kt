@@ -440,22 +440,21 @@ private constructor(
                 modifiers = modifiers,
             )
         val packageDocs = PackageDocs(mapOf(name to packageDoc))
-        val (pkg, created) =
+        val pkg =
             try {
-                codebase.findOrCreatePackage(name, packageDocs)
+                codebase
+                    .findOrCreatePackage(
+                        name,
+                        packageDocs,
+                        // Make sure that this package is included in the current API surface, even
+                        // if it was created in a separate file which is not part of the current API
+                        // surface.
+                        emit = forCurrentApiSurface,
+                    )
+                    .packageItem
             } catch (e: IllegalStateException) {
                 throw ApiParseException(e.message!!, tokenizer)
             }
-
-        if (created) {
-            pkg.markForCurrentApiSurface()
-        } else {
-            // Mark the existing package as part of the current API surface if it is referenced in
-            // any signature file that was part of the current API surface.
-            if (!pkg.emit) {
-                pkg.markForCurrentApiSurface()
-            }
-        }
 
         token = tokenizer.requireToken()
         if ("{" != token) {

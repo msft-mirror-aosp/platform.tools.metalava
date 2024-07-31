@@ -57,6 +57,9 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
      *
      * @param packageName the name of the package to create.
      * @param packageDocs provides additional information needed for creating a package.
+     * @param emit if `true` then the package was created from sources that should be emitted as
+     *   part of the current API surface and so it should have its [PackageItem.emit] property set
+     *   to `true`, whether this call finds it or creates it.
      * @return a [FindOrCreatePackageResult] containing a [DefaultPackageItem] as well as a
      *   [Boolean] that if `true` means a new [DefaultPackageItem] was created and if `false` means
      *   an existing [DefaultPackageItem] was found.
@@ -64,6 +67,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
     fun findOrCreatePackage(
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
+        emit: Boolean = true,
     ): FindOrCreatePackageResult {
         // Get the `PackageDoc`, if any, to use for creating this package.
         val packageDoc = packageDocs[packageName]
@@ -86,11 +90,24 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
                     ),
                 )
             }
+
+            // If this package should be emitted then set its `emit` property to `true`, otherwise
+            // leave it unchanged. That ensures that once a package has has its `emit` property to
+            // `true` it cannot become `false`.
+            if (emit) {
+                existing.emit = true
+            }
+
             return FindOrCreatePackageResult(existing, false)
         }
 
         val packageItem = packageItemFactory(packageName, packageDoc)
         addPackage(packageItem)
+
+        // Newly created package's `emit` property is determined completely by the `emit` parameter
+        // supplied.
+        packageItem.emit = emit
+
         return FindOrCreatePackageResult(packageItem, true)
     }
 

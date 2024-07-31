@@ -411,12 +411,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val (pkgItem, created) = codebase.findOrCreatePackage(pkgName)
-        if (created) {
-            pkgItem.emit = !isFromClassPath
-        } else if (!isFromClassPath) {
-            pkgItem.emit = true
-        }
+        val pkgItem = codebase.findOrCreatePackage(pkgName, emit = !isFromClassPath).packageItem
 
         // Create the sourcefile
         val sourceFile =

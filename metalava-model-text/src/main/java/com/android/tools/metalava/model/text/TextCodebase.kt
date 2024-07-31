@@ -188,11 +188,7 @@ internal class TextCodebase(
             if (outerClass == null) {
                 val endIndex = qualifiedName.lastIndexOf('.')
                 val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                val (outerPackage, created) = findOrCreatePackage(pkgPath)
-                if (created) {
-                    outerPackage.emit = false
-                }
-                outerPackage
+                findOrCreatePackage(pkgPath, emit = false).packageItem
             } else {
                 outerClass.containingPackage() as DefaultPackageItem
             }

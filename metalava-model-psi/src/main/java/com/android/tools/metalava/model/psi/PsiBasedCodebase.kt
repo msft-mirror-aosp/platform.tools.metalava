@@ -482,12 +482,9 @@ internal class PsiBasedCodebase(
         psiPackage: PsiPackage,
     ): DefaultPackageItem {
         val pkgName = psiPackage.qualifiedName
-        val (packageItem, created) = packageTracker.findOrCreatePackage(pkgName)
-        if (created) {
-            packageItem.emit = !fromClasspath && initializing
-        }
-
-        return packageItem
+        return packageTracker
+            .findOrCreatePackage(pkgName, emit = !fromClasspath && initializing)
+            .packageItem
     }
 
     internal fun initializeFromJar(
