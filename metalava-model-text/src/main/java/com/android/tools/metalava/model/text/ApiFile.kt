@@ -940,24 +940,19 @@ private constructor(
 
     /**
      * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
-     * returning them as a (possibly empty) mutable list.
+     * returning them as a (possibly empty) list.
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(
-        tokenizer: Tokenizer,
-        startingToken: String
-    ): MutableList<AnnotationItem> {
-        val annotations: MutableList<AnnotationItem> = mutableListOf()
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String) = buildList {
         var token = startingToken
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
             DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
-                annotations.add(annotationItem)
+                add(annotationItem)
             }
         }
-        return annotations
     }
 
     /**
@@ -1231,7 +1226,7 @@ private constructor(
     private fun parseModifiers(
         tokenizer: Tokenizer,
         startingToken: String?,
-        annotations: MutableList<AnnotationItem>
+        annotations: List<AnnotationItem>
     ): DefaultModifierList {
         var token = startingToken
         val modifiers = createModifiers(DefaultModifierList.PACKAGE_PRIVATE, annotations)
@@ -1340,7 +1335,7 @@ private constructor(
     /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
     private fun createModifiers(
         visibility: Int,
-        annotations: MutableList<AnnotationItem>
+        annotations: List<AnnotationItem>
     ): DefaultModifierList {
         val modifiers = DefaultModifierList(visibility, annotations)
         // @Deprecated is also treated as a "modifier"

@@ -104,7 +104,7 @@ class CommonModifierListTest : BaseModelTest() {
             val modifiers =
                 DefaultModifierList(
                     flags = DefaultModifierList.PUBLIC,
-                    annotations = mutableListOf(annotation),
+                    annotations = listOf(annotation),
                 )
             assertEquals(
                 "ModifierList(flags = 0b100, annotations = [@java.lang.Deprecated])",
