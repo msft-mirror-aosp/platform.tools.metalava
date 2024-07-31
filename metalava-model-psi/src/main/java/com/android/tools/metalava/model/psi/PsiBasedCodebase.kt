@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageTracker
 import com.android.tools.metalava.model.source.SourceSet
@@ -402,8 +401,7 @@ internal class PsiBasedCodebase(
                 continue
             }
 
-            val packageDoc = packageDocs[pkgName]
-            val packageItem = registerPackage(psiPackage, packageDoc) as PsiPackageItem
+            val packageItem = registerPackage(psiPackage, packageDocs) as PsiPackageItem
 
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             packageItem.addClasses(sortedClasses)
@@ -480,17 +478,13 @@ internal class PsiBasedCodebase(
 
     private fun registerPackage(
         psiPackage: PsiPackage,
-        packageDoc: PackageDoc = PackageDoc.EMPTY,
+        packageDocs: PackageDocs = PackageDocs.EMPTY,
     ): DefaultPackageItem {
-        val packageItem =
-            PsiPackageItem.create(
-                this,
-                psiPackage,
-                packageDoc,
-            )
-        packageItem.emit = !fromClasspath && initializing
-
-        packageTracker.addPackage(packageItem)
+        val pkgName = psiPackage.qualifiedName
+        val (packageItem, created) = packageTracker.findOrCreatePackage(pkgName, packageDocs)
+        if (created) {
+            packageItem.emit = !fromClasspath && initializing
+        }
 
         return packageItem
     }
