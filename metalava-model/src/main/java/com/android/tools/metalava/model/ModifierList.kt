@@ -82,24 +82,7 @@ interface ModifierList {
     fun isPublicOrProtected() = isPublic() || isProtected()
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
-    fun equivalentTo(other: ModifierList): Boolean {
-        if (isPublic() != other.isPublic()) return false
-        if (isProtected() != other.isProtected()) return false
-        if (isPrivate() != other.isPrivate()) return false
-
-        if (isStatic() != other.isStatic()) return false
-        if (isAbstract() != other.isAbstract()) return false
-        if (isFinal() != other.isFinal()) {
-            return false
-        }
-        if (isTransient() != other.isTransient()) return false
-        if (isVolatile() != other.isVolatile()) return false
-
-        // Default does not require an override to "remove" it
-        // if (isDefault() != other.isDefault()) return false
-
-        return true
-    }
+    fun equivalentTo(other: ModifierList): Boolean
 
     /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
     fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)

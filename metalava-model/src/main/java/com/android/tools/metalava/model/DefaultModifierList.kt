@@ -315,33 +315,34 @@ class DefaultModifierList(
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
     override fun equivalentTo(other: ModifierList): Boolean {
-        if (other is DefaultModifierList) {
-            val flags2 = other.flags
-            val mask = EQUIVALENCE_MASK
+        other as DefaultModifierList
 
-            val masked1 = flags and mask
-            val masked2 = flags2 and mask
-            val same = masked1 xor masked2
-            if (same == 0) {
+        val flags2 = other.flags
+        val mask = EQUIVALENCE_MASK
+
+        val masked1 = flags and mask
+        val masked2 = flags2 and mask
+        val same = masked1 xor masked2
+        if (same == 0) {
+            return true
+        } else {
+            if (
+                same == FINAL &&
+                    // Only differ in final: not significant if implied by containing class
+                    isFinal() &&
+                    (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
+            ) {
                 return true
-            } else {
-                if (
-                    same == FINAL &&
-                        // Only differ in final: not significant if implied by containing class
-                        isFinal() &&
-                        (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
-                ) {
-                    return true
-                } else if (
-                    same == DEPRECATED &&
-                        // Only differ in deprecated: not significant if implied by containing class
-                        isDeprecated() &&
-                        (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
-                ) {
-                    return true
-                }
+            } else if (
+                same == DEPRECATED &&
+                    // Only differ in deprecated: not significant if implied by containing class
+                    isDeprecated() &&
+                    (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
+            ) {
+                return true
             }
         }
+
         return false
     }
 
