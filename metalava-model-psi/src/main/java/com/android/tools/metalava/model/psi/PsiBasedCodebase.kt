@@ -376,6 +376,8 @@ internal class PsiBasedCodebase(
             error("incorrectly called on $classItem when initializing=`true`")
         }
 
+        if (!classItem.isTopLevelClass()) return
+
         val pkgName = getPackageName(classItem.psiClass)
         val pkg = findPackage(pkgName)
         if (pkg == null) {
