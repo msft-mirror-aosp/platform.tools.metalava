@@ -24,6 +24,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
@@ -52,6 +53,44 @@ class CommonModifierListTest : BaseModelTest() {
             ),
             test = body,
         )
+    }
+
+    @Test
+    fun `test equals() of empty modifiers`() {
+        runWithCodebase {
+            val annotation =
+                DefaultAnnotationItem.create(codebase, JAVA_LANG_DEPRECATED, emptyList())!!
+
+            // Create an empty set of modifiers
+            val modifiers = DefaultModifierList(flags = DefaultModifierList.PUBLIC)
+
+            // Create another empty set of modifiers.
+            val anotherModifiers = DefaultModifierList(flags = DefaultModifierList.PUBLIC)
+
+            // They compare equal both directly and in their string representation.
+            assertEquals(modifiers, anotherModifiers, message = "modifiers before")
+            assertEquals(
+                modifiers.toString(),
+                anotherModifiers.toString(),
+                message = "modifiers string representation before"
+            )
+
+            // Now add and remove an annotation, after which it should still be empty.
+            anotherModifiers.apply {
+                addAnnotation(annotation)
+                removeAnnotation(annotation)
+            }
+
+            // They should still compare equal both directly and in their string representation but
+            // they do not.
+            // TODO(b/356548977): Fix this.
+            assertNotEquals(modifiers, anotherModifiers, message = "modifiers")
+            assertNotEquals(
+                modifiers.toString(),
+                anotherModifiers.toString(),
+                message = "modifiers string representation"
+            )
+        }
     }
 
     @Test
