@@ -467,7 +467,7 @@ fun DefaultModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
     val isKotlin = item.itemLanguage == ItemLanguage.KOTLIN
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
     addAnnotation(
-        codebase.createAnnotation(
+        item.codebase.createAnnotation(
             buildString {
                 append('@')
                 append(Retention::class.qualifiedName)

@@ -106,21 +106,6 @@ interface ModifierList {
     /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
     fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)
 
-    /**
-     * Returns true if this modifier list contains any suppress compatibility meta-annotations.
-     *
-     * Metalava will suppress compatibility checks for APIs which are within the scope of a
-     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
-     * JARs.
-     *
-     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
-     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
-     * feature sets with unstable APIs.
-     */
-    fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        return codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(this)
-    }
-
     /** Returns true if this modifier list contains the given annotation */
     fun isAnnotatedWith(qualifiedName: String): Boolean {
         return findAnnotation(qualifiedName) != null

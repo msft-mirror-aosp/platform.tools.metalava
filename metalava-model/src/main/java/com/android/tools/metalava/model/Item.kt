@@ -212,11 +212,22 @@ interface Item : Reportable {
     fun hasShowAnnotation(): Boolean = showability.show()
 
     /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotation(): Boolean =
-        modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
+    fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
 
+    /**
+     * Returns true if this [Item]'s modifier list contains any suppress compatibility
+     * meta-annotations.
+     *
+     * Metalava will suppress compatibility checks for APIs which are within the scope of a
+     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
+     * JARs.
+     *
+     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
+     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
+     * feature sets with unstable APIs.
+     */
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
-        modifiers.hasSuppressCompatibilityMetaAnnotations()
+        codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
     fun sourceFile(): SourceFile? {
         var curr: Item? = this
