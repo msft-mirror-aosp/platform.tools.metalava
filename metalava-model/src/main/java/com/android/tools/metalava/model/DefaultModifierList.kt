@@ -250,20 +250,11 @@ class DefaultModifierList(
         set(ACTUAL, actual)
     }
 
-    override fun addAnnotation(annotation: AnnotationItem?) {
-        annotation ?: return
+    override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
         if (annotations == null) {
             annotations = mutableListOf()
         }
-        annotations?.add(annotation)
-    }
-
-    override fun removeAnnotation(annotation: AnnotationItem) {
-        annotations?.remove(annotation)
-    }
-
-    override fun removeAnnotations(predicate: (AnnotationItem) -> Boolean) {
-        annotations?.removeAll(predicate)
+        annotations!!.mutator()
     }
 
     override fun isPackagePrivate(): Boolean {
