@@ -175,7 +175,7 @@ internal class PsiBasedCodebase(
      *
      * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
      * and [ClassItem.isFromClassPath] to true for classpath classes. It is also used in
-     * [registerPackage] to set [PackageItem.emit] to true for source packages.
+     * [findOrCreatePackage] to set [PackageItem.emit] to true for source packages.
      */
     private var initializing = false
 
@@ -380,7 +380,7 @@ internal class PsiBasedCodebase(
         if (pkg == null) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage != null) {
-                val packageItem = registerPackage(psiPackage)
+                val packageItem = findOrCreatePackage(psiPackage)
                 packageItem.addTopClass(classItem)
             }
         } else {
@@ -406,7 +406,7 @@ internal class PsiBasedCodebase(
                 continue
             }
 
-            val packageItem = registerPackage(psiPackage) as PsiPackageItem
+            val packageItem = findOrCreatePackage(psiPackage) as PsiPackageItem
 
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             packageItem.addClasses(sortedClasses)
@@ -454,7 +454,7 @@ internal class PsiBasedCodebase(
         // Create PackageItems for any packages that weren't in the source
         for (pkgName in missingPackages) {
             val psiPackage = findPsiPackage(pkgName) ?: continue
-            registerPackage(psiPackage)
+            findOrCreatePackage(psiPackage)
         }
 
         // Connect up all the package items
@@ -478,7 +478,7 @@ internal class PsiBasedCodebase(
         }
     }
 
-    private fun registerPackage(
+    private fun findOrCreatePackage(
         psiPackage: PsiPackage,
     ): DefaultPackageItem {
         val pkgName = psiPackage.qualifiedName
