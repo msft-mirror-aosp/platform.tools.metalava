@@ -30,12 +30,12 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageTracker
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
@@ -145,7 +145,16 @@ internal class PsiBasedCodebase(
     private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
-    private lateinit var packageMap: MutableMap<String, DefaultPackageItem>
+    private val packageTracker = PackageTracker { packageName, packageDoc ->
+        val psiPackage =
+            findPsiPackage(packageName) ?: error("could not find PsiPackage for '$packageName'")
+        PsiPackageItem.create(
+            codebase = this@PsiBasedCodebase,
+            psiPackage = psiPackage,
+            packageDoc = packageDoc,
+            fromClassPath = fromClasspath || !initializing
+        )
+    }
 
     /**
      * Map from package name to list of classes in that package. Initialized in [initializeFromJar]
@@ -183,7 +192,6 @@ internal class PsiBasedCodebase(
 
         this.uastEnvironment = uastEnvironment
 
-        packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
         packageClasses!![""] = ArrayList()
         this.methodMap = HashMap(METHOD_ESTIMATE)
@@ -369,7 +377,7 @@ internal class PsiBasedCodebase(
         if (pkg == null) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage != null) {
-                val packageItem = registerPackage(pkgName, psiPackage, null)
+                val packageItem = registerPackage(psiPackage, null)
                 packageItem.addTopClass(classItem)
             }
         } else {
@@ -398,7 +406,6 @@ internal class PsiBasedCodebase(
             val packageDoc = packageDocs[pkgName]
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             registerPackage(
-                pkgName,
                 psiPackage,
                 sortedClasses,
                 packageDoc,
@@ -418,7 +425,7 @@ internal class PsiBasedCodebase(
 
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
-        addParentPackages(packageMap.values)
+        addParentPackages(@Suppress("DEPRECATION") packageTracker.defaultPackages)
     }
 
     override fun dispose() {
@@ -438,7 +445,7 @@ internal class PsiBasedCodebase(
                         } else {
                             ""
                         }
-                    if (packageMap.containsKey(parent)) {
+                    if (packageTracker.findPackage(parent) != null) {
                         // Already registered
                         null
                     } else {
@@ -451,11 +458,11 @@ internal class PsiBasedCodebase(
         for (pkgName in missingPackages) {
             val psiPackage = findPsiPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
-            registerPackage(pkgName, psiPackage, sortedClasses)
+            registerPackage(psiPackage, sortedClasses)
         }
 
         // Connect up all the package items
-        for (pkg in packageMap.values) {
+        for (pkg in @Suppress("DEPRECATION") packageTracker.defaultPackages) {
             var name = pkg.qualifiedName()
             // Find parent package; we have to loop since we don't always find a PSI package
             // for intermediate elements; e.g. we may jump from java.lang straight up to the default
@@ -476,7 +483,6 @@ internal class PsiBasedCodebase(
     }
 
     private fun registerPackage(
-        pkgName: String,
         psiPackage: PsiPackage,
         sortedClasses: List<PsiClassItem>?,
         packageDoc: PackageDoc = PackageDoc.EMPTY,
@@ -490,7 +496,7 @@ internal class PsiBasedCodebase(
             )
         packageItem.emit = !packageItem.isFromClassPath()
 
-        packageMap[pkgName] = packageItem
+        packageTracker.addPackage(packageItem)
 
         sortedClasses?.let { packageItem.addClasses(it) }
         return packageItem
@@ -508,7 +514,6 @@ internal class PsiBasedCodebase(
         val facade = JavaPsiFacade.getInstance(project)
         val scope = GlobalSearchScope.allScope(project)
 
-        packageMap = HashMap(PACKAGE_ESTIMATE)
         packageClasses = HashMap(PACKAGE_ESTIMATE)
         packageClasses!![""] = ArrayList()
         this.methodMap = HashMap(1000)
@@ -614,18 +619,11 @@ internal class PsiBasedCodebase(
         return classItem
     }
 
-    override fun getPackages(): PackageList {
-        // TODO: Sorting is probably not necessary here!
-        return PackageList(packageMap.values.toMutableList().sortedWith(PackageItem.comparator))
-    }
+    override fun getPackages() = packageTracker.getPackages()
 
-    override fun size(): Int {
-        return packageMap.size
-    }
+    override fun size() = packageTracker.size
 
-    override fun findPackage(pkgName: String): DefaultPackageItem? {
-        return packageMap[pkgName]
-    }
+    override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
     internal fun findPsiPackage(pkgName: String): PsiPackage? {
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
