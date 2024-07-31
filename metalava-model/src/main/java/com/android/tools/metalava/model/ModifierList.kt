@@ -79,8 +79,6 @@ interface ModifierList {
 
     fun isActual(): Boolean = false
 
-    fun isEmpty(): Boolean
-
     fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
 
     fun isPublicOrProtected() = isPublic() || isProtected()
