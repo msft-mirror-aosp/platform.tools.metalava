@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageTracker
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
@@ -211,12 +210,15 @@ internal class PsiBasedCodebase(
                 packageInfoDocExtractor = { getOptionalPackageDocFromPackageInfoFile(it) },
             )
 
+        // Create the initial set of packages that were found in the source files.
+        packageTracker.createInitialPackages(packageDocs)
+
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
             topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
         }
 
-        finishInitialization(packageDocs)
+        finishInitialization()
     }
 
     /**
@@ -394,7 +396,7 @@ internal class PsiBasedCodebase(
      * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
      *   interfaces referenced from the source code but provided on the class path.
      */
-    private fun finishInitialization(packageDocs: PackageDocs) {
+    private fun finishInitialization() {
 
         // Next construct packages
         for ((pkgName, classes) in packageClasses!!) {
@@ -404,7 +406,7 @@ internal class PsiBasedCodebase(
                 continue
             }
 
-            val packageItem = registerPackage(psiPackage, packageDocs) as PsiPackageItem
+            val packageItem = registerPackage(psiPackage) as PsiPackageItem
 
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             packageItem.addClasses(sortedClasses)
@@ -414,9 +416,6 @@ internal class PsiBasedCodebase(
         packageClasses = null
 
         initializing = false
-
-        // Make sure that the empty package was created.
-        findPackage("")!!
 
         // Resolve the super types of all the classes that have been loaded.
         resolveSuperTypes()
@@ -481,10 +480,9 @@ internal class PsiBasedCodebase(
 
     private fun registerPackage(
         psiPackage: PsiPackage,
-        packageDocs: PackageDocs = PackageDocs.EMPTY,
     ): DefaultPackageItem {
         val pkgName = psiPackage.qualifiedName
-        val (packageItem, created) = packageTracker.findOrCreatePackage(pkgName, packageDocs)
+        val (packageItem, created) = packageTracker.findOrCreatePackage(pkgName)
         if (created) {
             packageItem.emit = !fromClasspath && initializing
         }
@@ -558,7 +556,7 @@ internal class PsiBasedCodebase(
         }
 
         // When loading from a jar there is no package documentation.
-        finishInitialization(PackageDocs.EMPTY)
+        finishInitialization()
     }
 
     private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
