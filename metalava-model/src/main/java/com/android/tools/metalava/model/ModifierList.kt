@@ -17,8 +17,6 @@
 package com.android.tools.metalava.model
 
 interface ModifierList {
-    val codebase: Codebase
-
     fun annotations(): List<AnnotationItem>
 
     fun owner(): Item
@@ -116,8 +114,6 @@ interface ModifierList {
      * list
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
-        val mappedName = codebase.annotationManager.normalizeInputName(qualifiedName)
-        if (mappedName != qualifiedName) error("Passed $qualifiedName but meant $mappedName")
         return findAnnotation { qualifiedName == it.qualifiedName }
     }
 

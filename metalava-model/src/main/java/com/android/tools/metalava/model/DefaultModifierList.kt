@@ -20,7 +20,7 @@ import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
 class DefaultModifierList(
-    override val codebase: Codebase,
+    val codebase: Codebase,
     private var flags: Int = PACKAGE_PRIVATE,
     private var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
