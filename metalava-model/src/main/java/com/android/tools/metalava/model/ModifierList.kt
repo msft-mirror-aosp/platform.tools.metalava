@@ -117,7 +117,8 @@ interface ModifierList {
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
         val mappedName = codebase.annotationManager.normalizeInputName(qualifiedName)
-        return findAnnotation { mappedName == it.qualifiedName }
+        if (mappedName != qualifiedName) error("Passed $qualifiedName but meant $mappedName")
+        return findAnnotation { qualifiedName == it.qualifiedName }
     }
 
     /**
