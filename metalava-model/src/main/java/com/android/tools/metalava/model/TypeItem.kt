@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.TypeItem.Companion.equals
 import java.util.Objects
 import java.util.function.Predicate
 
@@ -194,7 +193,7 @@ interface TypeItem {
 
         /**
          * Removes java.lang. prefixes from types, unless it's in a subpackage such as
-         * java.lang.reflect. For simplicity we may also leave inner classes in the java.lang
+         * java.lang.reflect. For simplicity we may also leave nested classes in the java.lang
          * package untouched.
          *
          * NOTE: We only remove this from the front of the type; e.g. we'll replace
@@ -679,7 +678,7 @@ abstract class DefaultTypeItem(
                 return qualifiedName
             }
 
-            // If class name contains $, it's not an ambiguous inner class name.
+            // If class name contains $, it's not an ambiguous nested class name.
             if (qualifiedName.indexOf('$') != -1) {
                 return qualifiedName.replace('.', '/')
             }
@@ -931,7 +930,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      */
     val arguments: List<TypeArgumentTypeItem>
 
-    /** The outer class type of this class, if it is an inner type. */
+    /** The outer class type of this class, if it is a nested type. */
     val outerClassType: ClassTypeItem?
 
     /**
@@ -961,6 +960,12 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
+
+    /**
+     * Check to see whether this type is a functional type, i.e. references a function interface,
+     * which is an interface with at most one abstract method.
+     */
+    fun isFunctionalType(): Boolean = error("unsupported")
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
