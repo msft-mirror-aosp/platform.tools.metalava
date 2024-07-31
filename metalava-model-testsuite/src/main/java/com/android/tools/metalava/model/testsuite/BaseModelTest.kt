@@ -21,10 +21,10 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.testing.TemporaryFolderOwner
+import java.io.File
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -130,13 +130,22 @@ abstract class BaseModelTest() :
     /**
      * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
-    interface CodebaseContext<C : Codebase> {
+    interface CodebaseContext {
         /** The newly created [Codebase]. */
-        val codebase: C
+        val codebase: Codebase
+
+        /** Replace any test run specific directories in [string] with a placeholder string. */
+        fun removeTestSpecificDirectories(string: String): String
     }
 
-    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) :
-        CodebaseContext<C>
+    inner class DefaultCodebaseContext(
+        override val codebase: Codebase,
+        private val mainSourceDir: File,
+    ) : CodebaseContext {
+        override fun removeTestSpecificDirectories(string: String): String {
+            return cleanupString(string, mainSourceDir)
+        }
+    }
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -148,7 +157,7 @@ abstract class BaseModelTest() :
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
         commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
-        test: (Codebase) -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
@@ -168,7 +177,10 @@ abstract class BaseModelTest() :
                         mainSourceDir = mainSourceDir,
                         commonSourceDir = commonSourceDir,
                     )
-                runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
+                runner.createCodebaseAndRun(inputs) { codebase ->
+                    val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
+                    context.test()
+                }
             }
     }
 
@@ -192,7 +204,7 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -210,7 +222,7 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = sources,
@@ -228,20 +240,18 @@ abstract class BaseModelTest() :
     private fun runCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
-        test: CodebaseContext<Codebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            sources,
+            inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
-        ) { codebase ->
-            val context = DefaultCodebaseContext(codebase)
-            context.test()
-        }
+            test = test,
+        )
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [sources] and then run the [test] on that
-     * [SourceCodebase].
+     * Create a [Codebase] from one of the supplied [sources] and then run the [test] on that
+     * [Codebase].
      *
      * The [sources] array should have at most one [TestFile] whose extension matches an
      * [InputFormat.extension].
@@ -249,7 +259,7 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
-        test: CodebaseContext<SourceCodebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -260,15 +270,15 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
-     * [test] on that [SourceCodebase].
+     * Create a [Codebase] from one of the supplied [sources] [InputSet]s and then run the [test] on
+     * that [Codebase].
      *
      * The [sources] array should have at most one [InputSet] of each [InputFormat].
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
-        test: CodebaseContext<SourceCodebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = sources,
@@ -278,24 +288,21 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
-     * [test] on that [SourceCodebase].
+     * Create a [Codebase] from one of the supplied [sources] [InputSet]s and then run the [test] on
+     * that [Codebase].
      *
      * The [sources] array should have at most one [InputSet] of each [InputFormat].
      */
     private fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet>,
-        test: CodebaseContext<SourceCodebase>.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
-        ) { codebase ->
-            codebase as SourceCodebase
-            val context = DefaultCodebaseContext(codebase)
-            context.test()
-        }
+            test = test,
+        )
     }
 
     /**
