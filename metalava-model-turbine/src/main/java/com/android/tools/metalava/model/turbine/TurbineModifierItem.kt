@@ -34,14 +34,14 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
 import com.google.turbine.model.TurbineFlag
 
 internal object TurbineModifierItem {
-    fun create(flag: Int, annotations: List<AnnotationItem>?): DefaultModifierList {
+    fun create(flag: Int, annotations: List<AnnotationItem>): DefaultModifierList {
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                    DefaultModifierList(annotations = annotations?.toMutableList())
+                    DefaultModifierList(annotations = annotations)
                 }
                 else -> {
-                    DefaultModifierList(computeFlag(flag), annotations?.toMutableList())
+                    DefaultModifierList(computeFlag(flag), annotations)
                 }
             }
         modifierItem.setDeprecated(isDeprecated(annotations))

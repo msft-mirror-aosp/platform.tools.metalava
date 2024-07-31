@@ -21,7 +21,7 @@ import java.lang.annotation.RetentionPolicy
 
 class DefaultModifierList(
     private var flags: Int = PACKAGE_PRIVATE,
-    private var annotations: MutableList<AnnotationItem>? = null
+    private var annotations: List<AnnotationItem> = emptyList(),
 ) : MutableModifierList {
     private operator fun set(mask: Int, set: Boolean) {
         flags =
@@ -37,7 +37,7 @@ class DefaultModifierList(
     }
 
     override fun annotations(): List<AnnotationItem> {
-        return annotations ?: emptyList()
+        return annotations
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {
@@ -251,10 +251,9 @@ class DefaultModifierList(
     }
 
     override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
-        if (annotations == null) {
-            annotations = mutableListOf()
-        }
-        annotations!!.mutator()
+        val mutable = annotations.toMutableList()
+        mutable.mutator()
+        annotations = mutable.toList()
     }
 
     override fun isPackagePrivate(): Boolean {
@@ -266,14 +265,7 @@ class DefaultModifierList(
      * codebase.
      */
     fun duplicate(): DefaultModifierList {
-        val annotations = this.annotations
-        val newAnnotations =
-            if (annotations.isNullOrEmpty()) {
-                null
-            } else {
-                annotations.toMutableList()
-            }
-        return DefaultModifierList(flags, newAnnotations)
+        return DefaultModifierList(flags, this.annotations)
     }
 
     /**
@@ -287,8 +279,8 @@ class DefaultModifierList(
     fun snapshot(targetCodebase: Codebase): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
-            if (annotations.isNullOrEmpty()) {
-                null
+            if (annotations.isEmpty()) {
+                annotations
             } else {
                 mutableListOf<AnnotationItem>().apply {
                     annotations.mapTo(this) { it.snapshot(targetCodebase) }
@@ -343,7 +335,7 @@ class DefaultModifierList(
 
     override fun hashCode(): Int {
         var result = flags
-        result = 31 * result + (annotations?.hashCode() ?: 0)
+        result = 31 * result + annotations.hashCode()
         return result
     }
 
@@ -354,7 +346,7 @@ class DefaultModifierList(
 
     companion object {
         /** Create a public modifiers object. */
-        fun createPublic(annotations: MutableList<AnnotationItem>? = null) =
+        fun createPublic(annotations: List<AnnotationItem> = emptyList()) =
             DefaultModifierList(PUBLIC, annotations)
 
         /**
