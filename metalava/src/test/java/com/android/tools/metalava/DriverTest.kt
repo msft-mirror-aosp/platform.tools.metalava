@@ -64,6 +64,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -79,7 +80,7 @@ import java.io.FileNotFoundException
 import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.net.URL
+import java.net.URI
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -376,6 +377,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
     @Suppress("DEPRECATION")
     protected fun check(
+        configFiles: Array<TestFile> = emptyArray(),
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
@@ -678,6 +680,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                     allReportedIssues.append(cleanedUpMessage).append('\n')
                 }
             }
+
+        val configFileArgs =
+            configFiles
+                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(project).path) }
+                .toTypedArray()
 
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
@@ -1023,6 +1030,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 androidJar.path,
                 *classpathArgs,
                 *kotlinPathArgs,
+                *configFileArgs,
                 *removedArgs,
                 *apiArgs,
                 *subtractApiArgs,
@@ -1305,13 +1313,14 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         assertNotNull(output)
         assertTrue(output.exists())
         val url =
-            URL(
-                "jar:" +
-                    SdkUtils.fileToUrlString(output) +
-                    "!/" +
-                    pkg.replace('.', '/') +
-                    "/annotations.xml"
-            )
+            URI(
+                    "jar:" +
+                        SdkUtils.fileToUrlString(output) +
+                        "!/" +
+                        pkg.replace('.', '/') +
+                        "/annotations.xml"
+                )
+                .toURL()
         val stream = url.openStream()
         try {
             val bytes = stream.readBytes()

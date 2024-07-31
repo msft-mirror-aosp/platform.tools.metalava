@@ -17,7 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
-import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -37,7 +37,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             object :
                 ApiVisitor(
                     // Sort by source order such that warnings follow source line number order
-                    methodComparator = MethodItem.sourceOrderComparator,
+                    callableComparator = CallableItem.sourceOrderComparator,
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
                 override fun skip(item: Item): Boolean {
@@ -53,16 +53,17 @@ class AndroidApiChecks(val reporter: Reporter) {
                     checkTodos(item)
                 }
 
+                override fun visitCallable(callable: CallableItem) {
+                    checkRequiresPermission(callable)
+                }
+
                 override fun visitMethod(method: MethodItem) {
-                    checkRequiresPermission(method)
-                    if (!method.isConstructor()) {
-                        checkVariable(
-                            method,
-                            "@return",
-                            "Return value of '" + method.name() + "'",
-                            method.returnType()
-                        )
-                    }
+                    checkVariable(
+                        method,
+                        "@return",
+                        "Return value of '" + method.name() + "'",
+                        method.returnType()
+                    )
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -79,7 +80,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
-                            parameter.containingMethod().name() +
+                            parameter.containingCallable().name() +
                             "'",
                         parameter.type()
                     )
@@ -106,10 +107,10 @@ class AndroidApiChecks(val reporter: Reporter) {
 
     private fun findDocumentation(item: Item, tag: String?): String {
         if (item is ParameterItem) {
-            return findDocumentation(item.containingMethod(), item.name())
+            return findDocumentation(item.containingCallable(), item.name())
         }
 
-        val doc = item.documentation
+        val doc = item.documentation.text
         if (doc.isBlank()) {
             return ""
         }
@@ -187,39 +188,41 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
     }
 
-    private fun checkRequiresPermission(method: MethodItem) {
-        val text = method.documentation
+    private fun checkRequiresPermission(callable: CallableItem) {
+        val text = callable.documentation
 
-        val annotation = method.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
+        val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         if (annotation != null) {
+            var conditional = false
+            val permissions = mutableListOf<String>()
             for (attribute in annotation.attributes) {
-                var values: List<AnnotationAttributeValue>? = null
                 when (attribute.name) {
                     "value",
                     "allOf",
                     "anyOf" -> {
-                        values = attribute.leafValues()
+                        attribute.leafValues().mapTo(permissions) { it.toSource() }
+                    }
+                    "conditional" -> {
+                        conditional = attribute.value.value() == true
                     }
                 }
-                if (values == null || values.isEmpty()) {
-                    continue
-                }
-
-                for (value in values) {
-                    // var perm = String.valueOf(value.value())
-                    var perm = value.toSource()
-                    if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
-                    if (text.contains(perm)) {
-                        reporter.report(
-                            // Why is that a problem? Sometimes you want to describe
-                            // particular use cases.
-                            Issues.REQUIRES_PERMISSION,
-                            method,
-                            "Method '" +
-                                method.name() +
-                                "' documentation mentions permissions already declared by @RequiresPermission"
-                        )
-                    }
+            }
+            for (item in permissions) {
+                var perm = item
+                if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
+                val mentioned = text.contains(perm)
+                if (mentioned && !conditional) {
+                    reporter.report(
+                        Issues.REQUIRES_PERMISSION,
+                        callable,
+                        "Method '${callable.name()}' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation"
+                    )
+                } else if (!mentioned && conditional) {
+                    reporter.report(
+                        Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED,
+                        callable,
+                        "Method '${callable.name()}' documentation does not explain when the conditional permission '$perm' is required."
+                    )
                 }
             }
         } else if (
@@ -227,9 +230,9 @@ class AndroidApiChecks(val reporter: Reporter) {
         ) {
             reporter.report(
                 Issues.REQUIRES_PERMISSION,
-                method,
+                callable,
                 "Method '" +
-                    method.name() +
+                    callable.name() +
                     "' documentation mentions permissions without declaring @RequiresPermission"
             )
         }
