@@ -23,9 +23,6 @@ class DefaultModifierList(
     private var flags: Int = PACKAGE_PRIVATE,
     private var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
-    /** Set in [DefaultItem] initialization. */
-    internal lateinit var owner: Item
-
     private operator fun set(mask: Int, set: Boolean) {
         flags =
             if (set) {
@@ -41,10 +38,6 @@ class DefaultModifierList(
 
     override fun annotations(): List<AnnotationItem> {
         return annotations ?: emptyList()
-    }
-
-    override fun owner(): Item {
-        return owner
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {

@@ -19,8 +19,6 @@ package com.android.tools.metalava.model
 interface ModifierList {
     fun annotations(): List<AnnotationItem>
 
-    fun owner(): Item
-
     fun getVisibilityLevel(): VisibilityLevel
 
     fun isPublic(): Boolean

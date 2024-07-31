@@ -469,9 +469,6 @@ abstract class AbstractItem(
     final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
     init {
-        @Suppress("LeakingThis")
-        modifiers.owner = this
-
         if (documentation.contains("@deprecated")) {
             modifiers.setDeprecated(true)
         }
