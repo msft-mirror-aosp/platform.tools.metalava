@@ -377,7 +377,7 @@ internal class PsiBasedCodebase(
         if (pkg == null) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage != null) {
-                val packageItem = registerPackage(psiPackage, null)
+                val packageItem = registerPackage(psiPackage)
                 packageItem.addTopClass(classItem)
             }
         } else {
@@ -404,12 +404,10 @@ internal class PsiBasedCodebase(
             }
 
             val packageDoc = packageDocs[pkgName]
+            val packageItem = registerPackage(psiPackage, packageDoc) as PsiPackageItem
+
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
-            registerPackage(
-                psiPackage,
-                sortedClasses,
-                packageDoc,
-            )
+            packageItem.addClasses(sortedClasses)
         }
 
         // Not used after this point.
@@ -457,8 +455,7 @@ internal class PsiBasedCodebase(
         // Create PackageItems for any packages that weren't in the source
         for (pkgName in missingPackages) {
             val psiPackage = findPsiPackage(pkgName) ?: continue
-            val sortedClasses = emptyList<PsiClassItem>()
-            registerPackage(psiPackage, sortedClasses)
+            registerPackage(psiPackage)
         }
 
         // Connect up all the package items
@@ -484,7 +481,6 @@ internal class PsiBasedCodebase(
 
     private fun registerPackage(
         psiPackage: PsiPackage,
-        sortedClasses: List<PsiClassItem>?,
         packageDoc: PackageDoc = PackageDoc.EMPTY,
     ): DefaultPackageItem {
         val packageItem =
@@ -498,7 +494,6 @@ internal class PsiBasedCodebase(
 
         packageTracker.addPackage(packageItem)
 
-        sortedClasses?.let { packageItem.addClasses(it) }
         return packageItem
     }
 
