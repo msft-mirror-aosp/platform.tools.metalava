@@ -141,7 +141,7 @@ internal class PsiBasedCodebase(
     private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
-    private val packageTracker = PackageTracker { packageName, packageDoc ->
+    private val packageTracker = PackageTracker { packageName, packageDoc, _ ->
         val psiPackage =
             findPsiPackage(packageName) ?: error("could not find PsiPackage for '$packageName'")
         PsiPackageItem.create(

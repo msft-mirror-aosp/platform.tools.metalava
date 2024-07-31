@@ -29,10 +29,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test package containment[text]
-  Test package containment[turbine]
-
 com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
   test sourcefile classes[turbine]
   test sourcefile imports[turbine]

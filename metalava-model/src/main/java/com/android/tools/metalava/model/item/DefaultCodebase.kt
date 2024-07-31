@@ -65,7 +65,7 @@ open class DefaultCodebase(
         get() = unsupported("reporter is not available")
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker { packageName, packageDoc ->
+    val packageTracker = PackageTracker { packageName, packageDoc, _ ->
         val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
         assembler.itemFactory.createPackageItem(
             packageDoc.fileLocation,
