@@ -62,9 +62,6 @@ internal constructor(
         }
 
         super.addTopClass(classItem)
-        if (classItem is PsiClassItem) {
-            classItem.containingPackage = this
-        }
     }
 
     fun addClasses(classList: List<PsiClassItem>) {

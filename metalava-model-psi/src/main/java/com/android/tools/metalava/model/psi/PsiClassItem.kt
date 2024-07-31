@@ -37,7 +37,6 @@ import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultItem
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -61,6 +60,7 @@ internal constructor(
     documentationFactory: ItemDocumentationFactory,
     override val classKind: ClassKind,
     private val containingClass: ClassItem?,
+    private val containingPackage: PackageItem,
     private val qualifiedName: String,
     private val simpleName: String,
     private val fullName: String,
@@ -81,8 +81,6 @@ internal constructor(
     ),
     ClassItem,
     PsiItem {
-
-    lateinit var containingPackage: DefaultPackageItem
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
@@ -230,6 +228,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
             containingClassItem: PsiClassItem?,
+            containingPackage: PackageItem,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             fromClassPath: Boolean,
         ): PsiClassItem {
@@ -267,6 +266,7 @@ internal constructor(
                     documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     classKind = classKind,
                     containingClass = containingClassItem,
+                    containingPackage = containingPackage,
                     qualifiedName = qualifiedName,
                     simpleName = simpleName,
                     fullName = fullName,

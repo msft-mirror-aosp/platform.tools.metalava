@@ -580,12 +580,17 @@ internal class PsiBasedCodebase(
         containingClassItem: PsiClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
     ): PsiClassItem {
+        val packageName = getPackageName(psiClass)
+        val psiPackage = findPsiPackage(packageName)!!
+        val packageItem = findOrCreatePackage(psiPackage)
+
         // If initializing is true, this class is from source
         val classItem =
             PsiClassItem.create(
                 this,
                 psiClass,
                 containingClassItem,
+                packageItem,
                 enclosingClassTypeItemFactory,
                 fromClassPath = fromClasspath || !initializing,
             )
@@ -596,7 +601,6 @@ internal class PsiBasedCodebase(
             // If initializing then keep track of the class in [packageClasses]. This is not needed
             // after initializing as [packageClasses] is not needed then.
             // TODO: Cache for adjacent files!
-            val packageName = getPackageName(psiClass)
             registerPackageClass(packageName, classItem)
         }
 
