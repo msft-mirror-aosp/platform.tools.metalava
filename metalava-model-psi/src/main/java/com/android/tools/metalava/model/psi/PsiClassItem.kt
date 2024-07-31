@@ -60,6 +60,7 @@ internal constructor(
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     override val classKind: ClassKind,
+    private val containingClass: ClassItem?,
     private val qualifiedName: String,
     private val simpleName: String,
     private val fullName: String,
@@ -102,9 +103,7 @@ internal constructor(
 
     override var stubConstructor: ConstructorItem? = null
 
-    private var containingClass: PsiClassItem? = null
-
-    override fun containingClass(): PsiClassItem? = containingClass
+    override fun containingClass() = containingClass
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -267,6 +266,7 @@ internal constructor(
                     modifiers = modifiers,
                     documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     classKind = classKind,
+                    containingClass = containingClassItem,
                     qualifiedName = qualifiedName,
                     simpleName = simpleName,
                     fullName = fullName,
@@ -276,7 +276,6 @@ internal constructor(
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
                 )
-            item.containingClass = containingClassItem
 
             // Register this class now.
             codebase.registerClass(item)
