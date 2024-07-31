@@ -67,14 +67,6 @@ interface MutableModifierList : ModifierList {
         if (annotation != null) mutateAnnotations { add(annotation) }
     }
 
-    fun removeAnnotation(annotation: AnnotationItem) {
-        mutateAnnotations { remove(annotation) }
-    }
-
-    fun removeAnnotations(predicate: (AnnotationItem) -> Boolean) {
-        mutateAnnotations { removeIf(predicate) }
-    }
-
     /**
      * Mutate the [annotations] list.
      *

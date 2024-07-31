@@ -106,7 +106,7 @@ internal object PsiModifierItem {
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
         // that it should not, so this removes them.
         if (shouldRemoveNullnessAnnotations(element, modifiers)) {
-            modifiers.removeAnnotations { it.isNullnessAnnotation() }
+            modifiers.mutateAnnotations { removeIf { it.isNullnessAnnotation() } }
         }
 
         if (
