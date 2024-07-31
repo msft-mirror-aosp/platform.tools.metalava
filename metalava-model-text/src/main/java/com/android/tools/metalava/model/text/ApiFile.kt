@@ -442,16 +442,14 @@ private constructor(
         val packageDocs = PackageDocs(mapOf(name to packageDoc))
         val pkg =
             try {
-                codebase
-                    .findOrCreatePackage(
-                        name,
-                        packageDocs,
-                        // Make sure that this package is included in the current API surface, even
-                        // if it was created in a separate file which is not part of the current API
-                        // surface.
-                        emit = forCurrentApiSurface,
-                    )
-                    .packageItem
+                codebase.findOrCreatePackage(
+                    name,
+                    packageDocs,
+                    // Make sure that this package is included in the current API surface, even if
+                    // it was created in a separate file which is not part of the current API
+                    // surface.
+                    emit = forCurrentApiSurface,
+                )
             } catch (e: IllegalStateException) {
                 throw ApiParseException(e.message!!, tokenizer)
             }

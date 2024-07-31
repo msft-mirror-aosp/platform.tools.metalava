@@ -60,15 +60,13 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
      * @param emit if `true` then the package was created from sources that should be emitted as
      *   part of the current API surface and so it should have its [PackageItem.emit] property set
      *   to `true`, whether this call finds it or creates it.
-     * @return a [FindOrCreatePackageResult] containing a [DefaultPackageItem] as well as a
-     *   [Boolean] that if `true` means a new [DefaultPackageItem] was created and if `false` means
-     *   an existing [DefaultPackageItem] was found.
+     * @return the [DefaultPackageItem] that was found or created.
      */
     fun findOrCreatePackage(
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
         emit: Boolean = true,
-    ): FindOrCreatePackageResult {
+    ): DefaultPackageItem {
         // Get the `PackageDoc`, if any, to use for creating this package.
         val packageDoc = packageDocs[packageName]
 
@@ -98,7 +96,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
                 existing.emit = true
             }
 
-            return FindOrCreatePackageResult(existing, false)
+            return existing
         }
 
         val packageItem = packageItemFactory(packageName, packageDoc)
@@ -108,7 +106,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         // supplied.
         packageItem.emit = emit
 
-        return FindOrCreatePackageResult(packageItem, true)
+        return packageItem
     }
 
     /** Add the package to this. */
@@ -130,5 +128,3 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         findOrCreatePackage("", packageDocs)
     }
 }
-
-data class FindOrCreatePackageResult(val packageItem: DefaultPackageItem, val created: Boolean)
