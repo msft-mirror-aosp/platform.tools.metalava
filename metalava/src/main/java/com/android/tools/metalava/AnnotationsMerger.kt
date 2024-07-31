@@ -54,13 +54,11 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
@@ -122,7 +120,7 @@ class AnnotationsMerger(
     private fun mergeAll(
         mergeAnnotations: List<File>,
         mergeFile: (File) -> Unit,
-        mergeJavaStubsCodebase: (SourceCodebase) -> Unit
+        mergeJavaStubsCodebase: (Codebase) -> Unit
     ) {
         // Process each file (which are almost certainly directories) separately. That allows for a
         // single Java class to merge in annotations from multiple separate files.
@@ -257,7 +255,7 @@ class AnnotationsMerger(
     }
 
     private fun mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase(
-        javaStubsCodebase: SourceCodebase
+        javaStubsCodebase: Codebase
     ) {
         mergeQualifierAnnotationsFromCodebase(javaStubsCodebase)
         if (options.validateNullabilityFromMergedStubs) {
@@ -376,16 +374,6 @@ class AnnotationsMerger(
                         if (modifiers.findAnnotation(annotation.qualifiedName) == null) {
                             mergeAnnotation(mainItem, annotation)
                         }
-                    }
-
-                    // The hidden field in the main codebase is already initialized. So if the
-                    // element is hidden in the external codebase, hide it in the main codebase
-                    // too.
-                    if (item.hidden) {
-                        mainItem.hidden = true
-                    }
-                    if (item.originallyHidden) {
-                        mainItem.originallyHidden = true
                     }
 
                     return TraversalAction.CONTINUE
@@ -520,8 +508,8 @@ class AnnotationsMerger(
     ) {
         @Suppress("NAME_SHADOWING") val parameters = fixParameterString(parameters)
 
-        val methodItem: MethodItem? = classItem.findMethod(methodName, parameters)
-        if (methodItem == null) {
+        val callableItem = classItem.findCallable(methodName, parameters)
+        if (callableItem == null) {
             if (wellKnownIgnoredImport(containingClass)) {
                 return
             }
@@ -533,11 +521,11 @@ class AnnotationsMerger(
         }
 
         if (parameterIndex != -1) {
-            val parameterItem = methodItem.parameters()[parameterIndex]
+            val parameterItem = callableItem.parameters()[parameterIndex]
             mergeAnnotations(item, parameterItem)
         } else {
             // Annotation on the method itself
-            mergeAnnotations(item, methodItem)
+            mergeAnnotations(item, callableItem)
         }
     }
 

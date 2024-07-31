@@ -16,33 +16,25 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 internal class DexApiWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
-    config: Config,
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = true,
-        nestInnerClasses = false,
-        inlineInheritedFields = true,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        config = config,
-    ) {
+) : DelegatedVisitor {
+
     override fun visitClass(cls: ClassItem) {
-        if (filterEmit.test(cls)) {
-            writer.print(cls.type().internalName())
-            writer.print("\n")
-        }
+        writer.print(cls.type().internalName())
+        writer.print("\n")
+    }
+
+    override fun visitConstructor(constructor: ConstructorItem) {
+        writeCallable(constructor)
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -50,18 +42,22 @@ internal class DexApiWriter(
             return
         }
 
-        writer.print(method.containingClass().type().internalName())
+        writeCallable(method)
+    }
+
+    private fun writeCallable(callable: CallableItem) {
+        writer.print(callable.containingClass().type().internalName())
         writer.print("->")
-        writer.print(method.internalName())
+        writer.print(callable.internalName())
         writer.print("(")
-        for (pi in method.parameters()) {
+        for (pi in callable.parameters()) {
             writer.print(pi.type().internalName())
         }
         writer.print(")")
-        if (method.isConstructor()) {
+        if (callable.isConstructor()) {
             writer.print("V")
         } else {
-            val returnType = method.returnType()
+            val returnType = callable.returnType()
             writer.print(returnType.internalName())
         }
         writer.print("\n")
