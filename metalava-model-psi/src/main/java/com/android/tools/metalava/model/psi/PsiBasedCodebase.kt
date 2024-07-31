@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultPackageItem
@@ -240,7 +241,9 @@ internal class PsiBasedCodebase(
             val classes = getPsiClassesFromPsiFile(psiFile)
             when {
                 classes.isEmpty() && psiFile is PsiJavaFile -> {
-                    packageInfoFiles.add(psiFile)
+                    if (psiFile.name == JAVA_PACKAGE_INFO) {
+                        packageInfoFiles.add(psiFile)
+                    }
                 }
                 else -> {
                     for (psiClass in classes) {
@@ -300,23 +303,23 @@ internal class PsiBasedCodebase(
     /**
      * Get the optional [MutablePackageDoc] from [psiFile].
      *
-     * @param psiFile most likely a `package-info.java` file.
+     * @param psiFile must be a `package-info.java` file.
      */
     private fun getOptionalPackageDocFromPackageInfoFile(psiFile: PsiJavaFile): MutablePackageDoc? {
-        val packageStatement = psiFile.packageStatement
+        val packageStatement = psiFile.packageStatement ?: return null
+        val packageName = packageStatement.packageName
+
+        // Make sure that this is actually a package.
+        findPsiPackage(packageName) ?: return null
+
         // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
-        if (packageStatement != null) {
-            val comment =
-                PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
-            if (comment != null) {
-                val packageName = packageStatement.packageName
-                return MutablePackageDoc(
-                    qualifiedName = packageName,
-                    fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-                    commentFactory =
-                        PsiItemDocumentation.factory(packageStatement, this, comment.text),
-                )
-            }
+        val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
+        if (comment != null) {
+            return MutablePackageDoc(
+                qualifiedName = packageName,
+                fileLocation = PsiFileLocation.fromPsiElement(psiFile),
+                commentFactory = PsiItemDocumentation.factory(packageStatement, this, comment.text),
+            )
         }
 
         // No comment could be found.
