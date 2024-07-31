@@ -18,29 +18,31 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.updateCopiedMethodState
+import com.android.tools.metalava.model.item.DefaultItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -50,41 +52,40 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.getParentOfType
 
-open class PsiClassItem
+internal class PsiClassItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
-    private val name: String,
-    private val fullName: String,
-    private val qualifiedName: String,
-    private val hasImplicitDefaultConstructor: Boolean,
-    override val classKind: ClassKind,
-    override val typeParameterList: TypeParameterList,
-    private val superClassType: ClassTypeItem?,
-    private var interfaceTypes: List<ClassTypeItem>,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentationFactory: ItemDocumentationFactory,
+    override val classKind: ClassKind,
+    private val qualifiedName: String,
+    private val simpleName: String,
+    private val fullName: String,
+    override val typeParameterList: TypeParameterList,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
+    private val isFromClassPath: Boolean,
+    private val hasImplicitDefaultConstructor: Boolean,
+    private val superClassType: ClassTypeItem?,
+    private var interfaceTypes: List<ClassTypeItem>
 ) :
-    PsiItem(
+    DefaultItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation.fromPsiElement(psiClass),
+        itemLanguage = psiClass.itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiClass
+        documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ),
-    ClassItem {
-
-    init {
-        emit = !modifiers.isExpect()
-    }
+    ClassItem,
+    PsiItem {
 
     lateinit var containingPackage: PsiPackageItem
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
 
-    override fun simpleName(): String = name
+    override fun simpleName(): String = simpleName
 
     override fun fullName(): String = fullName
 
@@ -92,20 +93,17 @@ internal constructor(
 
     override fun psi() = psiClass
 
-    override fun isFromClassPath(): Boolean = fromClassPath
+    override fun isFromClassPath(): Boolean = isFromClassPath
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null
-    override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
 
     override fun containingClass(): PsiClassItem? = containingClass
-
-    override var hasPrivateConstructor: Boolean = false
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -117,54 +115,19 @@ internal constructor(
 
     override fun allInterfaces(): Sequence<ClassItem> {
         if (allInterfaces == null) {
-            val classes = mutableSetOf<PsiClass>()
-            var curr: PsiClass? = psiClass
-            while (curr != null) {
-                if (curr.isInterface && !classes.contains(curr)) {
-                    classes.add(curr)
-                }
-                addInterfaces(classes, curr.interfaces)
-                curr = curr.superClass
-            }
-            val result = mutableListOf<ClassItem>()
-            for (cls in classes) {
-                val item = codebase.findOrCreateClass(cls)
-                result.add(item)
-            }
-
-            allInterfaces = result
+            allInterfaces = computeAllInterfaces()
         }
 
         return allInterfaces!!.asSequence()
     }
 
-    private fun addInterfaces(result: MutableSet<PsiClass>, interfaces: Array<out PsiClass>) {
-        for (itf in interfaces) {
-            if (itf.isInterface && !result.contains(itf)) {
-                result.add(itf)
-                addInterfaces(result, itf.interfaces)
-                val superClass = itf.superClass
-                if (superClass != null) {
-                    addInterfaces(result, arrayOf(superClass))
-                }
-            }
-        }
-    }
-
-    private lateinit var innerClasses: List<PsiClassItem>
+    private lateinit var nestedClasses: List<PsiClassItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
-    /**
-     * If this item was created by filtering down a different codebase, this temporarily points to
-     * the original item during construction. This is used to let us initialize for example throws
-     * lists later, when all classes in the codebase have been initialized.
-     */
-    internal var source: PsiClassItem? = null
-
-    override fun innerClasses(): List<PsiClassItem> = innerClasses
+    override fun nestedClasses(): List<PsiClassItem> = nestedClasses
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -174,7 +137,7 @@ internal constructor(
 
     override fun fields(): List<FieldItem> = fields
 
-    final override var primaryConstructor: PsiConstructorItem? = null
+    override var primaryConstructor: PsiConstructorItem? = null
         private set
 
     /** Must only be used by [type] to cache its result. */
@@ -190,7 +153,7 @@ internal constructor(
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
     override fun getSourceFile(): SourceFile? {
-        if (isInnerClass()) {
+        if (isNestedClass()) {
             return null
         }
 
@@ -209,31 +172,9 @@ internal constructor(
         return PsiSourceFile(codebase, containingFile, uFile)
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ClassItem && qualifiedName == other.qualifiedName()
-    }
-
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(): ConstructorItem {
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
-    }
-
-    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
-        val method = template as PsiMethodItem
-        require(method.codebase == codebase) {
-            "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
-        }
-        val newMethod = PsiMethodItem.create(this, method)
-
-        // Remember which class this method was copied from.
-        newMethod.inheritedFrom = template.containingClass()
-
-        newMethod.updateCopiedMethodState()
-
-        return newMethod
     }
 
     override fun addMethod(method: MethodItem) {
@@ -255,7 +196,11 @@ internal constructor(
         return retention!!
     }
 
-    override fun hashCode(): Int = qualifiedName.hashCode()
+    override fun isFileFacade(): Boolean {
+        return psiClass.isKotlin() &&
+            psiClass is UClass &&
+            psiClass.javaPsi is KtLightClassForFacade
+    }
 
     companion object {
         private fun hasExplicitRetention(
@@ -299,8 +244,7 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadoc(psiClass, codebase.allowReadingComments)
-            val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiClass)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
@@ -319,17 +263,17 @@ internal constructor(
                 PsiClassItem(
                     codebase = codebase,
                     psiClass = psiClass,
-                    name = simpleName,
-                    fullName = fullName,
-                    qualifiedName = qualifiedName,
+                    modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     classKind = classKind,
+                    qualifiedName = qualifiedName,
+                    simpleName = simpleName,
+                    fullName = fullName,
                     typeParameterList = typeParameterList,
+                    isFromClassPath = fromClassPath,
+                    hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
-                    hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
-                    documentation = commentText,
-                    modifiers = modifiers,
-                    fromClassPath = fromClassPath,
                 )
             item.containingClass = containingClassItem
 
@@ -345,28 +289,11 @@ internal constructor(
                 classKind == ClassKind.ANNOTATION_TYPE &&
                     !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
-                // By policy, include explicit retention policy annotation if missing
-                val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-                modifiers.addAnnotation(
-                    codebase.createAnnotation(
-                        buildString {
-                            append('@')
-                            append(java.lang.annotation.Retention::class.qualifiedName)
-                            append('(')
-                            append(java.lang.annotation.RetentionPolicy::class.qualifiedName)
-                            append('.')
-                            append(defaultRetentionPolicy.name)
-                            append(')')
-                        },
-                        item,
-                    )
-                )
+                modifiers.addDefaultRetentionPolicyAnnotation(item)
             }
 
             // create methods
             val constructors: MutableList<PsiConstructorItem> = ArrayList(5)
-            var hasConstructorWithOnlyOptionalArgs = false
-            var noArgConstructor: PsiConstructorItem? = null
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
                     val constructor =
@@ -388,36 +315,14 @@ internal constructor(
                     if (item.modifiers.isSealed()) {
                         constructor.modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
                     }
-                    if (constructor.areAllParametersOptional()) {
-                        if (constructor.parameters().isNotEmpty()) {
-                            constructors.add(constructor)
-                            // uast reported a constructor having only optional arguments, so if we
-                            // later find an explicit no-arg constructor, we can skip it because
-                            // its existence is implied
-                            hasConstructorWithOnlyOptionalArgs = true
-                        } else {
-                            noArgConstructor = constructor
-                        }
-                    } else {
-                        constructors.add(constructor)
-                    }
-                } else if (classKind == ClassKind.ENUM && psiMethod.isSyntheticEnumMethod()) {
-                    // skip
+                    constructors.add(constructor)
                 } else {
                     val method =
                         PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
-                    methods.add(method)
+                    if (!method.isEnumSyntheticMethod()) {
+                        methods.add(method)
+                    }
                 }
-            }
-
-            // Add the no-arg constructor back in if no constructors have only optional arguments
-            // or if an all-optional constructor created it as part of @JvmOverloads
-            if (
-                noArgConstructor != null &&
-                    (!hasConstructorWithOnlyOptionalArgs ||
-                        noArgConstructor.modifiers.isAnnotatedWith("kotlin.jvm.JvmOverloads"))
-            ) {
-                constructors.add(noArgConstructor)
             }
 
             // Note that this is dependent on the constructor filtering above. UAST sometimes
@@ -468,6 +373,7 @@ internal constructor(
                 val constructorParameters =
                     item.primaryConstructor
                         ?.parameters()
+                        ?.map { it as PsiParameterItem }
                         ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
                         ?.associateBy { it.name() }
                         .orEmpty()
@@ -511,13 +417,15 @@ internal constructor(
                 item.properties = properties
             }
 
-            val psiInnerClasses = psiClass.innerClasses
-            item.innerClasses =
-                if (psiInnerClasses.isEmpty()) {
+            // This actually gets all nested classes not just inner, i.e. non-static nested,
+            // classes.
+            val psiNestedClasses = psiClass.innerClasses
+            item.nestedClasses =
+                if (psiNestedClasses.isEmpty()) {
                     emptyList()
                 } else {
                     val result =
-                        psiInnerClasses
+                        psiNestedClasses
                             .asSequence()
                             .map {
                                 codebase.createClass(
@@ -613,7 +521,7 @@ internal constructor(
 
         /**
          * Computes the "full" class name; this is not the qualified class name (e.g. with package)
-         * but for an inner class it includes all the outer classes
+         * but for a nested class it includes all the outer classes
          */
         fun computeFullClassName(cls: PsiClass): String {
             if (cls.containingClass == null) {
@@ -642,59 +550,17 @@ internal constructor(
                 //     @file:JvmName("-ViewModelExtensions") // Hide from Java sources in the IDE.
                 return false
             }
+
             if (psiClass is UClass && psiClass.sourcePsi == null) {
                 // Top level kt classes (FooKt for Foo.kt) do not have implicit default constructor
                 return false
             }
 
             val constructors = psiClass.constructors
-            if (
-                constructors.isEmpty() &&
-                    !psiClass.isInterface &&
-                    !psiClass.isAnnotationType &&
-                    !psiClass.isEnum
-            ) {
-                if (PsiUtil.hasDefaultConstructor(psiClass)) {
-                    return true
-                }
-
-                // The above method isn't always right; for example, for the
-                // ContactsContract.Presence class
-                // in the framework, which looks like this:
-                //    @Deprecated
-                //    public static final class Presence extends StatusUpdates {
-                //    }
-                // javac makes a default constructor:
-                //    public final class android.provider.ContactsContract$Presence extends
-                // android.provider.ContactsContract$StatusUpdates {
-                //        public android.provider.ContactsContract$Presence();
-                //    }
-                // but the above method returns false. So add some of our own heuristics:
-                if (
-                    psiClass.hasModifierProperty(PsiModifier.FINAL) &&
-                        !psiClass.hasModifierProperty(PsiModifier.ABSTRACT) &&
-                        psiClass.hasModifierProperty(PsiModifier.PUBLIC)
-                ) {
-                    return true
-                }
-            }
-
-            return false
+            return constructors.isEmpty() &&
+                !psiClass.isInterface &&
+                !psiClass.isAnnotationType &&
+                !psiClass.isEnum
         }
     }
-}
-
-/**
- * Check whether the method is a synthetic enum method.
- *
- * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and Kotlin.
- */
-private fun PsiMethod.isSyntheticEnumMethod(): Boolean {
-    if (containingClass?.isEnum != true) return false
-    val parameterCount = parameterList.parametersCount
-    return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
-        (parameterCount == 1 &&
-            name == "valueOf" &&
-            (parameterList.parameters[0].type as? PsiClassType)?.computeQualifiedName() ==
-                "java.lang.String")
 }

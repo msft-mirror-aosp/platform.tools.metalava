@@ -47,7 +47,7 @@ import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.util.isArrayInitializer
 
-class UAnnotationItem
+internal class UAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
@@ -308,7 +308,7 @@ private fun createValue(codebase: PsiBasedCodebase, value: UExpression): Annotat
     }
 }
 
-class UAnnotationSingleAttributeValue(
+internal class UAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: UExpression
 ) : DefaultAnnotationSingleAttributeValue({ getText(psiValue) }, { getValue(psiValue) }) {
@@ -350,7 +350,7 @@ class UAnnotationSingleAttributeValue(
             when (val resolved = psiValue.resolve()) {
                 is PsiField -> return codebase.findField(resolved)
                 is PsiClass -> return codebase.findOrCreateClass(resolved)
-                is PsiMethod -> return codebase.findMethod(resolved)
+                is PsiMethod -> return codebase.findCallableByPsiMethod(resolved)
             }
         }
         return null
