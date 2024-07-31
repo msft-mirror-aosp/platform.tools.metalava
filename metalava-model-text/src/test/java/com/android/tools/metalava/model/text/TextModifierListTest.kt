@@ -28,11 +28,11 @@ class TextModifierListTest {
     fun `test equivalentTo()`() {
         assertTrue {
             DefaultModifierList(flags = DefaultModifierList.PUBLIC)
-                .equivalentTo(DefaultModifierList(flags = DefaultModifierList.PUBLIC))
+                .equivalentTo(null, DefaultModifierList(flags = DefaultModifierList.PUBLIC))
         }
         assertFalse {
             DefaultModifierList(flags = DefaultModifierList.PRIVATE)
-                .equivalentTo(DefaultModifierList(flags = DefaultModifierList.PUBLIC))
+                .equivalentTo(null, DefaultModifierList(flags = DefaultModifierList.PUBLIC))
         }
     }
 }

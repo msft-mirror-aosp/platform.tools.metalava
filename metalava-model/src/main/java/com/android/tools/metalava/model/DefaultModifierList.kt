@@ -313,8 +313,7 @@ class DefaultModifierList(
         return DefaultModifierList(flags, newAnnotations)
     }
 
-    // Rename? It's not a full equality, it's whether an override's modifier set is significant
-    override fun equivalentTo(other: ModifierList): Boolean {
+    override fun equivalentTo(owner: Item?, other: ModifierList): Boolean {
         other as DefaultModifierList
 
         val flags2 = other.flags

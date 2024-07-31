@@ -81,8 +81,29 @@ interface ModifierList {
 
     fun isPublicOrProtected() = isPublic() || isProtected()
 
-    // Rename? It's not a full equality, it's whether an override's modifier set is significant
-    fun equivalentTo(other: ModifierList): Boolean
+    /**
+     * Check whether this [ModifierList]'s modifiers are equivalent to the [other] [ModifierList]'s
+     * modifiers.
+     *
+     * Modifier meaning does depend on the [Item] to which they belong, e.g. just because `final`
+     * and `deprecated` are `false` does not mean that the [Item] is not final or deprecated as the
+     * containing class may be final or deprecated.
+     *
+     * It is used for:
+     * * Checking method overrides.
+     * * Checking consistent of classes whose definition is split across multiple signature files.
+     * * Testing the [InheritableItem.duplicate] works correctly.
+     *
+     * @param owner the optional [Item] that owns this [ModifierList] and which is used to tweak the
+     *   check to make it take into account the content within which they are being used. If it is
+     *   not provided then this will just compare modifiers like for like.
+     *
+     * TODO(b/356548977): Currently, [owner] only has an effect if it is a [MethodItem]. That is due
+     *   to it historically only being used for method overrides. However, as the previous list
+     *   shows that is no longer true so it will need to be updated to correctly handle the other
+     *   cases.
+     */
+    fun equivalentTo(owner: Item?, other: ModifierList): Boolean
 
     /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
     fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)
