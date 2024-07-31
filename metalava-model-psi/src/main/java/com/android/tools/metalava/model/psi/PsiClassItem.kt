@@ -119,13 +119,13 @@ internal constructor(
         return allInterfaces!!.asSequence()
     }
 
-    private lateinit var nestedClasses: List<PsiClassItem>
+    private val mutableNestedClasses = mutableListOf<ClassItem>()
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
-    override fun nestedClasses(): List<PsiClassItem> = nestedClasses
+    override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -177,6 +177,11 @@ internal constructor(
 
     override fun addMethod(method: MethodItem) {
         methods.add(method as PsiMethodItem)
+    }
+
+    /** Add a nested class to this class. */
+    private fun addNestedClass(classItem: ClassItem) {
+        mutableNestedClasses.add(classItem)
     }
 
     private var retention: AnnotationRetention? = null
@@ -420,23 +425,15 @@ internal constructor(
             // This actually gets all nested classes not just inner, i.e. non-static nested,
             // classes.
             val psiNestedClasses = psiClass.innerClasses
-            item.nestedClasses =
-                if (psiNestedClasses.isEmpty()) {
-                    emptyList()
-                } else {
-                    val result =
-                        psiNestedClasses
-                            .asSequence()
-                            .map {
-                                codebase.createClass(
-                                    psiClass = it,
-                                    containingClassItem = item,
-                                    enclosingClassTypeItemFactory = classTypeItemFactory
-                                )
-                            }
-                            .toMutableList()
-                    result
-                }
+            for (psiNestedClass in psiNestedClasses) {
+                val nestedClass =
+                    codebase.createClass(
+                        psiClass = psiNestedClass,
+                        containingClassItem = item,
+                        enclosingClassTypeItemFactory = classTypeItemFactory,
+                    )
+                item.addNestedClass(nestedClass)
+            }
 
             return item
         }
