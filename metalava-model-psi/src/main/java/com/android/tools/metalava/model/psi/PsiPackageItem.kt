@@ -36,6 +36,7 @@ internal constructor(
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     qualifiedName: String,
+    containingPackage: PackageItem?,
     overviewDocumentation: String?,
 ) :
     DefaultPackageItem(
@@ -46,6 +47,7 @@ internal constructor(
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         qualifiedName = qualifiedName,
+        containingPackage = containingPackage,
         overviewDocumentation = overviewDocumentation,
     ),
     PackageItem,
@@ -61,6 +63,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
             packageDoc: PackageDoc,
+            containingPackage: PackageItem?,
         ): PsiPackageItem {
             val modifiers = PsiModifierItem.create(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
@@ -76,6 +79,7 @@ internal constructor(
                 modifiers = modifiers,
                 documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
                 qualifiedName = qualifiedName,
+                containingPackage = containingPackage,
                 overviewDocumentation = packageDoc.overview,
             )
         }

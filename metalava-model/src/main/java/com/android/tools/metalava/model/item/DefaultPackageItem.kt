@@ -58,8 +58,7 @@ open class DefaultPackageItem(
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    // TODO(b/352480646): Make private again.
-    var containingPackageField: PackageItem? = containingPackage
+    private var containingPackageField: PackageItem? = containingPackage
 
     final override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null

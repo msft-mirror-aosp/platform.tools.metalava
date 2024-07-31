@@ -141,13 +141,14 @@ internal class PsiBasedCodebase(
     private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
-    private val packageTracker = PackageTracker { packageName, packageDoc, _ ->
+    private val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->
         val psiPackage =
             findPsiPackage(packageName) ?: error("could not find PsiPackage for '$packageName'")
         PsiPackageItem.create(
             codebase = this@PsiBasedCodebase,
             psiPackage = psiPackage,
             packageDoc = packageDoc,
+            containingPackage = containingPackage,
         )
     }
 
@@ -369,63 +370,11 @@ internal class PsiBasedCodebase(
 
         // Resolve the super types of all the classes that have been loaded.
         resolveSuperTypes()
-
-        // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
-        // android.foo will also apply to android.foo.bar)
-        addParentPackages(@Suppress("DEPRECATION") packageTracker.defaultPackages)
     }
 
     override fun dispose() {
         uastEnvironment.dispose()
         super.dispose()
-    }
-
-    private fun addParentPackages(packages: Collection<DefaultPackageItem>) {
-        val missingPackages =
-            packages
-                .mapNotNull {
-                    val name = it.qualifiedName()
-                    val index = name.lastIndexOf('.')
-                    val parent =
-                        if (index != -1) {
-                            name.substring(0, index)
-                        } else {
-                            ""
-                        }
-                    if (packageTracker.findPackage(parent) != null) {
-                        // Already registered
-                        null
-                    } else {
-                        parent
-                    }
-                }
-                .toSet()
-
-        // Create PackageItems for any packages that weren't in the source
-        for (pkgName in missingPackages) {
-            val psiPackage = findPsiPackage(pkgName) ?: continue
-            findOrCreatePackage(psiPackage)
-        }
-
-        // Connect up all the package items
-        for (pkg in @Suppress("DEPRECATION") packageTracker.defaultPackages) {
-            var name = pkg.qualifiedName()
-            // Find parent package; we have to loop since we don't always find a PSI package
-            // for intermediate elements; e.g. we may jump from java.lang straight up to the default
-            // package
-            while (name.isNotEmpty()) {
-                val index = name.lastIndexOf('.')
-                name =
-                    if (index != -1) {
-                        name.substring(0, index)
-                    } else {
-                        ""
-                    }
-                val parent = findPackage(name) ?: continue
-                pkg.containingPackageField = parent
-                break
-            }
-        }
     }
 
     private fun findOrCreatePackage(
