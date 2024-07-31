@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultItem
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -81,6 +82,15 @@ internal constructor(
     ),
     ClassItem,
     PsiItem {
+
+    init {
+        if (containingClass == null) {
+            (containingPackage as DefaultPackageItem).addTopClass(this)
+        } else {
+            (containingClass as PsiClassItem).addNestedClass(this)
+        }
+        codebase.registerClass(this)
+    }
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
@@ -282,9 +292,6 @@ internal constructor(
                     interfaceTypes = interfaceTypes,
                 )
 
-            // Register this class now.
-            codebase.registerClass(item)
-
             // Construct the children
             val psiMethods = psiClass.methods
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
@@ -426,13 +433,11 @@ internal constructor(
             // classes.
             val psiNestedClasses = psiClass.innerClasses
             for (psiNestedClass in psiNestedClasses) {
-                val nestedClass =
-                    codebase.createClass(
-                        psiClass = psiNestedClass,
-                        containingClassItem = item,
-                        enclosingClassTypeItemFactory = classTypeItemFactory,
-                    )
-                item.addNestedClass(nestedClass)
+                codebase.createClass(
+                    psiClass = psiNestedClass,
+                    containingClassItem = item,
+                    enclosingClassTypeItemFactory = classTypeItemFactory,
+                )
             }
 
             return item

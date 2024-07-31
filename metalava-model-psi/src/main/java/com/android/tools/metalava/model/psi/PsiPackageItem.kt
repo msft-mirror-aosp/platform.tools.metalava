@@ -56,14 +56,6 @@ internal constructor(
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    fun addClasses(classList: List<PsiClassItem>) {
-        for (cls in classList) {
-            if (cls.isTopLevelClass()) {
-                addTopClass(cls)
-            }
-        }
-    }
-
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
