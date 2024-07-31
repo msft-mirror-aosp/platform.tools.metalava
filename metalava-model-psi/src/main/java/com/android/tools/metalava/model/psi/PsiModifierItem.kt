@@ -405,7 +405,7 @@ internal object PsiModifierItem {
 
         val psiAnnotations = element.annotations
         return if (psiAnnotations.isEmpty()) {
-            DefaultModifierList(codebase, flags)
+            DefaultModifierList(flags)
         } else {
             val annotations: MutableList<AnnotationItem> =
                 // psi sometimes returns duplicate annotations, using distinct() to counter
@@ -434,7 +434,7 @@ internal object PsiModifierItem {
                     }
                     .filter { !it.isDeprecatedForSdk() }
                     .toMutableList()
-            DefaultModifierList(codebase, flags, annotations)
+            DefaultModifierList(flags, annotations)
         }
     }
 
@@ -443,7 +443,7 @@ internal object PsiModifierItem {
         element: PsiModifierListOwner,
         annotated: UAnnotated
     ): DefaultModifierList {
-        val modifierList = element.modifierList ?: return DefaultModifierList(codebase)
+        val modifierList = element.modifierList ?: return DefaultModifierList()
         val uAnnotations = annotated.uAnnotations
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
@@ -458,9 +458,9 @@ internal object PsiModifierItem {
                     psiAnnotations
                         .mapNotNull { PsiAnnotationItem.create(codebase, it) }
                         .toMutableList()
-                DefaultModifierList(codebase, flags, annotations)
+                DefaultModifierList(flags, annotations)
             } else {
-                DefaultModifierList(codebase, flags)
+                DefaultModifierList(flags)
             }
         } else {
             val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
@@ -506,7 +506,7 @@ internal object PsiModifierItem {
                 }
             }
 
-            DefaultModifierList(codebase, flags, annotations)
+            DefaultModifierList(flags, annotations)
         }
     }
 

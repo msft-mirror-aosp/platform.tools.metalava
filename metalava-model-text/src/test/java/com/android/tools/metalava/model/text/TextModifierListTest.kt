@@ -26,27 +26,13 @@ class TextModifierListTest {
 
     @Test
     fun `test equivalentTo()`() {
-        val codebase =
-            ApiFile.parseApi(
-                "test",
-                """
-            // Signature format: 2.0
-            package androidx.navigation {
-              public final class NavDestination {
-                ctor public NavDestination();
-              }
-            }
-            """
-                    .trimIndent(),
-            )
-
         assertTrue {
-            DefaultModifierList(codebase, flags = DefaultModifierList.PUBLIC)
-                .equivalentTo(DefaultModifierList(codebase, flags = DefaultModifierList.PUBLIC))
+            DefaultModifierList(flags = DefaultModifierList.PUBLIC)
+                .equivalentTo(DefaultModifierList(flags = DefaultModifierList.PUBLIC))
         }
         assertFalse {
-            DefaultModifierList(codebase, flags = DefaultModifierList.PRIVATE)
-                .equivalentTo(DefaultModifierList(codebase, flags = DefaultModifierList.PUBLIC))
+            DefaultModifierList(flags = DefaultModifierList.PRIVATE)
+                .equivalentTo(DefaultModifierList(flags = DefaultModifierList.PUBLIC))
         }
     }
 }

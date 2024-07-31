@@ -20,7 +20,6 @@ import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
 class DefaultModifierList(
-    val codebase: Codebase,
     private var flags: Int = PACKAGE_PRIVATE,
     private var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
@@ -290,7 +289,7 @@ class DefaultModifierList(
             } else {
                 annotations.toMutableList()
             }
-        return DefaultModifierList(codebase, flags, newAnnotations)
+        return DefaultModifierList(flags, newAnnotations)
     }
 
     /**
@@ -311,7 +310,7 @@ class DefaultModifierList(
                     annotations.mapTo(this) { it.snapshot(targetCodebase) }
                 }
             }
-        return DefaultModifierList(targetCodebase, flags, newAnnotations)
+        return DefaultModifierList(flags, newAnnotations)
     }
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
@@ -366,8 +365,8 @@ class DefaultModifierList(
 
     companion object {
         /** Create a public modifiers object. */
-        fun createPublic(codebase: Codebase, annotations: MutableList<AnnotationItem>? = null) =
-            DefaultModifierList(codebase, PUBLIC, annotations)
+        fun createPublic(annotations: MutableList<AnnotationItem>? = null) =
+            DefaultModifierList(PUBLIC, annotations)
 
         /**
          * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility

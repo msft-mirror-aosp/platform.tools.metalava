@@ -48,7 +48,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -1343,7 +1342,7 @@ private constructor(
         visibility: Int,
         annotations: MutableList<AnnotationItem>
     ): DefaultModifierList {
-        val modifiers = DefaultModifierList(codebase, visibility, annotations)
+        val modifiers = DefaultModifierList(visibility, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
@@ -1512,7 +1511,7 @@ private constructor(
             scopeDescription,
             typeParameterStrings,
             // Create a `TextTypeParameterItem` from the type parameter string.
-            { createTypeParameterItem(codebase, it) },
+            { createTypeParameterItem(it) },
             // Create, set and return the [BoundsTypeItem] list.
             { typeItemFactory, typeParameterString ->
                 val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
@@ -1528,10 +1527,7 @@ private constructor(
      * [typeParameterString] and creates a [DefaultTypeParameterItem] with those properties
      * initialized but the [DefaultTypeParameterItem.bounds] is not.
      */
-    private fun createTypeParameterItem(
-        codebase: DefaultCodebase,
-        typeParameterString: String,
-    ): DefaultTypeParameterItem {
+    private fun createTypeParameterItem(typeParameterString: String): DefaultTypeParameterItem {
         val length = typeParameterString.length
         var nameEnd = length
 
@@ -1553,7 +1549,7 @@ private constructor(
         val name = typeParameterString.substring(nameStart, nameEnd)
 
         // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
+        val modifiers = DefaultModifierList(DefaultModifierList.PUBLIC)
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,
