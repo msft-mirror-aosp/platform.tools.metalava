@@ -840,6 +840,8 @@ internal class PsiBasedCodebase(
         return topLevelClassesFromSource
     }
 
+    override fun isFromClassPath() = fromClasspath
+
     internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)
 
