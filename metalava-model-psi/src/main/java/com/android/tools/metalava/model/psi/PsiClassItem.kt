@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
@@ -180,8 +181,8 @@ internal constructor(
     }
 
     /** Creates a constructor in this class */
-    override fun createDefaultConstructor(): ConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
+    override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
+        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass, visibility)
     }
 
     override fun addMethod(method: MethodItem) {
@@ -330,9 +331,7 @@ internal constructor(
 
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
-                constructors.add(
-                    PsiConstructorItem.createDefaultConstructor(codebase, item, psiClass)
-                )
+                constructors.add(item.createDefaultConstructor())
             }
 
             val fields: MutableList<PsiFieldItem> = mutableListOf()

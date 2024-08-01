@@ -84,10 +84,10 @@ open class DefaultConstructorItem(
             itemLanguage: ItemLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
+            visibility: VisibilityLevel,
         ): ConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE)
-            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val modifiers = DefaultModifierList(visibility)
 
             val ctorItem =
                 DefaultConstructorItem(

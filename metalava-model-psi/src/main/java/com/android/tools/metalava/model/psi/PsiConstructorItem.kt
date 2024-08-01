@@ -132,13 +132,13 @@ private constructor(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             psiClass: PsiClass,
+            visibilityLevel: VisibilityLevel,
         ): PsiConstructorItem {
             val name = psiClass.name!!
 
             val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
             val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE)
-            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val modifiers = DefaultModifierList(visibilityLevel)
 
             val item =
                 PsiConstructorItem(
