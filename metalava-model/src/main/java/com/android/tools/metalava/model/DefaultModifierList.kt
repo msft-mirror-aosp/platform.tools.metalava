@@ -270,23 +270,11 @@ class DefaultModifierList(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
-    /**
-     * Copy this, so it can be used on (and possibly modified by) another [Item] from the same
-     * codebase.
-     */
-    fun duplicate(): DefaultModifierList {
+    override fun duplicate(): DefaultModifierList {
         return DefaultModifierList(flags, this.annotations)
     }
 
-    /**
-     * Take a snapshot of this for use in [targetCodebase].
-     *
-     * While [duplicate] makes a shallow copy for use within the same [Codebase] this method creates
-     * a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
-     *
-     * @param targetCodebase The [Codebase] of which the snapshot will be part.
-     */
-    fun snapshot(targetCodebase: Codebase): DefaultModifierList {
+    override fun snapshot(targetCodebase: Codebase): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
             if (annotations.isEmpty()) {
