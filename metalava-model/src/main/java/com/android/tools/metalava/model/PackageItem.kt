@@ -63,9 +63,6 @@ interface PackageItem : SelectableItem {
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated
 
-    /** Whether this package is empty */
-    fun empty() = topLevelClasses().isEmpty()
-
     override fun baselineElementId() = qualifiedName()
 
     override fun accept(visitor: ItemVisitor) {
