@@ -149,14 +149,13 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
 
     override fun visitPackage(pkg: PackageItem) {
         val newPackage =
-            DefaultPackageItem(
-                codebase = codebase,
+            itemFactory.createPackageItem(
                 fileLocation = pkg.fileLocation,
-                itemLanguage = pkg.itemLanguage,
                 modifiers = pkg.modifiers.snapshot(),
                 documentationFactory = pkg.documentation::snapshot,
-                variantSelectorsFactory = pkg.variantSelectors::duplicate,
                 qualifiedName = pkg.qualifiedName(),
+                // TODO(b/352480646): Use correct containing package.
+                containingPackage = null,
                 overviewDocumentation = pkg.overviewDocumentation,
             )
         codebase.addPackage(newPackage)
