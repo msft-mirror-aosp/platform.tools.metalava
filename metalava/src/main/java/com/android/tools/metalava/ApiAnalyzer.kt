@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
@@ -618,7 +619,7 @@ class ApiAnalyzer(
                 }
             }
 
-        packages.accept(visitor)
+        codebase.accept(visitor)
     }
 
     private fun checkSystemPermissions(method: MethodItem) {
@@ -720,7 +721,7 @@ class ApiAnalyzer(
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
                 config.allShowAnnotations.isNotEmpty()
 
-        packages.accept(
+        codebase.accept(
             object :
                 ApiVisitor(
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
@@ -1183,7 +1184,7 @@ private fun String.capitalize(): String {
 }
 
 /** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
-private fun Item.isApiCandidate(): Boolean {
+private fun SelectableItem.isApiCandidate(): Boolean {
     return !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
 }
 
