@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
@@ -341,22 +340,6 @@ internal constructor(
             if (psiFields.isNotEmpty()) {
                 psiFields.asSequence().mapTo(fields) {
                     PsiFieldItem.create(codebase, item, it, classTypeItemFactory)
-                }
-            }
-
-            if (classKind == ClassKind.INTERFACE) {
-                // All members are implicitly public, fields are implicitly static, non-static
-                // methods are abstract
-                // (except in Java 1.9, where they can be private
-                for (method in methods) {
-                    if (!method.isPrivate) {
-                        method.mutableModifiers().setVisibilityLevel(VisibilityLevel.PUBLIC)
-                    }
-                }
-                for (method in fields) {
-                    val m = method.mutableModifiers()
-                    m.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                    m.setStatic(true)
                 }
             }
 
