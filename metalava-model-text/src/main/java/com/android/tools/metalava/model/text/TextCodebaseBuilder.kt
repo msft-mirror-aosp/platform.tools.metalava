@@ -114,6 +114,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
             )
 
         newClass.setSuperClassType(textClass.superClassType())
+        newClass.setInterfaceTypes(textClass.interfaceTypes())
 
         return newClass
     }

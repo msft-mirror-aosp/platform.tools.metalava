@@ -678,7 +678,6 @@ $signatureToJdiffHelp
                     }
                 """
 
-            // TODO(b/352480646): Implements list is missing.
             expectedXml =
                 """
                     <api name="api" xmlns:metalava="http://www.android.com/metalava/">
@@ -692,6 +691,8 @@ $signatureToJdiffHelp
                      deprecated="not deprecated"
                      visibility="public"
                     >
+                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    </implements>
                     <field name="FIELD"
                      type="int"
                      transient="false"
