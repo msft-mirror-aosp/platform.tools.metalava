@@ -67,7 +67,7 @@ interface Item : Reportable {
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
 
-    fun parent(): Item?
+    fun parent(): SelectableItem?
 
     /**
      * Recursive check to see if this item or any of its parents (containing class, containing
@@ -434,7 +434,8 @@ interface Item : Reportable {
         }
 
         private fun describe(item: PackageItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Package" else "package"} ${item.qualifiedName()}"
+            val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+            return "${if (capitalize) "Package" else "package"} $suffix"
         }
     }
 }
