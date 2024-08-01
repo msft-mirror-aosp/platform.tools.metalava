@@ -152,7 +152,6 @@ internal class PsiBasedCodebase(
             codebase = this@PsiBasedCodebase,
             psiPackage = psiPackage,
             packageDoc = packageDoc,
-            fromClassPath = fromClasspath || !initializing
         )
     }
 
@@ -488,9 +487,8 @@ internal class PsiBasedCodebase(
                 this,
                 psiPackage,
                 packageDoc,
-                fromClassPath = fromClasspath || !initializing
             )
-        packageItem.emit = !packageItem.isFromClassPath()
+        packageItem.emit = !fromClasspath && initializing
 
         packageTracker.addPackage(packageItem)
 

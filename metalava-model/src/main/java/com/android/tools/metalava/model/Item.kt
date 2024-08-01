@@ -176,20 +176,6 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
-     * declared as source
-     *
-     * If this [Item] was copied from a class in the class path into a source class then this will
-     * return `true`.
-     */
-    fun isFromClassPath(): Boolean =
-        // Check the codebase just in case this item was copied from a class on the class path into
-        // a class on the source path.
-        codebase.isFromClassPath() ||
-            // Otherwise, check to see if its containing class is from the class path.
-            containingClass()?.isFromClassPath() ?: false
-
-    /**
      * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */
