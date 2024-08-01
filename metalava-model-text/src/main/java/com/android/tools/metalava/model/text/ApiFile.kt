@@ -664,8 +664,10 @@ private constructor(
         // Add new annotations to the existing class
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
-        for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
-            existingClass.modifiers.addAnnotation(annotation)
+
+        val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
+        if (extraAnnotations.isNotEmpty()) {
+            existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
         }
 
         // Use the latest super class.

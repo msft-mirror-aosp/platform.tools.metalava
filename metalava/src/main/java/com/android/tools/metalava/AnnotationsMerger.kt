@@ -819,7 +819,7 @@ class AnnotationsMerger(
     }
 
     private fun mergeAnnotation(item: Item, annotation: AnnotationItem) {
-        item.mutableModifiers().addAnnotation(annotation)
+        item.mutateModifiers { addAnnotation(annotation) }
 
         // Update the type nullability from the annotation, if necessary.
 
