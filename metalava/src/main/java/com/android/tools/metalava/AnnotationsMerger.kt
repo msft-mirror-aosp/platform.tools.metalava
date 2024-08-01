@@ -369,7 +369,7 @@ class AnnotationsMerger(
                             }
 
                     // Copy the annotations to the main item.
-                    val modifiers = mainItem.mutableModifiers()
+                    val modifiers = mainItem.modifiers
                     for (annotation in annotationsToCopy) {
                         if (modifiers.findAnnotation(annotation.qualifiedName) == null) {
                             mergeAnnotation(mainItem, annotation)
