@@ -407,7 +407,7 @@ class CommonPackageItemTest : BaseModelTest() {
                     </HTML>
                 """
                     .trimIndent(),
-                packageItem.overviewDocumentation?.trim(),
+                packageItem.overviewDocumentation?.content?.trim(),
             )
         }
     }

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.utils
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -35,7 +36,7 @@ private enum class PackageDocumentationKind {
     },
     OVERVIEW {
         override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
-            packageDoc.overview = contents
+            packageDoc.overview = ResourceFile(contents)
         }
     };
 

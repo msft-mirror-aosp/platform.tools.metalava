@@ -64,7 +64,7 @@ class DefaultItemFactory(
         documentationFactory: ItemDocumentationFactory = "".toItemDocumentationFactory(),
         qualifiedName: String,
         containingPackage: PackageItem?,
-        overviewDocumentation: String? = null,
+        overviewDocumentation: ResourceFile? = null,
     ): DefaultPackageItem {
         modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
         return DefaultPackageItem(
