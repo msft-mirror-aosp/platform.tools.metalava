@@ -16,10 +16,14 @@
 
 package com.android.tools.metalava.model.item
 
+import java.io.File
+
 /**
  * A resource file is one that is supplied on input to Metalava and copied through to the stubs
  * unchanged.
  *
  * e.g. This is used for copying the `overview.html` file when generate documentation stubs.
  */
-class ResourceFile(val content: String) {}
+class ResourceFile(private val file: File) {
+    val content by lazy(LazyThreadSafetyMode.NONE) { file.readText() }
+}

@@ -29,19 +29,20 @@ import java.io.File
 /** The kinds of package documentation file. */
 private enum class PackageDocumentationKind {
     PACKAGE {
-        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
+        override fun update(packageDoc: MutablePackageDoc, file: File) {
+            val contents = file.readText(Charsets.UTF_8)
             packageDoc.commentFactory = packageHtmlToJavadoc(contents).toItemDocumentationFactory()
             packageDoc.fileLocation = FileLocation.forFile(file)
         }
     },
     OVERVIEW {
-        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
-            packageDoc.overview = ResourceFile(contents)
+        override fun update(packageDoc: MutablePackageDoc, file: File) {
+            packageDoc.overview = ResourceFile(file)
         }
     };
 
     /** Update kind appropriate property in [packageDoc] with [contents]. */
-    abstract fun update(packageDoc: MutablePackageDoc, contents: String, file: File)
+    abstract fun update(packageDoc: MutablePackageDoc, file: File)
 }
 
 /**
@@ -106,8 +107,7 @@ fun <P> gatherPackageJavadoc(
 
         val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
 
-        val contents = file.readText(Charsets.UTF_8)
-        documentationFile.update(packageDoc, contents, file)
+        documentationFile.update(packageDoc, file)
     }
 
     // Merge package-info.java documentation.
