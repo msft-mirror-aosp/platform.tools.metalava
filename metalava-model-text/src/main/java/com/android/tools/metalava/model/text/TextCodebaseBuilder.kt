@@ -99,23 +99,20 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         }
         val textClass = fullClass as DefaultClassItem
         val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
-        val newClass =
-            itemFactory.createClassItem(
-                fileLocation = FileLocation.UNKNOWN,
-                modifiers = textClass.modifiers,
-                classKind = textClass.classKind,
-                containingClass = null,
-                containingPackage = pkg,
-                qualifiedName = textClass.qualifiedName(),
-                simpleName = textClass.simpleName(),
-                fullName = textClass.fullName(),
-                typeParameterList = textClass.typeParameterList,
-                isFromClassPath = fullClass.isFromClassPath(),
-            )
 
-        newClass.setSuperClassType(textClass.superClassType())
-        newClass.setInterfaceTypes(textClass.interfaceTypes())
-
-        return newClass
+        return itemFactory.createClassItem(
+            fileLocation = FileLocation.UNKNOWN,
+            modifiers = textClass.modifiers,
+            classKind = textClass.classKind,
+            containingClass = null,
+            containingPackage = pkg,
+            qualifiedName = textClass.qualifiedName(),
+            simpleName = textClass.simpleName(),
+            fullName = textClass.fullName(),
+            typeParameterList = textClass.typeParameterList,
+            isFromClassPath = fullClass.isFromClassPath(),
+            superClassType = textClass.superClassType(),
+            interfaceTypes = textClass.interfaceTypes(),
+        )
     }
 }

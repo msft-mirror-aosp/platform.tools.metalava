@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -602,6 +603,16 @@ private constructor(
             return
         }
 
+        // Default the superClassType() to java.lang.Object for any class that is not an interface,
+        // annotation, or enum and which is not itself java.lang.Object.
+        if (
+            classKind == ClassKind.CLASS &&
+                superClassType == null &&
+                qualifiedClassName != JAVA_LANG_OBJECT
+        ) {
+            superClassType = globalTypeItemFactory.superObjectType
+        }
+
         // Create the DefaultClassItem and set its package but do not add it to the package or
         // register it.
         val cl =
@@ -616,17 +627,10 @@ private constructor(
                 fullName = fullName,
                 typeParameterList = typeParameterList,
                 isFromClassPath = false,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes.toList(),
             )
         cl.markForCurrentApiSurface()
-
-        // Default the superClassType() to java.lang.Object for any class that is not an interface,
-        // annotation, or enum and which is not itself java.lang.Object.
-        if (classKind == ClassKind.CLASS && superClassType == null && !cl.isJavaLangObject()) {
-            superClassType = globalTypeItemFactory.superObjectType
-        }
-        cl.setSuperClassType(superClassType)
-
-        cl.setInterfaceTypes(interfaceTypes.toList())
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
