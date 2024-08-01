@@ -63,6 +63,7 @@ class DefaultItemFactory(
         modifiers: DefaultModifierList = DefaultModifierList(),
         documentationFactory: ItemDocumentationFactory = "".toItemDocumentationFactory(),
         qualifiedName: String,
+        containingPackage: PackageItem?,
         overviewDocumentation: String? = null,
     ): DefaultPackageItem {
         modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
@@ -74,6 +75,7 @@ class DefaultItemFactory(
             documentationFactory,
             defaultVariantSelectorsFactory,
             qualifiedName,
+            containingPackage,
             overviewDocumentation,
         )
     }

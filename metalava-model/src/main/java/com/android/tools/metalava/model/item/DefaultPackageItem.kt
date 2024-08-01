@@ -34,6 +34,7 @@ open class DefaultPackageItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
+    containingPackage: PackageItem? = null,
     override val overviewDocumentation: String?,
 ) :
     DefaultItem(
@@ -58,12 +59,12 @@ open class DefaultPackageItem(
     override fun containingClass(): ClassItem? = null
 
     // TODO(b/352480646): Make private again.
-    lateinit var containingPackageField: PackageItem
+    var containingPackageField: PackageItem? = containingPackage
 
     final override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
         else {
-            if (!::containingPackageField.isInitialized) {
+            if (containingPackageField == null) {
                 containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
             }
             containingPackageField
