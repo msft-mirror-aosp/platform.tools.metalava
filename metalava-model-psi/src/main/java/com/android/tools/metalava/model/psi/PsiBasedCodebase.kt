@@ -56,12 +56,14 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.TypeAnnotationProvider
+import com.intellij.psi.impl.file.PsiPackageImpl
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
@@ -143,7 +145,14 @@ internal class PsiBasedCodebase(
     /** Map from package name to the corresponding package item */
     private val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->
         val psiPackage =
-            findPsiPackage(packageName) ?: error("could not find PsiPackage for '$packageName'")
+            findPsiPackage(packageName)
+                ?: run {
+                    // This can happen if a class's package statement does not match its file path.
+                    // In that case, this fakes up a PsiPackageImpl that matches the package
+                    // statement as that is the source of truth.
+                    val manager = PsiManager.getInstance(project)
+                    PsiPackageImpl(manager, packageName)
+                }
         PsiPackageItem.create(
             codebase = this@PsiBasedCodebase,
             psiPackage = psiPackage,
@@ -449,7 +458,27 @@ internal class PsiBasedCodebase(
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
     ): PsiClassItem {
         val packageName = getPackageName(psiClass)
-        val psiPackage = findPsiPackage(packageName)!!
+
+        // Find the package and a flag to indicate whether it is a fake package as fake packages
+        // should not appear in the API for legacy reasons.
+        val (psiPackage, fake) =
+        // If the package could be found then a fake package was not created.
+        findPsiPackage(packageName)?.to(false)
+                ?: run {
+                    val directory =
+                        psiClass.containingFile.containingDirectory.virtualFile.canonicalPath
+                    reporter.report(
+                        Issues.INVALID_PACKAGE,
+                        psiClass,
+                        "Could not find package $packageName for class ${psiClass.qualifiedName}." +
+                            " This is most likely due to a mismatch between the package statement" +
+                            " and the directory $directory"
+                    )
+                    // Fake up a PsiPackageImpl that matches the package statement as that is the
+                    // source of truth.
+                    PsiPackageImpl(psiClass.manager, packageName) to true
+                }
+
         val packageItem = findOrCreatePackage(psiPackage)
 
         // If initializing is true, this class is from source
@@ -462,8 +491,9 @@ internal class PsiBasedCodebase(
                 enclosingClassTypeItemFactory,
                 fromClassPath = fromClasspath || !initializing,
             )
-        // Set emit to true for source classes but false for classpath classes
-        classItem.emit = !classItem.isFromClassPath()
+        // If the package is fake then it must never be emitted. Otherwise, set emit to `true` for
+        // source classes but `false` for classpath classes.
+        classItem.emit = !classItem.isFromClassPath() && !fake
 
         return classItem
     }
