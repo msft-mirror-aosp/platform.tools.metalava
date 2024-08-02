@@ -287,6 +287,18 @@ class DefaultModifierList(
         return DefaultModifierList(flags, newAnnotations)
     }
 
+    override fun toMutable(): MutableModifierList {
+        // Temporarily return this to maintain existing behavior while migrating to separate mutable
+        // and immutable classes.
+        return this
+    }
+
+    override fun toImmutable(): ModifierList {
+        // Temporarily return this to maintain existing behavior while migrating to separate mutable
+        // and immutable classes.
+        return this
+    }
+
     override fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean {
         other as DefaultModifierList
 

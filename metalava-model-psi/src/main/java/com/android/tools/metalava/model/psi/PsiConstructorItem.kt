@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -43,7 +44,7 @@ private constructor(
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: PsiClassItem,
     name: String,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     parameterItemsFactory: ParameterItemsFactory,
     returnType: ClassTypeItem,

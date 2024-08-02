@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -41,7 +42,7 @@ internal class PsiParameterItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     internal val psiParameter: PsiParameter,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     name: String,
     publicNameProvider: PublicNameProvider,
     containingCallable: PsiCallableItem,

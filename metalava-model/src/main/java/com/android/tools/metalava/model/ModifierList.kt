@@ -165,6 +165,22 @@ interface BaseModifierList {
      * @param targetCodebase The [Codebase] of which the snapshot will be part.
      */
     fun snapshot(targetCodebase: Codebase): ModifierList
+
+    /**
+     * Get a [MutableModifierList] from this.
+     *
+     * This will return the object on which it is called if that is already mutable, otherwise it
+     * will create a separate mutable copy of this.
+     */
+    fun toMutable(): MutableModifierList
+
+    /**
+     * Get an immutable [ModifierList] from this.
+     *
+     * This will return the object on which it is called if that is already immutable, otherwise it
+     * will create a separate immutable copy of this.
+     */
+    fun toImmutable(): ModifierList
 }
 
 /**

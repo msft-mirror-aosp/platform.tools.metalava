@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.ABSTRACT
 import com.android.tools.metalava.model.DefaultModifierList.Companion.ACTUAL
@@ -124,7 +125,7 @@ internal object PsiModifierItem {
     /** Determine whether nullness annotations need removing from [modifiers]. */
     private fun shouldRemoveNullnessAnnotations(
         element: PsiModifierListOwner,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
     ): Boolean {
         // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
         // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
@@ -149,7 +150,7 @@ internal object PsiModifierItem {
         return false
     }
 
-    private fun hasDeprecatedAnnotation(modifiers: DefaultModifierList) =
+    private fun hasDeprecatedAnnotation(modifiers: BaseModifierList) =
         modifiers.hasAnnotation {
             it.qualifiedName.let { qualifiedName ->
                 qualifiedName == "Deprecated" ||
