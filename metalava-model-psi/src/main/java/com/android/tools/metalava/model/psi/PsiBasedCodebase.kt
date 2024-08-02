@@ -401,9 +401,6 @@ internal class PsiBasedCodebase(
         val scope = GlobalSearchScope.allScope(project)
 
         this.methodMap = HashMap(1000)
-        val packageToClasses: MutableMap<String, MutableList<PsiClassItem>> =
-            HashMap(PACKAGE_ESTIMATE)
-        packageToClasses[""] = ArrayList() // ensure we construct one for the default package
 
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
@@ -420,29 +417,11 @@ internal class PsiBasedCodebase(
                     if (fileName.endsWith(SdkConstants.DOT_CLASS)) {
                         val qualifiedName =
                             fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
-                        if (qualifiedName.endsWith(".package-info")) {
-                            // Ensure we register a package for this, even if empty
-                            val packageName = qualifiedName.removeSuffix(".package-info")
-                            var list = packageToClasses[packageName]
-                            if (list == null) {
-                                list = mutableListOf()
-                                packageToClasses[packageName] = list
-                            }
-                            continue
-                        } else {
+                        if (!qualifiedName.endsWith(".package-info")) {
                             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
 
                             val classItem = createTopLevelClassAndContents(psiClass)
                             topLevelClassesFromSource.add(classItem)
-
-                            val packageName = getPackageName(psiClass)
-                            var list = packageToClasses[packageName]
-                            if (list == null) {
-                                list = mutableListOf(classItem)
-                                packageToClasses[packageName] = list
-                            } else {
-                                list.add(classItem)
-                            }
                         }
                     }
                 }
