@@ -22,7 +22,7 @@ import java.lang.annotation.RetentionPolicy
 class DefaultModifierList(
     private var flags: Int,
     private var annotations: List<AnnotationItem> = emptyList(),
-) : MutableModifierList {
+) : ModifierList, MutableModifierList {
 
     /**
      * Secondary constructor that avoids the caller having to use flags directly which are
@@ -287,7 +287,7 @@ class DefaultModifierList(
         return DefaultModifierList(flags, newAnnotations)
     }
 
-    override fun equivalentTo(owner: Item?, other: ModifierList): Boolean {
+    override fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean {
         other as DefaultModifierList
 
         val flags2 = other.flags
