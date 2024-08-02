@@ -46,22 +46,14 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
-internal class DefaultModifierList
+/** Default [BaseModifierList]. */
+internal abstract class DefaultBaseModifierList
 constructor(
-    private var flags: Int,
-    private var annotations: List<AnnotationItem> = emptyList(),
-) : ModifierList, MutableModifierList, ModifierFlags {
+    protected var flags: Int,
+    protected var annotations: List<AnnotationItem> = emptyList(),
+) : BaseModifierList {
 
-    /**
-     * Secondary constructor that avoids the caller having to use flags directly which are
-     * implementation details of the [DefaultModifierList].
-     */
-    constructor(
-        visibility: VisibilityLevel,
-        annotations: List<AnnotationItem> = emptyList()
-    ) : this(visibility.visibilityFlagValue, annotations)
-
-    private operator fun set(mask: Int, set: Boolean) {
+    protected operator fun set(mask: Int, set: Boolean) {
         flags =
             if (set) {
                 flags or mask
@@ -196,104 +188,6 @@ constructor(
         return isSet(ACTUAL)
     }
 
-    override fun setVisibilityLevel(level: VisibilityLevel) {
-        flags = (flags and VISIBILITY_MASK.inv()) or level.visibilityFlagValue
-    }
-
-    override fun setStatic(static: Boolean) {
-        set(STATIC, static)
-    }
-
-    override fun setAbstract(abstract: Boolean) {
-        set(ABSTRACT, abstract)
-    }
-
-    override fun setFinal(final: Boolean) {
-        set(FINAL, final)
-    }
-
-    override fun setNative(native: Boolean) {
-        set(NATIVE, native)
-    }
-
-    override fun setSynchronized(synchronized: Boolean) {
-        set(SYNCHRONIZED, synchronized)
-    }
-
-    override fun setStrictFp(strictfp: Boolean) {
-        set(STRICT_FP, strictfp)
-    }
-
-    override fun setTransient(transient: Boolean) {
-        set(TRANSIENT, transient)
-    }
-
-    override fun setVolatile(volatile: Boolean) {
-        set(VOLATILE, volatile)
-    }
-
-    override fun setDefault(default: Boolean) {
-        set(DEFAULT, default)
-    }
-
-    override fun setSealed(sealed: Boolean) {
-        set(SEALED, sealed)
-    }
-
-    override fun setFunctional(functional: Boolean) {
-        set(FUN, functional)
-    }
-
-    override fun setInfix(infix: Boolean) {
-        set(INFIX, infix)
-    }
-
-    override fun setOperator(operator: Boolean) {
-        set(OPERATOR, operator)
-    }
-
-    override fun setInline(inline: Boolean) {
-        set(INLINE, inline)
-    }
-
-    override fun setValue(value: Boolean) {
-        set(VALUE, value)
-    }
-
-    override fun setData(data: Boolean) {
-        set(DATA, data)
-    }
-
-    override fun setVarArg(vararg: Boolean) {
-        set(VARARG, vararg)
-    }
-
-    override fun setDeprecated(deprecated: Boolean) {
-        set(DEPRECATED, deprecated)
-    }
-
-    override fun setSuspend(suspend: Boolean) {
-        set(SUSPEND, suspend)
-    }
-
-    override fun setCompanion(companion: Boolean) {
-        set(COMPANION, companion)
-    }
-
-    override fun setExpect(expect: Boolean) {
-        set(EXPECT, expect)
-    }
-
-    override fun setActual(actual: Boolean) {
-        set(ACTUAL, actual)
-    }
-
-    override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
-        val mutable = annotations.toMutableList()
-        mutable.mutator()
-        annotations = mutable.toList()
-    }
-
     override fun isPackagePrivate(): Boolean {
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
@@ -315,20 +209,8 @@ constructor(
         return DefaultModifierList(flags, newAnnotations)
     }
 
-    override fun toMutable(): MutableModifierList {
-        // Temporarily return this to maintain existing behavior while migrating to separate mutable
-        // and immutable classes.
-        return this
-    }
-
-    override fun toImmutable(): ModifierList {
-        // Temporarily return this to maintain existing behavior while migrating to separate mutable
-        // and immutable classes.
-        return this
-    }
-
     override fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean {
-        other as DefaultModifierList
+        other as DefaultBaseModifierList
 
         val flags2 = other.flags
         val mask = EQUIVALENCE_MASK
@@ -361,9 +243,7 @@ constructor(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as DefaultModifierList
+        if (other !is DefaultBaseModifierList) return false
 
         if (flags != other.flags) return false
         if (annotations != other.annotations) return false
@@ -473,6 +353,134 @@ interface ModifierFlags {
     }
 }
 
+/** Default [MutableModifierList]. */
+internal class DefaultMutableModifierList(
+    flags: Int,
+    annotations: List<AnnotationItem> = emptyList(),
+) : DefaultBaseModifierList(flags, annotations), MutableModifierList {
+
+    override fun toMutable(): MutableModifierList {
+        return this
+    }
+
+    override fun toImmutable(): ModifierList {
+        return DefaultModifierList(flags, annotations)
+    }
+
+    override fun setVisibilityLevel(level: VisibilityLevel) {
+        flags = (flags and VISIBILITY_MASK.inv()) or level.visibilityFlagValue
+    }
+
+    override fun setStatic(static: Boolean) {
+        set(STATIC, static)
+    }
+
+    override fun setAbstract(abstract: Boolean) {
+        set(ABSTRACT, abstract)
+    }
+
+    override fun setFinal(final: Boolean) {
+        set(FINAL, final)
+    }
+
+    override fun setNative(native: Boolean) {
+        set(NATIVE, native)
+    }
+
+    override fun setSynchronized(synchronized: Boolean) {
+        set(SYNCHRONIZED, synchronized)
+    }
+
+    override fun setStrictFp(strictfp: Boolean) {
+        set(STRICT_FP, strictfp)
+    }
+
+    override fun setTransient(transient: Boolean) {
+        set(TRANSIENT, transient)
+    }
+
+    override fun setVolatile(volatile: Boolean) {
+        set(VOLATILE, volatile)
+    }
+
+    override fun setDefault(default: Boolean) {
+        set(DEFAULT, default)
+    }
+
+    override fun setSealed(sealed: Boolean) {
+        set(SEALED, sealed)
+    }
+
+    override fun setFunctional(functional: Boolean) {
+        set(FUN, functional)
+    }
+
+    override fun setInfix(infix: Boolean) {
+        set(INFIX, infix)
+    }
+
+    override fun setOperator(operator: Boolean) {
+        set(OPERATOR, operator)
+    }
+
+    override fun setInline(inline: Boolean) {
+        set(INLINE, inline)
+    }
+
+    override fun setValue(value: Boolean) {
+        set(VALUE, value)
+    }
+
+    override fun setData(data: Boolean) {
+        set(DATA, data)
+    }
+
+    override fun setVarArg(vararg: Boolean) {
+        set(VARARG, vararg)
+    }
+
+    override fun setDeprecated(deprecated: Boolean) {
+        set(DEPRECATED, deprecated)
+    }
+
+    override fun setSuspend(suspend: Boolean) {
+        set(SUSPEND, suspend)
+    }
+
+    override fun setCompanion(companion: Boolean) {
+        set(COMPANION, companion)
+    }
+
+    override fun setExpect(expect: Boolean) {
+        set(EXPECT, expect)
+    }
+
+    override fun setActual(actual: Boolean) {
+        set(ACTUAL, actual)
+    }
+
+    override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
+        val mutable = annotations.toMutableList()
+        mutable.mutator()
+        annotations = mutable.toList()
+    }
+}
+
+/** Default [ModifierList]. */
+internal class DefaultModifierList(
+    flags: Int,
+    annotations: List<AnnotationItem> = emptyList(),
+) : DefaultBaseModifierList(flags, annotations), ModifierList {
+
+    override fun toMutable(): MutableModifierList {
+        return DefaultMutableModifierList(flags, annotations)
+    }
+
+    override fun toImmutable(): ModifierList {
+        return this
+    }
+}
+
 /**
  * Add a [Retention] annotation with the default [RetentionPolicy] suitable for [codebase].
  *
@@ -508,7 +516,7 @@ fun createImmutableModifiers(
     visibility: VisibilityLevel,
     annotations: List<AnnotationItem> = emptyList(),
 ): ModifierList {
-    return DefaultModifierList(visibility, annotations)
+    return DefaultModifierList(visibility.visibilityFlagValue, annotations)
 }
 
 /**
@@ -519,7 +527,7 @@ fun createMutableModifiers(
     visibility: VisibilityLevel,
     annotations: List<AnnotationItem> = emptyList(),
 ): MutableModifierList {
-    return DefaultModifierList(visibility, annotations)
+    return DefaultMutableModifierList(visibility.visibilityFlagValue, annotations)
 }
 
 /**
@@ -529,5 +537,5 @@ fun createMutableModifiers(
     flags: Int,
     annotations: List<AnnotationItem> = emptyList(),
 ): MutableModifierList {
-    return DefaultModifierList(flags, annotations)
+    return DefaultMutableModifierList(flags, annotations)
 }
