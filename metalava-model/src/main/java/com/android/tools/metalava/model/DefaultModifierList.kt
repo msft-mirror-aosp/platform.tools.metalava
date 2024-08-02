@@ -20,9 +20,19 @@ import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
 class DefaultModifierList(
-    private var flags: Int = PACKAGE_PRIVATE,
+    private var flags: Int,
     private var annotations: List<AnnotationItem> = emptyList(),
 ) : MutableModifierList {
+
+    /**
+     * Secondary constructor that avoids the caller having to use flags directly which are
+     * implementation details of the [DefaultModifierList].
+     */
+    constructor(
+        visibility: VisibilityLevel,
+        annotations: List<AnnotationItem> = emptyList()
+    ) : this(visibility.visibilityFlagValue, annotations)
+
     private operator fun set(mask: Int, set: Boolean) {
         flags =
             if (set) {
@@ -347,7 +357,7 @@ class DefaultModifierList(
     companion object {
         /** Create a public modifiers object. */
         fun createPublic(annotations: List<AnnotationItem> = emptyList()) =
-            DefaultModifierList(PUBLIC, annotations)
+            DefaultModifierList(VisibilityLevel.PUBLIC, annotations)
 
         /**
          * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility

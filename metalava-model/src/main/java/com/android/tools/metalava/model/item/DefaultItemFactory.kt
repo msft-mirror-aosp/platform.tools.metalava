@@ -60,7 +60,7 @@ class DefaultItemFactory(
     /** Create a [PackageItem]. */
     fun createPackageItem(
         fileLocation: FileLocation = FileLocation.UNKNOWN,
-        modifiers: DefaultModifierList = DefaultModifierList(),
+        modifiers: DefaultModifierList = DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE),
         documentationFactory: ItemDocumentationFactory = "".toItemDocumentationFactory(),
         qualifiedName: String,
         containingPackage: PackageItem?,

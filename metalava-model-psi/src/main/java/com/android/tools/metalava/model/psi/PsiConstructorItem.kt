@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -138,7 +137,7 @@ private constructor(
 
             val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
             val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = DefaultModifierList(PACKAGE_PRIVATE)
+            val modifiers = DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
             val item =
