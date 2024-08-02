@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -32,6 +31,7 @@ import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultConstructorItem(
@@ -88,7 +88,7 @@ open class DefaultConstructorItem(
             visibility: VisibilityLevel,
         ): ConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = DefaultModifierList(visibility)
+            val modifiers = createImmutableModifiers(visibility)
 
             val ctorItem =
                 DefaultConstructorItem(

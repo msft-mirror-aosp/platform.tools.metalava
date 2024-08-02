@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -42,7 +41,9 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -240,7 +241,7 @@ internal open class TurbineCodebaseInitialiser(
                 createTurbineSourceFile(unit)
                 val annotations = createAnnotations(sourceTypeBoundClass.annotations())
 
-                val modifiers = DefaultModifierList.createPublic(annotations)
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 

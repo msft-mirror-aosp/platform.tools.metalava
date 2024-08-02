@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -49,6 +48,8 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -1335,7 +1336,7 @@ private constructor(
         visibility: VisibilityLevel,
         annotations: List<AnnotationItem>
     ): MutableModifierList {
-        val modifiers = DefaultModifierList(visibility, annotations)
+        val modifiers = createMutableModifiers(visibility, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
@@ -1542,7 +1543,7 @@ private constructor(
         val name = typeParameterString.substring(nameStart, nameEnd)
 
         // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
+        val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,

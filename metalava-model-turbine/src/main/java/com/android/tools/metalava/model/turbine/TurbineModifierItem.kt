@@ -16,7 +16,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.ABSTRACT
 import com.android.tools.metalava.model.DefaultModifierList.Companion.DEFAULT
 import com.android.tools.metalava.model.DefaultModifierList.Companion.FINAL
@@ -33,6 +32,7 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VARARG
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createMutableModifiers
 import com.google.turbine.model.TurbineFlag
 
 internal object TurbineModifierItem {
@@ -40,13 +40,13 @@ internal object TurbineModifierItem {
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                    DefaultModifierList(
+                    createMutableModifiers(
                         visibility = VisibilityLevel.PACKAGE_PRIVATE,
                         annotations = annotations,
                     )
                 }
                 else -> {
-                    DefaultModifierList(computeFlag(flag), annotations)
+                    createMutableModifiers(computeFlag(flag), annotations)
                 }
             }
         modifierItem.setDeprecated(isDeprecated(annotations))

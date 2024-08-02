@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.ABSTRACT
 import com.android.tools.metalava.model.DefaultModifierList.Companion.ACTUAL
 import com.android.tools.metalava.model.DefaultModifierList.Companion.COMPANION
@@ -52,6 +51,7 @@ import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
@@ -408,7 +408,7 @@ internal object PsiModifierItem {
 
         val psiAnnotations = element.annotations
         return if (psiAnnotations.isEmpty()) {
-            DefaultModifierList(flags)
+            createMutableModifiers(flags)
         } else {
             val annotations =
                 // psi sometimes returns duplicate annotations, using distinct() to counter
@@ -436,7 +436,7 @@ internal object PsiModifierItem {
                         PsiAnnotationItem.create(codebase, it)
                     }
                     .filter { !it.isDeprecatedForSdk() }
-            DefaultModifierList(flags, annotations)
+            createMutableModifiers(flags, annotations)
         }
     }
 
@@ -446,7 +446,7 @@ internal object PsiModifierItem {
         annotated: UAnnotated
     ): MutableModifierList {
         val modifierList =
-            element.modifierList ?: return DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE)
+            element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
         val uAnnotations = annotated.uAnnotations
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
@@ -459,9 +459,9 @@ internal object PsiModifierItem {
             if (psiAnnotations.isNotEmpty()) {
                 val annotations =
                     psiAnnotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
-                DefaultModifierList(flags, annotations)
+                createMutableModifiers(flags, annotations)
             } else {
-                DefaultModifierList(flags)
+                createMutableModifiers(flags)
             }
         } else {
             val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
@@ -510,7 +510,7 @@ internal object PsiModifierItem {
                 }
             }
 
-            DefaultModifierList(flags, annotations)
+            createMutableModifiers(flags, annotations)
         }
     }
 

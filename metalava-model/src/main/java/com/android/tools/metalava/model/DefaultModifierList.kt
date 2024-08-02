@@ -19,7 +19,8 @@ package com.android.tools.metalava.model
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
-class DefaultModifierList(
+class DefaultModifierList
+internal constructor(
     private var flags: Int,
     private var annotations: List<AnnotationItem> = emptyList(),
 ) : ModifierList, MutableModifierList {
@@ -355,9 +356,6 @@ class DefaultModifierList(
     }
 
     companion object {
-        /** Create a public modifiers object. */
-        fun createPublic(annotations: List<AnnotationItem> = emptyList()) =
-            DefaultModifierList(VisibilityLevel.PUBLIC, annotations)
 
         /**
          * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility
@@ -470,4 +468,36 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
             item,
         )
     )
+}
+
+/**
+ * Create an immutable [ModifierList] with the [visibility] level and an optional list of
+ * [AnnotationItem]s.
+ */
+fun createImmutableModifiers(
+    visibility: VisibilityLevel,
+    annotations: List<AnnotationItem> = emptyList(),
+): ModifierList {
+    return DefaultModifierList(visibility, annotations)
+}
+
+/**
+ * Create a [MutableModifierList] with the [visibility] level and an optional list of
+ * [AnnotationItem]s.
+ */
+fun createMutableModifiers(
+    visibility: VisibilityLevel,
+    annotations: List<AnnotationItem> = emptyList(),
+): MutableModifierList {
+    return DefaultModifierList(visibility, annotations)
+}
+
+/**
+ * Create a [MutableModifierList] from a set of [flags] and an optional list of [AnnotationItem]s.
+ */
+fun createMutableModifiers(
+    flags: Int,
+    annotations: List<AnnotationItem> = emptyList(),
+): MutableModifierList {
+    return DefaultModifierList(flags, annotations)
 }
