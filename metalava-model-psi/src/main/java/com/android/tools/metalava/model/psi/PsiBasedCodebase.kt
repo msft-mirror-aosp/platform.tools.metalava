@@ -206,6 +206,7 @@ internal class PsiBasedCodebase(
             gatherPackageJavadoc(
                 reporter,
                 sourceSet,
+                packageNameFilter = { findPsiPackage(it) != null },
                 packageInfoFiles,
                 packageInfoDocExtractor = { getOptionalPackageDocFromPackageInfoFile(it) },
             )

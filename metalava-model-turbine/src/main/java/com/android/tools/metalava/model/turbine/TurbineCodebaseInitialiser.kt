@@ -224,8 +224,12 @@ internal open class TurbineCodebaseInitialiser(
         // information from package-info.java units to create a comprehensive set of package
         // documentation just in case they are needed during package creation.
         val packageDocs =
-            gatherPackageJavadoc(codebase.reporter, sourceSet, packageInfoList) {
-                (unit, packageName, sourceTypeBoundClass) ->
+            gatherPackageJavadoc(
+                codebase.reporter,
+                sourceSet,
+                packageNameFilter = { true },
+                packageInfoList
+            ) { (unit, packageName, sourceTypeBoundClass) ->
                 val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
