@@ -31,11 +31,12 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.SYNCHRONIZ
 import com.android.tools.metalava.model.DefaultModifierList.Companion.TRANSIENT
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VARARG
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.google.turbine.model.TurbineFlag
 
 internal object TurbineModifierItem {
-    fun create(flag: Int, annotations: List<AnnotationItem>): DefaultModifierList {
+    fun create(flag: Int, annotations: List<AnnotationItem>): MutableModifierList {
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case

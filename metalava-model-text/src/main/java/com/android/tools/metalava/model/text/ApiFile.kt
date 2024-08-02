@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -584,7 +585,7 @@ private constructor(
                 qualifiedName = qualifiedClassName,
                 fullName = fullName,
                 classKind = classKind,
-                modifiers = modifiers,
+                modifiers = modifiers.toImmutable(),
                 superClassType = superClassType,
             )
 
@@ -1224,7 +1225,7 @@ private constructor(
         tokenizer: Tokenizer,
         startingToken: String?,
         annotations: List<AnnotationItem>
-    ): DefaultModifierList {
+    ): MutableModifierList {
         var token = startingToken
         val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
 
@@ -1329,11 +1330,11 @@ private constructor(
         return modifiers
     }
 
-    /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
+    /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
     private fun createModifiers(
         visibility: VisibilityLevel,
         annotations: List<AnnotationItem>
-    ): DefaultModifierList {
+    ): MutableModifierList {
         val modifiers = DefaultModifierList(visibility, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
@@ -1719,7 +1720,7 @@ private constructor(
         val publicName: String?,
         val defaultValue: DefaultValue,
         val typeString: String,
-        val modifiers: DefaultModifierList,
+        val modifiers: MutableModifierList,
         val location: FileLocation,
         val index: Int
     ) {
@@ -1844,7 +1845,7 @@ private constructor(
      * @param typeItem the type of the API item.
      * @param modifiers the API item's modifiers.
      */
-    private fun synchronizeNullability(typeItem: TypeItem, modifiers: DefaultModifierList) {
+    private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
         if (typeParser.kotlinStyleNulls) {
             // Add an annotation to the context item for the type's nullability if applicable.
             val annotationToAdd =

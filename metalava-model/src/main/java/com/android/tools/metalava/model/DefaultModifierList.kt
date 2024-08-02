@@ -452,7 +452,7 @@ class DefaultModifierList(
  * The caller must ensure that the annotation does not already have a [Retention] annotation before
  * calling this.
  */
-fun DefaultModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
+fun MutableModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
     // By policy, include explicit retention policy annotation if missing
     val isKotlin = item.itemLanguage == ItemLanguage.KOTLIN
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)

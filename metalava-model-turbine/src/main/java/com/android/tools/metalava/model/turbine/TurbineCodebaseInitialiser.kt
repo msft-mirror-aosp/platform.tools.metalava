@@ -880,7 +880,8 @@ internal open class TurbineCodebaseInitialiser(
         val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
-            val parameterModifierItem = TurbineModifierItem.create(parameter.access(), annotations)
+            val parameterModifierItem =
+                TurbineModifierItem.create(parameter.access(), annotations).toImmutable()
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),

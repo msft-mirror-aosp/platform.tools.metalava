@@ -50,6 +50,7 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VISIBILITY
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
@@ -97,7 +98,7 @@ internal object PsiModifierItem {
     fun create(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
-    ): DefaultModifierList {
+    ): MutableModifierList {
         val modifiers =
             if (element is UAnnotated) {
                 createFromUAnnotated(codebase, element, element)
@@ -400,7 +401,7 @@ internal object PsiModifierItem {
     private fun createFromPsiElement(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner
-    ): DefaultModifierList {
+    ): MutableModifierList {
         var flags =
             element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
                 ?: PACKAGE_PRIVATE
@@ -443,7 +444,7 @@ internal object PsiModifierItem {
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
         annotated: UAnnotated
-    ): DefaultModifierList {
+    ): MutableModifierList {
         val modifierList =
             element.modifierList ?: return DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE)
         val uAnnotations = annotated.uAnnotations
