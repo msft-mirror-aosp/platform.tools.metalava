@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
@@ -59,9 +60,10 @@ class DefaultItemFactory(
     /** Create a [PackageItem]. */
     fun createPackageItem(
         fileLocation: FileLocation = FileLocation.UNKNOWN,
-        modifiers: DefaultModifierList = DefaultModifierList(codebase),
-        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        modifiers: DefaultModifierList = DefaultModifierList(),
+        documentationFactory: ItemDocumentationFactory = "".toItemDocumentationFactory(),
         qualifiedName: String,
+        overviewDocumentation: String? = null,
     ): DefaultPackageItem {
         modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
         return DefaultPackageItem(
@@ -72,6 +74,7 @@ class DefaultItemFactory(
             documentationFactory,
             defaultVariantSelectorsFactory,
             qualifiedName,
+            overviewDocumentation,
         )
     }
 
