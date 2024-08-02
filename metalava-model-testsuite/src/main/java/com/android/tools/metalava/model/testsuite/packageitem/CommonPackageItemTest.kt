@@ -411,4 +411,21 @@ class CommonPackageItemTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test mismatching between package and directory`() {
+        runCodebaseTest(
+            java(
+                "src/test/other/Foo.java",
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                    }
+                """
+            ),
+        ) {
+            codebase.assertClass("test.pkg.Foo")
+        }
+    }
 }
