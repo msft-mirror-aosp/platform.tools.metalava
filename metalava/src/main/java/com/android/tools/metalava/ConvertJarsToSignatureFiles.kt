@@ -100,15 +100,14 @@ class ConvertJarsToSignatureFiles(
                             val annotationClass =
                                 if (annotation.isNullable()) ANDROIDX_NULLABLE else ANDROIDX_NONNULL
 
-                            val modifiers = new.mutableModifiers()
-                            modifiers.removeAnnotation(annotation)
-
-                            modifiers.addAnnotation(
-                                new.codebase.createAnnotation(
-                                    "@$annotationClass",
-                                    new,
-                                )
-                            )
+                            val replacementAnnotation =
+                                new.codebase.createAnnotation("@$annotationClass", new)
+                            new.mutateModifiers {
+                                mutateAnnotations {
+                                    remove(annotation)
+                                    replacementAnnotation?.let { add(it) }
+                                }
+                            }
                         }
                     }
                 )
@@ -246,7 +245,7 @@ class ConvertJarsToSignatureFiles(
         this ?: return
         if (!originallyDeprecated) {
             // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
-            mutableModifiers().setDeprecated(true)
+            mutateModifiers { setDeprecated(true) }
             progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }
