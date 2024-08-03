@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -51,6 +52,8 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -422,44 +425,33 @@ private constructor(
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
-        val modifiers = createModifiers(DefaultModifierList.PUBLIC, annotations)
+        val modifiers = createModifiers(VisibilityLevel.PUBLIC, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
 
-        // If the same package showed up multiple times, make sure they have the same modifiers.
-        // (Packages can't have public/private/etc., but they can have annotations, which are part
-        // of ModifierList.)
-        val existing = codebase.findPackage(name)
+        // Wrap the modifiers and file location in a PackageDocs so that findOrCreatePackage(...)
+        // will create a package with them and will check to make sure that an existing package, if
+        // any, has matching modifiers.
+        val packageDoc =
+            MutablePackageDoc(
+                name,
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+            )
+        val packageDocs = PackageDocs(mapOf(name to packageDoc))
         val pkg =
-            if (existing != null) {
-                if (modifiers != existing.modifiers) {
-                    throw ApiParseException(
-                        String.format(
-                            "Contradicting declaration of package %s. Previously seen with modifiers \"%s\", but now with \"%s\"",
-                            name,
-                            existing.modifiers,
-                            modifiers
-                        ),
-                        tokenizer
-                    )
-                }
-                // Make sure that to mark the existing package as part of the current API surface if
-                // it is referenced in any signature file that was part of the current API surface.
-                if (!existing.emit) {
-                    existing.markForCurrentApiSurface()
-                }
-                existing
-            } else {
-                val newPackageItem =
-                    itemFactory.createPackageItem(
-                        fileLocation = tokenizer.fileLocation(),
-                        modifiers = modifiers,
-                        qualifiedName = name,
-                    )
-                newPackageItem.markForCurrentApiSurface()
-                codebase.addPackage(newPackageItem)
-                newPackageItem
+            try {
+                codebase.findOrCreatePackage(
+                    name,
+                    packageDocs,
+                    // Make sure that this package is included in the current API surface, even if
+                    // it was created in a separate file which is not part of the current API
+                    // surface.
+                    emit = forCurrentApiSurface,
+                )
+            } catch (e: IllegalStateException) {
+                throw ApiParseException(e.message!!, tokenizer)
             }
 
         token = tokenizer.requireToken()
@@ -602,6 +594,16 @@ private constructor(
             return
         }
 
+        // Default the superClassType() to java.lang.Object for any class that is not an interface,
+        // annotation, or enum and which is not itself java.lang.Object.
+        if (
+            classKind == ClassKind.CLASS &&
+                superClassType == null &&
+                qualifiedClassName != JAVA_LANG_OBJECT
+        ) {
+            superClassType = globalTypeItemFactory.superObjectType
+        }
+
         // Create the DefaultClassItem and set its package but do not add it to the package or
         // register it.
         val cl =
@@ -616,17 +618,10 @@ private constructor(
                 fullName = fullName,
                 typeParameterList = typeParameterList,
                 isFromClassPath = false,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes.toList(),
             )
         cl.markForCurrentApiSurface()
-
-        // Default the superClassType() to java.lang.Object for any class that is not an interface,
-        // annotation, or enum and which is not itself java.lang.Object.
-        if (classKind == ClassKind.CLASS && superClassType == null && !cl.isJavaLangObject()) {
-            superClassType = globalTypeItemFactory.superObjectType
-        }
-        cl.setSuperClassType(superClassType)
-
-        cl.setInterfaceTypes(interfaceTypes.toList())
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -669,8 +664,10 @@ private constructor(
         // Add new annotations to the existing class
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
-        for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
-            existingClass.modifiers.addAnnotation(annotation)
+
+        val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
+        if (extraAnnotations.isNotEmpty()) {
+            existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
         }
 
         // Use the latest super class.
@@ -1229,7 +1226,7 @@ private constructor(
         annotations: List<AnnotationItem>
     ): DefaultModifierList {
         var token = startingToken
-        val modifiers = createModifiers(DefaultModifierList.PACKAGE_PRIVATE, annotations)
+        val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
 
         processModifiers@ while (true) {
             token =
@@ -1334,7 +1331,7 @@ private constructor(
 
     /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
     private fun createModifiers(
-        visibility: Int,
+        visibility: VisibilityLevel,
         annotations: List<AnnotationItem>
     ): DefaultModifierList {
         val modifiers = DefaultModifierList(visibility, annotations)
@@ -1544,7 +1541,7 @@ private constructor(
         val name = typeParameterString.substring(nameStart, nameEnd)
 
         // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = DefaultModifierList(DefaultModifierList.PUBLIC)
+        val modifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,

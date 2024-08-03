@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
@@ -36,9 +37,8 @@ internal constructor(
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     qualifiedName: String,
-    overviewDocumentation: String?,
-    /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
+    containingPackage: PackageItem?,
+    overviewDocumentation: ResourceFile?,
 ) :
     DefaultPackageItem(
         codebase = codebase,
@@ -48,6 +48,7 @@ internal constructor(
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         qualifiedName = qualifiedName,
+        containingPackage = containingPackage,
         overviewDocumentation = overviewDocumentation,
     ),
     PackageItem,
@@ -55,32 +56,15 @@ internal constructor(
 
     override fun psi() = psiPackage
 
-    override fun isFromClassPath(): Boolean = fromClassPath
-
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
-
-    fun addTopClass(classItem: PsiClassItem) {
-        if (!classItem.isTopLevelClass()) {
-            return
-        }
-
-        super.addTopClass(classItem)
-        classItem.containingPackage = this
-    }
-
-    fun addClasses(classList: List<PsiClassItem>) {
-        for (cls in classList) {
-            addTopClass(cls)
-        }
-    }
 
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
             packageDoc: PackageDoc,
-            fromClassPath: Boolean,
+            containingPackage: PackageItem?,
         ): PsiPackageItem {
             val modifiers = PsiModifierItem.create(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
@@ -96,8 +80,8 @@ internal constructor(
                 modifiers = modifiers,
                 documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
                 qualifiedName = qualifiedName,
+                containingPackage = containingPackage,
                 overviewDocumentation = packageDoc.overview,
-                fromClassPath = fromClassPath,
             )
         }
     }
