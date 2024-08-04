@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
@@ -115,22 +116,18 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
                 val itemFactory = codebase.assembler.itemFactory
 
-                val packageItem =
-                    codebase.findPackage(packageName)
-                        ?: itemFactory.createPackageItem(qualifiedName = packageName).also {
-                            newPackageItem ->
-                            codebase.addPackage(newPackageItem)
-                        }
-
+                val packageItem = codebase.findOrCreatePackage(packageName)
                 itemFactory.createClassItem(
                     fileLocation = FileLocation.UNKNOWN,
-                    modifiers = DefaultModifierList(codebase),
-                    qualifiedName = cls.canonicalName,
+                    modifiers = DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE),
                     classKind = ClassKind.CLASS,
                     containingClass = null,
                     containingPackage = packageItem,
+                    qualifiedName = cls.canonicalName,
                     typeParameterList = TypeParameterList.NONE,
                     isFromClassPath = true,
+                    superClassType = null,
+                    interfaceTypes = emptyList(),
                 )
             }
     }
