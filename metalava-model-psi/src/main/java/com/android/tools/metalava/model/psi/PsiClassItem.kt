@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -35,13 +36,13 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.item.DefaultItem
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
-import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -54,36 +55,47 @@ import org.jetbrains.uast.getParentOfType
 
 internal class PsiClassItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
-    private val name: String,
-    private val fullName: String,
-    private val qualifiedName: String,
-    private val hasImplicitDefaultConstructor: Boolean,
-    override val classKind: ClassKind,
-    override val typeParameterList: TypeParameterList,
-    private val superClassType: ClassTypeItem?,
-    private var interfaceTypes: List<ClassTypeItem>,
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
+    override val classKind: ClassKind,
+    private val containingClass: ClassItem?,
+    private val containingPackage: PackageItem,
+    private val qualifiedName: String,
+    private val simpleName: String,
+    private val fullName: String,
+    override val typeParameterList: TypeParameterList,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
+    private val isFromClassPath: Boolean,
+    private val hasImplicitDefaultConstructor: Boolean,
+    private val superClassType: ClassTypeItem?,
+    private var interfaceTypes: List<ClassTypeItem>
 ) :
-    AbstractPsiItem(
+    DefaultItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation.fromPsiElement(psiClass),
+        itemLanguage = psiClass.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiClass
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ),
     ClassItem,
     PsiItem {
 
-    lateinit var containingPackage: PsiPackageItem
+    init {
+        if (containingClass == null) {
+            (containingPackage as DefaultPackageItem).addTopClass(this)
+        } else {
+            (containingClass as PsiClassItem).addNestedClass(this)
+        }
+        codebase.registerClass(this)
+    }
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
 
-    override fun simpleName(): String = name
+    override fun simpleName(): String = simpleName
 
     override fun fullName(): String = fullName
 
@@ -91,7 +103,7 @@ internal constructor(
 
     override fun psi() = psiClass
 
-    override fun isFromClassPath(): Boolean = fromClassPath
+    override fun isFromClassPath(): Boolean = isFromClassPath
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
@@ -99,9 +111,7 @@ internal constructor(
 
     override var stubConstructor: ConstructorItem? = null
 
-    private var containingClass: PsiClassItem? = null
-
-    override fun containingClass(): PsiClassItem? = containingClass
+    override fun containingClass() = containingClass
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -119,20 +129,13 @@ internal constructor(
         return allInterfaces!!.asSequence()
     }
 
-    private lateinit var nestedClasses: List<PsiClassItem>
+    private val mutableNestedClasses = mutableListOf<ClassItem>()
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
-    /**
-     * If this item was created by filtering down a different codebase, this temporarily points to
-     * the original item during construction. This is used to let us initialize for example throws
-     * lists later, when all classes in the codebase have been initialized.
-     */
-    internal var source: PsiClassItem? = null
-
-    override fun nestedClasses(): List<PsiClassItem> = nestedClasses
+    override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -178,12 +181,17 @@ internal constructor(
     }
 
     /** Creates a constructor in this class */
-    override fun createDefaultConstructor(): ConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
+    override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
+        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass, visibility)
     }
 
     override fun addMethod(method: MethodItem) {
         methods.add(method as PsiMethodItem)
+    }
+
+    /** Add a nested class to this class. */
+    private fun addNestedClass(classItem: ClassItem) {
+        mutableNestedClasses.add(classItem)
     }
 
     private var retention: AnnotationRetention? = null
@@ -235,6 +243,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
             containingClassItem: PsiClassItem?,
+            containingPackage: PackageItem,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             fromClassPath: Boolean,
         ): PsiClassItem {
@@ -268,22 +277,20 @@ internal constructor(
                 PsiClassItem(
                     codebase = codebase,
                     psiClass = psiClass,
-                    name = simpleName,
-                    fullName = fullName,
-                    qualifiedName = qualifiedName,
+                    modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     classKind = classKind,
+                    containingClass = containingClassItem,
+                    containingPackage = containingPackage,
+                    qualifiedName = qualifiedName,
+                    simpleName = simpleName,
+                    fullName = fullName,
                     typeParameterList = typeParameterList,
+                    isFromClassPath = fromClassPath,
+                    hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
-                    hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
-                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
-                    modifiers = modifiers,
-                    fromClassPath = fromClassPath,
                 )
-            item.containingClass = containingClassItem
-
-            // Register this class now.
-            codebase.registerClass(item)
 
             // Construct the children
             val psiMethods = psiClass.methods
@@ -308,18 +315,6 @@ internal constructor(
                             psiMethod,
                             classTypeItemFactory,
                         )
-                    // After KT-13495, "all constructors of `sealed` classes now have `protected`
-                    // visibility by default," and (S|U)LC follows that (hence the same in UAST).
-                    // However, that change was made to allow more flexible class hierarchy and
-                    // nesting. If they're compiled to JVM bytecode, sealed class's ctor is still
-                    // technically `private` to block instantiation from outside class hierarchy.
-                    // Another synthetic constructor, along with an internal ctor marker, is added
-                    // for subclasses of a sealed class. Therefore, from Metalava's perspective,
-                    // it is not necessary to track such semantically protected ctor. Here we force
-                    // set the visibility to `private` back to ignore it during signature writing.
-                    if (item.modifiers.isSealed()) {
-                        constructor.modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
-                    }
                     constructors.add(constructor)
                 } else {
                     val method =
@@ -336,9 +331,7 @@ internal constructor(
 
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
-                constructors.add(
-                    PsiConstructorItem.createDefaultConstructor(codebase, item, psiClass)
-                )
+                constructors.add(item.createDefaultConstructor())
             }
 
             val fields: MutableList<PsiFieldItem> = mutableListOf()
@@ -346,22 +339,6 @@ internal constructor(
             if (psiFields.isNotEmpty()) {
                 psiFields.asSequence().mapTo(fields) {
                     PsiFieldItem.create(codebase, item, it, classTypeItemFactory)
-                }
-            }
-
-            if (classKind == ClassKind.INTERFACE) {
-                // All members are implicitly public, fields are implicitly static, non-static
-                // methods are abstract
-                // (except in Java 1.9, where they can be private
-                for (method in methods) {
-                    if (!method.isPrivate) {
-                        method.mutableModifiers().setVisibilityLevel(VisibilityLevel.PUBLIC)
-                    }
-                }
-                for (method in fields) {
-                    val m = method.mutableModifiers()
-                    m.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                    m.setStatic(true)
                 }
             }
 
@@ -425,23 +402,13 @@ internal constructor(
             // This actually gets all nested classes not just inner, i.e. non-static nested,
             // classes.
             val psiNestedClasses = psiClass.innerClasses
-            item.nestedClasses =
-                if (psiNestedClasses.isEmpty()) {
-                    emptyList()
-                } else {
-                    val result =
-                        psiNestedClasses
-                            .asSequence()
-                            .map {
-                                codebase.createClass(
-                                    psiClass = it,
-                                    containingClassItem = item,
-                                    enclosingClassTypeItemFactory = classTypeItemFactory
-                                )
-                            }
-                            .toMutableList()
-                    result
-                }
+            for (psiNestedClass in psiNestedClasses) {
+                codebase.createClass(
+                    psiClass = psiNestedClass,
+                    containingClassItem = item,
+                    enclosingClassTypeItemFactory = classTypeItemFactory,
+                )
+            }
 
             return item
         }
@@ -555,44 +522,17 @@ internal constructor(
                 //     @file:JvmName("-ViewModelExtensions") // Hide from Java sources in the IDE.
                 return false
             }
+
             if (psiClass is UClass && psiClass.sourcePsi == null) {
                 // Top level kt classes (FooKt for Foo.kt) do not have implicit default constructor
                 return false
             }
 
             val constructors = psiClass.constructors
-            if (
-                constructors.isEmpty() &&
-                    !psiClass.isInterface &&
-                    !psiClass.isAnnotationType &&
-                    !psiClass.isEnum
-            ) {
-                if (PsiUtil.hasDefaultConstructor(psiClass)) {
-                    return true
-                }
-
-                // The above method isn't always right; for example, for the
-                // ContactsContract.Presence class
-                // in the framework, which looks like this:
-                //    @Deprecated
-                //    public static final class Presence extends StatusUpdates {
-                //    }
-                // javac makes a default constructor:
-                //    public final class android.provider.ContactsContract$Presence extends
-                // android.provider.ContactsContract$StatusUpdates {
-                //        public android.provider.ContactsContract$Presence();
-                //    }
-                // but the above method returns false. So add some of our own heuristics:
-                if (
-                    psiClass.hasModifierProperty(PsiModifier.FINAL) &&
-                        !psiClass.hasModifierProperty(PsiModifier.ABSTRACT) &&
-                        psiClass.hasModifierProperty(PsiModifier.PUBLIC)
-                ) {
-                    return true
-                }
-            }
-
-            return false
+            return constructors.isEmpty() &&
+                !psiClass.isInterface &&
+                !psiClass.isAnnotationType &&
+                !psiClass.isEnum
         }
     }
 }

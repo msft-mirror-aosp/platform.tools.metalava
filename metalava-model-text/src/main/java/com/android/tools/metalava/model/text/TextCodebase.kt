@@ -50,11 +50,8 @@ internal class TextCodebase(
         assemblerFactory = assemblerFactory
     ) {
 
-    override val assembler
-        get() = super.assembler as TextCodebaseAssembler
-
     init {
-        assembler.initialize()
+        (assembler as TextCodebaseAssembler).initialize()
     }
 
     /**
@@ -191,14 +188,7 @@ internal class TextCodebase(
             if (outerClass == null) {
                 val endIndex = qualifiedName.lastIndexOf('.')
                 val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                findPackage(pkgPath)
-                    ?: run {
-                        val newPkg =
-                            assembler.itemFactory.createPackageItem(qualifiedName = pkgPath)
-                        addPackage(newPkg)
-                        newPkg.emit = false
-                        newPkg
-                    }
+                findOrCreatePackage(pkgPath, emit = false)
             } else {
                 outerClass.containingPackage() as DefaultPackageItem
             }
