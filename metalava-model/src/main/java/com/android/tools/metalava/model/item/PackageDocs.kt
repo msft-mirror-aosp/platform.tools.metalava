@@ -25,13 +25,13 @@ import com.android.tools.metalava.reporter.FileLocation
 /** Set of [PackageDoc] for every documented package defined in the source. */
 class PackageDocs(
     private val packages: Map<String, PackageDoc>,
-) : Iterable<Map.Entry<String, PackageDoc>> {
+) {
+    /** The set of package names. */
+    val packageNames: Collection<String> = packages.keys
 
     operator fun get(packageName: String): PackageDoc {
         return packages[packageName] ?: PackageDoc.EMPTY
     }
-
-    override fun iterator() = packages.entries.iterator()
 
     companion object {
         val EMPTY: PackageDocs = PackageDocs(emptyMap())
@@ -53,11 +53,11 @@ interface PackageDoc {
     val commentFactory: ItemDocumentationFactory?
 
     /**
-     * The contents of the optional `overview.html` file.
+     * The `overview.html` file.
      *
      * If specified this is used for [PackageItem.overviewDocumentation].
      */
-    val overview: String?
+    val overview: ResourceFile?
 
     companion object {
         val EMPTY =
@@ -83,5 +83,5 @@ data class MutablePackageDoc(
     override var fileLocation: FileLocation = FileLocation.UNKNOWN,
     override var modifiers: DefaultModifierList? = null,
     override var commentFactory: ItemDocumentationFactory? = null,
-    override var overview: String? = null,
+    override var overview: ResourceFile? = null,
 ) : PackageDoc

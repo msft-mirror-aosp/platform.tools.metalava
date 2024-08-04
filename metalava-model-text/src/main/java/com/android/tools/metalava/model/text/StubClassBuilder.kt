@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -40,27 +41,27 @@ internal class StubClassBuilder(
     var classKind = ClassKind.CLASS
 
     /** The modifiers are set to `public` because otherwise there is no point in creating it. */
-    val modifiers = DefaultModifierList(DefaultModifierList.PUBLIC)
+    val modifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
 
     var superClassType: ClassTypeItem? = null
 
     private fun build(): DefaultClassItem =
-        codebase.assembler.itemFactory
-            .createClassItem(
-                fileLocation = FileLocation.UNKNOWN,
-                modifiers = modifiers,
-                classKind = classKind,
-                qualifiedName = qualifiedName,
-                fullName = fullName,
-                containingClass = containingClass,
-                containingPackage = containingPackage,
-                typeParameterList = TypeParameterList.NONE,
-                // If this was from the class path then it would have been provided by the external
-                // `ClassResolver`. So, while this does not come from the signature file it also
-                // does not come from the class path either.
-                isFromClassPath = false,
-            )
-            .also { item -> item.setSuperClassType(superClassType) }
+        codebase.assembler.itemFactory.createClassItem(
+            fileLocation = FileLocation.UNKNOWN,
+            modifiers = modifiers,
+            classKind = classKind,
+            containingClass = containingClass,
+            containingPackage = containingPackage,
+            qualifiedName = qualifiedName,
+            fullName = fullName,
+            typeParameterList = TypeParameterList.NONE,
+            // If this was from the class path then it would have been provided by the external
+            // `ClassResolver`. So, while this does not come from the signature file it also
+            // does not come from the class path either.
+            isFromClassPath = false,
+            superClassType = superClassType,
+            interfaceTypes = emptyList(),
+        )
 
     companion object {
         /**
