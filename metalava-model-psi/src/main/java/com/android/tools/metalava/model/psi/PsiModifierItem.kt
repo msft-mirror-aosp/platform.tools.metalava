@@ -49,6 +49,7 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VISIBILITY
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
@@ -106,7 +107,7 @@ internal object PsiModifierItem {
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
         // that it should not, so this removes them.
         if (shouldRemoveNullnessAnnotations(element, modifiers)) {
-            modifiers.removeAnnotations { it.isNullnessAnnotation() }
+            modifiers.mutateAnnotations { removeIf { it.isNullnessAnnotation() } }
         }
 
         if (
@@ -405,9 +406,9 @@ internal object PsiModifierItem {
 
         val psiAnnotations = element.annotations
         return if (psiAnnotations.isEmpty()) {
-            DefaultModifierList(codebase, flags)
+            DefaultModifierList(flags)
         } else {
-            val annotations: MutableList<AnnotationItem> =
+            val annotations =
                 // psi sometimes returns duplicate annotations, using distinct() to counter
                 // that.
                 psiAnnotations
@@ -433,8 +434,7 @@ internal object PsiModifierItem {
                         PsiAnnotationItem.create(codebase, it)
                     }
                     .filter { !it.isDeprecatedForSdk() }
-                    .toMutableList()
-            DefaultModifierList(codebase, flags, annotations)
+            DefaultModifierList(flags, annotations)
         }
     }
 
@@ -443,7 +443,8 @@ internal object PsiModifierItem {
         element: PsiModifierListOwner,
         annotated: UAnnotated
     ): DefaultModifierList {
-        val modifierList = element.modifierList ?: return DefaultModifierList(codebase)
+        val modifierList =
+            element.modifierList ?: return DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE)
         val uAnnotations = annotated.uAnnotations
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
@@ -454,18 +455,16 @@ internal object PsiModifierItem {
 
         return if (uAnnotations.isEmpty()) {
             if (psiAnnotations.isNotEmpty()) {
-                val annotations: MutableList<AnnotationItem> =
-                    psiAnnotations
-                        .mapNotNull { PsiAnnotationItem.create(codebase, it) }
-                        .toMutableList()
-                DefaultModifierList(codebase, flags, annotations)
+                val annotations =
+                    psiAnnotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
+                DefaultModifierList(flags, annotations)
             } else {
-                DefaultModifierList(codebase, flags)
+                DefaultModifierList(flags)
             }
         } else {
             val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
 
-            val annotations: MutableList<AnnotationItem> =
+            var annotations =
                 uAnnotations
                     // Uast sometimes puts nullability annotations on primitives!?
                     .filter {
@@ -490,7 +489,6 @@ internal object PsiModifierItem {
                         UAnnotationItem.create(codebase, it)
                     }
                     .filter { !it.isDeprecatedForSdk() }
-                    .toMutableList()
 
             if (!isPrimitiveVariable) {
                 if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
@@ -500,13 +498,17 @@ internal object PsiModifierItem {
                         }
                     ktNullAnnotation?.let {
                         PsiAnnotationItem.create(codebase, it)?.let { annotationItem ->
-                            annotations.add(annotationItem)
+                            annotations =
+                                annotations.toMutableList().run {
+                                    add(annotationItem)
+                                    toList()
+                                }
                         }
                     }
                 }
             }
 
-            DefaultModifierList(codebase, flags, annotations)
+            DefaultModifierList(flags, annotations)
         }
     }
 

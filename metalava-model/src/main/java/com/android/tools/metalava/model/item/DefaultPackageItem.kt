@@ -23,10 +23,9 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultPackageItem(
+open class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
@@ -34,6 +33,8 @@ class DefaultPackageItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
+    val containingPackage: PackageItem?,
+    override val overviewDocumentation: ResourceFile?,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -47,23 +48,17 @@ class DefaultPackageItem(
 
     private val topClasses = mutableListOf<ClassItem>()
 
-    override fun qualifiedName(): String = qualifiedName
+    final override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
+    final override fun topLevelClasses(): List<ClassItem> =
+        // Return a copy to avoid a ConcurrentModificationException.
+        topClasses.toList()
 
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    private lateinit var containingPackageField: PackageItem
-
-    override fun containingPackage(): PackageItem? {
-        return if (qualifiedName.isEmpty()) null
-        else {
-            if (!::containingPackageField.isInitialized) {
-                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
-            }
-            containingPackageField
-        }
+    final override fun containingPackage(): PackageItem? {
+        return containingPackage
     }
 
     fun addTopClass(classItem: ClassItem) {

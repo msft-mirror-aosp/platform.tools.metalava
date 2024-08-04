@@ -58,12 +58,14 @@ class DefaultItemFactory(
 ) {
     /** Create a [PackageItem]. */
     fun createPackageItem(
-        fileLocation: FileLocation = FileLocation.UNKNOWN,
-        modifiers: DefaultModifierList = DefaultModifierList(codebase),
-        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentationFactory: ItemDocumentationFactory,
         qualifiedName: String,
+        containingPackage: PackageItem?,
+        overviewDocumentation: ResourceFile?,
     ): DefaultPackageItem {
-        modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+        if (modifiers.getVisibilityLevel() != VisibilityLevel.PUBLIC) error("Package is not public")
         return DefaultPackageItem(
             codebase,
             fileLocation,
@@ -72,6 +74,8 @@ class DefaultItemFactory(
             documentationFactory,
             defaultVariantSelectorsFactory,
             qualifiedName,
+            containingPackage,
+            overviewDocumentation,
         )
     }
 
@@ -89,6 +93,8 @@ class DefaultItemFactory(
         fullName: String = simpleName,
         typeParameterList: TypeParameterList,
         isFromClassPath: Boolean,
+        superClassType: ClassTypeItem?,
+        interfaceTypes: List<ClassTypeItem>,
     ) =
         DefaultClassItem(
             codebase,
@@ -106,6 +112,8 @@ class DefaultItemFactory(
             fullName,
             typeParameterList,
             isFromClassPath,
+            superClassType,
+            interfaceTypes,
         )
 
     /** Create a [ConstructorItem]. */

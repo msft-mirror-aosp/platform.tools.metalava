@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.model.item
 
-internal data class PackageDocs(
-    val packageDocs: MutableMap<String, String>,
-    val overviewDocs: MutableMap<String, String>,
-)
+import java.io.File
+
+/**
+ * A resource file is one that is supplied on input to Metalava and copied through to the stubs
+ * unchanged.
+ *
+ * e.g. This is used for copying the `overview.html` file when generate documentation stubs.
+ */
+class ResourceFile(private val file: File) {
+    val content by lazy(LazyThreadSafetyMode.NONE) { file.readText() }
+}
