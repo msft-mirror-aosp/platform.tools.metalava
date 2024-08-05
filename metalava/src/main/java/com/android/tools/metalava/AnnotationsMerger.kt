@@ -292,40 +292,6 @@ class AnnotationsMerger(
                         "qualifier annotations were given for $old but no matching item was found"
                     )
                 }
-
-                private fun mergeQualifierAnnotation(
-                    annotation: AnnotationItem,
-                    newModifiers: ModifierList,
-                    new: Item
-                ) {
-                    var addAnnotation = false
-                    if (annotation.isNullnessAnnotation()) {
-                        if (!newModifiers.hasAnnotation(AnnotationItem::isNullnessAnnotation)) {
-                            addAnnotation = true
-                        }
-                    } else {
-                        // TODO: Check for other incompatibilities than nullness?
-                        val qualifiedName = annotation.qualifiedName
-                        if (newModifiers.findAnnotation(qualifiedName) == null) {
-                            addAnnotation = true
-                        }
-                    }
-
-                    if (addAnnotation) {
-                        new.codebase
-                            .createAnnotation(
-                                annotation.toSource(showDefaultAttrs = false),
-                                new,
-                            )
-                            ?.let { mergeQualifierAnnotation(new, it) }
-                    }
-                }
-
-                private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
-                    for (annotation in typeItem.modifiers.annotations) {
-                        mergeQualifierAnnotation(annotation, new.modifiers, new)
-                    }
-                }
             }
 
         CodebaseComparator(
@@ -835,6 +801,40 @@ class AnnotationsMerger(
             name == ANDROID_NULLABLE ||
             name == ANDROIDX_NULLABLE ||
             name == SUPPORT_NULLABLE
+    }
+
+    private fun mergeQualifierAnnotation(
+        annotation: AnnotationItem,
+        newModifiers: ModifierList,
+        new: Item
+    ) {
+        var addAnnotation = false
+        if (annotation.isNullnessAnnotation()) {
+            if (!newModifiers.hasAnnotation(AnnotationItem::isNullnessAnnotation)) {
+                addAnnotation = true
+            }
+        } else {
+            // TODO: Check for other incompatibilities than nullness?
+            val qualifiedName = annotation.qualifiedName
+            if (newModifiers.findAnnotation(qualifiedName) == null) {
+                addAnnotation = true
+            }
+        }
+
+        if (addAnnotation) {
+            new.codebase
+                .createAnnotation(
+                    annotation.toSource(showDefaultAttrs = false),
+                    new,
+                )
+                ?.let { mergeQualifierAnnotation(new, it) }
+        }
+    }
+
+    private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
+        for (annotation in typeItem.modifiers.annotations) {
+            mergeQualifierAnnotation(annotation, new.modifiers, new)
+        }
     }
 
     private fun mergeQualifierAnnotation(item: Item, annotation: AnnotationItem) {
