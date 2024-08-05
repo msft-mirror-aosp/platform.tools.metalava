@@ -317,7 +317,7 @@ class AnnotationsMerger(
                                 annotation.toSource(showDefaultAttrs = false),
                                 new,
                             )
-                            ?.let { mergeInclusionOrQualifierAnnotation(new, it) }
+                            ?.let { mergeQualifierAnnotation(new, it) }
                     }
                 }
 
@@ -338,15 +338,15 @@ class AnnotationsMerger(
         val visitor =
             object : TraversingVisitor() {
                 override fun visitItem(item: Item): TraversalAction {
-                    // Find any show/hide annotations or FlaggedApi annotations to copy from the
+                    // Find any show/hide annotations or FlaggedApi annotations to merge from the
                     // external to the main codebase. If there are none to copy then return.
-                    val annotationsToCopy =
+                    val annotationsToMerge =
                         item.modifiers.annotations().filter { annotation ->
                             val qualifiedName = annotation.qualifiedName
                             annotation.isShowabilityAnnotation() ||
                                 qualifiedName == ANDROID_FLAGGED_API
                         }
-                    if (annotationsToCopy.isEmpty()) {
+                    if (annotationsToMerge.isEmpty()) {
                         // Just because there are no annotations on an [Item] does not mean that
                         // there will not be on the children so make sure to visit them as normal.
                         return TraversalAction.CONTINUE
@@ -368,11 +368,19 @@ class AnnotationsMerger(
                                 return TraversalAction.SKIP_CHILDREN
                             }
 
-                    // Copy the annotations to the main item.
-                    val modifiers = mainItem.modifiers
-                    for (annotation in annotationsToCopy) {
-                        if (modifiers.findAnnotation(annotation.qualifiedName) == null) {
-                            mergeInclusionOrQualifierAnnotation(mainItem, annotation)
+                    // Merge the annotations to the main item, ignoring any that match, i.e. are of
+                    // the same type as, an existing annotation.
+                    mainItem.mutateModifiers {
+                        mutateAnnotations {
+                            for (annotation in annotationsToMerge) {
+                                val qualifiedName = annotation.qualifiedName
+                                if (none { it.qualifiedName == qualifiedName }) {
+                                    // TODO: This simply uses the AnnotationItem from the Codebase
+                                    //  being merged from in the Codebase being merged into. That is
+                                    //  not safe as the Codebases may be from different models.
+                                    add(annotation)
+                                }
+                            }
                         }
                     }
 
@@ -569,7 +577,7 @@ class AnnotationsMerger(
             }
 
             val annotationItem = createAnnotation(annotationElement) ?: continue
-            mergeInclusionOrQualifierAnnotation(item, annotationItem)
+            mergeQualifierAnnotation(item, annotationItem)
         }
     }
 
@@ -829,7 +837,7 @@ class AnnotationsMerger(
             name == SUPPORT_NULLABLE
     }
 
-    private fun mergeInclusionOrQualifierAnnotation(item: Item, annotation: AnnotationItem) {
+    private fun mergeQualifierAnnotation(item: Item, annotation: AnnotationItem) {
         item.mutateModifiers { addAnnotation(annotation) }
 
         // Update the type nullability from the annotation, if necessary.
