@@ -17,27 +17,21 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
-import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.item.DefaultItem
-import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -59,128 +53,47 @@ internal constructor(
     val psiClass: PsiClass,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    override val classKind: ClassKind,
-    private val containingClass: ClassItem?,
-    private val containingPackage: PackageItem,
-    private val qualifiedName: String,
-    private val simpleName: String,
-    private val fullName: String,
-    override val typeParameterList: TypeParameterList,
+    classKind: ClassKind,
+    containingClass: ClassItem?,
+    containingPackage: PackageItem,
+    qualifiedName: String,
+    simpleName: String,
+    fullName: String,
+    typeParameterList: TypeParameterList,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
-    private val isFromClassPath: Boolean,
-    private val superClassType: ClassTypeItem?,
-    private var interfaceTypes: List<ClassTypeItem>
+    isFromClassPath: Boolean,
+    superClassType: ClassTypeItem?,
+    interfaceTypes: List<ClassTypeItem>
 ) :
-    DefaultItem(
+    DefaultClassItem(
         codebase = codebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiClass),
         itemLanguage = psiClass.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        source = null,
+        classKind = classKind,
+        containingClass = containingClass,
+        containingPackage = containingPackage,
+        qualifiedName = qualifiedName,
+        simpleName = simpleName,
+        fullName = fullName,
+        typeParameterList = typeParameterList,
+        isFromClassPath = isFromClassPath,
+        superClassType = superClassType,
+        interfaceTypes = interfaceTypes,
     ),
     ClassItem,
     PsiItem {
 
-    init {
-        if (containingClass == null) {
-            (containingPackage as DefaultPackageItem).addTopClass(this)
-        } else {
-            (containingClass as PsiClassItem).addNestedClass(this)
-        }
-        codebase.registerClass(this)
-    }
-
-    override fun containingPackage(): PackageItem =
-        containingClass?.containingPackage() ?: containingPackage
-
-    override fun simpleName(): String = simpleName
-
-    override fun fullName(): String = fullName
-
-    override fun qualifiedName(): String = qualifiedName
-
     override fun psi() = psiClass
-
-    override fun isFromClassPath(): Boolean = isFromClassPath
-
-    override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
-
-    override fun superClassType(): ClassTypeItem? = superClassType
-
-    override var stubConstructor: ConstructorItem? = null
-
-    override fun containingClass() = containingClass
-
-    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
-
-    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
-        this.interfaceTypes = interfaceTypes
-    }
-
-    private var allInterfaces: List<ClassItem>? = null
-
-    override fun allInterfaces(): Sequence<ClassItem> {
-        if (allInterfaces == null) {
-            allInterfaces = computeAllInterfaces()
-        }
-
-        return allInterfaces!!.asSequence()
-    }
-
-    private val mutableNestedClasses = mutableListOf<ClassItem>()
-    private val constructors = mutableListOf<ConstructorItem>()
-    private val methods = mutableListOf<MethodItem>()
-    private val properties = mutableListOf<PropertyItem>()
-    private val fields = mutableListOf<FieldItem>()
-
-    override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
-
-    override fun constructors(): List<ConstructorItem> = constructors
-
-    /** Tracks whether the class has an implicit default constructor. */
-    private var hasImplicitDefaultConstructor = false
-
-    /** Add a constructor to this class. */
-    fun addConstructor(constructor: ConstructorItem) {
-        constructors += constructor
-
-        // Keep track of whether any implicit constructors were added.
-        if (constructor.isImplicitConstructor()) {
-            hasImplicitDefaultConstructor = true
-        }
-    }
-
-    override fun methods(): List<MethodItem> = methods
-
-    /** Add a property to this class. */
-    fun addProperty(property: PropertyItem) {
-        properties += property
-    }
-
-    override fun properties(): List<PropertyItem> = properties
-
-    /** Add a field to this class. */
-    fun addField(field: FieldItem) {
-        fields += field
-    }
-
-    override fun fields(): List<FieldItem> = fields
 
     override var primaryConstructor: ConstructorItem? = null
         private set
 
-    /** Must only be used by [type] to cache its result. */
-    private lateinit var classTypeItem: ClassTypeItem
-
-    override fun type(): ClassTypeItem {
-        if (!::classTypeItem.isInitialized) {
-            classTypeItem = codebase.globalTypeItemFactory.getClassTypeForClass(this)
-        }
-        return classTypeItem
-    }
-
-    override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
+    override fun createClassTypeItemForThis() =
+        codebase.globalTypeItemFactory.getClassTypeForClass(this)
 
     override fun getSourceFile(): SourceFile? {
         if (isNestedClass()) {
@@ -205,30 +118,6 @@ internal constructor(
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass, visibility)
-    }
-
-    override fun addMethod(method: MethodItem) {
-        methods.add(method)
-    }
-
-    /** Add a nested class to this class. */
-    private fun addNestedClass(classItem: ClassItem) {
-        mutableNestedClasses.add(classItem)
-    }
-
-    private var retention: AnnotationRetention? = null
-
-    override fun getRetention(): AnnotationRetention {
-        retention?.let {
-            return it
-        }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        retention = ClassItem.findRetention(this)
-        return retention!!
     }
 
     override fun isFileFacade(): Boolean {
@@ -369,7 +258,7 @@ internal constructor(
                 val getters = mutableMapOf<String, PsiMethodItem>()
                 val setters = mutableMapOf<String, PsiMethodItem>()
                 val backingFields =
-                    classItem.fields.associateBy({ it.name() }) { it as PsiFieldItem }
+                    classItem.fields().associateBy({ it.name() }) { it as PsiFieldItem }
                 val constructorParameters =
                     classItem.primaryConstructor
                         ?.parameters()

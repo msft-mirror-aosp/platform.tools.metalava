@@ -75,7 +75,7 @@ open class DefaultClassItem(
         codebase.registerClass(this)
     }
 
-    final override fun getSourceFile() = source
+    override fun getSourceFile() = source
 
     final override fun containingPackage(): PackageItem = containingPackage
 
@@ -94,10 +94,13 @@ open class DefaultClassItem(
 
     final override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
-            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
+            cachedType = createClassTypeItemForThis()
         }
         return cachedType
     }
+
+    protected open fun createClassTypeItemForThis() =
+        DefaultResolvedClassTypeItem.createForClass(this)
 
     final override fun superClassType(): ClassTypeItem? = superClassType
 
@@ -147,7 +150,7 @@ open class DefaultClassItem(
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    final override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
+    override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
             itemLanguage = itemLanguage,
@@ -163,7 +166,7 @@ open class DefaultClassItem(
     final override fun methods(): List<MethodItem> = mutableMethods
 
     /** Add a method to this class. */
-    override fun addMethod(method: MethodItem) {
+    final override fun addMethod(method: MethodItem) {
         mutableMethods += method
     }
 
