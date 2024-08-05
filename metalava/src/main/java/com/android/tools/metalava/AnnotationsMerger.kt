@@ -57,12 +57,13 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TraversingVisitor
-import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -269,8 +270,14 @@ class AnnotationsMerger(
         val visitor =
             object : ComparisonVisitor() {
                 override fun compare(old: Item, new: Item) {
-                    mergeQualifierAnnotations(old.modifiers.annotations(), new)
-                    old.type()?.let { mergeQualifierAnnotations(it.modifiers.annotations, new) }
+                    val itemAnnotations = old.modifiers.annotations()
+                    mergeQualifierAnnotations(itemAnnotations, new)
+                    old.type()?.let {
+                        // Ignore type annotations that are duplicates of the item's annotations.
+                        val typeAnnotations =
+                            it.modifiers.annotations.filter { it !in itemAnnotations }
+                        mergeQualifierAnnotations(typeAnnotations, new)
+                    }
                 }
 
                 override fun removed(old: Item, from: Item?) {
@@ -801,8 +808,38 @@ class AnnotationsMerger(
 
     /** Merge qualifier annotations in [annotations] into the [Item.modifiers] of [item]. */
     private fun mergeQualifierAnnotations(annotations: List<AnnotationItem>, item: Item) {
+        if (annotations.isEmpty()) return
+
+        // Check to make sure that the annotations are not adding a conflicting type nullability.
+        val nullabilityBefore = item.modifiers.annotations().typeNullability
+        if (nullabilityBefore != null) {
+            val mergeNullability = annotations.typeNullability
+            if (mergeNullability != null && mergeNullability != nullabilityBefore) {
+                when (nullabilityBefore) {
+                    TypeNullability.NULLABLE ->
+                        reporter.report(
+                            Issues.INCONSISTENT_MERGE_ANNOTATION,
+                            item,
+                            "Merge conflict, has @Nullable (or equivalent) attempting to merge" +
+                                " @NonNull (or equivalent)"
+                        )
+                    TypeNullability.NONNULL ->
+                        reporter.report(
+                            Issues.INCONSISTENT_MERGE_ANNOTATION,
+                            item,
+                            "Merge conflict, has @NonNull (or equivalent) attempting to merge" +
+                                " @Nullable (or equivalent)"
+                        )
+                    else -> {}
+                }
+            }
+        }
+
         val modifiers = item.modifiers
         for (annotation in annotations) {
+            // If the item already has nullness annotations then ignore any others.
+            if (nullabilityBefore != null && annotation.isNullnessAnnotation()) continue
+
             mergeQualifierAnnotation(annotation, modifiers, item)
         }
     }
@@ -812,27 +849,17 @@ class AnnotationsMerger(
         newModifiers: ModifierList,
         new: Item
     ) {
-        var addAnnotation = false
-        if (annotation.isNullnessAnnotation()) {
-            if (!newModifiers.hasAnnotation(AnnotationItem::isNullnessAnnotation)) {
-                addAnnotation = true
-            }
-        } else {
-            // TODO: Check for other incompatibilities than nullness?
-            val qualifiedName = annotation.qualifiedName
-            if (newModifiers.findAnnotation(qualifiedName) == null) {
-                addAnnotation = true
-            }
+        val qualifiedName = annotation.qualifiedName
+        if (newModifiers.findAnnotation(qualifiedName) != null) {
+            return
         }
 
-        if (addAnnotation) {
-            new.codebase
-                .createAnnotation(
-                    annotation.toSource(showDefaultAttrs = false),
-                    new,
-                )
-                ?.let { mergeQualifierAnnotation(new, it) }
-        }
+        new.codebase
+            .createAnnotation(
+                annotation.toSource(showDefaultAttrs = false),
+                new,
+            )
+            ?.let { mergeQualifierAnnotation(new, it) }
     }
 
     private fun mergeQualifierAnnotation(item: Item, annotation: AnnotationItem) {
