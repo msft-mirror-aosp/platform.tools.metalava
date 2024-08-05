@@ -802,6 +802,29 @@ class AnnotationsMerger(
 
             mergeQualifierAnnotation(annotation, modifiers, item)
         }
+
+        // Update the type nullability from the annotations, if necessary.
+        //
+        // Nullability annotations do not make sense on class definitions or in package-info.java
+        // files and in fact many nullability annotations do not support targeting them at all. Some
+        // nullability checkers do support annotating packages and classes with annotations to set
+        // the default nullability for unannotated types but Metalava does not currently support
+        // them. If it did then they would need special treatment here anyway so, for now we just
+        // ignore them.
+        if (item is ClassItem || item is PackageItem) return
+
+        // Check to make sure that the item has a type.
+        val typeItem = item.type() ?: return
+
+        // If the nullability after is null then nullability annotations cannot have been added so
+        // there is nothing to check.
+        val nullabilityAfter = item.modifiers.annotations().typeNullability ?: return
+
+        // If the type nullability has changed then update the type nullability to match.
+        if (nullabilityAfter != nullabilityBefore) {
+            // Finally, duplicate the type with the new nullability.
+            item.setType(typeItem.substitute(nullabilityAfter))
+        }
     }
 
     private fun mergeQualifierAnnotation(
@@ -819,32 +842,7 @@ class AnnotationsMerger(
                 annotation.toSource(showDefaultAttrs = false),
                 new,
             )
-            ?.let { mergeQualifierAnnotation(new, it) }
-    }
-
-    private fun mergeQualifierAnnotation(item: Item, annotation: AnnotationItem) {
-        item.mutateModifiers { addAnnotation(annotation) }
-
-        // Update the type nullability from the annotation, if necessary.
-
-        // Nullability annotations do not make sense on class definitions or in package-info.java
-        // files and in fact many nullability annotations do not support targeting them at all. Some
-        // nullability checkers do support annotating packages and classes with annotations to set
-        // the default nullability for unannotated types but Metalava does not currently support
-        // them. If it did then they would need special treatment here anyway so, for now we just
-        // ignore them.
-        if (item is ClassItem || item is PackageItem) return
-
-        // Check to make sure that the annotation is a nullability annotation.
-        val annotationNullability = annotation.typeNullability ?: return
-        // Check to make sure that the item has a type.
-        val typeItem = item.type() ?: return
-        // Check to make sure that the type nullability is different to the annotation's
-        // nullability.
-        if (typeItem.modifiers.nullability != annotationNullability) {
-            // Finally, duplicate the type with the new nullability.
-            item.setType(typeItem.substitute(annotationNullability))
-        }
+            ?.let { new.mutateModifiers { addAnnotation(it) } }
     }
 
     private fun unescapeXml(escaped: String): String {
