@@ -130,7 +130,7 @@ internal constructor(
     }
 
     private val mutableNestedClasses = mutableListOf<ClassItem>()
-    private lateinit var constructors: List<PsiConstructorItem>
+    private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
@@ -139,13 +139,18 @@ internal constructor(
 
     override fun constructors(): List<ConstructorItem> = constructors
 
+    /** Add a constructor to this class. */
+    fun addConstructor(constructor: ConstructorItem) {
+        constructors += constructor
+    }
+
     override fun methods(): List<MethodItem> = methods
 
     override fun properties(): List<PropertyItem> = properties
 
     override fun fields(): List<FieldItem> = fields
 
-    override var primaryConstructor: PsiConstructorItem? = null
+    override var primaryConstructor: ConstructorItem? = null
         private set
 
     /** Must only be used by [type] to cache its result. */
@@ -305,7 +310,6 @@ internal constructor(
             val psiMethods = psiClass.methods
 
             // create methods
-            val constructors: MutableList<PsiConstructorItem> = ArrayList(5)
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
                     val constructor =
@@ -315,7 +319,7 @@ internal constructor(
                             psiMethod,
                             classTypeItemFactory,
                         )
-                    constructors.add(constructor)
+                    classItem.addConstructor(constructor)
                 } else {
                     val method =
                         PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
@@ -327,11 +331,12 @@ internal constructor(
 
             // Note that this is dependent on the constructor filtering above. UAST sometimes
             // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
+            val constructors = classItem.constructors()
             constructors.singleOrNull { it.isPrimary }?.let { classItem.primaryConstructor = it }
 
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
-                constructors.add(classItem.createDefaultConstructor())
+                classItem.addConstructor(classItem.createDefaultConstructor())
             }
 
             val fields: MutableList<PsiFieldItem> = mutableListOf()
@@ -341,8 +346,6 @@ internal constructor(
                     PsiFieldItem.create(codebase, classItem, it, classTypeItemFactory)
                 }
             }
-
-            classItem.constructors = constructors
             classItem.fields = fields
 
             classItem.properties = emptyList()
