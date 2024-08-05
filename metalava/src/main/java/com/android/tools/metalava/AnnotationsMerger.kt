@@ -590,8 +590,19 @@ class AnnotationsMerger(
         }
 
         // Make sure we don't have a conflict between nullable and not nullable
-        if (isNonNull(qualifiedName) && haveNullable || isNullable(qualifiedName) && haveNotNull) {
-            warning("Found both @Nullable and @NonNull after import for $item")
+        if (isNonNull(qualifiedName) && haveNullable) {
+            reporter.report(
+                Issues.INCONSISTENT_MERGE_ANNOTATION,
+                item,
+                "Merge conflict, has @Nullable (or equivalent) attempting to merge @NonNull (or equivalent)"
+            )
+            return true
+        } else if (isNullable(qualifiedName) && haveNotNull) {
+            reporter.report(
+                Issues.INCONSISTENT_MERGE_ANNOTATION,
+                item,
+                "Merge conflict, has @NonNull (or equivalent) attempting to merge @Nullable (or equivalent)"
+            )
             return true
         }
         return false

@@ -120,6 +120,11 @@ class AnnotationsMergerTest : DriverTest() {
                       }
                     }
                 """,
+            expectedIssues =
+                """
+                    src/test/pkg/MyTest.java:6: warning: Merge conflict, has @NonNull (or equivalent) attempting to merge @Nullable (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                    src/test/pkg/MyTest.java:7: warning: Merge conflict, has @Nullable (or equivalent) attempting to merge @NonNull (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                """,
         )
     }
 
