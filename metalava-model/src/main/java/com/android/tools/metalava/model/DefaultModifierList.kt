@@ -347,7 +347,7 @@ internal class DefaultMutableModifierList(
     }
 
     override fun toImmutable(): ModifierList {
-        return DefaultModifierList(flags, annotations)
+        return DefaultModifierList.create(flags, annotations)
     }
 
     override fun setVisibilityLevel(level: VisibilityLevel) {
@@ -450,9 +450,10 @@ internal class DefaultMutableModifierList(
 }
 
 /** Default [ModifierList]. */
-internal class DefaultModifierList(
+internal class DefaultModifierList
+private constructor(
     flags: Int,
-    annotations: List<AnnotationItem> = emptyList(),
+    annotations: List<AnnotationItem>,
 ) : DefaultBaseModifierList(flags, annotations), ModifierList {
 
     override fun toMutable(): MutableModifierList {
@@ -467,7 +468,22 @@ internal class DefaultModifierList(
         if (annotations.isEmpty()) return this
 
         val newAnnotations = annotations.map { it.snapshot(targetCodebase) }
-        return DefaultModifierList(flags, newAnnotations)
+        return create(flags, newAnnotations)
+    }
+
+    companion object {
+        private var cache = mutableMapOf<Int, DefaultModifierList>()
+
+        /** Not thread-safe. */
+        fun create(
+            flags: Int,
+            annotations: List<AnnotationItem> = emptyList(),
+        ): ModifierList {
+            if (annotations.isEmpty()) {
+                return cache.computeIfAbsent(flags) { DefaultModifierList(it, emptyList()) }
+            }
+            return DefaultModifierList(flags, annotations)
+        }
     }
 }
 
@@ -506,7 +522,7 @@ fun createImmutableModifiers(
     visibility: VisibilityLevel,
     annotations: List<AnnotationItem> = emptyList(),
 ): ModifierList {
-    return DefaultModifierList(visibility.visibilityFlagValue, annotations)
+    return DefaultModifierList.create(visibility.visibilityFlagValue, annotations)
 }
 
 /**
