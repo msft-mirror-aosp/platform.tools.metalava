@@ -16,14 +16,41 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
+import com.android.tools.metalava.model.ModifierFlags.Companion.ACTUAL
+import com.android.tools.metalava.model.ModifierFlags.Companion.COMPANION
+import com.android.tools.metalava.model.ModifierFlags.Companion.CONST
+import com.android.tools.metalava.model.ModifierFlags.Companion.DATA
+import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
+import com.android.tools.metalava.model.ModifierFlags.Companion.DEPRECATED
+import com.android.tools.metalava.model.ModifierFlags.Companion.EQUIVALENCE_MASK
+import com.android.tools.metalava.model.ModifierFlags.Companion.EXPECT
+import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
+import com.android.tools.metalava.model.ModifierFlags.Companion.FUN
+import com.android.tools.metalava.model.ModifierFlags.Companion.INFIX
+import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
+import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
+import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
+import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
+import com.android.tools.metalava.model.ModifierFlags.Companion.SUSPEND
+import com.android.tools.metalava.model.ModifierFlags.Companion.SYNCHRONIZED
+import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
+import com.android.tools.metalava.model.ModifierFlags.Companion.VALUE
+import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
+import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_LEVEL_ENUMS
+import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_MASK
+import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
-class DefaultModifierList
-internal constructor(
+internal class DefaultModifierList
+constructor(
     private var flags: Int,
     private var annotations: List<AnnotationItem> = emptyList(),
-) : ModifierList, MutableModifierList {
+) : ModifierList, MutableModifierList, ModifierFlags {
 
     /**
      * Secondary constructor that avoids the caller having to use flags directly which are
@@ -354,7 +381,9 @@ internal constructor(
         val binaryFlags = Integer.toBinaryString(flags)
         return "ModifierList(flags = 0b$binaryFlags, annotations = $annotations)"
     }
+}
 
+interface ModifierFlags {
     companion object {
 
         /**
@@ -372,7 +401,7 @@ internal constructor(
          * An internal copy of VisibilityLevel.values() to avoid paying the cost of duplicating the
          * array on every call.
          */
-        private val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.values()
+        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.values()
 
         // Check that the constants above are consistent with the VisibilityLevel enum, i.e. the
         // mask is large enough
@@ -426,7 +455,7 @@ internal constructor(
          * Modifiers considered significant to include signature files (and similarly to consider
          * whether an override of a method is different from its super implementation)
          */
-        private const val EQUIVALENCE_MASK =
+        internal const val EQUIVALENCE_MASK =
             VISIBILITY_MASK or
                 STATIC or
                 ABSTRACT or
