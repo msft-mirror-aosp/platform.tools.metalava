@@ -132,7 +132,7 @@ internal constructor(
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private lateinit var properties: List<PsiPropertyItem>
-    private lateinit var fields: List<FieldItem>
+    private val fields = mutableListOf<FieldItem>()
 
     override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
@@ -154,6 +154,11 @@ internal constructor(
     override fun methods(): List<MethodItem> = methods
 
     override fun properties(): List<PropertyItem> = properties
+
+    /** Add a field to this class. */
+    fun addField(field: FieldItem) {
+        fields += field
+    }
 
     override fun fields(): List<FieldItem> = fields
 
@@ -345,14 +350,14 @@ internal constructor(
                 classItem.addConstructor(classItem.createDefaultConstructor())
             }
 
-            val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
-                psiFields.asSequence().mapTo(fields) {
-                    PsiFieldItem.create(codebase, classItem, it, classTypeItemFactory)
+                for (psiField in psiFields) {
+                    val fieldItem =
+                        PsiFieldItem.create(codebase, classItem, psiField, classTypeItemFactory)
+                    classItem.addField(fieldItem)
                 }
             }
-            classItem.fields = fields
 
             classItem.properties = emptyList()
 
@@ -360,7 +365,8 @@ internal constructor(
             if (isKotlin && methods.isNotEmpty()) {
                 val getters = mutableMapOf<String, PsiMethodItem>()
                 val setters = mutableMapOf<String, PsiMethodItem>()
-                val backingFields = fields.associateBy { it.name() }
+                val backingFields =
+                    classItem.fields.associateBy({ it.name() }) { it as PsiFieldItem }
                 val constructorParameters =
                     classItem.primaryConstructor
                         ?.parameters()
