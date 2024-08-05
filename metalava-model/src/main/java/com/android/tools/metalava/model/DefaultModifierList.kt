@@ -192,19 +192,6 @@ constructor(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
-    override fun snapshot(targetCodebase: Codebase): DefaultModifierList {
-        val annotations = this.annotations
-        val newAnnotations =
-            if (annotations.isEmpty()) {
-                annotations
-            } else {
-                mutableListOf<AnnotationItem>().apply {
-                    annotations.mapTo(this) { it.snapshot(targetCodebase) }
-                }
-            }
-        return DefaultModifierList(flags, newAnnotations)
-    }
-
     override fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean {
         other as DefaultBaseModifierList
 
@@ -474,6 +461,13 @@ internal class DefaultModifierList(
 
     override fun toImmutable(): ModifierList {
         return this
+    }
+
+    override fun snapshot(targetCodebase: Codebase): ModifierList {
+        if (annotations.isEmpty()) return this
+
+        val newAnnotations = annotations.map { it.snapshot(targetCodebase) }
+        return DefaultModifierList(flags, newAnnotations)
     }
 }
 

@@ -151,15 +151,6 @@ interface BaseModifierList {
     }
 
     /**
-     * Take a snapshot of this for use in [targetCodebase].
-     *
-     * Creates a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
-     *
-     * @param targetCodebase The [Codebase] of which the snapshot will be part.
-     */
-    fun snapshot(targetCodebase: Codebase): ModifierList
-
-    /**
      * Get a [MutableModifierList] from this.
      *
      * This will return the object on which it is called if that is already mutable, otherwise it
@@ -193,4 +184,13 @@ inline fun BaseModifierList.hasAnnotation(predicate: (AnnotationItem) -> Boolean
     return annotations().any(predicate)
 }
 
-interface ModifierList : BaseModifierList
+interface ModifierList : BaseModifierList {
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * Creates a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): ModifierList
+}
