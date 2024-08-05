@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.reporter.Reporter
@@ -52,7 +53,8 @@ open class DefaultCodebase(
         annotationManager,
         trustedApi,
         supportsDocumentation,
-    ) {
+    ),
+    MutableCodebase {
 
     /**
      * Create a [CodebaseAssembler] appropriate for this [Codebase].
@@ -128,7 +130,7 @@ open class DefaultCodebase(
     override fun findClass(className: String): ClassItem? = findClassInCodebase(className)
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    internal fun registerClass(classItem: DefaultClassItem) {
+    override fun registerClass(classItem: DefaultClassItem) {
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {

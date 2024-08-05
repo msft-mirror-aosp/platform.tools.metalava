@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
@@ -193,4 +194,8 @@ abstract class AbstractCodebase(
             }
         }
     }
+}
+
+interface MutableCodebase : Codebase {
+    fun registerClass(classItem: DefaultClassItem)
 }
