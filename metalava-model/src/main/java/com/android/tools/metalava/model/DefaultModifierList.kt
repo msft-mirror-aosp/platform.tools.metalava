@@ -445,17 +445,19 @@ internal constructor(
 }
 
 /**
- * Add a [Retention] annotation with the default [RetentionPolicy] suitable for [item].
+ * Add a [Retention] annotation with the default [RetentionPolicy] suitable for [codebase].
  *
  * The caller must ensure that the annotation does not already have a [Retention] annotation before
  * calling this.
  */
-fun MutableModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
+fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
+    codebase: Codebase,
+    isKotlin: Boolean,
+) {
     // By policy, include explicit retention policy annotation if missing
-    val isKotlin = item.itemLanguage == ItemLanguage.KOTLIN
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
     addAnnotation(
-        item.codebase.createAnnotation(
+        codebase.createAnnotation(
             buildString {
                 append('@')
                 append(Retention::class.qualifiedName)
@@ -465,7 +467,6 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
                 append(defaultRetentionPolicy.name)
                 append(')')
             },
-            item,
         )
     )
 }

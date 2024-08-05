@@ -301,7 +301,7 @@ internal constructor(
                 classKind == ClassKind.ANNOTATION_TYPE &&
                     !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
-                modifiers.addDefaultRetentionPolicyAnnotation(item)
+                modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
             }
 
             // create methods

@@ -482,7 +482,7 @@ internal open class TurbineCodebaseInitialiser(
 
         if (classKind == ClassKind.ANNOTATION_TYPE) {
             if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
-                modifierItem.addDefaultRetentionPolicyAnnotation(classItem)
+                modifierItem.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
             }
         }
 
