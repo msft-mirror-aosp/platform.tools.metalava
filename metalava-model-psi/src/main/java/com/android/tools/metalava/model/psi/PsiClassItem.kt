@@ -131,7 +131,7 @@ internal constructor(
 
     private val mutableNestedClasses = mutableListOf<ClassItem>()
     private lateinit var constructors: List<PsiConstructorItem>
-    private lateinit var methods: MutableList<PsiMethodItem>
+    private val methods = mutableListOf<MethodItem>()
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
@@ -139,7 +139,7 @@ internal constructor(
 
     override fun constructors(): List<ConstructorItem> = constructors
 
-    override fun methods(): List<PsiMethodItem> = methods
+    override fun methods(): List<MethodItem> = methods
 
     override fun properties(): List<PropertyItem> = properties
 
@@ -186,7 +186,7 @@ internal constructor(
     }
 
     override fun addMethod(method: MethodItem) {
-        methods.add(method as PsiMethodItem)
+        methods.add(method)
     }
 
     /** Add a nested class to this class. */
@@ -303,7 +303,6 @@ internal constructor(
 
             // Construct the children
             val psiMethods = psiClass.methods
-            val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
 
             // create methods
             val constructors: MutableList<PsiConstructorItem> = ArrayList(5)
@@ -321,7 +320,7 @@ internal constructor(
                     val method =
                         PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
                     if (!method.isEnumSyntheticMethod()) {
-                        methods.add(method)
+                        classItem.addMethod(method)
                     }
                 }
             }
@@ -344,11 +343,11 @@ internal constructor(
             }
 
             classItem.constructors = constructors
-            classItem.methods = methods
             classItem.fields = fields
 
             classItem.properties = emptyList()
 
+            val methods = classItem.methods()
             if (isKotlin && methods.isNotEmpty()) {
                 val getters = mutableMapOf<String, PsiMethodItem>()
                 val setters = mutableMapOf<String, PsiMethodItem>()
@@ -363,6 +362,7 @@ internal constructor(
 
                 for (method in methods) {
                     if (method.isKotlinProperty()) {
+                        method as PsiMethodItem
                         val name =
                             when (val sourcePsi = method.sourcePsi) {
                                 is KtProperty -> sourcePsi.name
