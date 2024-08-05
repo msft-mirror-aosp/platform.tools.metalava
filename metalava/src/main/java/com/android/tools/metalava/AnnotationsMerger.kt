@@ -57,7 +57,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TraversingVisitor
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -270,11 +269,8 @@ class AnnotationsMerger(
         val visitor =
             object : ComparisonVisitor() {
                 override fun compare(old: Item, new: Item) {
-                    val newModifiers = new.modifiers
-                    for (annotation in old.modifiers.annotations()) {
-                        mergeQualifierAnnotation(annotation, newModifiers, new)
-                    }
-                    old.type()?.let { mergeTypeAnnotations(it, new) }
+                    mergeQualifierAnnotations(old.modifiers.annotations(), new)
+                    old.type()?.let { mergeQualifierAnnotations(it.modifiers.annotations, new) }
                 }
 
                 override fun removed(old: Item, from: Item?) {
@@ -803,6 +799,14 @@ class AnnotationsMerger(
             name == SUPPORT_NULLABLE
     }
 
+    /** Merge qualifier annotations in [annotations] into the [Item.modifiers] of [item]. */
+    private fun mergeQualifierAnnotations(annotations: List<AnnotationItem>, item: Item) {
+        val modifiers = item.modifiers
+        for (annotation in annotations) {
+            mergeQualifierAnnotation(annotation, modifiers, item)
+        }
+    }
+
     private fun mergeQualifierAnnotation(
         annotation: AnnotationItem,
         newModifiers: ModifierList,
@@ -828,12 +832,6 @@ class AnnotationsMerger(
                     new,
                 )
                 ?.let { mergeQualifierAnnotation(new, it) }
-        }
-    }
-
-    private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
-        for (annotation in typeItem.modifiers.annotations) {
-            mergeQualifierAnnotation(annotation, new.modifiers, new)
         }
     }
 
