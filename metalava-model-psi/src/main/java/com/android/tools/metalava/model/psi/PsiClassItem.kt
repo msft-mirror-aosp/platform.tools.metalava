@@ -282,7 +282,7 @@ internal constructor(
             val (superClassType, interfaceTypes) =
                 computeSuperTypes(psiClass, classKind, classTypeItemFactory)
 
-            val item =
+            val classItem =
                 PsiClassItem(
                     codebase = codebase,
                     psiClass = psiClass,
@@ -312,14 +312,14 @@ internal constructor(
                     val constructor =
                         PsiConstructorItem.create(
                             codebase,
-                            item,
+                            classItem,
                             psiMethod,
                             classTypeItemFactory,
                         )
                     constructors.add(constructor)
                 } else {
                     val method =
-                        PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
+                        PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
                     if (!method.isEnumSyntheticMethod()) {
                         methods.add(method)
                     }
@@ -328,33 +328,33 @@ internal constructor(
 
             // Note that this is dependent on the constructor filtering above. UAST sometimes
             // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
-            constructors.singleOrNull { it.isPrimary }?.let { item.primaryConstructor = it }
+            constructors.singleOrNull { it.isPrimary }?.let { classItem.primaryConstructor = it }
 
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
-                constructors.add(item.createDefaultConstructor())
+                constructors.add(classItem.createDefaultConstructor())
             }
 
             val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
                 psiFields.asSequence().mapTo(fields) {
-                    PsiFieldItem.create(codebase, item, it, classTypeItemFactory)
+                    PsiFieldItem.create(codebase, classItem, it, classTypeItemFactory)
                 }
             }
 
-            item.constructors = constructors
-            item.methods = methods
-            item.fields = fields
+            classItem.constructors = constructors
+            classItem.methods = methods
+            classItem.fields = fields
 
-            item.properties = emptyList()
+            classItem.properties = emptyList()
 
             if (isKotlin && methods.isNotEmpty()) {
                 val getters = mutableMapOf<String, PsiMethodItem>()
                 val setters = mutableMapOf<String, PsiMethodItem>()
                 val backingFields = fields.associateBy { it.name() }
                 val constructorParameters =
-                    item.primaryConstructor
+                    classItem.primaryConstructor
                         ?.parameters()
                         ?.map { it as PsiParameterItem }
                         ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
@@ -388,7 +388,7 @@ internal constructor(
                     properties +=
                         PsiPropertyItem.create(
                             codebase = codebase,
-                            containingClass = item,
+                            containingClass = classItem,
                             name = name,
                             type = type,
                             getter = getter,
@@ -397,7 +397,7 @@ internal constructor(
                             backingField = backingFields[name]
                         )
                 }
-                item.properties = properties
+                classItem.properties = properties
             }
 
             // This actually gets all nested classes not just inner, i.e. non-static nested,
@@ -406,12 +406,12 @@ internal constructor(
             for (psiNestedClass in psiNestedClasses) {
                 codebase.createClass(
                     psiClass = psiNestedClass,
-                    containingClassItem = item,
+                    containingClassItem = classItem,
                     enclosingClassTypeItemFactory = classTypeItemFactory,
                 )
             }
 
-            return item
+            return classItem
         }
 
         /**
