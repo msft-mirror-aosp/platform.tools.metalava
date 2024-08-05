@@ -68,7 +68,6 @@ internal constructor(
     override val typeParameterList: TypeParameterList,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val isFromClassPath: Boolean,
-    private val hasImplicitDefaultConstructor: Boolean,
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>
 ) :
@@ -139,9 +138,17 @@ internal constructor(
 
     override fun constructors(): List<ConstructorItem> = constructors
 
+    /** Tracks whether the class has an implicit default constructor. */
+    private var hasImplicitDefaultConstructor = false
+
     /** Add a constructor to this class. */
     fun addConstructor(constructor: ConstructorItem) {
         constructors += constructor
+
+        // Keep track of whether any implicit constructors were added.
+        if (constructor.isImplicitConstructor()) {
+            hasImplicitDefaultConstructor = true
+        }
     }
 
     override fun methods(): List<MethodItem> = methods
@@ -260,7 +267,6 @@ internal constructor(
             val simpleName = psiClass.name!!
             val fullName = computeFullClassName(psiClass)
             val qualifiedName = psiClass.qualifiedName ?: simpleName
-            val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
             val modifiers = PsiModifierItem.create(codebase, psiClass)
@@ -301,7 +307,6 @@ internal constructor(
                     fullName = fullName,
                     typeParameterList = typeParameterList,
                     isFromClassPath = fromClassPath,
-                    hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
                 )
@@ -334,6 +339,7 @@ internal constructor(
             val constructors = classItem.constructors()
             constructors.singleOrNull { it.isPrimary }?.let { classItem.primaryConstructor = it }
 
+            val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
                 classItem.addConstructor(classItem.createDefaultConstructor())
