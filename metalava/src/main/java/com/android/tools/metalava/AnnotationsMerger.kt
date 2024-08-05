@@ -90,7 +90,7 @@ class AnnotationsMerger(
 ) {
 
     /** Merge annotations which will appear in the output API. */
-    fun mergeQualifierAnnotations(files: List<File>) {
+    fun mergeQualifierAnnotationsFromFiles(files: List<File>) {
         mergeAll(
             files,
             ::mergeQualifierAnnotationsFromFile,
@@ -99,7 +99,7 @@ class AnnotationsMerger(
     }
 
     /** Merge annotations which control what is included in the output API. */
-    fun mergeInclusionAnnotations(files: List<File>) {
+    fun mergeInclusionAnnotationsFromFiles(files: List<File>) {
         mergeAll(
             files,
             {
@@ -177,7 +177,7 @@ class AnnotationsMerger(
         } else if (file.path.endsWith(DOT_XML)) {
             try {
                 val xml = file.readText()
-                mergeAnnotationsXml(file.path, xml)
+                mergeQualifierAnnotationsFromXml(file.path, xml)
             } catch (e: IOException) {
                 error("I/O problem during transform: $e")
             }
@@ -189,7 +189,7 @@ class AnnotationsMerger(
             try {
                 // .txt: Old style signature files
                 // Others: new signature files (e.g. kotlin-style nullness info)
-                mergeAnnotationsSignatureFile(file)
+                mergeQualifierAnnotationsFromSignatureFile(file)
             } catch (e: IOException) {
                 error("I/O problem during transform: $e")
             }
@@ -208,7 +208,7 @@ class AnnotationsMerger(
                 if (entry.name.endsWith(".xml")) {
                     val bytes = zis.readBytes()
                     val xml = String(bytes, UTF_8)
-                    mergeAnnotationsXml(jar.path + ": " + entry, xml)
+                    mergeQualifierAnnotationsFromXml(jar.path + ": " + entry, xml)
                 }
                 entry = zis.nextEntry
             }
@@ -223,7 +223,7 @@ class AnnotationsMerger(
         }
     }
 
-    private fun mergeAnnotationsXml(path: String, xml: String) {
+    private fun mergeQualifierAnnotationsFromXml(path: String, xml: String) {
         try {
             val document = parseDocument(xml, false)
             mergeDocument(document)
@@ -239,7 +239,7 @@ class AnnotationsMerger(
         }
     }
 
-    private fun mergeAnnotationsSignatureFile(file: File) {
+    private fun mergeQualifierAnnotationsFromSignatureFile(file: File) {
         try {
             val signatureCodebase =
                 ApiFile.parseApi(
@@ -272,7 +272,7 @@ class AnnotationsMerger(
                 override fun compare(old: Item, new: Item) {
                     val newModifiers = new.modifiers
                     for (annotation in old.modifiers.annotations()) {
-                        mergeAnnotation(annotation, newModifiers, new)
+                        mergeQualifierAnnotation(annotation, newModifiers, new)
                     }
                     old.type()?.let { mergeTypeAnnotations(it, new) }
                 }
@@ -293,7 +293,7 @@ class AnnotationsMerger(
                     )
                 }
 
-                private fun mergeAnnotation(
+                private fun mergeQualifierAnnotation(
                     annotation: AnnotationItem,
                     newModifiers: ModifierList,
                     new: Item
@@ -317,13 +317,13 @@ class AnnotationsMerger(
                                 annotation.toSource(showDefaultAttrs = false),
                                 new,
                             )
-                            ?.let { mergeAnnotation(new, it) }
+                            ?.let { mergeInclusionOrQualifierAnnotation(new, it) }
                     }
                 }
 
                 private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
                     for (annotation in typeItem.modifiers.annotations) {
-                        mergeAnnotation(annotation, new.modifiers, new)
+                        mergeQualifierAnnotation(annotation, new.modifiers, new)
                     }
                 }
             }
@@ -372,7 +372,7 @@ class AnnotationsMerger(
                     val modifiers = mainItem.modifiers
                     for (annotation in annotationsToCopy) {
                         if (modifiers.findAnnotation(annotation.qualifiedName) == null) {
-                            mergeAnnotation(mainItem, annotation)
+                            mergeInclusionOrQualifierAnnotation(mainItem, annotation)
                         }
                     }
 
@@ -467,7 +467,7 @@ class AnnotationsMerger(
                     continue
                 }
 
-                mergeAnnotations(item, classItem)
+                mergeQualifierAnnotationsFromXmlElement(item, classItem)
             } else {
                 warning("No merge match for signature $signature")
             }
@@ -522,10 +522,10 @@ class AnnotationsMerger(
 
         if (parameterIndex != -1) {
             val parameterItem = callableItem.parameters()[parameterIndex]
-            mergeAnnotations(item, parameterItem)
+            mergeQualifierAnnotationsFromXmlElement(item, parameterItem)
         } else {
             // Annotation on the method itself
-            mergeAnnotations(item, callableItem)
+            mergeQualifierAnnotationsFromXmlElement(item, callableItem)
         }
     }
 
@@ -547,7 +547,7 @@ class AnnotationsMerger(
             return
         }
 
-        mergeAnnotations(item, fieldItem)
+        mergeQualifierAnnotationsFromXmlElement(item, fieldItem)
     }
 
     private fun getAnnotationName(element: Element): String {
@@ -559,7 +559,7 @@ class AnnotationsMerger(
         return qualifiedName
     }
 
-    private fun mergeAnnotations(xmlElement: Element, item: Item) {
+    private fun mergeQualifierAnnotationsFromXmlElement(xmlElement: Element, item: Item) {
         loop@ for (annotationElement in getChildren(xmlElement)) {
             val originalName = getAnnotationName(annotationElement)
             val qualifiedName =
@@ -569,7 +569,7 @@ class AnnotationsMerger(
             }
 
             val annotationItem = createAnnotation(annotationElement) ?: continue
-            mergeAnnotation(item, annotationItem)
+            mergeInclusionOrQualifierAnnotation(item, annotationItem)
         }
     }
 
@@ -829,7 +829,7 @@ class AnnotationsMerger(
             name == SUPPORT_NULLABLE
     }
 
-    private fun mergeAnnotation(item: Item, annotation: AnnotationItem) {
+    private fun mergeInclusionOrQualifierAnnotation(item: Item, annotation: AnnotationItem) {
         item.mutateModifiers { addAnnotation(annotation) }
 
         // Update the type nullability from the annotation, if necessary.
