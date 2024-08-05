@@ -131,7 +131,7 @@ internal constructor(
     private val mutableNestedClasses = mutableListOf<ClassItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
-    private lateinit var properties: List<PsiPropertyItem>
+    private val properties = mutableListOf<PropertyItem>()
     private val fields = mutableListOf<FieldItem>()
 
     override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
@@ -152,6 +152,11 @@ internal constructor(
     }
 
     override fun methods(): List<MethodItem> = methods
+
+    /** Add a property to this class. */
+    fun addProperty(property: PropertyItem) {
+        properties += property
+    }
 
     override fun properties(): List<PropertyItem> = properties
 
@@ -359,8 +364,6 @@ internal constructor(
                 }
             }
 
-            classItem.properties = emptyList()
-
             val methods = classItem.methods()
             if (isKotlin && methods.isNotEmpty()) {
                 val getters = mutableMapOf<String, PsiMethodItem>()
@@ -397,10 +400,9 @@ internal constructor(
                     }
                 }
 
-                val properties = mutableListOf<PsiPropertyItem>()
                 for ((name, getter) in getters) {
                     val type = getter.returnType() as? PsiTypeItem ?: continue
-                    properties +=
+                    val propertyItem =
                         PsiPropertyItem.create(
                             codebase = codebase,
                             containingClass = classItem,
@@ -411,8 +413,8 @@ internal constructor(
                             constructorParameter = constructorParameters[name],
                             backingField = backingFields[name]
                         )
+                    classItem.addProperty(propertyItem)
                 }
-                classItem.properties = properties
             }
 
             // This actually gets all nested classes not just inner, i.e. non-static nested,
