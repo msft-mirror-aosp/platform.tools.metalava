@@ -87,7 +87,7 @@ open class DefaultParameterItem(
             codebase,
             fileLocation,
             itemLanguage,
-            modifiers.duplicate(),
+            modifiers,
             name(),
             publicNameProvider,
             containingCallable,

@@ -192,10 +192,6 @@ constructor(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
-    override fun duplicate(): DefaultModifierList {
-        return DefaultModifierList(flags, this.annotations)
-    }
-
     override fun snapshot(targetCodebase: Codebase): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =

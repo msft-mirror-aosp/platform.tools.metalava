@@ -117,7 +117,7 @@ internal constructor(
         PsiParameterItem(
             codebase = codebase,
             psiParameter = psiParameter,
-            modifiers = modifiers.duplicate(),
+            modifiers = modifiers,
             name = name(),
             publicNameProvider = publicNameProvider,
             containingCallable = containingCallable as PsiCallableItem,

@@ -129,7 +129,7 @@ internal class PsiMethodItem(
                 fileLocation,
                 targetContainingClass,
                 name(),
-                modifiers.duplicate(),
+                modifiers,
                 documentation::duplicate,
                 returnType.convertType(typeVariableMap),
                 { methodItem ->

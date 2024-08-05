@@ -99,7 +99,7 @@ open class DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
-                modifiers = modifiers.duplicate(),
+                modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),

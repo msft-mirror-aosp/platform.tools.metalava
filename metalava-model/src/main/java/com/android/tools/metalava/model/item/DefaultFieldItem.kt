@@ -65,7 +65,7 @@ open class DefaultFieldItem(
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
                 variantSelectorsFactory = variantSelectors::duplicate,
-                modifiers = modifiers.duplicate(),
+                modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
