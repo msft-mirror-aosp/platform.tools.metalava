@@ -260,6 +260,15 @@ internal constructor(
 
             val modifiers = PsiModifierItem.create(codebase, psiClass)
 
+            val isKotlin = psiClass.isKotlin()
+
+            if (
+                classKind == ClassKind.ANNOTATION_TYPE &&
+                    !hasExplicitRetention(modifiers, psiClass, isKotlin)
+            ) {
+                modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
+            }
+
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, classTypeItemFactory) =
@@ -295,14 +304,6 @@ internal constructor(
             // Construct the children
             val psiMethods = psiClass.methods
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
-            val isKotlin = psiClass.isKotlin()
-
-            if (
-                classKind == ClassKind.ANNOTATION_TYPE &&
-                    !hasExplicitRetention(modifiers, psiClass, isKotlin)
-            ) {
-                modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
-            }
 
             // create methods
             val constructors: MutableList<PsiConstructorItem> = ArrayList(5)

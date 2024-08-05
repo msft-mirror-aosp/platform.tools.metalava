@@ -452,6 +452,14 @@ internal open class TurbineCodebaseInitialiser(
             )
         val classKind = getClassKind(cls.kind())
 
+        modifierItem.setSynchronized(false) // A class can not be synchronized in java
+
+        if (classKind == ClassKind.ANNOTATION_TYPE) {
+            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
+                modifierItem.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
+            }
+        }
+
         // Setup the SuperClass
         val superClassType =
             if (classKind != ClassKind.INTERFACE) {
@@ -478,13 +486,6 @@ internal open class TurbineCodebaseInitialiser(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
             )
-        modifierItem.setSynchronized(false) // A class can not be synchronized in java
-
-        if (classKind == ClassKind.ANNOTATION_TYPE) {
-            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
-                modifierItem.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
-            }
-        }
 
         // Create fields
         createFields(classItem, cls.fields(), classTypeItemFactory)
