@@ -537,52 +537,12 @@ class AnnotationsMerger(
     }
 
     private fun mergeQualifierAnnotationsFromXmlElement(xmlElement: Element, item: Item) {
-        loop@ for (annotationElement in getChildren(xmlElement)) {
-            val originalName = getAnnotationName(annotationElement)
-            val qualifiedName =
-                codebase.annotationManager.normalizeInputName(originalName) ?: originalName
-            if (hasNullnessConflicts(item, qualifiedName)) {
-                continue@loop
+        val annotationsToMerge =
+            getChildren(xmlElement).mapNotNull { annotationElement ->
+                createAnnotation(annotationElement)
             }
 
-            val annotationItem = createAnnotation(annotationElement) ?: continue
-            mergeQualifierAnnotation(item, annotationItem)
-        }
-    }
-
-    private fun hasNullnessConflicts(item: Item, qualifiedName: String): Boolean {
-        var haveNullable = false
-        var haveNotNull = false
-        for (existing in item.modifiers.annotations()) {
-            val name = existing.qualifiedName
-            if (isNonNull(name)) {
-                haveNotNull = true
-            }
-            if (isNullable(name)) {
-                haveNullable = true
-            }
-            if (name == qualifiedName) {
-                return true
-            }
-        }
-
-        // Make sure we don't have a conflict between nullable and not nullable
-        if (isNonNull(qualifiedName) && haveNullable) {
-            reporter.report(
-                Issues.INCONSISTENT_MERGE_ANNOTATION,
-                item,
-                "Merge conflict, has @Nullable (or equivalent) attempting to merge @NonNull (or equivalent)"
-            )
-            return true
-        } else if (isNullable(qualifiedName) && haveNotNull) {
-            reporter.report(
-                Issues.INCONSISTENT_MERGE_ANNOTATION,
-                item,
-                "Merge conflict, has @NonNull (or equivalent) attempting to merge @Nullable (or equivalent)"
-            )
-            return true
-        }
-        return false
+        mergeQualifierAnnotations(annotationsToMerge, item)
     }
 
     /**
