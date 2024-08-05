@@ -54,7 +54,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeNullability
@@ -795,12 +794,26 @@ class AnnotationsMerger(
             }
         }
 
-        val modifiers = item.modifiers
-        for (annotation in annotations) {
-            // If the item already has nullness annotations then ignore any others.
-            if (nullabilityBefore != null && annotation.isNullnessAnnotation()) continue
+        item.mutateModifiers {
+            mutateAnnotations {
+                for (annotation in annotations) {
+                    // If the item already has nullness annotations then ignore any others.
+                    if (nullabilityBefore != null && annotation.isNullnessAnnotation()) continue
 
-            mergeQualifierAnnotation(annotation, modifiers, item)
+                    // Ignore annotation that has the same type as an existing annotation.
+                    val qualifiedName = annotation.qualifiedName
+                    if (any { it.qualifiedName == qualifiedName }) continue
+
+                    val annotationToMerge =
+                        item.codebase.createAnnotation(
+                            annotation.toSource(showDefaultAttrs = false),
+                            item,
+                        )
+                            ?: continue
+
+                    add(annotationToMerge)
+                }
+            }
         }
 
         // Update the type nullability from the annotations, if necessary.
@@ -825,24 +838,6 @@ class AnnotationsMerger(
             // Finally, duplicate the type with the new nullability.
             item.setType(typeItem.substitute(nullabilityAfter))
         }
-    }
-
-    private fun mergeQualifierAnnotation(
-        annotation: AnnotationItem,
-        newModifiers: ModifierList,
-        new: Item
-    ) {
-        val qualifiedName = annotation.qualifiedName
-        if (newModifiers.findAnnotation(qualifiedName) != null) {
-            return
-        }
-
-        new.codebase
-            .createAnnotation(
-                annotation.toSource(showDefaultAttrs = false),
-                new,
-            )
-            ?.let { new.mutateModifiers { addAnnotation(it) } }
     }
 
     private fun unescapeXml(escaped: String): String {
