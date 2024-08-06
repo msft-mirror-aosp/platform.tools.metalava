@@ -749,7 +749,7 @@ private fun createStubFiles(
     val filteringApiVisitor =
         stubWriter.createFilteringVisitor(
             preFiltered = codebase.preFiltered,
-            apiVisitorConfig = stubWriterConfig.apiVisitorConfig,
+            apiVisitorConfig = options.apiVisitorConfig,
         )
 
     codebase.accept(filteringApiVisitor)
