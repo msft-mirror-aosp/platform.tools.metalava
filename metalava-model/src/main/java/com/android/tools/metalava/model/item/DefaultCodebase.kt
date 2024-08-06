@@ -43,6 +43,7 @@ open class DefaultCodebase(
     annotationManager: AnnotationManager,
     trustedApi: Boolean,
     supportsDocumentation: Boolean,
+    reporter: Reporter? = null,
     assemblerFactory: CodebaseAssemblerFactory,
 ) :
     AbstractCodebase(
@@ -63,8 +64,10 @@ open class DefaultCodebase(
      */
     val assembler = assemblerFactory(@Suppress("LeakingThis") this)
 
+    private val optionalReporter = reporter
+
     override val reporter: Reporter
-        get() = unsupported("reporter is not available")
+        get() = optionalReporter ?: unsupported("reporter is not available")
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
     val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->

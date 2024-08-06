@@ -26,7 +26,7 @@ internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
-    override val reporter: Reporter,
+    reporter: Reporter,
     assemblerFactory: CodebaseAssemblerFactory,
 ) :
     DefaultCodebase(
@@ -36,5 +36,6 @@ internal open class TurbineBasedCodebase(
         annotationManager = annotationManager,
         trustedApi = false,
         supportsDocumentation = true,
+        reporter = reporter,
         assemblerFactory = assemblerFactory,
     )
