@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.item.CodebaseAssemblerFactory
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import java.io.File
 
@@ -46,11 +45,6 @@ internal class TextCodebase(
 
     init {
         (assembler as TextCodebaseAssembler).initialize()
-    }
-
-    override fun newClassRegistered(classItem: DefaultClassItem) {
-        // Delegate work to TextCodebaseAssembler.
-        (assembler as TextCodebaseAssembler).newClassRegistered(classItem)
     }
 
     override fun unsupported(desc: String?): Nothing {

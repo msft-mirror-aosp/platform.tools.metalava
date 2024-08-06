@@ -46,4 +46,10 @@ interface CodebaseAssembler {
      * create a [ClassItem] representation of it and return that, otherwise return null.
      */
     fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem?
+
+    /**
+     * Overrideable hook, called from [DefaultCodebase.registerClass] for each new
+     * [DefaultClassItem].
+     */
+    fun newClassRegistered(classItem: DefaultClassItem) {}
 }

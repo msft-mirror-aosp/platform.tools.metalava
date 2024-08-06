@@ -147,11 +147,8 @@ open class DefaultCodebase(
         addClass(classItem)
 
         // Perform any subclass specific processing on the newly registered class.
-        newClassRegistered(classItem)
+        assembler.newClassRegistered(classItem)
     }
-
-    /** Overrideable hook, called from [registerClass] for each new [DefaultClassItem]. */
-    open fun newClassRegistered(classItem: DefaultClassItem) {}
 
     /** Map from name to an external class that was registered using [] */
     private val externalClassesByName = mutableMapOf<String, ClassItem>()
