@@ -110,16 +110,16 @@ private constructor(
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
 
+    /** Supports the initialization of a [TextCodebase]. */
+    private val assembler = codebase.assembler as TextCodebaseAssembler
+
     /**
      * Provides support for creating [TypeItem]s for specific uses.
      *
      * Defer creation as it depends on [typeParser].
      */
     private val globalTypeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
-
-    /** Supports the initialization of a [TextCodebase]. */
-    private val assembler = codebase.assembler as TextCodebaseAssembler
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(assembler, typeParser) }
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
