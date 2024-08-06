@@ -287,7 +287,7 @@ internal fun processFlags(
     // files
     options.apiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -299,6 +299,13 @@ internal fun processFlags(
                 )
             }
 
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment = codebaseFragment.snapshotIncludingRevertedItems()
+        }
+
         createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
             SignatureWriter(
                 writer = printWriter,
@@ -309,7 +316,7 @@ internal fun processFlags(
 
     options.removedApiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -320,6 +327,13 @@ internal fun processFlags(
                     apiVisitorConfig = options.apiVisitorConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment = codebaseFragment.snapshotIncludingRevertedItems()
+        }
 
         createReportFile(
             progressTracker,
