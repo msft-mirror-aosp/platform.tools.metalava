@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -124,6 +123,23 @@ open class DefaultClassItem(
         }
 
         return cacheAllInterfaces!!.asSequence()
+    }
+
+    /** Compute the value for [ClassItem.allInterfaces]. */
+    private fun computeAllInterfaces() = buildList {
+        // Add self as interface if applicable
+        if (isInterface()) {
+            add(this@DefaultClassItem)
+        }
+
+        // Add all the interfaces of super class
+        superClass()?.let { superClass -> superClass.allInterfaces().forEach { add(it) } }
+
+        // Add all the interfaces of direct interfaces
+        interfaceTypes().forEach { interfaceType ->
+            val itf = interfaceType.asClass()
+            itf?.allInterfaces()?.forEach { add(it) }
+        }
     }
 
     /** The mutable list of [ConstructorItem] that backs [constructors]. */
