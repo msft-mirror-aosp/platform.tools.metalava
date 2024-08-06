@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -97,7 +98,7 @@ data class SignatureFile(
 @MetalavaApi
 class ApiFile
 private constructor(
-    private val codebase: TextCodebase,
+    private val codebase: DefaultCodebase,
     private val formatForLegacyFiles: FileFormat?,
 ) {
 
@@ -110,7 +111,7 @@ private constructor(
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
 
-    /** Supports the initialization of a [TextCodebase]. */
+    /** Supports the initialization of [codebase]. */
     private val assembler = codebase.assembler as TextCodebaseAssembler
 
     /**
@@ -174,11 +175,11 @@ private constructor(
             )
 
         /**
-         * Read API signature files into a [TextCodebase].
+         * Read API signature files into a [DefaultCodebase].
          *
-         * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [Item.fileLocation] would correctly point out the source file
-         * of each item.
+         * Note: when reading from them multiple files, [DefaultCodebase.location] would refer to
+         * the first file specified. each [Item.fileLocation] would correctly point out the source
+         * file of each item.
          *
          * @param signatureFiles input signature files
          */
@@ -371,9 +372,7 @@ private constructor(
         }
     }
 
-    /**
-     * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
-     */
+    /** Perform any final steps to initialize [codebase] after parsing the signature files. */
     private fun postProcess() {
         codebase.resolveSuperTypes()
     }
