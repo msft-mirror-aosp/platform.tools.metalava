@@ -50,7 +50,15 @@ internal class TurbineSourceParser(
         // the codebase and not during, i.e. in the lambda, because the codebase will not be fully
         // initialized when it is called.
         val codebase =
-            TurbineBasedCodebase(rootDir, description, annotationManager, reporter) { codebase ->
+            DefaultCodebase(
+                location = rootDir,
+                description = description,
+                preFiltered = false,
+                annotationManager = annotationManager,
+                trustedApi = false,
+                supportsDocumentation = true,
+                reporter = reporter,
+            ) { codebase ->
                 TurbineCodebaseInitialiser(
                     codebase as DefaultCodebase,
                     classPath,
