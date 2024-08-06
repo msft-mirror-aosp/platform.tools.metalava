@@ -18,18 +18,21 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
 
 internal class TextCodebaseAssembler(
-    private val codebase: TextCodebase,
+    private val codebase: DefaultCodebase,
+    private val classResolver: ClassResolver?,
 ) : CodebaseAssembler {
 
     /** Creates [Item] instances for this. */
@@ -122,7 +125,6 @@ internal class TextCodebaseAssembler(
 
         // Only check for external classes if this is not searching for an outer class of a class in
         // this codebase and there is a class resolver that will populate the external classes.
-        val classResolver = codebase.classResolver
         if (!isOuterClassOfClassInThisCodebase && classResolver != null) {
             // Try and resolve the class, returning it if it was found.
             classResolver.resolveClass(qualifiedName)?.let {

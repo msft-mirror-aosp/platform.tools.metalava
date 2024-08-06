@@ -28,9 +28,9 @@ import java.io.File
 internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
-    internal val classResolver: ClassResolver?,
+    classResolver: ClassResolver?,
     assemblerFactory: CodebaseAssemblerFactory = { codebase ->
-        TextCodebaseAssembler(codebase as TextCodebase)
+        TextCodebaseAssembler(codebase as DefaultCodebase, classResolver)
     },
 ) :
     DefaultCodebase(
