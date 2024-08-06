@@ -47,6 +47,7 @@ import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -309,7 +310,7 @@ internal fun processFlags(
     // files
     options.apiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -321,6 +322,19 @@ internal fun processFlags(
                 )
             }
 
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
+
         createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
             SignatureWriter(
                 writer = printWriter,
@@ -331,7 +345,7 @@ internal fun processFlags(
 
     options.removedApiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -342,6 +356,19 @@ internal fun processFlags(
                     apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
 
         createReportFile(
             progressTracker,
