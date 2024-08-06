@@ -41,6 +41,7 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.psi.PsiModelOptions
@@ -289,51 +290,55 @@ internal fun processFlags(
         )
     }
 
-    // Based on the input flags, generates various output files such
-    // as signature files and/or stubs files
+    // Based on the input flags, generates various output files such as signature files and/or stubs
+    // files
     options.apiFile?.let { apiFile ->
-        createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
-            val fileFormat = options.signatureFileFormat
-            val signatureWriter =
-                SignatureWriter(
-                    writer = printWriter,
+        val fileFormat = options.signatureFileFormat
+        val codebaseFragment =
+            CodebaseFragment(codebase) { delegate ->
+                createFilteringVisitorForSignatures(
+                    delegate = delegate,
                     fileFormat = fileFormat,
+                    apiType = ApiType.PUBLIC_API,
+                    preFiltered = codebase.preFiltered,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig,
                 )
+            }
 
-            createFilteringVisitorForSignatures(
-                delegate = signatureWriter,
+        createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
+            SignatureWriter(
+                writer = printWriter,
                 fileFormat = fileFormat,
-                apiType = ApiType.PUBLIC_API,
-                preFiltered = codebase.preFiltered,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig
             )
         }
     }
 
     options.removedApiFile?.let { apiFile ->
+        val fileFormat = options.signatureFileFormat
+        val codebaseFragment =
+            CodebaseFragment(codebase) { delegate ->
+                createFilteringVisitorForSignatures(
+                    delegate = delegate,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.REMOVED,
+                    preFiltered = false,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig,
+                )
+            }
+
         createReportFile(
             progressTracker,
-            codebase,
+            codebaseFragment,
             apiFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
-            val fileFormat = options.signatureFileFormat
-            val signatureWriter =
-                SignatureWriter(
-                    writer = printWriter,
-                    emitHeader = options.includeSignatureFormatVersionRemoved,
-                    fileFormat = fileFormat,
-                )
-
-            createFilteringVisitorForSignatures(
-                delegate = signatureWriter,
+            SignatureWriter(
+                writer = printWriter,
+                emitHeader = options.includeSignatureFormatVersionRemoved,
                 fileFormat = fileFormat,
-                apiType = ApiType.REMOVED,
-                preFiltered = false,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig
             )
         }
     }
@@ -777,6 +782,26 @@ private fun createStubFiles(
         "$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${
         localTimer.elapsed(SECONDS)} seconds\n"
     )
+}
+
+fun createReportFile(
+    progressTracker: ProgressTracker,
+    codebaseFragment: CodebaseFragment,
+    apiFile: File,
+    description: String?,
+    deleteEmptyFiles: Boolean = false,
+    createVisitorWriter: (PrintWriter) -> DelegatedVisitor,
+) {
+    createReportFile(
+        progressTracker,
+        codebaseFragment.codebase,
+        apiFile,
+        description,
+        deleteEmptyFiles,
+    ) {
+        val delegatedWriter = createVisitorWriter(it)
+        codebaseFragment.createVisitor(delegatedWriter)
+    }
 }
 
 @Suppress("DEPRECATION")
