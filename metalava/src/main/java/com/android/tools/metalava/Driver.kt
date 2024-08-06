@@ -293,16 +293,21 @@ internal fun processFlags(
     // as signature files and/or stubs files
     options.apiFile?.let { apiFile ->
         createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
-            SignatureWriter(
+            val fileFormat = options.signatureFileFormat
+            val signatureWriter =
+                SignatureWriter(
                     writer = printWriter,
-                    fileFormat = options.signatureFileFormat,
+                    fileFormat = fileFormat,
                 )
-                .createFilteringVisitor(
-                    apiType = ApiType.PUBLIC_API,
-                    preFiltered = codebase.preFiltered,
-                    showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig
-                )
+
+            createFilteringVisitorForSignatures(
+                delegate = signatureWriter,
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = codebase.preFiltered,
+                showUnannotated = options.showUnannotated,
+                apiVisitorConfig = options.apiVisitorConfig
+            )
         }
     }
 
@@ -314,17 +319,22 @@ internal fun processFlags(
             "removed API",
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
-            SignatureWriter(
+            val fileFormat = options.signatureFileFormat
+            val signatureWriter =
+                SignatureWriter(
                     writer = printWriter,
                     emitHeader = options.includeSignatureFormatVersionRemoved,
-                    fileFormat = options.signatureFileFormat,
+                    fileFormat = fileFormat,
                 )
-                .createFilteringVisitor(
-                    apiType = ApiType.REMOVED,
-                    preFiltered = false,
-                    showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
-                )
+
+            createFilteringVisitorForSignatures(
+                delegate = signatureWriter,
+                fileFormat = fileFormat,
+                apiType = ApiType.REMOVED,
+                preFiltered = false,
+                showUnannotated = options.showUnannotated,
+                apiVisitorConfig = options.apiVisitorConfig
+            )
         }
     }
 
