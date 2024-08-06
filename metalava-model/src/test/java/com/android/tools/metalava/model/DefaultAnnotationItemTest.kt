@@ -35,14 +35,13 @@ class DefaultAnnotationItemTest {
             annotationManager = noOpAnnotationManager,
             trustedApi = false,
             supportsDocumentation = false,
-            assemblerFactory = {
+            assembler =
                 object : CodebaseAssembler {
                     override val itemFactory: DefaultItemFactory
                         get() = error("unsupported")
 
                     override fun createClassFromUnderlyingModel(qualifiedName: String) = null
-                }
-            },
+                },
         )
 
     private fun createDefaultAnnotationItem(source: String) =

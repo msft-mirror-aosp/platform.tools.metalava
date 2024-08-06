@@ -27,15 +27,18 @@ import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
 import java.io.File
 
 internal class TextCodebaseAssembler(
-    private val codebase: DefaultCodebase,
+    codebaseFactory: DefaultCodebaseFactory,
     private val classResolver: ClassResolver?,
 ) : CodebaseAssembler {
+
+    private val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
@@ -199,22 +202,24 @@ internal class TextCodebaseAssembler(
             annotationManager: AnnotationManager,
             classResolver: ClassResolver?,
         ): DefaultCodebase {
-            val codebase =
-                DefaultCodebase(
-                    location = location,
-                    description = description,
-                    preFiltered = true,
-                    annotationManager = annotationManager,
-                    trustedApi = true,
-                    supportsDocumentation = false,
-                    assemblerFactory = { codebase ->
-                        TextCodebaseAssembler(codebase as DefaultCodebase, classResolver)
+            val assembler =
+                TextCodebaseAssembler(
+                    codebaseFactory = { assembler ->
+                        DefaultCodebase(
+                            location = location,
+                            description = description,
+                            preFiltered = true,
+                            annotationManager = annotationManager,
+                            trustedApi = true,
+                            supportsDocumentation = false,
+                            assembler = assembler,
+                        )
                     },
+                    classResolver = classResolver,
                 )
+            assembler.initialize()
 
-            (codebase.assembler as TextCodebaseAssembler).initialize()
-
-            return codebase
+            return assembler.codebase
         }
     }
 }

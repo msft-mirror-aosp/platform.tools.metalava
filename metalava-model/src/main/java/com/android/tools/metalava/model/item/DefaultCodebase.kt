@@ -44,7 +44,7 @@ open class DefaultCodebase(
     trustedApi: Boolean,
     supportsDocumentation: Boolean,
     reporter: Reporter? = null,
-    assemblerFactory: CodebaseAssemblerFactory,
+    val assembler: CodebaseAssembler,
 ) :
     AbstractCodebase(
         location,
@@ -55,14 +55,6 @@ open class DefaultCodebase(
         supportsDocumentation,
     ),
     MutableCodebase {
-
-    /**
-     * Create a [CodebaseAssembler] appropriate for this [Codebase].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    val assembler = assemblerFactory(@Suppress("LeakingThis") this)
 
     private val optionalReporter = reporter
 

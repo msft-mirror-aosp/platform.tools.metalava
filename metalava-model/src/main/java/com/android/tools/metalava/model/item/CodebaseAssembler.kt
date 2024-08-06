@@ -21,13 +21,12 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 
 /**
- * A factory that will create an [CodebaseAssembler] for a specific [Codebase].
+ * A factory that will create a [DefaultCodebase] for a specific [CodebaseAssembler].
  *
- * An implementation of this must not try and initialize the [Codebase] as it will not be fully
- * initialized at the time this is called. Instead, it should defer the initialization until after
- * the [Codebase] has been created.
+ * An implementation of this must not try and access any [CodebaseAssembler] functions as it will
+ * not be fully initialized at the time this is called.
  */
-typealias CodebaseAssemblerFactory = (Codebase) -> CodebaseAssembler
+typealias DefaultCodebaseFactory = (CodebaseAssembler) -> DefaultCodebase
 
 /**
  * A [CodebaseAssembler] is responsible for providing a [Codebase] with access to classes which are

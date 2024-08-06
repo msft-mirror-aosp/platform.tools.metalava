@@ -138,7 +138,7 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
-                assemblerFactory = { this },
+                assembler = this,
             )
 
         this.codebase = newCodebase

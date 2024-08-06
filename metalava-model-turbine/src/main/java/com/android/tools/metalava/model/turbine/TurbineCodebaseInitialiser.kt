@@ -48,7 +48,7 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -116,10 +116,13 @@ import javax.lang.model.element.TypeElement
  * parsed Tree
  */
 internal class TurbineCodebaseInitialiser(
-    internal val codebase: DefaultCodebase,
+    codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
     private val allowReadingComments: Boolean,
 ) : CodebaseAssembler {
+
+    internal val codebase = codebaseFactory(this)
+
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
