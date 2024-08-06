@@ -901,21 +901,23 @@ internal class TurbineCodebaseInitialiser(
                     parameterDecls.get(idx - declaredParameterOffset)
                 else null
 
+            val fileLocation =
+                TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
             val parameterItem =
                 itemFactory.createParameterItem(
-                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl),
-                    parameterModifierItem,
-                    parameter.name(),
-                    { item ->
+                    fileLocation = fileLocation,
+                    modifiers = parameterModifierItem,
+                    name = parameter.name(),
+                    publicNameProvider = { item ->
                         // Java: Look for @ParameterName annotation
                         val modifiers = item.modifiers
                         val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
                         annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
                     },
-                    containingCallable,
-                    idx,
-                    type,
-                    TurbineDefaultValue(parameterModifierItem),
+                    containingCallable = containingCallable,
+                    parameterIndex = idx,
+                    type = type,
+                    defaultValue = TurbineDefaultValue(parameterModifierItem),
                 )
             parameterItem
         }

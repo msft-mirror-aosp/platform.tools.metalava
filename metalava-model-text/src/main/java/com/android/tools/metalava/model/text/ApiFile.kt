@@ -1444,7 +1444,13 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val property =
-            itemFactory.createPropertyItem(tokenizer.fileLocation(), modifiers, name, cl, type)
+            itemFactory.createPropertyItem(
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                name = name,
+                containingClass = cl,
+                type = type,
+            )
         property.markForCurrentApiSurface()
         cl.addProperty(property)
     }
@@ -1743,14 +1749,14 @@ private constructor(
 
             val parameter =
                 itemFactory.createParameterItem(
-                    location,
-                    modifiers,
-                    name,
-                    { publicName },
-                    containingCallable,
-                    index,
-                    type,
-                    defaultValue,
+                    fileLocation = location,
+                    modifiers = modifiers,
+                    name = name,
+                    publicNameProvider = { publicName },
+                    containingCallable = containingCallable,
+                    parameterIndex = index,
+                    type = type,
+                    defaultValue = defaultValue,
                 )
 
             parameter.markForCurrentApiSurface()
