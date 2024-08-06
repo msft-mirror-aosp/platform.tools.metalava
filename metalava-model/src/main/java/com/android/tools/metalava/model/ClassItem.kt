@@ -778,9 +778,9 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      */
     fun createDefaultConstructor(
         visibility: VisibilityLevel = modifiers.getVisibilityLevel()
-    ): ConstructorItem = codebase.unsupported()
+    ): ConstructorItem
 
-    fun addMethod(method: MethodItem): Unit = codebase.unsupported()
+    fun addMethod(method: MethodItem)
 
     /**
      * Return true if a [ClassItem] could be subclassed, i.e. is not final or sealed and has at

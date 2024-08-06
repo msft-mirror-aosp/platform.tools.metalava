@@ -46,8 +46,4 @@ internal class TextCodebase(
     init {
         (assembler as TextCodebaseAssembler).initialize()
     }
-
-    override fun unsupported(desc: String?): Nothing {
-        error(desc ?: "Not supported for a signature-file based codebase")
-    }
 }

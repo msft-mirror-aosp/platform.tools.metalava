@@ -98,7 +98,12 @@ interface Codebase {
     ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
-    fun unsupported(desc: String? = null): Nothing
+    fun unsupported(desc: String? = null): Nothing {
+        error(
+            desc
+                ?: "This operation is not available on this type of codebase (${javaClass.simpleName})"
+        )
+    }
 
     /** Discards this model */
     fun dispose()
@@ -131,13 +136,6 @@ abstract class AbstractCodebase(
     final override fun trustedApi() = trustedApi
 
     final override fun supportsDocumentation() = supportsDocumentation
-
-    override fun unsupported(desc: String?): Nothing {
-        error(
-            desc
-                ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
-        )
-    }
 
     final override fun toString() = description
 
