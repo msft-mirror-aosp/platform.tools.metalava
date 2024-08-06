@@ -917,7 +917,7 @@ internal class TurbineCodebaseInitialiser(
                     containingCallable = containingCallable,
                     parameterIndex = idx,
                     type = type,
-                    defaultValue = TurbineDefaultValue(parameterModifierItem),
+                    defaultValueFactory = { TurbineDefaultValue(parameterModifierItem) },
                 )
             parameterItem
         }

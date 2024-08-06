@@ -1756,7 +1756,7 @@ private constructor(
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
-                    defaultValue = defaultValue,
+                    defaultValueFactory = { defaultValue },
                 )
 
             parameter.markForCurrentApiSurface()
