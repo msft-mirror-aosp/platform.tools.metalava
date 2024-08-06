@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Reporter
@@ -51,7 +52,7 @@ internal class TurbineSourceParser(
         val codebase =
             TurbineBasedCodebase(rootDir, description, annotationManager, reporter) { codebase ->
                 TurbineCodebaseInitialiser(
-                    codebase as TurbineBasedCodebase,
+                    codebase as DefaultCodebase,
                     classPath,
                     allowReadingComments,
                 )

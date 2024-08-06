@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -114,8 +115,8 @@ import javax.lang.model.element.TypeElement
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
  */
-internal open class TurbineCodebaseInitialiser(
-    private val codebase: TurbineBasedCodebase,
+internal class TurbineCodebaseInitialiser(
+    internal val codebase: DefaultCodebase,
     private val classpath: List<File>,
     private val allowReadingComments: Boolean,
 ) : CodebaseAssembler {
@@ -133,8 +134,7 @@ internal open class TurbineCodebaseInitialiser(
     /** Map between Class declaration and the corresponding source CompUnit */
     private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf()
 
-    private val globalTypeItemFactory =
-        TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
+    private val globalTypeItemFactory = TurbineTypeItemFactory(this, TypeParameterScope.empty)
 
     /** Creates [Item] instances for [codebase]. */
     override val itemFactory =
