@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -39,6 +38,7 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -48,7 +48,10 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -95,7 +98,7 @@ data class SignatureFile(
 @MetalavaApi
 class ApiFile
 private constructor(
-    private val codebase: TextCodebase,
+    private val codebase: DefaultCodebase,
     private val formatForLegacyFiles: FileFormat?,
 ) {
 
@@ -108,16 +111,16 @@ private constructor(
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
 
+    /** Supports the initialization of [codebase]. */
+    private val assembler = codebase.assembler as TextCodebaseAssembler
+
     /**
      * Provides support for creating [TypeItem]s for specific uses.
      *
      * Defer creation as it depends on [typeParser].
      */
     private val globalTypeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
-
-    /** Supports the initialization of a [TextCodebase]. */
-    private val assembler = codebase.assembler
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(assembler, typeParser) }
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
@@ -172,11 +175,11 @@ private constructor(
             )
 
         /**
-         * Read API signature files into a [TextCodebase].
+         * Read API signature files into a [DefaultCodebase].
          *
-         * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [Item.fileLocation] would correctly point out the source file
-         * of each item.
+         * Note: when reading from them multiple files, [DefaultCodebase.location] would refer to
+         * the first file specified. each [Item.fileLocation] would correctly point out the source
+         * file of each item.
          *
          * @param signatureFiles input signature files
          */
@@ -369,9 +372,7 @@ private constructor(
         }
     }
 
-    /**
-     * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
-     */
+    /** Perform any final steps to initialize [codebase] after parsing the signature files. */
     private fun postProcess() {
         codebase.resolveSuperTypes()
     }
@@ -584,7 +585,7 @@ private constructor(
                 qualifiedName = qualifiedClassName,
                 fullName = fullName,
                 classKind = classKind,
-                modifiers = modifiers,
+                modifiers = modifiers.toImmutable(),
                 superClassType = superClassType,
             )
 
@@ -815,8 +816,10 @@ private constructor(
                 // Search for the outer class in the codebase. This is safe as the outer class
                 // always precedes its nested classes.
                 val outerClass =
-                    codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
-                        as DefaultClassItem
+                    assembler.getOrCreateClass(
+                        qualifiedOuterClassName,
+                        isOuterClassOfClassInThisCodebase = true
+                    ) as DefaultClassItem
 
                 val nestedClassName = fullName.substring(nestedClassIndex + 1)
                 Pair(outerClass, nestedClassName)
@@ -1224,7 +1227,7 @@ private constructor(
         tokenizer: Tokenizer,
         startingToken: String?,
         annotations: List<AnnotationItem>
-    ): DefaultModifierList {
+    ): MutableModifierList {
         var token = startingToken
         val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
 
@@ -1329,12 +1332,12 @@ private constructor(
         return modifiers
     }
 
-    /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
+    /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
     private fun createModifiers(
         visibility: VisibilityLevel,
         annotations: List<AnnotationItem>
-    ): DefaultModifierList {
-        val modifiers = DefaultModifierList(visibility, annotations)
+    ): MutableModifierList {
+        val modifiers = createMutableModifiers(visibility, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
@@ -1541,7 +1544,7 @@ private constructor(
         val name = typeParameterString.substring(nameStart, nameEnd)
 
         // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
+        val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,
@@ -1719,7 +1722,7 @@ private constructor(
         val publicName: String?,
         val defaultValue: DefaultValue,
         val typeString: String,
-        val modifiers: DefaultModifierList,
+        val modifiers: MutableModifierList,
         val location: FileLocation,
         val index: Int
     ) {
@@ -1844,7 +1847,7 @@ private constructor(
      * @param typeItem the type of the API item.
      * @param modifiers the API item's modifiers.
      */
-    private fun synchronizeNullability(typeItem: TypeItem, modifiers: DefaultModifierList) {
+    private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
         if (typeParser.kotlinStyleNulls) {
             // Add an annotation to the context item for the type's nullability if applicable.
             val annotationToAdd =

@@ -18,29 +18,29 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
-    codebase: DefaultCodebase,
+    codebase: MutableCodebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val source: SourceFile?,
@@ -74,7 +74,7 @@ open class DefaultClassItem(
         codebase.registerClass(this)
     }
 
-    final override fun getSourceFile() = source
+    override fun getSourceFile() = source
 
     final override fun containingPackage(): PackageItem = containingPackage
 
@@ -93,10 +93,13 @@ open class DefaultClassItem(
 
     final override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
-            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
+            cachedType = createClassTypeItemForThis()
         }
         return cachedType
     }
+
+    protected open fun createClassTypeItemForThis() =
+        DefaultResolvedClassTypeItem.createForClass(this)
 
     final override fun superClassType(): ClassTypeItem? = superClassType
 
@@ -120,6 +123,23 @@ open class DefaultClassItem(
         }
 
         return cacheAllInterfaces!!.asSequence()
+    }
+
+    /** Compute the value for [ClassItem.allInterfaces]. */
+    private fun computeAllInterfaces() = buildList {
+        // Add self as interface if applicable
+        if (isInterface()) {
+            add(this@DefaultClassItem)
+        }
+
+        // Add all the interfaces of super class
+        superClass()?.let { superClass -> superClass.allInterfaces().forEach { add(it) } }
+
+        // Add all the interfaces of direct interfaces
+        interfaceTypes().forEach { interfaceType ->
+            val itf = interfaceType.asClass()
+            itf?.allInterfaces()?.forEach { add(it) }
+        }
     }
 
     /** The mutable list of [ConstructorItem] that backs [constructors]. */
@@ -146,7 +166,7 @@ open class DefaultClassItem(
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    final override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
+    override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
             itemLanguage = itemLanguage,
@@ -162,7 +182,7 @@ open class DefaultClassItem(
     final override fun methods(): List<MethodItem> = mutableMethods
 
     /** Add a method to this class. */
-    override fun addMethod(method: MethodItem) {
+    final override fun addMethod(method: MethodItem) {
         mutableMethods += method
     }
 
