@@ -24,9 +24,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
@@ -65,13 +66,14 @@ open class DefaultCodebase(
         get() = unsupported("reporter is not available")
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker { packageName, packageDoc ->
+    val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->
         val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
         assembler.itemFactory.createPackageItem(
             packageDoc.fileLocation,
-            packageDoc.modifiers ?: DefaultModifierList.createPublic(this),
+            packageDoc.modifiers ?: createImmutableModifiers(VisibilityLevel.PUBLIC),
             documentationFactory,
             packageName,
+            containingPackage,
             packageDoc.overview,
         )
     }
@@ -81,6 +83,12 @@ open class DefaultCodebase(
     final override fun size() = packageTracker.size
 
     final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
+
+    fun findOrCreatePackage(
+        packageName: String,
+        packageDocs: PackageDocs = PackageDocs.EMPTY,
+        emit: Boolean = true,
+    ) = packageTracker.findOrCreatePackage(packageName, packageDocs, emit)
 
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {

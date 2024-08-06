@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -42,7 +41,9 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -224,8 +225,12 @@ internal open class TurbineCodebaseInitialiser(
         // information from package-info.java units to create a comprehensive set of package
         // documentation just in case they are needed during package creation.
         val packageDocs =
-            gatherPackageJavadoc(codebase.reporter, sourceSet, packageInfoList) {
-                (unit, packageName, sourceTypeBoundClass) ->
+            gatherPackageJavadoc(
+                codebase.reporter,
+                sourceSet,
+                packageNameFilter = { true },
+                packageInfoList
+            ) { (unit, packageName, sourceTypeBoundClass) ->
                 val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
@@ -236,8 +241,7 @@ internal open class TurbineCodebaseInitialiser(
                 createTurbineSourceFile(unit)
                 val annotations = createAnnotations(sourceTypeBoundClass.annotations())
 
-                val modifiers =
-                    DefaultModifierList.createPublic(codebase, annotations.toMutableList())
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 
@@ -335,25 +339,8 @@ internal open class TurbineCodebaseInitialiser(
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
     private fun createAllPackages(packageDocs: PackageDocs) {
-        // Create packages for all the documentation packages.
+        // Create packages for all the documentation packages and make sure there is a root package.
         codebase.packageTracker.createInitialPackages(packageDocs)
-
-        // Make sure that there is a root package.
-        findOrCreatePackage("")
-    }
-
-    /**
-     * Searches for the package with supplied name in the codebase's package map and if not found
-     * creates the corresponding TurbinePackageItem and adds it to the package map.
-     */
-    private fun findOrCreatePackage(name: String): DefaultPackageItem {
-        codebase.findPackage(name)?.let {
-            return it
-        }
-
-        val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)
-        codebase.addPackage(turbinePkgItem)
-        return turbinePkgItem
     }
 
     private fun createAllClasses(sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>) {
@@ -429,7 +416,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName)
+        val pkgItem = codebase.findOrCreatePackage(pkgName, emit = !isFromClassPath)
 
         // Create the sourcefile
         val sourceFile =
@@ -454,7 +441,6 @@ internal open class TurbineCodebaseInitialiser(
         val documentation = javadoc(decl)
         val modifierItem =
             TurbineModifierItem.create(
-                codebase,
                 cls.access(),
                 annotations,
             )
@@ -465,6 +451,24 @@ internal open class TurbineCodebaseInitialiser(
                 "class $qualifiedName",
             )
         val classKind = getClassKind(cls.kind())
+
+        modifierItem.setSynchronized(false) // A class can not be synchronized in java
+
+        if (classKind == ClassKind.ANNOTATION_TYPE) {
+            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
+                modifierItem.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
+            }
+        }
+
+        // Setup the SuperClass
+        val superClassType =
+            if (classKind != ClassKind.INTERFACE) {
+                cls.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+            } else null
+
+        // Set interface types
+        val interfaceTypes = cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
+
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
@@ -479,28 +483,9 @@ internal open class TurbineCodebaseInitialiser(
                 fullName = fullName,
                 typeParameterList = typeParameters,
                 isFromClassPath = isFromClassPath,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes,
             )
-        modifierItem.setSynchronized(false) // A class can not be synchronized in java
-
-        if (classKind == ClassKind.ANNOTATION_TYPE) {
-            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
-                modifierItem.addDefaultRetentionPolicyAnnotation(classItem)
-            }
-        }
-
-        // Setup the SuperClass
-        if (!classItem.isInterface()) {
-            val superClassType = cls.superClassType()
-            val superClassTypeItem =
-                if (superClassType == null) null
-                else classTypeItemFactory.getSuperClassType(superClassType)
-            classItem.setSuperClassType(superClassTypeItem)
-        }
-
-        // Set interface types
-        classItem.setInterfaceTypes(
-            cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
-        )
 
         // Create fields
         createFields(classItem, cls.fields(), classTypeItemFactory)
@@ -513,7 +498,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Do not emit to signature file if it is from classpath
         if (isFromClassPath) {
-            pkgItem.emit = false
             classItem.emit = false
         }
 
@@ -730,8 +714,7 @@ internal open class TurbineCodebaseInitialiser(
      * the same [TypeParameterList] can be resolved.
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
-        val modifiers =
-            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()))
+        val modifiers = TurbineModifierItem.create(0, createAnnotations(param.annotations()))
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -779,7 +762,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl = field.decl()
             val fieldModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     flags,
                     annotations,
                 )
@@ -828,7 +810,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl: MethDecl? = method.decl()
             val methodModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     method.access(),
                     annotations,
                 )
@@ -902,7 +883,7 @@ internal open class TurbineCodebaseInitialiser(
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
             val parameterModifierItem =
-                TurbineModifierItem.create(codebase, parameter.access(), annotations)
+                TurbineModifierItem.create(parameter.access(), annotations).toImmutable()
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
@@ -950,7 +931,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     constructor.access(),
                     annotations,
                 )

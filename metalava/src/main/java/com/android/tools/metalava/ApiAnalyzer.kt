@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
@@ -43,7 +44,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -246,8 +246,7 @@ class ApiAnalyzer(
                 // created. Technically, the stub now has a constructor that isn't available at
                 // runtime, but apps creating subclasses inside the android.* package is not
                 // supported.
-                cls.createDefaultConstructor().also {
-                    it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
+                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE).also {
                     it.superConstructor = superDefaultConstructor
                 }
             } else {
@@ -578,7 +577,7 @@ class ApiAnalyzer(
         val mergeQualifierAnnotations = config.mergeQualifierAnnotations
         if (mergeQualifierAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeQualifierAnnotations(mergeQualifierAnnotations)
+                .mergeQualifierAnnotationsFromFiles(mergeQualifierAnnotations)
         }
     }
 
@@ -587,7 +586,7 @@ class ApiAnalyzer(
         val mergeInclusionAnnotations = config.mergeInclusionAnnotations
         if (mergeInclusionAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeInclusionAnnotations(mergeInclusionAnnotations)
+                .mergeInclusionAnnotationsFromFiles(mergeInclusionAnnotations)
         }
     }
 
@@ -623,7 +622,7 @@ class ApiAnalyzer(
     }
 
     private fun checkSystemPermissions(method: MethodItem) {
-        val annotation = method.modifiers.findAnnotation(ANDROID_REQUIRES_PERMISSION)
+        val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
         if (annotation != null) {
