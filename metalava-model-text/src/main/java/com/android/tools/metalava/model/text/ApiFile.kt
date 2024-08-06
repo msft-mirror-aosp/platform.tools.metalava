@@ -817,8 +817,10 @@ private constructor(
                 // Search for the outer class in the codebase. This is safe as the outer class
                 // always precedes its nested classes.
                 val outerClass =
-                    codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
-                        as DefaultClassItem
+                    codebase.getOrCreateClass(
+                        qualifiedOuterClassName,
+                        isOuterClassOfClassInThisCodebase = true
+                    ) as DefaultClassItem
 
                 val nestedClassName = fullName.substring(nestedClassIndex + 1)
                 Pair(outerClass, nestedClassName)

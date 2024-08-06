@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
@@ -124,10 +123,16 @@ open class DefaultCodebase(
     /**
      * Look for classes in this [Codebase].
      *
-     * This is left open so that subclasses can extend this to look for classes from elsewhere, e.g.
-     * classes provided by a [ClassResolver] which would come from a separate [Codebase].
+     * A class can be added to this [Codebase] in two ways:
+     * * Created specifically for this [Codebase], i.e. its [ClassItem.codebase] is this. That can
+     *   happen during initialization or because [CodebaseAssembler.createClassFromUnderlyingModel]
+     *   creates a [ClassItem] in this [Codebase].
+     * * Created by another [Codebase] and returned by
+     *   [CodebaseAssembler.createClassFromUnderlyingModel], i.e. its [ClassItem.codebase] is NOT
+     *   this.
      */
-    override fun findClass(className: String): ClassItem? = findClassInCodebase(className)
+    final override fun findClass(className: String): ClassItem? =
+        findClassInCodebase(className) ?: externalClassesByName[className]
 
     /** Register [DefaultClassItem] with this [Codebase]. */
     override fun registerClass(classItem: DefaultClassItem) {
@@ -148,12 +153,26 @@ open class DefaultCodebase(
     /** Overrideable hook, called from [registerClass] for each new [DefaultClassItem]. */
     open fun newClassRegistered(classItem: DefaultClassItem) {}
 
+    /** Map from name to an external class that was registered using [] */
+    private val externalClassesByName = mutableMapOf<String, ClassItem>()
+
     /**
      * Looks for an existing class in this [Codebase] and if that cannot be found then delegate to
      * the [assembler] to see if it can create a class from the underlying model.
      */
-    override fun resolveClass(className: String) =
-        findClass(className) ?: assembler.createClassFromUnderlyingModel(className)
+    final override fun resolveClass(className: String): ClassItem? {
+        findClass(className)?.let {
+            return it
+        }
+        val created = assembler.createClassFromUnderlyingModel(className) ?: return null
+        // If the returned class was not created as part of this Codebase then register it as an
+        // external class so that findClass(...) will find it next time.
+        if (created.codebase !== this) {
+            // Register as an external class.
+            externalClassesByName[className] = created
+        }
+        return created
+    }
 
     final override fun createAnnotation(
         source: String,

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -45,7 +44,6 @@ internal class TextCodebaseAssembler(
         codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
     }
 
-    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
-        TODO("Not yet implemented")
-    }
+    override fun createClassFromUnderlyingModel(qualifiedName: String) =
+        codebase.getOrCreateClass(qualifiedName)
 }

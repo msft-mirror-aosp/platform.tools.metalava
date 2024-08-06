@@ -20,14 +20,12 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.CodebaseAssemblerFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
-import java.util.HashMap
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
 // data structures.
@@ -53,21 +51,6 @@ internal class TextCodebase(
     init {
         (assembler as TextCodebaseAssembler).initialize()
     }
-
-    /**
-     * Map from fully qualified class name to a [ClassItem] that has been retrieved from a
-     * [ClassResolver], if any.
-     */
-    private val externalClassesByName = HashMap<String, ClassItem>()
-
-    /**
-     * Override to first search within this [Codebase] and then look for classes that have been
-     * loaded by a [classResolver].
-     */
-    override fun findClass(className: String) =
-        super.findClass(className) ?: externalClassesByName[className]
-
-    override fun resolveClass(className: String) = getOrCreateClass(className)
 
     override fun newClassRegistered(classItem: DefaultClassItem) {
         // A real class exists so a stub will not be created so the hint as to the kind of class
@@ -124,35 +107,25 @@ internal class TextCodebase(
      * Initializes outer classes and packages for the created class as needed.
      *
      * @param qualifiedName the fully qualified name of the class.
-     * @param isOuterClass if `true` then this is searching for an outer class of a class in this
-     *   codebase, in which case this must only search classes in this codebase, otherwise it can
-     *   search for external classes too.
+     * @param isOuterClassOfClassInThisCodebase if `true` then this is searching for an outer class
+     *   of a class in this codebase, in which case this must only search classes in this codebase,
+     *   otherwise it can search for external classes too.
      */
     fun getOrCreateClass(
         qualifiedName: String,
-        isOuterClass: Boolean = false,
+        isOuterClassOfClassInThisCodebase: Boolean = false,
     ): ClassItem {
         // Check this codebase first, if found then return it.
-        allClassesByName[qualifiedName]?.let { found ->
-            return found
+        findClass(qualifiedName)?.let {
+            return it
         }
 
-        // Only check for external classes if this is not searching for an outer class and there is
-        // a class resolver that will populate the external classes.
-        if (!isOuterClass && classResolver != null) {
-            // Check to see whether the class has already been retrieved from the resolver. If it
-            // has then return it.
-            externalClassesByName[qualifiedName]?.let { found ->
-                return found
-            }
-
-            // Else try and resolve the class.
-            val classItem = classResolver.resolveClass(qualifiedName)
-            if (classItem != null) {
-                // Save the class item, so it can be retrieved the next time this is loaded. This is
-                // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClassesByName[qualifiedName] = classItem
-                return classItem
+        // Only check for external classes if this is not searching for an outer class of a class in
+        // this codebase and there is a class resolver that will populate the external classes.
+        if (!isOuterClassOfClassInThisCodebase && classResolver != null) {
+            // Try and resolve the class, returning it if it was found.
+            classResolver.resolveClass(qualifiedName)?.let {
+                return it
             }
         }
 
@@ -164,7 +137,8 @@ internal class TextCodebase(
                 // classes, themselves possibly stubs
                 val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
                 // Pass classResolver = null, so it only looks in this codebase for the outer class.
-                val outerClass = getOrCreateClass(outerName, isOuterClass = true)
+                val outerClass =
+                    getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase = true)
 
                 // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
                 // another.
