@@ -126,12 +126,15 @@ const val CLASS_ESTIMATE = 15000
 
 abstract class AbstractCodebase(
     final override var location: File,
-    final override var description: String,
+    description: String,
     final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
 ) : Codebase {
+
+    final override var description: String = description
+        private set
 
     final override fun trustedApi() = trustedApi
 

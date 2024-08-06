@@ -81,6 +81,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
     private val codebase by lazy {
         TextCodebaseAssembler.createCodebase(
             location = jar,
+            description = "Codebase for resolving classes in $jar for tests",
             annotationManager = noOpAnnotationManager,
             classResolver = null,
         )

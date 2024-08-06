@@ -193,18 +193,19 @@ private constructor(
             apiStatsConsumer: (Stats) -> Unit = {},
         ): Codebase {
             require(signatureFiles.isNotEmpty()) { "files must not be empty" }
-            val api =
-                TextCodebaseAssembler.createCodebase(
-                    location = signatureFiles[0].file,
-                    annotationManager = annotationManager,
-                    classResolver = classResolver,
-                )
             val actualDescription =
                 description
                     ?: buildString {
                         append("Codebase loaded from ")
                         signatureFiles.joinTo(this)
                     }
+            val api =
+                TextCodebaseAssembler.createCodebase(
+                    location = signatureFiles[0].file,
+                    description = actualDescription,
+                    annotationManager = annotationManager,
+                    classResolver = classResolver,
+                )
             val parser = ApiFile(api, formatForLegacyFiles)
             var first = true
             for (signatureFile in signatureFiles) {
@@ -227,7 +228,6 @@ private constructor(
                 )
                 first = false
             }
-            api.description = actualDescription
             parser.postProcess()
 
             apiStatsConsumer(parser.stats)
@@ -276,10 +276,10 @@ private constructor(
             val api =
                 TextCodebaseAssembler.createCodebase(
                     location = path.toFile(),
+                    description = "Codebase loaded from $filename",
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,
                 )
-            api.description = "Codebase loaded from $filename"
             val parser = ApiFile(api, formatForLegacyFiles)
             parser.parseApiSingleFile(
                 appending = false,

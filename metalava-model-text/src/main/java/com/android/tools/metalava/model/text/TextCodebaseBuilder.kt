@@ -36,12 +36,14 @@ class TextCodebaseBuilder private constructor(private val codebase: DefaultCodeb
     companion object {
         fun build(
             location: File,
+            description: String,
             annotationManager: AnnotationManager,
             block: TextCodebaseBuilder.() -> Unit
         ): Codebase {
             val codebase =
                 TextCodebaseAssembler.createCodebase(
                     location = location,
+                    description = description,
                     annotationManager = annotationManager,
                     classResolver = null,
                 )
@@ -52,7 +54,7 @@ class TextCodebaseBuilder private constructor(private val codebase: DefaultCodeb
         }
     }
 
-    var description by codebase::description
+    val description by codebase::description
 
     private val itemFactory = codebase.assembler.itemFactory
 

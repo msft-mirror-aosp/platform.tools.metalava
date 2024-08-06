@@ -195,13 +195,14 @@ internal class TextCodebaseAssembler(
         /** Create a [DefaultCodebase] suitable for population from a signature file. */
         fun createCodebase(
             location: File,
+            description: String,
             annotationManager: AnnotationManager,
             classResolver: ClassResolver?,
         ): DefaultCodebase {
             val codebase =
                 DefaultCodebase(
                     location = location,
-                    description = "Codebase",
+                    description = description,
                     preFiltered = true,
                     annotationManager = annotationManager,
                     trustedApi = true,
