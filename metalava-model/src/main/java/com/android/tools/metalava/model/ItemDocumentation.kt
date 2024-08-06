@@ -106,6 +106,9 @@ interface ItemDocumentation : CharSequence {
     /** Expands the given documentation comment in the current name context */
     fun fullyQualifiedDocumentation(documentation: String): String = documentation
 
+    /** Remove the `@deprecated` section, if any. */
+    fun removeDeprecatedSection()
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -159,6 +162,8 @@ interface ItemDocumentation : CharSequence {
         }
 
         override fun findMainDocumentation() = ""
+
+        override fun removeDeprecatedSection() {}
     }
 }
 
@@ -291,6 +296,10 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
             "\n" +
             indent +
             " */"
+    }
+
+    override fun removeDeprecatedSection() {
+        text = removeDeprecatedSection(text)
     }
 }
 

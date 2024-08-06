@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -214,6 +215,38 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 },
             )
 
+    /**
+     * Take a snapshot of the documentation.
+     *
+     * If necessary revert the documentation change that accompanied a deprecation change.
+     *
+     * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc
+     * tag with text that explains why it is being deprecated and what will replace it. When the
+     * deprecation change is being reverted then this will remove the `@deprecated` tag and its
+     * associated text to avoid warnings when compiling and misleading information being written
+     * into the Javadoc.
+     */
+    private fun snapshotDocumentation(
+        itemToSnapshot: Item,
+        documentedItem: Item,
+    ): ItemDocumentationFactory {
+        // The documentation does not need to be reverted if...
+        if (
+            // the item is not being reverted
+            itemToSnapshot === documentedItem
+            // or if the deprecation status has not changed
+            ||
+                itemToSnapshot.effectivelyDeprecated == documentedItem.effectivelyDeprecated
+                // or if the item was previously deprecated
+                ||
+                itemToSnapshot.effectivelyDeprecated
+        )
+            return documentedItem.documentation::snapshot
+
+        val documentation = documentedItem.documentation
+        return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }
+    }
+
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
@@ -239,7 +272,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 fileLocation = classToSnapshot.fileLocation,
                 itemLanguage = classToSnapshot.itemLanguage,
                 modifiers = classToSnapshot.modifiers.snapshot(),
-                documentationFactory = classToSnapshot.documentation::snapshot,
+                documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = null,
                 classKind = classToSnapshot.classKind,
                 containingClass = containingClass,
@@ -301,7 +334,8 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     fileLocation = constructorToSnapshot.fileLocation,
                     itemLanguage = constructorToSnapshot.itemLanguage,
                     modifiers = constructorToSnapshot.modifiers.snapshot(),
-                    documentationFactory = constructorToSnapshot.documentation::snapshot,
+                    documentationFactory =
+                        snapshotDocumentation(constructorToSnapshot, constructor),
                     name = constructorToSnapshot.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
@@ -337,7 +371,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     fileLocation = methodToSnapshot.fileLocation,
                     itemLanguage = methodToSnapshot.itemLanguage,
                     modifiers = methodToSnapshot.modifiers.snapshot(),
-                    documentationFactory = methodToSnapshot.documentation::snapshot,
+                    documentationFactory = snapshotDocumentation(methodToSnapshot, method),
                     name = methodToSnapshot.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
@@ -364,7 +398,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 fileLocation = fieldToSnapshot.fileLocation,
                 itemLanguage = fieldToSnapshot.itemLanguage,
                 modifiers = fieldToSnapshot.modifiers.snapshot(),
-                documentationFactory = fieldToSnapshot.documentation::snapshot,
+                documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
                 name = fieldToSnapshot.name(),
                 containingClass = containingClass,
                 type = fieldToSnapshot.type().snapshot(),
@@ -384,7 +418,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 fileLocation = propertyToSnapshot.fileLocation,
                 itemLanguage = propertyToSnapshot.itemLanguage,
                 modifiers = propertyToSnapshot.modifiers.snapshot(),
-                documentationFactory = propertyToSnapshot.documentation::snapshot,
+                documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
                 name = propertyToSnapshot.name(),
                 containingClass = containingClass,
                 type = propertyToSnapshot.type().snapshot(),
