@@ -98,9 +98,11 @@ data class SignatureFile(
 @MetalavaApi
 class ApiFile
 private constructor(
-    private val codebase: DefaultCodebase,
+    private val assembler: TextCodebaseAssembler,
     private val formatForLegacyFiles: FileFormat?,
 ) {
+
+    private val codebase = assembler.codebase
 
     /**
      * Provides support for parsing and caching [TypeItem]s.
@@ -110,9 +112,6 @@ private constructor(
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
-
-    /** Supports the initialization of [codebase]. */
-    private val assembler = codebase.assembler as TextCodebaseAssembler
 
     /**
      * Provides support for creating [TypeItem]s for specific uses.
@@ -199,14 +198,14 @@ private constructor(
                         append("Codebase loaded from ")
                         signatureFiles.joinTo(this)
                     }
-            val api =
-                TextCodebaseAssembler.createCodebase(
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
                     location = signatureFiles[0].file,
                     description = actualDescription,
                     annotationManager = annotationManager,
                     classResolver = classResolver,
                 )
-            val parser = ApiFile(api, formatForLegacyFiles)
+            val parser = ApiFile(assembler, formatForLegacyFiles)
             var first = true
             for (signatureFile in signatureFiles) {
                 val file = signatureFile.file
@@ -232,7 +231,7 @@ private constructor(
 
             apiStatsConsumer(parser.stats)
 
-            return api
+            return assembler.codebase
         }
 
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
@@ -273,14 +272,14 @@ private constructor(
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
             val path = Path.of(filename)
-            val api =
-                TextCodebaseAssembler.createCodebase(
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
                     location = path.toFile(),
                     description = "Codebase loaded from $filename",
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,
                 )
-            val parser = ApiFile(api, formatForLegacyFiles)
+            val parser = ApiFile(assembler, formatForLegacyFiles)
             parser.parseApiSingleFile(
                 appending = false,
                 path = path,
@@ -288,7 +287,7 @@ private constructor(
                 forCurrentApiSurface = true,
             )
             parser.postProcess()
-            return api
+            return assembler.codebase
         }
 
         /**

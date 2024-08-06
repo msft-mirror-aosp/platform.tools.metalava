@@ -31,7 +31,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 
 /** Supports building a [DefaultCodebase] that is a subset of another [DefaultCodebase]. */
-class TextCodebaseBuilder private constructor(private val codebase: DefaultCodebase) {
+class TextCodebaseBuilder private constructor(private val assembler: TextCodebaseAssembler) {
 
     companion object {
         fun build(
@@ -40,23 +40,25 @@ class TextCodebaseBuilder private constructor(private val codebase: DefaultCodeb
             annotationManager: AnnotationManager,
             block: TextCodebaseBuilder.() -> Unit
         ): Codebase {
-            val codebase =
-                TextCodebaseAssembler.createCodebase(
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
                     location = location,
                     description = description,
                     annotationManager = annotationManager,
                     classResolver = null,
                 )
-            val builder = TextCodebaseBuilder(codebase)
+            val builder = TextCodebaseBuilder(assembler)
             builder.block()
 
-            return codebase
+            return assembler.codebase
         }
     }
 
+    val codebase = assembler.codebase
+
     val description by codebase::description
 
-    private val itemFactory = codebase.assembler.itemFactory
+    private val itemFactory = assembler.itemFactory
 
     private fun getOrAddPackage(pkgName: String) = codebase.findOrCreatePackage(pkgName)
 

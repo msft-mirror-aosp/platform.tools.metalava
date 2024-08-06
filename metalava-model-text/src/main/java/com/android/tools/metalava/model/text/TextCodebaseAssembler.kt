@@ -38,7 +38,7 @@ internal class TextCodebaseAssembler(
     private val classResolver: ClassResolver?,
 ) : CodebaseAssembler {
 
-    private val codebase = codebaseFactory(this)
+    internal val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
@@ -179,7 +179,7 @@ internal class TextCodebaseAssembler(
         val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
         val stubClass =
             StubClassBuilder.build(
-                codebase = codebase,
+                assembler = this,
                 qualifiedName = qualifiedName,
                 fullName = fullName,
                 containingClass = outerClass,
@@ -195,13 +195,13 @@ internal class TextCodebaseAssembler(
     }
 
     companion object {
-        /** Create a [DefaultCodebase] suitable for population from a signature file. */
-        fun createCodebase(
+        /** Create a [TextCodebaseAssembler]. */
+        fun createAssembler(
             location: File,
             description: String,
             annotationManager: AnnotationManager,
             classResolver: ClassResolver?,
-        ): DefaultCodebase {
+        ): TextCodebaseAssembler {
             val assembler =
                 TextCodebaseAssembler(
                     codebaseFactory = { assembler ->
@@ -219,7 +219,7 @@ internal class TextCodebaseAssembler(
                 )
             assembler.initialize()
 
-            return assembler.codebase
+            return assembler
         }
     }
 }

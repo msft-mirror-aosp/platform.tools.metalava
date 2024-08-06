@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -32,8 +31,8 @@ import com.android.tools.metalava.reporter.FileLocation
  * definition of the class but a [DefaultClassItem] is still needed.
  */
 internal class StubClassBuilder(
-    val codebase: DefaultCodebase,
-    val qualifiedName: String,
+    internal val assembler: TextCodebaseAssembler,
+    internal val qualifiedName: String,
     private val fullName: String,
     private val containingClass: ClassItem?,
     val containingPackage: PackageItem,
@@ -47,7 +46,7 @@ internal class StubClassBuilder(
     var superClassType: ClassTypeItem? = null
 
     private fun build(): DefaultClassItem =
-        codebase.assembler.itemFactory.createClassItem(
+        assembler.itemFactory.createClassItem(
             fileLocation = FileLocation.UNKNOWN,
             modifiers = modifiers,
             classKind = classKind,
@@ -70,7 +69,7 @@ internal class StubClassBuilder(
          * [qualifiedName], after applying the specified mutator.
          */
         fun build(
-            codebase: DefaultCodebase,
+            assembler: TextCodebaseAssembler,
             qualifiedName: String,
             fullName: String,
             containingClass: ClassItem?,
@@ -79,7 +78,7 @@ internal class StubClassBuilder(
         ): DefaultClassItem {
             val builder =
                 StubClassBuilder(
-                    codebase = codebase,
+                    assembler = assembler,
                     qualifiedName = qualifiedName,
                     fullName = fullName,
                     containingClass = containingClass,
