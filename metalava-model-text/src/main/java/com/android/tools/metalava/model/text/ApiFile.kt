@@ -194,7 +194,7 @@ private constructor(
         ): Codebase {
             require(signatureFiles.isNotEmpty()) { "files must not be empty" }
             val api =
-                TextCodebase(
+                TextCodebaseAssembler.createCodebase(
                     location = signatureFiles[0].file,
                     annotationManager = annotationManager,
                     classResolver = classResolver,
@@ -274,7 +274,7 @@ private constructor(
         ): Codebase {
             val path = Path.of(filename)
             val api =
-                TextCodebase(
+                TextCodebaseAssembler.createCodebase(
                     location = path.toFile(),
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,

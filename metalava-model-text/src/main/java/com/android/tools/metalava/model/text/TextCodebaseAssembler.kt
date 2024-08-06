@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
@@ -29,6 +30,7 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
+import java.io.File
 
 internal class TextCodebaseAssembler(
     private val codebase: DefaultCodebase,
@@ -187,5 +189,31 @@ internal class TextCodebaseAssembler(
         stubClass.emit = false
 
         return stubClass
+    }
+
+    companion object {
+        /** Create a [DefaultCodebase] suitable for population from a signature file. */
+        fun createCodebase(
+            location: File,
+            annotationManager: AnnotationManager,
+            classResolver: ClassResolver?,
+        ): DefaultCodebase {
+            val codebase =
+                DefaultCodebase(
+                    location = location,
+                    description = "Codebase",
+                    preFiltered = true,
+                    annotationManager = annotationManager,
+                    trustedApi = true,
+                    supportsDocumentation = false,
+                    assemblerFactory = { codebase ->
+                        TextCodebaseAssembler(codebase as DefaultCodebase, classResolver)
+                    },
+                )
+
+            (codebase.assembler as TextCodebaseAssembler).initialize()
+
+            return codebase
+        }
     }
 }

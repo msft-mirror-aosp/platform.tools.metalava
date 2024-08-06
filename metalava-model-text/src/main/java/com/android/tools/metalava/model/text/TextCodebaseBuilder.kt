@@ -40,7 +40,7 @@ class TextCodebaseBuilder private constructor(private val codebase: DefaultCodeb
             block: TextCodebaseBuilder.() -> Unit
         ): Codebase {
             val codebase =
-                TextCodebase(
+                TextCodebaseAssembler.createCodebase(
                     location = location,
                     annotationManager = annotationManager,
                     classResolver = null,

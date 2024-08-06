@@ -79,7 +79,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
     private val codebase by lazy {
-        TextCodebase(
+        TextCodebaseAssembler.createCodebase(
             location = jar,
             annotationManager = noOpAnnotationManager,
             classResolver = null,
