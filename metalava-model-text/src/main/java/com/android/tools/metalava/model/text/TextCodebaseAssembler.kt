@@ -144,18 +144,8 @@ internal class TextCodebaseAssembler(
                 // We created a new nested class stub. We need to fully initialize it with outer
                 // classes, themselves possibly stubs
                 val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
-                // Pass classResolver = null, so it only looks in this codebase for the outer class.
                 val outerClass =
                     getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase = true)
-
-                // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
-                // another.
-                if (outerClass.codebase != codebase) {
-                    throw IllegalStateException(
-                        "Outer class $outerClass is from ${outerClass.codebase} but" +
-                            " inner class $qualifiedName is from $this"
-                    )
-                }
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
                 // DefaultClassItem so cast it to one so that the code below can use
