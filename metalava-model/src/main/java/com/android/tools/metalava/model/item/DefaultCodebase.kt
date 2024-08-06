@@ -24,10 +24,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.MutableCodebase
-import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
@@ -62,17 +59,7 @@ open class DefaultCodebase(
         get() = optionalReporter ?: unsupported("reporter is not available")
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->
-        val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
-        assembler.itemFactory.createPackageItem(
-            packageDoc.fileLocation,
-            packageDoc.modifiers ?: createImmutableModifiers(VisibilityLevel.PUBLIC),
-            documentationFactory,
-            packageName,
-            containingPackage,
-            packageDoc.overview,
-        )
-    }
+    val packageTracker = PackageTracker(assembler::createPackageItem)
 
     final override fun getPackages() = packageTracker.getPackages()
 

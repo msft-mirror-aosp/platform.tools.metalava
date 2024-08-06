@@ -24,9 +24,9 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
@@ -36,7 +36,7 @@ import java.io.File
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
     private val classResolver: ClassResolver?,
-) : CodebaseAssembler {
+) : DefaultCodebaseAssembler() {
 
     internal val codebase = codebaseFactory(this)
 

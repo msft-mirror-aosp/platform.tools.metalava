@@ -46,8 +46,8 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
@@ -119,7 +119,7 @@ internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
     private val allowReadingComments: Boolean,
-) : CodebaseAssembler {
+) : DefaultCodebaseAssembler() {
 
     internal val codebase = codebaseFactory(this)
 

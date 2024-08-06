@@ -19,6 +19,10 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
 
 /**
  * A factory that will create a [DefaultCodebase] for a specific [CodebaseAssembler].
@@ -36,8 +40,15 @@ typealias DefaultCodebaseFactory = (CodebaseAssembler) -> DefaultCodebase
  * mapping an underlying model's representation of the API to a [Codebase], if not all of it.
  */
 interface CodebaseAssembler {
-    /** Factory for creating appropriate [Item] subclasses for the [Codebase] this is assembling. */
-    val itemFactory: DefaultItemFactory
+    /**
+     * Create a [DefaultPackageItem] for package called [packageName], with additional information
+     * from [packageDoc] whose containing package, if any, is [containingPackage].
+     */
+    fun createPackageItem(
+        packageName: String,
+        packageDoc: PackageDoc,
+        containingPackage: PackageItem?,
+    ): DefaultPackageItem
 
     /**
      * A [ClassItem] with [qualifiedName] could not be found in the associated [Codebase] so look in
@@ -51,4 +62,30 @@ interface CodebaseAssembler {
      * [DefaultClassItem].
      */
     fun newClassRegistered(classItem: DefaultClassItem) {}
+}
+
+/**
+ * Base [CodebaseAssembler] for use by models that do not use model specific implementations of the
+ * [Item] classes.
+ */
+abstract class DefaultCodebaseAssembler : CodebaseAssembler {
+
+    /** Factory for creating appropriate [Item] subclasses for the [Codebase] this is assembling. */
+    abstract val itemFactory: DefaultItemFactory
+
+    override fun createPackageItem(
+        packageName: String,
+        packageDoc: PackageDoc,
+        containingPackage: PackageItem?,
+    ): DefaultPackageItem {
+        val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
+        return itemFactory.createPackageItem(
+            packageDoc.fileLocation,
+            packageDoc.modifiers ?: createImmutableModifiers(VisibilityLevel.PUBLIC),
+            documentationFactory,
+            packageName,
+            containingPackage,
+            packageDoc.overview,
+        )
+    }
 }
