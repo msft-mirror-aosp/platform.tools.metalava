@@ -119,7 +119,7 @@ private constructor(
         lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
 
     /** Supports the initialization of a [TextCodebase]. */
-    private val assembler = codebase.assembler
+    private val assembler = codebase.assembler as TextCodebaseAssembler
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
@@ -817,7 +817,7 @@ private constructor(
                 // Search for the outer class in the codebase. This is safe as the outer class
                 // always precedes its nested classes.
                 val outerClass =
-                    codebase.getOrCreateClass(
+                    assembler.getOrCreateClass(
                         qualifiedOuterClassName,
                         isOuterClassOfClassInThisCodebase = true
                     ) as DefaultClassItem

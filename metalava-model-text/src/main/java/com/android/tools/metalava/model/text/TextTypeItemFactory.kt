@@ -84,15 +84,20 @@ internal class TextTypeItemFactory(
         } else typeItem
     }
 
+    private fun requireStubKindFor(classTypeItem: ClassTypeItem, stubKind: StubKind) {
+        val assembler = codebase.assembler as TextCodebaseAssembler
+        assembler.requireStubKindFor(classTypeItem, stubKind)
+    }
+
     override fun getExceptionType(underlyingType: String) =
         super.getExceptionType(underlyingType).also { exceptionTypeItem ->
             if (exceptionTypeItem is ClassTypeItem) {
-                codebase.requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
+                requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
             }
         }
 
     override fun getInterfaceType(underlyingType: String) =
         super.getInterfaceType(underlyingType).also { classTypeItem ->
-            codebase.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
+            requireStubKindFor(classTypeItem, StubKind.INTERFACE)
         }
 }
