@@ -219,6 +219,26 @@ internal class StubWriter(
             cls.getSourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
         }
         stubWriter?.visitClass(cls)
+
+        dispatchStubsConstructorIfAvailable(cls)
+    }
+
+    /**
+     * Stubs that have no accessible constructor may still need to generate one and that constructor
+     * is available from [ClassItem.stubConstructor].
+     *
+     * However, sometimes that constructor is ignored by this because it is not accessible either,
+     * e.g. it might be package private. In that case this will pass it to [visitConstructor]
+     * directly.
+     */
+    private fun dispatchStubsConstructorIfAvailable(cls: ClassItem) {
+        val clsStubConstructor = cls.stubConstructor
+        val constructors = cls.constructors()
+        // If the default stub constructor is not publicly visible then it won't be output during
+        // the normal visiting so visit it specially to ensure that it is output.
+        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
+            visitConstructor(clsStubConstructor)
+        }
     }
 
     override fun afterVisitClass(cls: ClassItem) {
@@ -269,9 +289,6 @@ internal class StubWriter(
             filterEmit = filterEmit,
             filterReference = filterReference,
             preFiltered = preFiltered,
-            // Make sure that package private constructors that are needed to compile safely are
-            // visited, so they will appear in the stubs.
-            visitStubsConstructorIfNeeded = true,
             config = apiVisitorConfig,
         )
     }
