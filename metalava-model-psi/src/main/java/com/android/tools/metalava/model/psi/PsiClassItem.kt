@@ -57,7 +57,6 @@ internal constructor(
     containingClass: ClassItem?,
     containingPackage: PackageItem,
     qualifiedName: String,
-    simpleName: String,
     typeParameterList: TypeParameterList,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     isFromClassPath: Boolean,
@@ -76,7 +75,6 @@ internal constructor(
         containingClass = containingClass,
         containingPackage = containingPackage,
         qualifiedName = qualifiedName,
-        simpleName = simpleName,
         typeParameterList = typeParameterList,
         isFromClassPath = isFromClassPath,
         superClassType = superClassType,
@@ -199,7 +197,6 @@ internal constructor(
                     containingClass = containingClassItem,
                     containingPackage = containingPackage,
                     qualifiedName = qualifiedName,
-                    simpleName = simpleName,
                     typeParameterList = typeParameterList,
                     isFromClassPath = fromClassPath,
                     superClassType = superClassType,

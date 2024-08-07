@@ -48,7 +48,6 @@ open class DefaultClassItem(
     private val containingClass: ClassItem?,
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
-    private val simpleName: String,
     final override val typeParameterList: TypeParameterList,
     private val isFromClassPath: Boolean,
     private var superClassType: ClassTypeItem?,
@@ -63,6 +62,8 @@ open class DefaultClassItem(
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     ClassItem {
+
+    private val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
 
     private val fullName: String
 
