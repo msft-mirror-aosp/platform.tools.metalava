@@ -96,8 +96,8 @@ internal constructor(
             // and avoid any divergence from the actual compiler behaviour, if there are changes.
             val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
             analyze(parameter) {
-                val ktType = parameter.getParameterSymbol().returnType
-                val isSamType = ktType.isFunctionalInterfaceType
+                val ktType = parameter.symbol.returnType
+                val isSamType = ktType.isFunctionalInterface
                 val isFunctionalType =
                     ktType.isFunctionType ||
                         ktType.isSuspendFunctionType ||

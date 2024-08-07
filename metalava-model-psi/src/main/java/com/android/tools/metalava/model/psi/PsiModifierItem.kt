@@ -70,9 +70,8 @@ import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolWithVisibility
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -142,8 +141,8 @@ internal object PsiModifierItem {
         val kotlinTypeInfo = KotlinTypeInfo.fromContext(element)
         if (
             kotlinTypeInfo.analysisSession != null &&
-                kotlinTypeInfo.ktType != null &&
-                kotlinTypeInfo.analysisSession.isInheritedGenericType(kotlinTypeInfo.ktType)
+                kotlinTypeInfo.kaType != null &&
+                kotlinTypeInfo.analysisSession.isInheritedGenericType(kotlinTypeInfo.kaType)
         ) {
             return true
         }
@@ -257,9 +256,9 @@ internal object PsiModifierItem {
                 // modifier, but overrides an internal declaration. Adapted from
                 // org.jetbrains.kotlin.asJava.classes.UltraLightMembersCreator.isInternal
                 analyze(sourcePsi) {
-                    val symbol = (sourcePsi as? KtDeclaration)?.getSymbol()
-                    val visibility = (symbol as? KtSymbolWithVisibility)?.visibility
-                    if (visibility == Visibilities.Internal) {
+                    val symbol = (sourcePsi as? KtDeclaration)?.symbol
+                    val visibility = symbol?.visibility
+                    if (visibility == KaSymbolVisibility.INTERNAL) {
                         visibilityFlags = INTERNAL
                     }
                 }
