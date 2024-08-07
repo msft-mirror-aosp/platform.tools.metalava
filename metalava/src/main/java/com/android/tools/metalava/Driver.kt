@@ -766,7 +766,7 @@ private fun createStubFiles(
             }
         }
 
-    val codebaseFragment =
+    var codebaseFragment =
         CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
@@ -775,6 +775,23 @@ private fun createStubFiles(
                 apiPredicateConfig = options.apiPredicateConfig,
             )
         }
+
+    // If reverting some changes then create a snapshot that combines the items from the sources for
+    // any un-reverted changes and items from the previously released API for any reverted changes.
+    if (options.revertAnnotations.isNotEmpty()) {
+        codebaseFragment =
+            codebaseFragment.snapshotIncludingRevertedItems(
+                referenceVisitorFactory = { delegate ->
+                    createFilteringVisitorForStubs(
+                        delegate = delegate,
+                        docStubs = docStubs,
+                        preFiltered = codebase.preFiltered,
+                        apiPredicateConfig = options.apiPredicateConfig,
+                        ignoreEmit = true,
+                    )
+                },
+            )
+    }
 
     // Add additional constructors needed by the stubs.
     val filterEmit =
