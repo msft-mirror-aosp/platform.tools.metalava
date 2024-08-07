@@ -45,10 +45,12 @@ import java.util.function.Predicate
  * is to provide enough functionality for use when writing a representation of the item, e.g. for
  * signatures, stubs, etc. That means that there may be some methods that are not use by those
  * writers which will allow access to unfiltered `Item`s.
+ *
+ * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
+ * property.
  */
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
-    preserveClassNesting: Boolean = false,
     inlineInheritedFields: Boolean = true,
     callableComparator: Comparator<CallableItem> = CallableItem.comparator,
     /**
@@ -87,7 +89,7 @@ class FilteringApiVisitor(
     config: Config,
 ) :
     ApiVisitor(
-        preserveClassNesting = preserveClassNesting,
+        preserveClassNesting = delegate.requiresClassNesting,
         inlineInheritedFields = inlineInheritedFields,
         callableComparator = callableComparator,
         filterEmit = filterEmit,

@@ -336,7 +336,6 @@ internal fun processFlags(
             ProguardWriter(printWriter).let { proguardWriter ->
                 FilteringApiVisitor(
                     proguardWriter,
-                    preserveClassNesting = false,
                     inlineInheritedFields = true,
                     filterEmit = apiEmit,
                     filterReference = apiReferenceIgnoreShown,

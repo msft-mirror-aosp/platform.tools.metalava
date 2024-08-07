@@ -69,7 +69,6 @@ class SignatureWriter(
             else Pair(::getInterfacesInOrder, null)
         return FilteringApiVisitor(
             delegate = this,
-            preserveClassNesting = false,
             inlineInheritedFields = true,
             callableComparator = fileFormat.overloadedMethodOrder.comparator,
             interfaceListSorter = interfaceListSorter,

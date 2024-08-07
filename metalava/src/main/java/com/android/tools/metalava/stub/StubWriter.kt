@@ -52,6 +52,13 @@ internal class StubWriter(
     private val config: StubWriterConfig,
 ) : DelegatedVisitor {
 
+    /**
+     * Stubs need to preserve class nesting when visiting otherwise nested classes will not be
+     * nested inside their containing class properly.
+     */
+    override val requiresClassNesting: Boolean
+        get() = true
+
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
 
@@ -254,7 +261,6 @@ internal class StubWriter(
         val filterEmit = FilterPredicate(filterReference)
         return FilteringApiVisitor(
             delegate = this,
-            preserveClassNesting = true,
             inlineInheritedFields = true,
             // Methods are by default sorted in source order in stubs, to encourage methods
             // that are near each other in the source to show up near each other in the
