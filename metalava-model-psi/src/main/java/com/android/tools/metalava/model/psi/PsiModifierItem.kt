@@ -54,7 +54,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
-import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -107,7 +106,7 @@ internal object PsiModifierItem {
 
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
         // that it should not, so this removes them.
-        if (shouldRemoveNullnessAnnotations(element, modifiers)) {
+        if (shouldRemoveNullnessAnnotations(modifiers)) {
             modifiers.mutateAnnotations { removeIf { it.isNullnessAnnotation() } }
         }
 
@@ -124,26 +123,12 @@ internal object PsiModifierItem {
 
     /** Determine whether nullness annotations need removing from [modifiers]. */
     private fun shouldRemoveNullnessAnnotations(
-        element: PsiModifierListOwner,
         modifiers: BaseModifierList,
     ): Boolean {
         // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
         // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
         // `vararg` modifier.
         if (modifiers.isVarArg()) {
-            return true
-        }
-
-        // Although https://youtrack.jetbrains.com/issue/KTIJ-19087 has been fixed there still
-        // seems to be an issue with reified type parameters causing nullability annotations
-        // being added to the parameter even when the use site does not require
-        // them. So, this removes them.
-        val kotlinTypeInfo = KotlinTypeInfo.fromContext(element)
-        if (
-            kotlinTypeInfo.analysisSession != null &&
-                kotlinTypeInfo.kaType != null &&
-                kotlinTypeInfo.analysisSession.isInheritedGenericType(kotlinTypeInfo.kaType)
-        ) {
             return true
         }
 
