@@ -166,21 +166,17 @@ internal class TextCodebaseAssembler(
 
         // Build a stub class of the required kind.
         val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
-        val stubClass =
-            StubClassBuilder.build(
-                assembler = this,
-                qualifiedName = qualifiedName,
-                fullName = fullName,
-                containingClass = outerClass,
-                containingPackage = pkg,
-            ) {
-                // Apply stub kind specific mutations to the stub class being built.
-                requiredStubKind.mutator(this)
-            }
 
-        stubClass.emit = false
-
-        return stubClass
+        return StubClassBuilder.build(
+            assembler = this,
+            qualifiedName = qualifiedName,
+            fullName = fullName,
+            containingClass = outerClass,
+            containingPackage = pkg,
+        ) {
+            // Apply stub kind specific mutations to the stub class being built.
+            requiredStubKind.mutator(this)
+        }
     }
 
     companion object {

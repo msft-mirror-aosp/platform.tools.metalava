@@ -61,7 +61,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
     fun findOrCreatePackage(
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
-        emit: Boolean = true,
+        @Suppress("UNUSED_PARAMETER") emit: Boolean = true,
     ): DefaultPackageItem {
         // Get the `PackageDoc`, if any, to use for creating this package.
         val packageDoc = packageDocs[packageName]
@@ -83,13 +83,6 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
                         modifiers
                     ),
                 )
-            }
-
-            // If this package should be emitted then set its `emit` property to `true`, otherwise
-            // leave it unchanged. That ensures that once a package has had its `emit` property to
-            // `true` it cannot become `false`.
-            if (emit) {
-                existing.emit = true
             }
 
             return existing
@@ -119,10 +112,6 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             error("Package $packageItem is not public")
 
         addPackage(packageItem)
-
-        // Newly created package's `emit` property is determined completely by the `emit` parameter
-        // supplied.
-        packageItem.emit = emit
 
         return packageItem
     }

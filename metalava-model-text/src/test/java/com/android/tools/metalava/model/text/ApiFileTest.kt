@@ -315,7 +315,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             assertEquals(
                 """
-                    <root>
                     test.pkg
                         test.pkg.Outer
                         test.pkg.Outer.Middle
@@ -546,7 +545,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         assertEquals(
             """
-                package <root>
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
