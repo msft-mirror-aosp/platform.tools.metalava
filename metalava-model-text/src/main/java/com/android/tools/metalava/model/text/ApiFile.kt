@@ -608,7 +608,6 @@ private constructor(
                 containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
-                fullName = fullName,
                 typeParameterList = typeParameterList,
                 isFromClassPath = false,
                 superClassType = superClassType,

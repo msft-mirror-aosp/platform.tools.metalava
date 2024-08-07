@@ -49,7 +49,6 @@ open class DefaultClassItem(
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
     private val simpleName: String,
-    private val fullName: String,
     final override val typeParameterList: TypeParameterList,
     private val isFromClassPath: Boolean,
     private var superClassType: ClassTypeItem?,
@@ -65,6 +64,8 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
+    private val fullName: String
+
     init {
         // Do not emit classes from the classpath.
         emit = emit && !isFromClassPath
@@ -76,8 +77,10 @@ open class DefaultClassItem(
 
         if (containingClass == null) {
             (containingPackage as DefaultPackageItem).addTopClass(this)
+            fullName = simpleName
         } else {
             (containingClass as DefaultClassItem).addNestedClass(this)
+            fullName = "${containingClass.fullName()}.$simpleName"
         }
         codebase.registerClass(this)
     }

@@ -170,7 +170,6 @@ internal class TextCodebaseAssembler(
         return StubClassBuilder.build(
             assembler = this,
             qualifiedName = qualifiedName,
-            fullName = fullName,
             containingClass = outerClass,
             containingPackage = pkg,
         ) {

@@ -439,7 +439,6 @@ internal class TurbineCodebaseInitialiser(
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-        val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
         val documentation = javadoc(decl)
         val modifierItem =
@@ -483,7 +482,6 @@ internal class TurbineCodebaseInitialiser(
                 containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
                 simpleName = simpleName,
-                fullName = fullName,
                 typeParameterList = typeParameters,
                 isFromClassPath = isFromClassPath,
                 superClassType = superClassType,
