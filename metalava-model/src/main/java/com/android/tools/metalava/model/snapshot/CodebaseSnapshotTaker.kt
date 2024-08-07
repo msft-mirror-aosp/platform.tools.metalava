@@ -300,16 +300,37 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     }
 
     /** Return a factory that will create a snapshot of this list of [ParameterItem]s. */
-    private fun List<ParameterItem>.snapshot(containingCallable: CallableItem) =
-        map { parameterItem ->
+    private fun List<ParameterItem>.snapshot(
+        containingCallable: CallableItem,
+        currentCallable: CallableItem
+    ): List<ParameterItem> {
+        return map { parameterItem ->
             // Retrieve the public name immediately to remove any dependencies on this in the
             // lambda passed to publicNameProvider.
             val publicName = parameterItem.publicName()
+
+            // The parameter being snapshot may be from a previously released API, which may not
+            // track parameter names and so may have to auto-generate them. This code tries to avoid
+            // using the auto-generated names if possible. If the `publicName()` of the parameter
+            // being snapshot is not `null` then get its `name()` as that will either be set to the
+            // public name or another developer supplied name. Either way it will not be
+            // auto-generated. However, if its `publicName()` is `null` then its `name()` will be
+            // auto-generated so try and avoid that is possible. Instead, use the name of the
+            // corresponding parameter from `currentCallable` as that is more likely to have a
+            // developer supplied name, although it will be the same as `parameterItem` if
+            // `currentCallable` is not being reverted.
+            val name =
+                if (publicName != null) parameterItem.name()
+                else {
+                    val namedParameter = currentCallable.parameters()[parameterItem.parameterIndex]
+                    namedParameter.name()
+                }
+
             itemFactory.createParameterItem(
                 fileLocation = parameterItem.fileLocation,
                 itemLanguage = parameterItem.itemLanguage,
                 modifiers = parameterItem.modifiers.snapshot(),
-                name = parameterItem.name(),
+                name = name,
                 publicNameProvider = { publicName },
                 containingCallable = containingCallable,
                 parameterIndex = parameterItem.parameterIndex,
@@ -317,6 +338,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 defaultValueFactory = parameterItem.defaultValue::snapshot,
             )
         }
+    }
 
     override fun visitConstructor(constructor: ConstructorItem) {
         val constructorToSnapshot = constructor.actualItemToSnapshot
@@ -341,7 +363,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     typeParameterList = typeParameterList,
                     returnType = constructorToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        constructorToSnapshot.parameters().snapshot(containingCallable)
+                        constructorToSnapshot.parameters().snapshot(containingCallable, constructor)
                     },
                     throwsTypes =
                         constructorToSnapshot.throwsTypes().map {
@@ -377,7 +399,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     typeParameterList = typeParameterList,
                     returnType = methodToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        methodToSnapshot.parameters().snapshot(containingCallable)
+                        methodToSnapshot.parameters().snapshot(containingCallable, method)
                     },
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
