@@ -263,35 +263,37 @@ internal class StubWriter(
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
     }
+}
 
-    /**
-     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
-     * supplied parameters and in a manner appropriate for writing stubs, e.g. nesting classes. It
-     * will delegate any visitor calls that pass through its filter to this [StubWriter] instance.
-     */
-    fun createFilteringVisitor(
-        preFiltered: Boolean,
-        apiVisitorConfig: ApiVisitor.Config,
-    ): ItemVisitor {
-        val filterReference =
-            ApiPredicate(
-                includeDocOnly = docStubs,
-                config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
-            )
-        val filterEmit = FilterPredicate(filterReference)
-        return FilteringApiVisitor(
-            delegate = this,
-            inlineInheritedFields = true,
-            // Methods are by default sorted in source order in stubs, to encourage methods
-            // that are near each other in the source to show up near each other in the
-            // documentation
-            callableComparator = CallableItem.sourceOrderComparator,
-            filterEmit = filterEmit,
-            filterReference = filterReference,
-            preFiltered = preFiltered,
-            config = apiVisitorConfig,
+/**
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
+ * parameters and in a manner appropriate for writing stubs, e.g. nesting classes. It will delegate
+ * any visitor calls that pass through its filter to this [StubWriter] instance.
+ */
+fun createFilteringVisitorForStubs(
+    delegate: DelegatedVisitor,
+    docStubs: Boolean,
+    preFiltered: Boolean,
+    apiVisitorConfig: ApiVisitor.Config,
+): ItemVisitor {
+    val filterReference =
+        ApiPredicate(
+            includeDocOnly = docStubs,
+            config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
         )
-    }
+    val filterEmit = FilterPredicate(filterReference)
+    return FilteringApiVisitor(
+        delegate = delegate,
+        inlineInheritedFields = true,
+        // Methods are by default sorted in source order in stubs, to encourage methods
+        // that are near each other in the source to show up near each other in the
+        // documentation
+        callableComparator = CallableItem.sourceOrderComparator,
+        filterEmit = filterEmit,
+        filterReference = filterReference,
+        preFiltered = preFiltered,
+        config = apiVisitorConfig,
+    )
 }
 
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {

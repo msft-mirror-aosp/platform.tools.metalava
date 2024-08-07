@@ -41,4 +41,10 @@ class CodebaseFragment(
         val snapshot = CodebaseSnapshotTaker.takeSnapshot(codebase, factory)
         return CodebaseFragment(snapshot, ::NonFilteringDelegatingVisitor)
     }
+
+    /** Visit this fragment, delegating to [delegate]. */
+    fun accept(delegate: DelegatedVisitor) {
+        val visitor = createVisitor(delegate)
+        codebase.accept(visitor)
+    }
 }
