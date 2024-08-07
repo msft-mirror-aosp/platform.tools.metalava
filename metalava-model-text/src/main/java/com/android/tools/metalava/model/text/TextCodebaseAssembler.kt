@@ -159,7 +159,7 @@ internal class TextCodebaseAssembler(
             if (outerClass == null) {
                 val endIndex = qualifiedName.lastIndexOf('.')
                 val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                codebase.findOrCreatePackage(pkgPath, emit = false)
+                codebase.findOrCreatePackage(pkgPath)
             } else {
                 outerClass.containingPackage() as DefaultPackageItem
             }
