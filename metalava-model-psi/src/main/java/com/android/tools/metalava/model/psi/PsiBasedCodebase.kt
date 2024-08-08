@@ -756,28 +756,20 @@ internal class PsiBasedCodebase(
     }
 
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
-    override fun registerClass(classItem: DefaultClassItem): Boolean {
+    override fun registerClass(classItem: DefaultClassItem) {
         classItem as PsiClassItem
-        // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
-        val existing = classMap[qualifiedName]
+        val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
             reporter.report(
                 Issues.DUPLICATE_SOURCE_CLASS,
                 classItem,
-                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
+                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.fileLocation.path}"
             )
-            // The class was not registered.
-            return false
+            return
         }
 
-        // Register it by name.
-        classMap[qualifiedName] = classItem
-
         addClass(classItem)
-
-        // The class was registered.
-        return true
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
