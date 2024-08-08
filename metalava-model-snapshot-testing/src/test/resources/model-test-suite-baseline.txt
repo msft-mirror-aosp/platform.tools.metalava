@@ -109,14 +109,6 @@ com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
   Test property delegate to lambda Kotlin object[psi,kotlin,k1]
   Test property delegate to lambda Kotlin object[psi,kotlin,k2]
 
-com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
-  test sourcefile classes[psi,java,k1]
-  test sourcefile classes[psi,java,k2]
-  test sourcefile classes[turbine]
-  test sourcefile imports[psi,java,k1]
-  test sourcefile imports[psi,java,k2]
-  test sourcefile imports[turbine]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
   Test assignability without unboxing[psi,java,k1,number to boxedInt]
