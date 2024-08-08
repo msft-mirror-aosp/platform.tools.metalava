@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
@@ -153,12 +154,32 @@ internal class PsiTypeItemFactory(
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = type.annotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
+        val typeAnnotations =
+            type.annotations.mapNotNull { anno ->
+                // SLC adds JetBrain nullness annotation on types.
+                if (anno.isJetBrainNullnessAnnotation) null
+                else PsiAnnotationItem.create(codebase, anno)
+            }
         // Compute the nullability, factoring in any context nullability, kotlin types and
         // type annotations.
         val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)
         return DefaultTypeModifiers.create(typeAnnotations, nullability)
     }
+
+    private val PsiAnnotation.isJetBrainNotNull: Boolean
+        get() {
+            return qualifiedName == org.jetbrains.annotations.NotNull::class.qualifiedName
+        }
+
+    private val PsiAnnotation.isJetBrainNullable: Boolean
+        get() {
+            return qualifiedName == org.jetbrains.annotations.Nullable::class.qualifiedName
+        }
+
+    private val PsiAnnotation.isJetBrainNullnessAnnotation: Boolean
+        get() {
+            return isJetBrainNotNull || isJetBrainNullable
+        }
 
     /** Create a [PsiTypeItem]. */
     private fun createTypeItem(
