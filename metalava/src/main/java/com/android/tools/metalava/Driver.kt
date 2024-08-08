@@ -62,6 +62,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
+import java.util.function.Predicate
 import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
@@ -182,18 +183,10 @@ internal fun processFlags(
                     )
                 }
             val signatureFileLoader = SignatureFileLoader(annotationManager)
-            val textCodebase =
-                signatureFileLoader.loadFiles(
-                    SignatureFile.fromFiles(sources),
-                    classResolverProvider.classResolver,
-                )
-
-            // If this codebase was loaded in order to generate stubs then they will need some
-            // additional items to be added that were purposely removed from the signature files.
-            if (options.stubsDir != null) {
-                addMissingItemsRequiredForGeneratingStubs(textCodebase)
-            }
-            textCodebase
+            signatureFileLoader.loadFiles(
+                SignatureFile.fromFiles(sources),
+                classResolverProvider.classResolver,
+            )
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
@@ -412,19 +405,6 @@ internal fun processFlags(
     )
 }
 
-/**
- * When generating stubs from text signature files some additional items are needed.
- *
- * Those items are:
- * * Constructors - in the signature file a missing constructor means no publicly visible
- *   constructor but the stub classes still need a constructor.
- */
-private fun addMissingItemsRequiredForGeneratingStubs(codebase: Codebase) {
-    // Add constructors that are needed when generating stubs.
-    val stubConstructorManager = StubConstructorManager(codebase)
-    stubConstructorManager.addConstructors { _ -> true }
-}
-
 private fun ActionContext.subtractApi(
     signatureFileCache: SignatureFileCache,
     codebase: Codebase,
@@ -613,7 +593,6 @@ private fun ActionContext.loadFromSources(
     analyzer.computeApi()
 
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-    val filterEmit = ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
     val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
@@ -658,15 +637,6 @@ private fun ActionContext.loadFromSources(
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
-    }
-
-    // Compute default constructors (and add missing package private constructors
-    // to make stubs compilable if necessary). Do this after all the checks as
-    // these are not part of the API.
-    if (options.stubsDir != null || options.docStubsDir != null) {
-        progressTracker.progress("Insert missing constructors: ")
-        val stubConstructorManager = StubConstructorManager(codebase)
-        stubConstructorManager.addConstructors(filterEmit)
     }
 
     progressTracker.progress("Performing misc API checks: ")
@@ -744,6 +714,17 @@ private fun createStubFiles(
                 it
             }
         }
+
+    // Add additional constructors needed by the stubs.
+    val filterEmit =
+        if (codebase.preFiltered) {
+            Predicate { true }
+        } else {
+            val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+            ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
+        }
+    val stubConstructorManager = StubConstructorManager(codebase)
+    stubConstructorManager.addConstructors(filterEmit)
 
     val stubWriter =
         StubWriter(
