@@ -210,7 +210,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item.actualItem)
+        modifierListWriter.write(item)
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
