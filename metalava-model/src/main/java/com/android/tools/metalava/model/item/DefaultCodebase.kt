@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MutableCodebase
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
@@ -120,9 +121,12 @@ open class DefaultCodebase(
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
-            error(
+            reporter.report(
+                Issues.DUPLICATE_SOURCE_CLASS,
+                classItem,
                 "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
             )
+            return
         }
 
         addClass(classItem)

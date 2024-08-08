@@ -44,7 +44,7 @@ class DuplicateClassTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src2/test/pkg/Foo.java:3: warning: Ignoring this duplicate definition of test.pkg.Foo; previous definition was loaded from TESTROOT/src/test/pkg/Foo.java [DuplicateSourceClass]
+                    src2/test/pkg/Foo.java:3: warning: Attempted to register test.pkg.Foo twice; once from TESTROOT/src/test/pkg/Foo.java and this one from TESTROOT/src2/test/pkg/Foo.java [DuplicateSourceClass]
                 """,
         )
     }
