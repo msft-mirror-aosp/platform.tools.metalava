@@ -53,7 +53,7 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
     private fun CodebaseContext.checkCodebase(codebase: Codebase) {
         val fooClass = codebase.assertClass("test.pkg.Foo")
         assertEquals(
-            "TESTROOT/src2/test/pkg/Foo.java",
+            "TESTROOT/src/test/pkg/Foo.java",
             removeTestSpecificDirectories(fooClass.fileLocation.path.toString())
         )
 
@@ -68,7 +68,6 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
         assertEquals(
             """
                 TESTROOT/src/test/pkg/Foo.java
-                TESTROOT/src2/test/pkg/Foo.java
             """
                 .trimIndent(),
             fooLocations
