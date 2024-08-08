@@ -144,8 +144,7 @@ internal class TextCodebaseAssembler(
                 // We created a new nested class stub. We need to fully initialize it with outer
                 // classes, themselves possibly stubs
                 val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
-                val outerClass =
-                    getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase = true)
+                val outerClass = getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase)
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
                 // DefaultClassItem so cast it to one so that the code below can use
