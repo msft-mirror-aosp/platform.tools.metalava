@@ -183,11 +183,10 @@ internal class JavaStubWriter(
         constructor.superConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
-                // If the super constructor is in a class that has more than one constructor then
-                // it will be necessary to include casts in the super call for any non-primitive
-                // as they are passed `null` and without the casts it is possible that the compiler
-                // will not be able to tell which constructor to use.
-                val includeCasts = superConstructor.containingClass().constructors().size > 1
+                // Always make sure to add appropriate casts to the parameters in the super call as
+                // without the casts the compiler will fail if there is more than one constructor
+                // that could match.
+                val includeCasts = true
                 writer.print("super(")
                 parameters.forEachIndexed { index, parameter ->
                     if (index > 0) {
