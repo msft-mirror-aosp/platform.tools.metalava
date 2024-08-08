@@ -52,7 +52,7 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
 import com.github.ajalt.clikt.core.subcommands
 import com.google.common.base.Stopwatch
@@ -191,7 +191,7 @@ internal fun processFlags(
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
             if (options.stubsDir != null) {
-                addMissingItemsRequiredForGeneratingStubs(sourceParser, textCodebase, reporter)
+                addMissingItemsRequiredForGeneratingStubs(textCodebase)
             }
             textCodebase
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -419,17 +419,10 @@ internal fun processFlags(
  * * Constructors - in the signature file a missing constructor means no publicly visible
  *   constructor but the stub classes still need a constructor.
  */
-@Suppress("DEPRECATION")
-private fun addMissingItemsRequiredForGeneratingStubs(
-    sourceParser: SourceParser,
-    codebase: Codebase,
-    reporterApiLint: Reporter,
-) {
-    // Reuse the existing ApiAnalyzer support for adding constructors that is used in
-    // [loadFromSources], to make sure that the constructors are correct when generating stubs
-    // from source files.
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
-    analyzer.addConstructors { _ -> true }
+private fun addMissingItemsRequiredForGeneratingStubs(codebase: Codebase) {
+    // Add constructors that are needed when generating stubs.
+    val stubConstructorManager = StubConstructorManager(codebase)
+    stubConstructorManager.addConstructors { _ -> true }
 }
 
 private fun ActionContext.subtractApi(
@@ -672,7 +665,8 @@ private fun ActionContext.loadFromSources(
     // these are not part of the API.
     if (options.stubsDir != null || options.docStubsDir != null) {
         progressTracker.progress("Insert missing constructors: ")
-        analyzer.addConstructors(filterEmit)
+        val stubConstructorManager = StubConstructorManager(codebase)
+        stubConstructorManager.addConstructors(filterEmit)
     }
 
     progressTracker.progress("Performing misc API checks: ")
