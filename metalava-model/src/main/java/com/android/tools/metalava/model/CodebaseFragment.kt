@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
+import com.android.tools.metalava.model.snapshot.NonEmittableDelegatingVisitor
+
 /**
  * Encapsulates [codebase] to visit and a [factory] that if given a [DelegatedVisitor] will return
  * an [ItemVisitor] that can be used to visit some fragment of the [codebase].
@@ -29,6 +32,12 @@ class CodebaseFragment(
      * [delegate].
      */
     fun createVisitor(delegate: DelegatedVisitor) = factory(delegate)
+
+    /** Take a snapshot of this [CodebaseFragment] and return a new [CodebaseFragment]. */
+    fun snapshotIncludingRevertedItems(): CodebaseFragment {
+        val snapshot = CodebaseSnapshotTaker.takeSnapshot(codebase, factory)
+        return CodebaseFragment(snapshot, ::NonEmittableDelegatingVisitor)
+    }
 
     /** Visit this fragment, delegating to [delegate]. */
     fun accept(delegate: DelegatedVisitor) {
