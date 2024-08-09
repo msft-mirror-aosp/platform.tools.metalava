@@ -331,7 +331,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             // Check that the class and package have been loaded but will not be emitted.
             val utilPkgItem = codebase.assertPackage("java.util")
             assertEquals(false, utilPkgItem.emit)
-            val utilClassItem = codebase.assertClass("java.util.Date")
+            val utilClassItem = codebase.assertClass("java.util.Date", expectedEmit = false)
             assertEquals(false, utilClassItem.emit)
 
             // Check that the Test super class is expected.
@@ -343,7 +343,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             // Check that the class and package have been loaded but will not be emitted.
             val langPkgItem = codebase.assertPackage("java.lang")
             assertEquals(false, langPkgItem.emit)
-            val objectClassItem = codebase.assertClass("java.lang.Object")
+            val objectClassItem = codebase.assertClass("java.lang.Object", expectedEmit = false)
             assertEquals(false, objectClassItem.emit)
 
             // Check that the Date super class is expected.
@@ -805,7 +805,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
 
             // This must be available after resolving throwable types.
-            val ioExceptionClass = codebase.assertClass("java.io.IOException")
+            val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
             assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
         }

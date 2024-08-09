@@ -418,7 +418,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -523,7 +523,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -1635,7 +1635,11 @@ class CommonClassItemTest : BaseModelTest() {
         expectedOrigin: ClassOrigin,
     ) {
         // Make sure to resolve any class requested just in case it is on the class path.
-        val testClass = codebase.assertResolvedClass(name)
+        val testClass =
+            codebase.assertResolvedClass(
+                name,
+                expectedEmit = expectedOrigin == ClassOrigin.COMMAND_LINE,
+            )
         assertEquals(expectedOrigin, testClass.origin, message = "$name origin")
     }
 
