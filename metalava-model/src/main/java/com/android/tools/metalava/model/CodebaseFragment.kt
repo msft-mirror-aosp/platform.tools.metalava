@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
-
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ItemVisitor
+package com.android.tools.metalava.model
 
 /**
  * Encapsulates [codebase] to visit and a [factory] that if given a [DelegatedVisitor] will return
