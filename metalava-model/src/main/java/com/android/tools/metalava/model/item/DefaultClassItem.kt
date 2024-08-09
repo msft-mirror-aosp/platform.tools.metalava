@@ -48,6 +48,8 @@ open class DefaultClassItem(
     private val containingClass: ClassItem?,
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
+    private val simpleName: String,
+    private val fullName: String,
     final override val typeParameterList: TypeParameterList,
     private val isFromClassPath: Boolean,
     private var superClassType: ClassTypeItem?,
@@ -63,36 +65,21 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
-    private val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-
-    private val fullName: String
-
     init {
-        // Register the class first. Leaking `this` is ok as it only uses its qualified name and
-        // fileLocation, both of which have been initialized. If registration succeeded then wire
-        // the class into the containing package/containing class. If it failed, because it is a
-        // duplicate, then do nothing.
-        if (codebase.registerClass(@Suppress("LeakingThis") this)) {
-            // Do not emit classes from the classpath.
-            emit = emit && !isFromClassPath
+        // Do not emit classes from the classpath.
+        emit = emit && !isFromClassPath
 
-            // If this class is emittable then make sure its package is too.
-            if (emit) {
-                containingPackage.emit = true
-            }
-
-            if (containingClass == null) {
-                (containingPackage as DefaultPackageItem).addTopClass(this)
-                fullName = simpleName
-            } else {
-                (containingClass as DefaultClassItem).addNestedClass(this)
-                fullName = "${containingClass.fullName()}.$simpleName"
-            }
-        } else {
-            // The fullName needs to be initialized to something so initializing it to something
-            // invalid will ensure it is not accidentally used.
-            fullName = "duplicate class"
+        // If this class is emittable then make sure its package is too.
+        if (emit) {
+            containingPackage.emit = true
         }
+
+        if (containingClass == null) {
+            (containingPackage as DefaultPackageItem).addTopClass(this)
+        } else {
+            (containingClass as DefaultClassItem).addNestedClass(this)
+        }
+        codebase.registerClass(this)
     }
 
     override fun getSourceFile() = source

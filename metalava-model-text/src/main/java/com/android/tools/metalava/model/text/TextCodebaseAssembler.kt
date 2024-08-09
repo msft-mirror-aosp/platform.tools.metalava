@@ -31,9 +31,7 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
-import java.io.PrintWriter
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
@@ -172,6 +170,7 @@ internal class TextCodebaseAssembler(
         return StubClassBuilder.build(
             assembler = this,
             qualifiedName = qualifiedName,
+            fullName = fullName,
             containingClass = outerClass,
             containingPackage = pkg,
         ) {
@@ -191,7 +190,6 @@ internal class TextCodebaseAssembler(
             val assembler =
                 TextCodebaseAssembler(
                     codebaseFactory = { assembler ->
-                        val reporter = BasicReporter(PrintWriter(System.err))
                         DefaultCodebase(
                             location = location,
                             description = description,
@@ -199,7 +197,6 @@ internal class TextCodebaseAssembler(
                             annotationManager = annotationManager,
                             trustedApi = true,
                             supportsDocumentation = false,
-                            reporter = reporter,
                             assembler = assembler,
                         )
                     },
