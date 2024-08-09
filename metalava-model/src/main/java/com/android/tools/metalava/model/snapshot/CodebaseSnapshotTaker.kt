@@ -480,7 +480,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             val taker = CodebaseSnapshotTaker()
 
             // Wrap it in a visitor and visit the codebase.
-            val visitor = NonFilteringDelegatingVisitor(taker)
+            val visitor = NonEmittableDelegatingVisitor(taker)
             codebase.accept(visitor)
 
             // Return the constructed snapshot.
