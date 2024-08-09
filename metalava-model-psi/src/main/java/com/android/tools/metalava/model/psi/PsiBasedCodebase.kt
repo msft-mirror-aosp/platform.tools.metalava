@@ -446,11 +446,10 @@ internal class PsiBasedCodebase(
     ): PsiClassItem {
         val packageName = getPackageName(psiClass)
 
-        // Find the package and a flag to indicate whether it is a fake package as fake packages
-        // should not appear in the API for legacy reasons.
-        val (psiPackage, fake) =
-        // If the package could be found then a fake package was not created.
-        findPsiPackage(packageName)?.to(false)
+        // Find the package, creating a fake one if necessary.
+        val psiPackage =
+            // If the package could be found then a fake package was not created.
+            findPsiPackage(packageName)
                 ?: run {
                     val directory =
                         psiClass.containingFile.containingDirectory.virtualFile.canonicalPath
@@ -463,7 +462,7 @@ internal class PsiBasedCodebase(
                     )
                     // Fake up a PsiPackageImpl that matches the package statement as that is the
                     // source of truth.
-                    PsiPackageImpl(psiClass.manager, packageName) to true
+                    PsiPackageImpl(psiClass.manager, packageName)
                 }
 
         val packageItem = findOrCreatePackage(psiPackage)
@@ -478,9 +477,8 @@ internal class PsiBasedCodebase(
                 enclosingClassTypeItemFactory,
                 fromClassPath = fromClasspath || !initializing,
             )
-        // If the package is fake then it must never be emitted. Otherwise, set emit to `true` for
-        // source classes but `false` for classpath classes.
-        classItem.emit = !classItem.isFromClassPath() && !fake
+        // Set emit to `true` for source classes but `false` for classpath classes.
+        classItem.emit = !classItem.isFromClassPath()
 
         return classItem
     }
