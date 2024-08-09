@@ -54,6 +54,7 @@ import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
+import com.android.tools.metalava.stub.createFilteringVisitorForStubs
 import com.github.ajalt.clikt.core.subcommands
 import com.google.common.base.Stopwatch
 import java.io.File
@@ -287,7 +288,7 @@ internal fun processFlags(
     // files
     options.apiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -299,6 +300,13 @@ internal fun processFlags(
                 )
             }
 
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment = codebaseFragment.snapshotIncludingRevertedItems()
+        }
+
         createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
             SignatureWriter(
                 writer = printWriter,
@@ -309,7 +317,7 @@ internal fun processFlags(
 
     options.removedApiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -320,6 +328,13 @@ internal fun processFlags(
                     apiVisitorConfig = options.apiVisitorConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment = codebaseFragment.snapshotIncludingRevertedItems()
+        }
 
         createReportFile(
             progressTracker,
@@ -715,17 +730,6 @@ private fun createStubFiles(
             }
         }
 
-    // Add additional constructors needed by the stubs.
-    val filterEmit =
-        if (codebase.preFiltered) {
-            Predicate { true }
-        } else {
-            val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-            ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
-        }
-    val stubConstructorManager = StubConstructorManager(codebase)
-    stubConstructorManager.addConstructors(filterEmit)
-
     val stubWriter =
         StubWriter(
             stubsDir = stubDir,
@@ -735,13 +739,28 @@ private fun createStubFiles(
             config = stubWriterConfig,
         )
 
-    val filteringApiVisitor =
-        stubWriter.createFilteringVisitor(
-            preFiltered = codebase.preFiltered,
-            apiVisitorConfig = options.apiVisitorConfig,
-        )
+    val codebaseFragment =
+        CodebaseFragment(codebase) { delegate ->
+            createFilteringVisitorForStubs(
+                delegate = delegate,
+                docStubs = docStubs,
+                preFiltered = codebase.preFiltered,
+                apiVisitorConfig = options.apiVisitorConfig,
+            )
+        }
 
-    codebase.accept(filteringApiVisitor)
+    // Add additional constructors needed by the stubs.
+    val filterEmit =
+        if (codebaseFragment.codebase.preFiltered) {
+            Predicate { true }
+        } else {
+            val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+            ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
+        }
+    val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
+    stubConstructorManager.addConstructors(filterEmit)
+
+    codebaseFragment.accept(stubWriter)
 
     if (docStubs) {
         // Overview docs? These are generally in the empty package.
