@@ -76,9 +76,6 @@ class ConvertJarsToSignatureFiles(
             val signatureFileLoader = SignatureFileLoader(annotationManager = annotationManager)
 
             val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
-            val apiPredicateConfig = ApiPredicate.Config()
-            val apiEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
-            val apiReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
 
             if (api >= 28) {
                 // As of API 28 we'll put nullness annotations into the jar but some of them
@@ -141,17 +138,20 @@ class ConvertJarsToSignatureFiles(
             }
 
             createReportFile(progressTracker, jarCodebase, newApiFile, "API") { printWriter ->
-                SignatureWriter(
+                val signatureWriter =
+                    SignatureWriter(
                         writer = printWriter,
                         fileFormat = fileFormat,
                     )
-                    .createFilteringVisitor(
-                        filterEmit = apiEmit,
-                        filterReference = apiReference,
-                        preFiltered = jarCodebase.preFiltered,
-                        showUnannotated = false,
-                        apiVisitorConfig = ApiVisitor.Config(),
-                    )
+
+                createFilteringVisitorForSignatures(
+                    delegate = signatureWriter,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.PUBLIC_API,
+                    preFiltered = jarCodebase.preFiltered,
+                    showUnannotated = false,
+                    apiVisitorConfig = ApiVisitor.Config()
+                )
             }
 
             // Delete older redundant .xml files
