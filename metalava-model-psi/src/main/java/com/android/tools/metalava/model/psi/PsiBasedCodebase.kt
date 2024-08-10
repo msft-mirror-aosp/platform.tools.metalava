@@ -177,8 +177,6 @@ internal class PsiBasedCodebase(
         for (psiClass in psiClasses) {
             topLevelClassesFromSource += createTopLevelClassAndContents(psiClass, fromClasspath)
         }
-
-        finishInitialization()
     }
 
     /**
@@ -325,19 +323,6 @@ internal class PsiBasedCodebase(
         return multiFileClassName
     }
 
-    /**
-     * Finish initialising this codebase.
-     *
-     * Involves:
-     * * Constructing packages.
-     * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
-     *   interfaces referenced from the source code but provided on the class path.
-     */
-    private fun finishInitialization() {
-        // Resolve the super types of all the classes that have been loaded.
-        resolveSuperTypes()
-    }
-
     override fun dispose() {
         uastEnvironment.dispose()
         super.dispose()
@@ -386,8 +371,6 @@ internal class PsiBasedCodebase(
         } catch (e: IOException) {
             reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
         }
-
-        finishInitialization()
     }
 
     /**
@@ -732,8 +715,6 @@ internal class PsiBasedCodebase(
 
         // Register it by name.
         classMap[qualifiedName] = classItem
-
-        addClass(classItem)
 
         // The class was registered.
         return true

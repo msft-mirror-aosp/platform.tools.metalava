@@ -134,8 +134,6 @@ open class DefaultCodebase(
         // Register it by name.
         allClassesByName[qualifiedName] = classItem
 
-        addClass(classItem)
-
         // Perform any subclass specific processing on the newly registered class.
         assembler.newClassRegistered(classItem)
 
