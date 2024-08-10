@@ -307,6 +307,7 @@ internal constructor(
                     psiClass = psiNestedClass,
                     containingClassItem = classItem,
                     enclosingClassTypeItemFactory = classTypeItemFactory,
+                    isFromClassPath = classItem.isFromClassPath(),
                 )
             }
 

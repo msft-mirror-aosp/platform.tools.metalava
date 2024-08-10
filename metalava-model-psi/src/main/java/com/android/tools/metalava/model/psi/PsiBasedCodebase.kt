@@ -83,21 +83,12 @@ const val METHOD_ESTIMATE = 1000
  * A codebase containing Java, Kotlin, or UAST PSI classes
  *
  * After creation, a list of PSI file is passed to [initializeFromSources] or a JAR file is passed
- * to [initializeFromJar]. This creates package and class items along with their members. This
- * process is broken into two phases:
+ * to [initializeFromJar]. This creates package and class items along with their members. Any
+ * classes defined in those files will have [ClassItem.isFromClassPath] set to [fromClasspath].
  *
- * First, [initializing] is set to true, and class items are created from the supplied sources. If
- * [fromClasspath] is false, these are main classes of the codebase and have [ClassItem.emit] set to
- * true and [ClassItem.isFromClassPath] set to false.
- *
- * If [fromClasspath] is true, all classes are assumed to be from the classpath, so [ClassItem.emit]
- * is set to false and [ClassItem.isFromClassPath] is set to true for all classes created.
- *
- * Then [initializing] is set to false and the second pass begins. This path iteratively resolves
- * supertypes of class items until all are fully resolved, creating new class and package items as
- * needed. Since all the source class and package items have been created, new items are assumed to
- * originate from the classpath and have [Item.emit] set to false and [Item.isFromClassPath] set to
- * true.
+ * Classes that are created through [findOrCreateClass] will have [ClassItem.isFromClassPath] set to
+ * `true`. That will include classes defined elsewhere on the source path or found on the class
+ * path.
  */
 internal class PsiBasedCodebase(
     location: File,
@@ -151,18 +142,6 @@ internal class PsiBasedCodebase(
      */
     private lateinit var topLevelClassesFromSource: MutableList<PsiClassItem>
 
-    /**
-     * Set to true in [initializeFromJar] and [initializeFromSources] for the first pass of creating
-     * class items for all classes in the codebase sources and false for the second pass of creating
-     * class items for the supertypes of the codebase classes. New class items created in the
-     * supertypes pass must come from the classpath (dependencies) since all source classes have
-     * been created.
-     *
-     * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
-     * and [ClassItem.isFromClassPath] to true for classpath classes.
-     */
-    private var initializing = false
-
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
@@ -170,8 +149,6 @@ internal class PsiBasedCodebase(
         uastEnvironment: UastEnvironment,
         sourceSet: SourceSet,
     ) {
-        initializing = true
-
         this.uastEnvironment = uastEnvironment
 
         this.methodMap = HashMap(METHOD_ESTIMATE)
@@ -198,7 +175,7 @@ internal class PsiBasedCodebase(
 
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
-            topLevelClassesFromSource += createTopLevelClassAndContents(psiClass)
+            topLevelClassesFromSource += createTopLevelClassAndContents(psiClass, fromClasspath)
         }
 
         finishInitialization()
@@ -357,9 +334,6 @@ internal class PsiBasedCodebase(
      *   interfaces referenced from the source code but provided on the class path.
      */
     private fun finishInitialization() {
-
-        initializing = false
-
         // Resolve the super types of all the classes that have been loaded.
         resolveSuperTypes()
     }
@@ -373,8 +347,6 @@ internal class PsiBasedCodebase(
         uastEnvironment: UastEnvironment,
         jarFile: File,
     ) {
-        initializing = true
-
         this.uastEnvironment = uastEnvironment
 
         // Create the initial set of packages that were found in the jar files. When loading from a
@@ -405,7 +377,7 @@ internal class PsiBasedCodebase(
                         if (!qualifiedName.endsWith(".package-info")) {
                             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
 
-                            val classItem = createTopLevelClassAndContents(psiClass)
+                            val classItem = createTopLevelClassAndContents(psiClass, fromClasspath)
                             topLevelClassesFromSource.add(classItem)
                         }
                     }
@@ -423,15 +395,19 @@ internal class PsiBasedCodebase(
      *
      * All the classes are registered by name and so can be found by [findOrCreateClass].
      */
-    private fun createTopLevelClassAndContents(psiClass: PsiClass): PsiClassItem {
+    private fun createTopLevelClassAndContents(
+        psiClass: PsiClass,
+        isFromClassPath: Boolean,
+    ): PsiClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
-        return createClass(psiClass, null, globalTypeItemFactory)
+        return createClass(psiClass, null, globalTypeItemFactory, isFromClassPath)
     }
 
     internal fun createClass(
         psiClass: PsiClass,
         containingClassItem: PsiClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
+        isFromClassPath: Boolean,
     ): PsiClassItem {
         val packageName = getPackageName(psiClass)
 
@@ -459,7 +435,7 @@ internal class PsiBasedCodebase(
                 containingClassItem,
                 packageItem,
                 enclosingClassTypeItemFactory,
-                fromClassPath = fromClasspath || !initializing,
+                isFromClassPath,
             )
         // Set emit to `true` for source classes but `false` for classpath classes.
         classItem.emit = !classItem.isFromClassPath()
@@ -567,12 +543,13 @@ internal class PsiBasedCodebase(
         // Create a top level or nested class as appropriate.
         val createdClassItem =
             if (containingClassItem == null) {
-                createTopLevelClassAndContents(missingPsiClass)
+                createTopLevelClassAndContents(missingPsiClass, isFromClassPath = true)
             } else {
                 createClass(
                     missingPsiClass,
                     containingClassItem,
-                    globalTypeItemFactory.from(containingClassItem)
+                    globalTypeItemFactory.from(containingClassItem),
+                    isFromClassPath = containingClassItem.isFromClassPath(),
                 )
             }
 
