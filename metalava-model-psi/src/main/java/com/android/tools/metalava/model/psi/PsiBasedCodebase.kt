@@ -129,7 +129,8 @@ internal class PsiBasedCodebase(
      * Map from classes to the set of callables for each (but only for classes where we've called
      * [findCallableByPsiMethod]
      */
-    private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
+    private val methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
+        HashMap(METHOD_ESTIMATE)
 
     /** Map from package name to the corresponding package item */
     private val packageTracker = PackageTracker(assembler::createPackageItem)
@@ -138,15 +139,12 @@ internal class PsiBasedCodebase(
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
      */
-    private lateinit var topLevelClassesFromSource: MutableList<PsiClassItem>
+    private val topLevelClassesFromSource: MutableList<PsiClassItem> = ArrayList(CLASS_ESTIMATE)
 
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     internal fun initializeFromSources(sourceSet: SourceSet) {
-        this.methodMap = HashMap(METHOD_ESTIMATE)
-        topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
-
         // Get the list of `PsiFile`s from the `SourceSet`.
         val uastEnvironment = assembler.uastEnvironment
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
@@ -330,10 +328,6 @@ internal class PsiBasedCodebase(
         // Find all classes referenced from the class
         val facade = JavaPsiFacade.getInstance(project)
         val scope = GlobalSearchScope.allScope(project)
-
-        this.methodMap = HashMap(1000)
-
-        topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
         try {
             ZipFile(jarFile).use { jar ->
