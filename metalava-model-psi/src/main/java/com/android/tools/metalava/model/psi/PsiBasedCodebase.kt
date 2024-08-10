@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -33,7 +32,6 @@ import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageTracker
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
@@ -65,8 +63,6 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
-import java.io.IOException
-import java.util.zip.ZipFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.uast.UClass
@@ -81,8 +77,9 @@ const val METHOD_ESTIMATE = 1000
  * A codebase containing Java, Kotlin, or UAST PSI classes
  *
  * After creation, a list of PSI file is passed to [initializeFromSources] or a JAR file is passed
- * to [initializeFromJar]. This creates package and class items along with their members. Any
- * classes defined in those files will have [ClassItem.isFromClassPath] set to [fromClasspath].
+ * to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class items along with
+ * their members. Any classes defined in those files will have [ClassItem.isFromClassPath] set to
+ * [fromClasspath].
  *
  * Classes that are created through [findOrCreateClass] will have [ClassItem.isFromClassPath] set to
  * `true`. That will include classes defined elsewhere on the source path or found on the class
@@ -126,7 +123,7 @@ internal class PsiBasedCodebase(
         HashMap(METHOD_ESTIMATE)
 
     /** Map from package name to the corresponding package item */
-    private val packageTracker = PackageTracker(assembler::createPackageItem)
+    internal val packageTracker = PackageTracker(assembler::createPackageItem)
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -314,48 +311,12 @@ internal class PsiBasedCodebase(
         super.dispose()
     }
 
-    internal fun initializeFromJar(jarFile: File) {
-        // Create the initial set of packages that were found in the jar files. When loading from a
-        // jar there is no package documentation so this will only create the root package.
-        packageTracker.createInitialPackages(PackageDocs.EMPTY)
-
-        // Find all classes referenced from the class
-        val facade = JavaPsiFacade.getInstance(project)
-        val scope = GlobalSearchScope.allScope(project)
-
-        try {
-            ZipFile(jarFile).use { jar ->
-                val enumeration = jar.entries()
-                while (enumeration.hasMoreElements()) {
-                    val entry = enumeration.nextElement()
-                    val fileName = entry.name
-                    if (fileName.contains("$")) {
-                        // skip inner classes
-                        continue
-                    }
-                    if (fileName.endsWith(SdkConstants.DOT_CLASS)) {
-                        val qualifiedName =
-                            fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
-                        if (!qualifiedName.endsWith(".package-info")) {
-                            val psiClass = facade.findClass(qualifiedName, scope) ?: continue
-
-                            val classItem = createTopLevelClassAndContents(psiClass, fromClasspath)
-                            addTopLevelClassFromSource(classItem)
-                        }
-                    }
-                }
-            }
-        } catch (e: IOException) {
-            reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
-        }
-    }
-
     /**
      * Create top level classes, their inner classes and all the other members.
      *
      * All the classes are registered by name and so can be found by [findOrCreateClass].
      */
-    private fun createTopLevelClassAndContents(
+    internal fun createTopLevelClassAndContents(
         psiClass: PsiClass,
         isFromClassPath: Boolean,
     ): PsiClassItem {

@@ -168,7 +168,7 @@ internal class PsiSourceParser(
                 )
             }
         val codebase = assembler.codebase
-        codebase.initializeFromJar(apiJar)
+        assembler.initializeFromJar(apiJar)
         return codebase
     }
 
