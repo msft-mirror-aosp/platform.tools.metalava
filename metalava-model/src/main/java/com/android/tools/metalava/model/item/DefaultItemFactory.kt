@@ -17,13 +17,14 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -37,7 +38,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -59,13 +59,12 @@ class DefaultItemFactory(
     /** Create a [PackageItem]. */
     fun createPackageItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         qualifiedName: String,
         containingPackage: PackageItem?,
         overviewDocumentation: ResourceFile?,
     ): DefaultPackageItem {
-        if (modifiers.getVisibilityLevel() != VisibilityLevel.PUBLIC) error("Package is not public")
         return DefaultPackageItem(
             codebase,
             fileLocation,
@@ -82,15 +81,14 @@ class DefaultItemFactory(
     /** Create a [ConstructorItem]. */
     fun createClassItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        itemLanguage: ItemLanguage = defaultItemLanguage,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         source: SourceFile? = null,
         classKind: ClassKind,
         containingClass: ClassItem?,
         containingPackage: PackageItem,
         qualifiedName: String = "",
-        simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-        fullName: String = simpleName,
         typeParameterList: TypeParameterList,
         isFromClassPath: Boolean,
         superClassType: ClassTypeItem?,
@@ -99,7 +97,7 @@ class DefaultItemFactory(
         DefaultClassItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            itemLanguage,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -108,8 +106,6 @@ class DefaultItemFactory(
             containingClass,
             containingPackage,
             qualifiedName,
-            simpleName,
-            fullName,
             typeParameterList,
             isFromClassPath,
             superClassType,
@@ -119,7 +115,8 @@ class DefaultItemFactory(
     /** Create a [ConstructorItem]. */
     fun createConstructorItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        itemLanguage: ItemLanguage = defaultItemLanguage,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -127,12 +124,13 @@ class DefaultItemFactory(
         returnType: ClassTypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
+        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         implicitConstructor: Boolean,
     ): ConstructorItem =
         DefaultConstructorItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            itemLanguage,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -142,14 +140,15 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            CallableBody.UNAVAILABLE_FACTORY,
+            callableBodyFactory,
             implicitConstructor,
         )
 
     /** Create a [FieldItem]. */
     fun createFieldItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        itemLanguage: ItemLanguage = defaultItemLanguage,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -160,7 +159,7 @@ class DefaultItemFactory(
         DefaultFieldItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            itemLanguage,
             defaultVariantSelectorsFactory,
             modifiers,
             documentationFactory,
@@ -174,7 +173,8 @@ class DefaultItemFactory(
     /** Create a [MethodItem]. */
     fun createMethodItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        itemLanguage: ItemLanguage = defaultItemLanguage,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -182,12 +182,13 @@ class DefaultItemFactory(
         returnType: TypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
+        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         annotationDefault: String,
     ): MethodItem =
         DefaultMethodItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            itemLanguage,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -197,39 +198,41 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            CallableBody.UNAVAILABLE_FACTORY,
+            callableBodyFactory,
             annotationDefault,
         )
 
     /** Create a [ParameterItem]. */
     fun createParameterItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        itemLanguage: ItemLanguage = defaultItemLanguage,
+        modifiers: BaseModifierList,
         name: String,
         publicNameProvider: PublicNameProvider,
         containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
-        defaultValue: DefaultValue,
+        defaultValueFactory: DefaultValueFactory,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            itemLanguage,
             modifiers,
             name,
             publicNameProvider,
             containingCallable,
             parameterIndex,
             type,
-        ) {
-            defaultValue
-        }
+            defaultValueFactory,
+        )
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        itemLanguage: ItemLanguage = defaultItemLanguage,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        modifiers: BaseModifierList,
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
@@ -237,8 +240,8 @@ class DefaultItemFactory(
         DefaultPropertyItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
-            ItemDocumentation.NONE_FACTORY,
+            itemLanguage,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             modifiers,
             name,
@@ -256,7 +259,7 @@ class DefaultItemFactory(
      * TODO(b/351410134): Provide support in this factory for two stage initialization.
      */
     fun createTypeParameterItem(
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         name: String,
         isReified: Boolean,
     ) =

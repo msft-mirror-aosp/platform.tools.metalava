@@ -17,9 +17,9 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
@@ -29,7 +29,7 @@ open class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
@@ -45,6 +45,13 @@ open class DefaultPackageItem(
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {
+
+    init {
+        // Newly created package's always have `emit = false` as they should only be emitted if they
+        // have at least one class that has `emit = true`. That will be updated, if necessary, when
+        // adding a class to the package.
+        emit = false
+    }
 
     private val topClasses = mutableListOf<ClassItem>()
 
