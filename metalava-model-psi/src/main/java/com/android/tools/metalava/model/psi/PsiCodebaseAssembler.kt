@@ -16,18 +16,28 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDoc
+import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiManager
 import com.intellij.psi.impl.file.PsiPackageImpl
 
-internal class PsiCodebaseAssembler(codebaseFactory: (PsiCodebaseAssembler) -> PsiBasedCodebase) :
-    CodebaseAssembler {
+internal class PsiCodebaseAssembler(
+    internal val uastEnvironment: UastEnvironment,
+    codebaseFactory: (PsiCodebaseAssembler) -> PsiBasedCodebase
+) : CodebaseAssembler {
 
     internal val codebase = codebaseFactory(this)
+
+    internal val project: Project = uastEnvironment.ideaProject
+
+    fun dispose() {
+        uastEnvironment.dispose()
+    }
 
     override fun createPackageItem(
         packageName: String,

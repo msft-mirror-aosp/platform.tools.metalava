@@ -42,19 +42,20 @@ internal class PsiBasedClassResolver(
         javaPsiFacade = JavaPsiFacade.getInstance(project)
         searchScope = GlobalSearchScope.everythingScope(project)
 
-        val assembler = PsiCodebaseAssembler { assembler ->
-            PsiBasedCodebase(
-                location = File("classpath"),
-                description = "Codebase from classpath",
-                annotationManager = annotationManager,
-                reporter = reporter,
-                fromClasspath = true,
-                allowReadingComments = allowReadingComments,
-                assembler = assembler,
-            )
-        }
+        val assembler =
+            PsiCodebaseAssembler(uastEnvironment) { assembler ->
+                PsiBasedCodebase(
+                    location = File("classpath"),
+                    description = "Codebase from classpath",
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    fromClasspath = true,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                )
+            }
         classpathCodebase = assembler.codebase
-        classpathCodebase.initializeFromSources(uastEnvironment, SourceSet.empty())
+        classpathCodebase.initializeFromSources(SourceSet.empty())
     }
 
     override fun resolveClass(erasedName: String): ClassItem? {

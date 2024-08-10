@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
-import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -108,9 +107,8 @@ internal class PsiBasedCodebase(
         supportsDocumentation = true,
     ),
     MutableCodebase {
-    private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
-        get() = uastEnvironment.ideaProject
+        get() = assembler.project
 
     /**
      * Returns the compilation units used in this codebase (may be empty when the codebase is not
@@ -145,16 +143,12 @@ internal class PsiBasedCodebase(
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
-    internal fun initializeFromSources(
-        uastEnvironment: UastEnvironment,
-        sourceSet: SourceSet,
-    ) {
-        this.uastEnvironment = uastEnvironment
-
+    internal fun initializeFromSources(sourceSet: SourceSet) {
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
         // Get the list of `PsiFile`s from the `SourceSet`.
+        val uastEnvironment = assembler.uastEnvironment
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
         // Split the `PsiFile`s into `PsiClass`es and `package-info.java` `PsiJavaFile`s.
@@ -324,16 +318,11 @@ internal class PsiBasedCodebase(
     }
 
     override fun dispose() {
-        uastEnvironment.dispose()
+        assembler.dispose()
         super.dispose()
     }
 
-    internal fun initializeFromJar(
-        uastEnvironment: UastEnvironment,
-        jarFile: File,
-    ) {
-        this.uastEnvironment = uastEnvironment
-
+    internal fun initializeFromJar(jarFile: File) {
         // Create the initial set of packages that were found in the jar files. When loading from a
         // jar there is no package documentation so this will only create the root package.
         packageTracker.createInitialPackages(PackageDocs.EMPTY)
