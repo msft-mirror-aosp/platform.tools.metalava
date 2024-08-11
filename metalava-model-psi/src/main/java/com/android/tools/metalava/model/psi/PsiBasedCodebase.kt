@@ -132,7 +132,7 @@ internal class PsiBasedCodebase(
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
      */
-    private val topLevelClassesFromSource: MutableList<PsiClassItem> = ArrayList(CLASS_ESTIMATE)
+    private val topLevelClassesFromSource: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
 
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
@@ -160,7 +160,8 @@ internal class PsiBasedCodebase(
 
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
-            topLevelClassesFromSource += createTopLevelClassAndContents(psiClass, fromClasspath)
+            val classItem = createTopLevelClassAndContents(psiClass, fromClasspath)
+            addTopLevelClassFromSource(classItem)
         }
     }
 
@@ -339,7 +340,7 @@ internal class PsiBasedCodebase(
                             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
 
                             val classItem = createTopLevelClassAndContents(psiClass, fromClasspath)
-                            topLevelClassesFromSource.add(classItem)
+                            addTopLevelClassFromSource(classItem)
                         }
                     }
                 }
@@ -624,6 +625,10 @@ internal class PsiBasedCodebase(
 
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
+    }
+
+    fun addTopLevelClassFromSource(classItem: ClassItem) {
+        topLevelClassesFromSource.add(classItem)
     }
 
     override fun isFromClassPath() = fromClasspath
