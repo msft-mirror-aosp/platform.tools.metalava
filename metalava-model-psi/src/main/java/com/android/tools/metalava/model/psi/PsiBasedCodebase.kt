@@ -75,7 +75,6 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 
-const val PACKAGE_ESTIMATE = 500
 const val METHOD_ESTIMATE = 1000
 
 /**
@@ -109,12 +108,6 @@ internal class PsiBasedCodebase(
     MutableCodebase {
     internal val project: Project
         get() = assembler.project
-
-    /**
-     * Returns the compilation units used in this codebase (may be empty when the codebase is not
-     * loaded from source, such as from .jar files or from signature files)
-     */
-    private var units: List<PsiFile> = emptyList()
 
     /**
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
@@ -586,9 +579,9 @@ internal class PsiBasedCodebase(
         val methods = methodMap[cls]!!
         val methodItem = methods[method]
         if (methodItem == null) {
-            // Probably switched psi classes (e.g. used source PsiClass in registry but
-            // found duplicate class in .jar library and we're now pointing to it; in that
-            // case, find the equivalent method by signature
+            // Probably switched psi classes (e.g. used source PsiClass in registry but found
+            // duplicate class in .jar library, and we're now pointing to it; in that case, find the
+            // equivalent method by signature
             val psiClass = cls.psiClass
             val updatedMethod = psiClass.findMethodBySignature(method, true)
             val result = methods[updatedMethod!!]
