@@ -58,7 +58,6 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
@@ -110,6 +109,7 @@ internal class PsiBasedCodebase(
     override val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
+    private val assembler: PsiCodebaseAssembler,
 ) :
     AbstractCodebase(
         location = location,
@@ -146,23 +146,7 @@ internal class PsiBasedCodebase(
     private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
-    private val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->
-        val psiPackage =
-            findPsiPackage(packageName)
-                ?: run {
-                    // This can happen if a class's package statement does not match its file path.
-                    // In that case, this fakes up a PsiPackageImpl that matches the package
-                    // statement as that is the source of truth.
-                    val manager = PsiManager.getInstance(project)
-                    PsiPackageImpl(manager, packageName)
-                }
-        PsiPackageItem.create(
-            codebase = this@PsiBasedCodebase,
-            psiPackage = psiPackage,
-            packageDoc = packageDoc,
-            containingPackage = containingPackage,
-        )
-    }
+    private val packageTracker = PackageTracker(assembler::createPackageItem)
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -393,7 +377,7 @@ internal class PsiBasedCodebase(
         psiPackage: PsiPackage,
     ): DefaultPackageItem {
         val pkgName = psiPackage.qualifiedName
-        return packageTracker.findOrCreatePackage(pkgName, emit = !fromClasspath && initializing)
+        return packageTracker.findOrCreatePackage(pkgName)
     }
 
     internal fun initializeFromJar(
@@ -772,20 +756,28 @@ internal class PsiBasedCodebase(
     }
 
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
-    override fun registerClass(classItem: DefaultClassItem) {
+    override fun registerClass(classItem: DefaultClassItem): Boolean {
         classItem as PsiClassItem
+        // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
-        val existing = classMap.put(qualifiedName, classItem)
+        val existing = classMap[qualifiedName]
         if (existing != null) {
             reporter.report(
                 Issues.DUPLICATE_SOURCE_CLASS,
                 classItem,
-                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.fileLocation.path}"
+                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
             )
-            return
+            // The class was not registered.
+            return false
         }
 
+        // Register it by name.
+        classMap[qualifiedName] = classItem
+
         addClass(classItem)
+
+        // The class was registered.
+        return true
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {

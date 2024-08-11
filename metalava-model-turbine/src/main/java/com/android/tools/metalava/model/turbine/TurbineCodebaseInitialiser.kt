@@ -419,7 +419,7 @@ internal class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = codebase.findOrCreatePackage(pkgName, emit = !isFromClassPath)
+        val pkgItem = codebase.findOrCreatePackage(pkgName)
 
         // Create the sourcefile
         val sourceFile =
@@ -438,8 +438,6 @@ internal class TurbineCodebaseInitialiser(
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
-        val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-        val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
         val documentation = javadoc(decl)
         val modifierItem =
@@ -482,8 +480,6 @@ internal class TurbineCodebaseInitialiser(
                 containingClass = containingClassItem,
                 containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
-                simpleName = simpleName,
-                fullName = fullName,
                 typeParameterList = typeParameters,
                 isFromClassPath = isFromClassPath,
                 superClassType = superClassType,
