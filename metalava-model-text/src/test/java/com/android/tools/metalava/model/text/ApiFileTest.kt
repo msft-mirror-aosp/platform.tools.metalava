@@ -297,7 +297,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     /** Dump the package structure of [codebase] to a string for easy comparison. */
     private fun dumpPackageStructure(codebase: Codebase) = buildString {
-        codebase.getPackages().packages.map { packageItem ->
+        for (packageItem in codebase.getPackages().packages) {
+            // Ignore packages that will not be emitted.
+            if (!packageItem.emit) continue
             append("${packageItem.qualifiedName().let {if (it == "") "<root>" else it}}\n")
             for (classItem in packageItem.allClasses()) {
                 append("    ${classItem.qualifiedName()}\n")
@@ -562,9 +564,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase =
-                    ApiFile.parseApi("other.txt", "// Signature format: 2.0") as TextCodebase
-                val delegate = codebase.getOrCreateClass(name)
+                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val delegate = codebase.resolveClass(name)!!
                 return TestClassItem(delegate)
             }
         }

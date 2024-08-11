@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
@@ -36,17 +35,15 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultConstructorItem
-import com.android.tools.metalava.model.item.DefaultFieldItem
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 
 /** Stack of [SnapshotTypeItemFactory] */
 internal typealias TypeItemFactoryStack = ArrayList<SnapshotTypeItemFactory>
@@ -62,7 +59,7 @@ internal fun TypeItemFactoryStack.pop() {
 }
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
-class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
+class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
      * The [Codebase] that is under construction.
@@ -117,7 +114,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
     private var currentClass: DefaultClassItem? = null
 
     /** Take a snapshot of this [ModifierList] for [codebase]. */
-    private fun ModifierList.snapshot() = (this as DefaultModifierList).snapshot(codebase)
+    private fun ModifierList.snapshot() = snapshot(codebase)
 
     /** General [TypeItem] specific snapshot. */
     private fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
@@ -136,7 +133,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
-                assemblerFactory = { this },
+                assembler = this,
             )
 
         this.codebase = newCodebase
@@ -147,19 +144,32 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
         typeItemFactoryStack.pop()
     }
 
-    override fun visitPackage(pkg: PackageItem) {
-        val newPackage =
-            DefaultPackageItem(
-                codebase = codebase,
-                fileLocation = pkg.fileLocation,
-                itemLanguage = pkg.itemLanguage,
-                modifiers = pkg.modifiers.snapshot(),
-                documentationFactory = pkg.documentation::snapshot,
-                variantSelectorsFactory = pkg.variantSelectors::duplicate,
-                qualifiedName = pkg.qualifiedName(),
-                overviewDocumentation = pkg.overviewDocumentation,
+    /**
+     * Construct a [PackageDocs] that contains a [PackageDoc] that in turn contains information
+     * extracted from [packageItem] that can be used to create a new [PackageItem] that is a
+     * snapshot of [packageItem].
+     */
+    private fun packageDocsForPackageItem(packageItem: PackageItem) =
+        MutablePackageDoc(
+                qualifiedName = packageItem.qualifiedName(),
+                fileLocation = packageItem.fileLocation,
+                modifiers = packageItem.modifiers.snapshot(),
+                commentFactory = packageItem.documentation::snapshot,
+                overview = packageItem.overviewDocumentation,
             )
-        codebase.addPackage(newPackage)
+            .let { PackageDocs(mapOf(it.qualifiedName to it)) }
+
+    override fun visitPackage(pkg: PackageItem) {
+        // Get a PackageDocs that contains a PackageDoc that contains information extracted from the
+        // PackageItem being visited. This is needed to ensure that the findOrCreatePackage(...)
+        // call below will use the correct information when creating the package. As only a single
+        // PackageDoc is provided for this package it means that if findOrCreatePackage(...) had to
+        // created a containing package that package would not have a PackageDocs and might be
+        // incorrect. However, that should not be a problem as the packages are visited in order
+        // such that a containing package is visited before any contained packages.
+        val packageDocs = packageDocsForPackageItem(pkg)
+        val packageName = pkg.qualifiedName()
+        val newPackage = codebase.findOrCreatePackage(packageName, packageDocs)
         currentPackage = newPackage
     }
 
@@ -202,16 +212,22 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
         // Push on the stack before resolving any types just in case they refer to a type parameter.
         typeItemFactoryStack.push(classTypeItemFactory)
 
+        // Snapshot the super class type, if any.
+        val snapshotSuperClassType =
+            cls.superClassType()?.let { superClassType ->
+                typeItemFactory.getSuperClassType(superClassType)
+            }
+        val snapshotInterfaceTypes =
+            cls.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
+
         val containingClass = currentClass
         val containingPackage = currentPackage!!
         val newClass =
-            DefaultClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = cls.fileLocation,
                 itemLanguage = cls.itemLanguage,
                 modifiers = cls.modifiers.snapshot(),
                 documentationFactory = cls.documentation::snapshot,
-                variantSelectorsFactory = cls.variantSelectors::duplicate,
                 source = null,
                 classKind = cls.classKind,
                 containingClass = containingClass,
@@ -221,17 +237,9 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
                 fullName = cls.fullName(),
                 typeParameterList = typeParameterList,
                 isFromClassPath = cls.isFromClassPath(),
+                superClassType = snapshotSuperClassType,
+                interfaceTypes = snapshotInterfaceTypes,
             )
-
-        // Snapshot the super class type, if any.
-        cls.superClassType()?.let { superClassType ->
-            newClass.setSuperClassType(typeItemFactory.getSuperClassType(superClassType))
-        }
-
-        // Snapshot the interface types, if any.
-        newClass.setInterfaceTypes(
-            cls.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
-        )
 
         currentClass = newClass
     }
@@ -254,8 +262,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
             // Retrieve the public name immediately to remove any dependencies on this in the
             // lambda passed to publicNameProvider.
             val publicName = parameterItem.publicName()
-            DefaultParameterItem(
-                codebase = codebase,
+            itemFactory.createParameterItem(
                 fileLocation = parameterItem.fileLocation,
                 itemLanguage = parameterItem.itemLanguage,
                 modifiers = parameterItem.modifiers.snapshot(),
@@ -278,13 +285,11 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
         constructorTypeItemFactory.inScope {
             val containingClass = currentClass!!
             val newConstructor =
-                DefaultConstructorItem(
-                    codebase = codebase,
+                itemFactory.createConstructorItem(
                     fileLocation = constructor.fileLocation,
                     itemLanguage = constructor.itemLanguage,
                     modifiers = constructor.modifiers.snapshot(),
                     documentationFactory = constructor.documentation::snapshot,
-                    variantSelectorsFactory = constructor.variantSelectors::duplicate,
                     name = constructor.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
@@ -312,13 +317,11 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
         methodTypeItemFactory.inScope {
             val containingClass = currentClass!!
             val newMethod =
-                DefaultMethodItem(
-                    codebase = codebase,
+                itemFactory.createMethodItem(
                     fileLocation = method.fileLocation,
                     itemLanguage = method.itemLanguage,
                     modifiers = method.modifiers.snapshot(),
                     documentationFactory = method.documentation::snapshot,
-                    variantSelectorsFactory = method.variantSelectors::duplicate,
                     name = method.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
@@ -338,13 +341,11 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
     override fun visitField(field: FieldItem) {
         val containingClass = currentClass!!
         val newField =
-            DefaultFieldItem(
-                codebase = codebase,
+            itemFactory.createFieldItem(
                 fileLocation = field.fileLocation,
                 itemLanguage = field.itemLanguage,
                 modifiers = field.modifiers.snapshot(),
                 documentationFactory = field.documentation::snapshot,
-                variantSelectorsFactory = field.variantSelectors::duplicate,
                 name = field.name(),
                 containingClass = containingClass,
                 type = field.type().snapshot(),
@@ -358,13 +359,11 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
     override fun visitProperty(property: PropertyItem) {
         val containingClass = currentClass!!
         val newProperty =
-            DefaultPropertyItem(
-                codebase = codebase,
+            itemFactory.createPropertyItem(
                 fileLocation = property.fileLocation,
                 itemLanguage = property.itemLanguage,
                 modifiers = property.modifiers.snapshot(),
                 documentationFactory = property.documentation::snapshot,
-                variantSelectorsFactory = property.variantSelectors::duplicate,
                 name = property.name(),
                 containingClass = containingClass,
                 type = property.type().snapshot(),
