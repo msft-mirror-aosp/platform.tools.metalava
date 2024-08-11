@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AbstractCodebase
@@ -27,32 +26,21 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageTracker
-import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiClassType
-import com.intellij.psi.PsiCodeBlock
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiField
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiImportStatement
-import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
@@ -61,14 +49,8 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 
 const val METHOD_ESTIMATE = 1000
@@ -76,10 +58,10 @@ const val METHOD_ESTIMATE = 1000
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
  *
- * After creation, a list of PSI file is passed to [initializeFromSources] or a JAR file is passed
- * to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class items along with
- * their members. Any classes defined in those files will have [ClassItem.isFromClassPath] set to
- * [fromClasspath].
+ * After creation, a list of PSI file is passed to [PsiCodebaseAssembler.initializeFromSources] or a
+ * JAR file is passed to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class
+ * items along with their members. Any classes defined in those files will have
+ * [ClassItem.isFromClassPath] set to [fromClasspath].
  *
  * Classes that are created through [findOrCreateClass] will have [ClassItem.isFromClassPath] set to
  * `true`. That will include classes defined elsewhere on the source path or found on the class
@@ -133,178 +115,6 @@ internal class PsiBasedCodebase(
 
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
-
-    internal fun initializeFromSources(sourceSet: SourceSet) {
-        // Get the list of `PsiFile`s from the `SourceSet`.
-        val uastEnvironment = assembler.uastEnvironment
-        val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
-
-        // Split the `PsiFile`s into `PsiClass`es and `package-info.java` `PsiJavaFile`s.
-        val (packageInfoFiles, psiClasses) = splitPsiFilesIntoClassesAndPackageInfoFiles(psiFiles)
-
-        // Gather all package related javadoc.
-        val packageDocs =
-            gatherPackageJavadoc(
-                reporter,
-                sourceSet,
-                packageNameFilter = { findPsiPackage(it) != null },
-                packageInfoFiles,
-                packageInfoDocExtractor = { getOptionalPackageDocFromPackageInfoFile(it) },
-            )
-
-        // Create the initial set of packages that were found in the source files.
-        packageTracker.createInitialPackages(packageDocs)
-
-        // Process the `PsiClass`es.
-        for (psiClass in psiClasses) {
-            val classItem = createTopLevelClassAndContents(psiClass, fromClasspath)
-            addTopLevelClassFromSource(classItem)
-        }
-    }
-
-    /**
-     * Split the [psiFiles] into separate `package-info.java` [PsiJavaFile]s and [PsiClass]es.
-     *
-     * During the processing this checks each [PsiFile] for unresolved imports and each [PsiClass]
-     * for syntax errors.
-     */
-    private fun splitPsiFilesIntoClassesAndPackageInfoFiles(
-        psiFiles: List<PsiFile>
-    ): Pair<List<PsiJavaFile>, List<PsiClass>> {
-        // A set to track `@JvmMultifileClass`es that have already been added to psiClasses.
-        val multiFileClassNames = HashSet<FqName>()
-
-        val psiClasses = mutableListOf<PsiClass>()
-        val packageInfoFiles = mutableListOf<PsiJavaFile>()
-
-        // Make sure we only process the files once; sometimes there's overlap in the source lists
-        for (psiFile in psiFiles.asSequence().distinct()) {
-            checkForUnresolvedImports(psiFile)
-
-            val classes = getPsiClassesFromPsiFile(psiFile)
-            when {
-                classes.isEmpty() && psiFile is PsiJavaFile -> {
-                    if (psiFile.name == JAVA_PACKAGE_INFO) {
-                        packageInfoFiles.add(psiFile)
-                    }
-                }
-                else -> {
-                    for (psiClass in classes) {
-                        checkForSyntaxErrors(psiClass)
-
-                        // Multi file classes appear identically from each file they're defined in,
-                        // don't add duplicates
-                        val multiFileClassName = getOptionalMultiFileClassName(psiClass)
-                        if (multiFileClassName != null) {
-                            if (multiFileClassName in multiFileClassNames) {
-                                continue
-                            } else {
-                                multiFileClassNames.add(multiFileClassName)
-                            }
-                        }
-
-                        psiClasses.add(psiClass)
-                    }
-                }
-            }
-        }
-        return Pair(packageInfoFiles, psiClasses)
-    }
-
-    /** Check to see if [psiFile] contains any unresolved imports. */
-    private fun checkForUnresolvedImports(psiFile: PsiFile?) {
-        // Visiting psiFile directly would eagerly load the entire file even though we only need
-        // the importList here.
-        (psiFile as? PsiJavaFile)
-            ?.importList
-            ?.accept(
-                object : JavaRecursiveElementVisitor() {
-                    override fun visitImportStatement(element: PsiImportStatement) {
-                        super.visitImportStatement(element)
-                        if (element.resolve() == null) {
-                            reporter.report(
-                                Issues.UNRESOLVED_IMPORT,
-                                element,
-                                "Unresolved import: `${element.qualifiedName}`"
-                            )
-                        }
-                    }
-                }
-            )
-    }
-
-    /** Get, the possibly empty, list of [PsiClass]es from the [psiFile]. */
-    private fun getPsiClassesFromPsiFile(psiFile: PsiFile): List<PsiClass> {
-        // First, check for Java classes, return any that are found.
-        (psiFile as? PsiClassOwner)?.classes?.toList()?.let { if (it.isNotEmpty()) return it }
-
-        // Then, check for Kotlin classes, returning any that are found, or an empty list.
-        val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
-        return uFile?.classes?.map { it }?.toList() ?: emptyList()
-    }
-
-    /**
-     * Get the optional [MutablePackageDoc] from [psiFile].
-     *
-     * @param psiFile must be a `package-info.java` file.
-     */
-    private fun getOptionalPackageDocFromPackageInfoFile(psiFile: PsiJavaFile): MutablePackageDoc? {
-        val packageStatement = psiFile.packageStatement ?: return null
-        val packageName = packageStatement.packageName
-
-        // Make sure that this is actually a package.
-        findPsiPackage(packageName) ?: return null
-
-        // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
-        val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
-        if (comment != null) {
-            return MutablePackageDoc(
-                qualifiedName = packageName,
-                fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-                commentFactory = PsiItemDocumentation.factory(packageStatement, this, comment.text),
-            )
-        }
-
-        // No comment could be found.
-        return null
-    }
-
-    /** Check the [psiClass] for any syntax errors. */
-    private fun checkForSyntaxErrors(psiClass: PsiClass) {
-        psiClass.accept(
-            object : JavaRecursiveElementVisitor() {
-                override fun visitErrorElement(element: PsiErrorElement) {
-                    super.visitErrorElement(element)
-                    reporter.report(
-                        Issues.INVALID_SYNTAX,
-                        element,
-                        "Syntax error: `${element.errorDescription}`"
-                    )
-                }
-
-                override fun visitCodeBlock(block: PsiCodeBlock) {
-                    // Ignore to avoid eagerly parsing all method bodies.
-                }
-
-                override fun visitDocComment(comment: PsiDocComment) {
-                    // Ignore to avoid eagerly parsing all doc comments.
-                    // Doc comments cannot contain error elements.
-                }
-            }
-        )
-    }
-
-    /** Get the optional multi file class name. */
-    private fun getOptionalMultiFileClassName(psiClass: PsiClass): FqName? {
-        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacade
-        val multiFileClassName =
-            if (ktLightClass?.multiFileClass == true) {
-                ktLightClass.facadeClassFqName
-            } else {
-                null
-            }
-        return multiFileClassName
-    }
 
     override fun dispose() {
         assembler.dispose()

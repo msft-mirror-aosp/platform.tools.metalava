@@ -145,9 +145,8 @@ internal class PsiSourceParser(
                 )
             }
 
-        val codebase = assembler.codebase
-        codebase.initializeFromSources(sourceSet)
-        return codebase
+        assembler.initializeFromSources(sourceSet)
+        return assembler.codebase
     }
 
     private fun isJdkModular(homePath: File): Boolean {

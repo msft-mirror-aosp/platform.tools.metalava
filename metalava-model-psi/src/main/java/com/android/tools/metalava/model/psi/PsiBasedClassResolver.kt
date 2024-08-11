@@ -54,8 +54,8 @@ internal class PsiBasedClassResolver(
                     assembler = assembler,
                 )
             }
+        assembler.initializeFromSources(SourceSet.empty())
         classpathCodebase = assembler.codebase
-        classpathCodebase.initializeFromSources(SourceSet.empty())
     }
 
     override fun resolveClass(erasedName: String): ClassItem? {
