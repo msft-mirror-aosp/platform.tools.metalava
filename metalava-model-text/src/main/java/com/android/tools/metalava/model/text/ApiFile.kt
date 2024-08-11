@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -97,9 +98,11 @@ data class SignatureFile(
 @MetalavaApi
 class ApiFile
 private constructor(
-    private val codebase: TextCodebase,
+    private val assembler: TextCodebaseAssembler,
     private val formatForLegacyFiles: FileFormat?,
 ) {
+
+    private val codebase = assembler.codebase
 
     /**
      * Provides support for parsing and caching [TypeItem]s.
@@ -116,10 +119,7 @@ private constructor(
      * Defer creation as it depends on [typeParser].
      */
     private val globalTypeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
-
-    /** Supports the initialization of a [TextCodebase]. */
-    private val assembler = codebase.assembler
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(assembler, typeParser) }
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
@@ -174,11 +174,11 @@ private constructor(
             )
 
         /**
-         * Read API signature files into a [TextCodebase].
+         * Read API signature files into a [DefaultCodebase].
          *
-         * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [Item.fileLocation] would correctly point out the source file
-         * of each item.
+         * Note: when reading from them multiple files, [DefaultCodebase.location] would refer to
+         * the first file specified. each [Item.fileLocation] would correctly point out the source
+         * file of each item.
          *
          * @param signatureFiles input signature files
          */
@@ -192,19 +192,20 @@ private constructor(
             apiStatsConsumer: (Stats) -> Unit = {},
         ): Codebase {
             require(signatureFiles.isNotEmpty()) { "files must not be empty" }
-            val api =
-                TextCodebase(
-                    location = signatureFiles[0].file,
-                    annotationManager = annotationManager,
-                    classResolver = classResolver,
-                )
             val actualDescription =
                 description
                     ?: buildString {
                         append("Codebase loaded from ")
                         signatureFiles.joinTo(this)
                     }
-            val parser = ApiFile(api, formatForLegacyFiles)
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
+                    location = signatureFiles[0].file,
+                    description = actualDescription,
+                    annotationManager = annotationManager,
+                    classResolver = classResolver,
+                )
+            val parser = ApiFile(assembler, formatForLegacyFiles)
             var first = true
             for (signatureFile in signatureFiles) {
                 val file = signatureFile.file
@@ -226,12 +227,11 @@ private constructor(
                 )
                 first = false
             }
-            api.description = actualDescription
             parser.postProcess()
 
             apiStatsConsumer(parser.stats)
 
-            return api
+            return assembler.codebase
         }
 
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
@@ -272,14 +272,14 @@ private constructor(
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
             val path = Path.of(filename)
-            val api =
-                TextCodebase(
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
                     location = path.toFile(),
+                    description = "Codebase loaded from $filename",
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,
                 )
-            api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(api, formatForLegacyFiles)
+            val parser = ApiFile(assembler, formatForLegacyFiles)
             parser.parseApiSingleFile(
                 appending = false,
                 path = path,
@@ -287,7 +287,7 @@ private constructor(
                 forCurrentApiSurface = true,
             )
             parser.postProcess()
-            return api
+            return assembler.codebase
         }
 
         /**
@@ -371,9 +371,7 @@ private constructor(
         }
     }
 
-    /**
-     * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
-     */
+    /** Perform any final steps to initialize [codebase] after parsing the signature files. */
     private fun postProcess() {
         codebase.resolveSuperTypes()
     }
@@ -444,14 +442,7 @@ private constructor(
         val packageDocs = PackageDocs(mapOf(name to packageDoc))
         val pkg =
             try {
-                codebase.findOrCreatePackage(
-                    name,
-                    packageDocs,
-                    // Make sure that this package is included in the current API surface, even if
-                    // it was created in a separate file which is not part of the current API
-                    // surface.
-                    emit = forCurrentApiSurface,
-                )
+                codebase.findOrCreatePackage(name, packageDocs)
             } catch (e: IllegalStateException) {
                 throw ApiParseException(e.message!!, tokenizer)
             }
@@ -518,7 +509,6 @@ private constructor(
 
         // Extract lots of information from the declared class type.
         val (
-            className,
             fullName,
             qualifiedClassName,
             outerClass,
@@ -616,8 +606,6 @@ private constructor(
                 containingClass = outerClass,
                 containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
-                simpleName = className,
-                fullName = fullName,
                 typeParameterList = typeParameterList,
                 isFromClassPath = false,
                 superClassType = superClassType,
@@ -760,8 +748,6 @@ private constructor(
 
     /** Encapsulates multiple return values from [parseDeclaredClassType]. */
     private data class DeclaredClassTypeComponents(
-        /** The simple name of the class, i.e. not including any outer class prefix. */
-        val simpleName: String,
         /** The full name of the class, including outer class prefix. */
         val fullName: String,
         /** The fully qualified name, including package and full name. */
@@ -807,21 +793,19 @@ private constructor(
 
         // Split the full name into an optional outer class and a simple name.
         val nestedClassIndex = fullName.lastIndexOf('.')
-        val (outerClass, simpleName) =
+        val outerClass =
             if (nestedClassIndex == -1) {
-                Pair(null, fullName)
+                null
             } else {
                 val outerClassFullName = fullName.substring(0, nestedClassIndex)
                 val qualifiedOuterClassName = qualifiedName(pkgName, outerClassFullName)
 
                 // Search for the outer class in the codebase. This is safe as the outer class
                 // always precedes its nested classes.
-                val outerClass =
-                    codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
-                        as DefaultClassItem
-
-                val nestedClassName = fullName.substring(nestedClassIndex + 1)
-                Pair(outerClass, nestedClassName)
+                assembler.getOrCreateClass(
+                    qualifiedOuterClassName,
+                    isOuterClassOfClassInThisCodebase = true
+                ) as DefaultClassItem
             }
 
         // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
@@ -867,7 +851,6 @@ private constructor(
                 ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
-            simpleName = simpleName,
             fullName = fullName,
             qualifiedName = qualifiedName,
             outerClass = outerClass,
@@ -1444,7 +1427,13 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val property =
-            itemFactory.createPropertyItem(tokenizer.fileLocation(), modifiers, name, cl, type)
+            itemFactory.createPropertyItem(
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                name = name,
+                containingClass = cl,
+                type = type,
+            )
         property.markForCurrentApiSurface()
         cl.addProperty(property)
     }
@@ -1743,14 +1732,14 @@ private constructor(
 
             val parameter =
                 itemFactory.createParameterItem(
-                    location,
-                    modifiers,
-                    name,
-                    { publicName },
-                    containingCallable,
-                    index,
-                    type,
-                    defaultValue,
+                    fileLocation = location,
+                    modifiers = modifiers,
+                    name = name,
+                    publicNameProvider = { publicName },
+                    containingCallable = containingCallable,
+                    parameterIndex = index,
+                    type = type,
+                    defaultValueFactory = { defaultValue },
                 )
 
             parameter.markForCurrentApiSurface()
