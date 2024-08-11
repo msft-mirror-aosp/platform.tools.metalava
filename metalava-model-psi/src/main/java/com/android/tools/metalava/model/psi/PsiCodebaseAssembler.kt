@@ -77,6 +77,36 @@ internal class PsiCodebaseAssembler(
     }
 
     internal fun initializeFromJar(jarFile: File) {
+        // Extract the list of class names from the jar file.
+        val classNames = buildList {
+            try {
+                ZipFile(jarFile).use { jar ->
+                    for (entry in jar.entries().iterator()) {
+                        val fileName = entry.name
+                        if (fileName.contains("$")) {
+                            // skip inner classes
+                            continue
+                        }
+                        if (!fileName.endsWith(SdkConstants.DOT_CLASS)) {
+                            // skip entries that are not .class files.
+                            continue
+                        }
+
+                        val qualifiedName =
+                            fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
+                        if (qualifiedName.endsWith(".package-info")) {
+                            // skip package-info files.
+                            continue
+                        }
+
+                        add(qualifiedName)
+                    }
+                }
+            } catch (e: IOException) {
+                reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
+            }
+        }
+
         // Create the initial set of packages that were found in the jar files. When loading from a
         // jar there is no package documentation so this will only create the root package.
         codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
@@ -86,37 +116,11 @@ internal class PsiCodebaseAssembler(
         val scope = GlobalSearchScope.allScope(project)
 
         val isFromClassPath = codebase.isFromClassPath()
-        try {
-            ZipFile(jarFile).use { jar ->
-                val enumeration = jar.entries()
-                while (enumeration.hasMoreElements()) {
-                    val entry = enumeration.nextElement()
-                    val fileName = entry.name
-                    if (fileName.contains("$")) {
-                        // skip inner classes
-                        continue
-                    }
-                    if (!fileName.endsWith(SdkConstants.DOT_CLASS)) {
-                        // skip entries that are not .class files.
-                        continue
-                    }
+        for (className in classNames) {
+            val psiClass = facade.findClass(className, scope) ?: continue
 
-                    val qualifiedName =
-                        fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
-                    if (qualifiedName.endsWith(".package-info")) {
-                        // skip package-info files.
-                        continue
-                    }
-
-                    val psiClass = facade.findClass(qualifiedName, scope) ?: continue
-
-                    val classItem =
-                        codebase.createTopLevelClassAndContents(psiClass, isFromClassPath)
-                    codebase.addTopLevelClassFromSource(classItem)
-                }
-            }
-        } catch (e: IOException) {
-            reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
+            val classItem = codebase.createTopLevelClassAndContents(psiClass, isFromClassPath)
+            codebase.addTopLevelClassFromSource(classItem)
         }
     }
 }
