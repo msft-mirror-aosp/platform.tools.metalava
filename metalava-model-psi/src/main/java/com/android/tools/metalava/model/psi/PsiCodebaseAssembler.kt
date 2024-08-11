@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -92,9 +91,8 @@ internal class PsiCodebaseAssembler(
         )
     }
 
-    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
-        TODO("Not yet implemented")
-    }
+    override fun createClassFromUnderlyingModel(qualifiedName: String) =
+        codebase.findOrCreateClass(qualifiedName)
 
     internal fun initializeFromJar(jarFile: File) {
         // Extract the list of class names from the jar file.

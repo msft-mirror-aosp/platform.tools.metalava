@@ -18,18 +18,15 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
-import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.PackageTracker
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
@@ -74,28 +71,29 @@ internal class PsiBasedCodebase(
     override val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
-    private val assembler: PsiCodebaseAssembler,
+    assembler: PsiCodebaseAssembler,
 ) :
-    AbstractCodebase(
+    DefaultCodebase(
         location = location,
         description = description,
         preFiltered = false,
         annotationManager = annotationManager,
         trustedApi = false,
         supportsDocumentation = true,
+        assembler = assembler,
     ),
     MutableCodebase {
+
+    private val psiAssembler = assembler
+
     internal val project: Project
-        get() = assembler.project
+        get() = psiAssembler.project
 
     /**
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
      * out elements that are not part of a codebase etc
      */
     internal val printer = CodePrinter(this, reporter)
-
-    /** Map from class name to class item. Classes are added via [registerClass] */
-    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
      * Map from classes to the set of callables for each (but only for classes where we've called
@@ -104,20 +102,11 @@ internal class PsiBasedCodebase(
     private val methodMap: MutableMap<ClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
         HashMap(METHOD_ESTIMATE)
 
-    /** Map from package name to the corresponding package item */
-    internal val packageTracker = PackageTracker(assembler::createPackageItem)
-
-    /**
-     * A list of the top-level classes declared in the codebase's source (rather than on its
-     * classpath).
-     */
-    private val topLevelClassesFromSource: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
-
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     override fun dispose() {
-        assembler.dispose()
+        psiAssembler.dispose()
         super.dispose()
     }
 
@@ -174,25 +163,13 @@ internal class PsiBasedCodebase(
         return classItem
     }
 
-    override fun getPackages() = packageTracker.getPackages()
-
-    override fun size() = packageTracker.size
-
-    override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
-
     internal fun findPsiPackage(pkgName: String): PsiPackage? {
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
-    override fun findClass(className: String): ClassItem? {
-        return classMap[className]
-    }
-
-    override fun resolveClass(className: String): ClassItem? = findOrCreateClass(className)
-
     fun findClass(psiClass: PsiClass): ClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
-        return classMap[qualifiedName]
+        return findClass(qualifiedName)
     }
 
     internal fun findOrCreateClass(qualifiedName: String): ClassItem? {
@@ -393,14 +370,6 @@ internal class PsiBasedCodebase(
         }
     }
 
-    override fun getTopLevelClassesFromSource(): List<ClassItem> {
-        return topLevelClassesFromSource
-    }
-
-    fun addTopLevelClassFromSource(classItem: ClassItem) {
-        topLevelClassesFromSource.add(classItem)
-    }
-
     override fun isFromClassPath() = fromClasspath
 
     internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
@@ -446,28 +415,6 @@ internal class PsiBasedCodebase(
     ): AnnotationItem? {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
-    }
-
-    /** Add a class to the codebase. Called from [DefaultClassItem]'s initialization block. */
-    override fun registerClass(classItem: DefaultClassItem): Boolean {
-        // Check for duplicates, ignore the class if it is a duplicate.
-        val qualifiedName = classItem.qualifiedName()
-        val existing = classMap[qualifiedName]
-        if (existing != null) {
-            reporter.report(
-                Issues.DUPLICATE_SOURCE_CLASS,
-                classItem,
-                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
-            )
-            // The class was not registered.
-            return false
-        }
-
-        // Register it by name.
-        classMap[qualifiedName] = classItem
-
-        // The class was registered.
-        return true
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
