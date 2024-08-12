@@ -133,20 +133,20 @@ internal class PsiSourceParser(
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
-        val assembler = PsiCodebaseAssembler {
-            PsiBasedCodebase(
-                location = rootDir,
-                description = description,
-                annotationManager = annotationManager,
-                reporter = reporter,
-                allowReadingComments = allowReadingComments,
-                assembler = it,
-            )
-        }
+        val assembler =
+            PsiCodebaseAssembler(environment) {
+                PsiBasedCodebase(
+                    location = rootDir,
+                    description = description,
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = it,
+                )
+            }
 
-        val codebase = assembler.codebase
-        codebase.initializeFromSources(environment, sourceSet)
-        return codebase
+        assembler.initializeFromSources(sourceSet)
+        return assembler.codebase
     }
 
     private fun isJdkModular(homePath: File): Boolean {
@@ -155,18 +155,19 @@ internal class PsiSourceParser(
 
     override fun loadFromJar(apiJar: File): Codebase {
         val environment = loadUastFromJars(listOf(apiJar))
-        val assembler = PsiCodebaseAssembler { assembler ->
-            PsiBasedCodebase(
-                location = apiJar,
-                description = "Codebase loaded from $apiJar",
-                annotationManager = annotationManager,
-                reporter = reporter,
-                allowReadingComments = allowReadingComments,
-                assembler = assembler,
-            )
-        }
+        val assembler =
+            PsiCodebaseAssembler(environment) { assembler ->
+                PsiBasedCodebase(
+                    location = apiJar,
+                    description = "Codebase loaded from $apiJar",
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                )
+            }
         val codebase = assembler.codebase
-        codebase.initializeFromJar(environment, apiJar)
+        assembler.initializeFromJar(apiJar)
         return codebase
     }
 

@@ -58,26 +58,28 @@ data class PsiTypeInfo(val psiType: PsiType, val context: PsiElement? = null)
  * [PsiTypeInfo].
  */
 internal class PsiTypeItemFactory(
-    val codebase: PsiBasedCodebase,
+    private val assembler: PsiCodebaseAssembler,
     typeParameterScope: TypeParameterScope
 ) : DefaultTypeItemFactory<PsiTypeInfo, PsiTypeItemFactory>(typeParameterScope) {
+
+    private val codebase = assembler.codebase
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [classItem]. */
     fun from(classItem: ClassItem): PsiTypeItemFactory {
         val scope = TypeParameterScope.from(classItem)
-        return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(assembler, scope)
     }
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [callableItem]. */
     fun from(callableItem: CallableItem): PsiTypeItemFactory {
         val scope = TypeParameterScope.from(callableItem)
-        return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(assembler, scope)
     }
 
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        PsiTypeItemFactory(codebase, scope)
+        PsiTypeItemFactory(assembler, scope)
 
     override fun getType(
         underlyingType: PsiTypeInfo,
@@ -117,7 +119,7 @@ internal class PsiTypeItemFactory(
     fun getClassTypeForClass(psiClassItem: PsiClassItem): PsiClassTypeItem {
         // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class
         // has any type parameters then the PsiType will include references to those parameters.
-        val psiTypeWithTypeParametersIfAny = codebase.getClassType(psiClassItem.psiClass)
+        val psiTypeWithTypeParametersIfAny = assembler.getClassType(psiClassItem.psiClass)
         // Create a PsiTypeItemFactory that will correctly resolve any references to the class's
         // type parameters.
         val classTypeItemFactory = from(psiClassItem)
@@ -134,7 +136,7 @@ internal class PsiTypeItemFactory(
         psiTypeParameterItem: PsiTypeParameterItem
     ): VariableTypeItem {
         val psiTypeParameter = psiTypeParameterItem.psi()
-        val psiType = codebase.getClassType(psiTypeParameter)
+        val psiType = assembler.getClassType(psiTypeParameter)
         return createVariableTypeItem(
             psiType,
             null,
@@ -469,11 +471,11 @@ internal class PsiTypeItemFactory(
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
             // outer class reference. If the type is not a nested type, it returns the package
             // name (e.g. for "java.lang.String" it returns "java.lang").
-            if (outerClassName == "" || codebase.findPsiPackage(outerClassName) != null) {
+            if (outerClassName == "" || assembler.findPsiPackage(outerClassName) != null) {
                 null
             } else {
                 val psiOuterClassType =
-                    codebase.createPsiType(
+                    assembler.createPsiType(
                         outerClassName,
                         // The context psi element allows variable types to be resolved (with no
                         // context, they would be interpreted as class types). The [psiContext]
