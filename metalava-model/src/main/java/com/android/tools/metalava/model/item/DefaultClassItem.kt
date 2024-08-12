@@ -51,7 +51,7 @@ open class DefaultClassItem(
     private val qualifiedName: String,
     final override val typeParameterList: TypeParameterList,
     private val isFromClassPath: Boolean,
-    override val origin: ClassOrigin,
+    final override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
 ) :
@@ -75,8 +75,8 @@ open class DefaultClassItem(
         // the class into the containing package/containing class. If it failed, because it is a
         // duplicate, then do nothing.
         if (codebase.registerClass(@Suppress("LeakingThis") this)) {
-            // Do not emit classes from the classpath.
-            emit = emit && !isFromClassPath
+            // Only emit classes that were specified on the command line.
+            emit = emit && origin == ClassOrigin.COMMAND_LINE
 
             // If this class is emittable then make sure its package is too.
             if (emit) {
