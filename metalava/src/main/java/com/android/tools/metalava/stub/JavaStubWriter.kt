@@ -19,11 +19,13 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -232,6 +234,12 @@ internal class JavaStubWriter(
                     PrimitiveTypeItem.Primitive.INT,
                     PrimitiveTypeItem.Primitive.LONG -> kind.defaultValueString
                     else -> "(${kind.primitiveName})${kind.defaultValueString}"
+                }
+            }
+            is ClassTypeItem -> {
+                val qualifiedName = type.qualifiedName
+                when (qualifiedName) {
+                    JAVA_LANG_STRING -> return "\"\""
                 }
             }
         }
