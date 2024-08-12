@@ -95,13 +95,13 @@ internal class PsiBasedCodebase(
     internal val printer = CodePrinter(this, reporter)
 
     /** Map from class name to class item. Classes are added via [registerClass] */
-    private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
+    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
      * Map from classes to the set of callables for each (but only for classes where we've called
      * [findCallableByPsiMethod]
      */
-    private val methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
+    private val methodMap: MutableMap<ClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
         HashMap(METHOD_ESTIMATE)
 
     /** Map from package name to the corresponding package item */
@@ -129,17 +129,17 @@ internal class PsiBasedCodebase(
     internal fun createTopLevelClassAndContents(
         psiClass: PsiClass,
         isFromClassPath: Boolean,
-    ): PsiClassItem {
+    ): ClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(psiClass, null, globalTypeItemFactory, isFromClassPath)
     }
 
     internal fun createClass(
         psiClass: PsiClass,
-        containingClassItem: PsiClassItem?,
+        containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         isFromClassPath: Boolean,
-    ): PsiClassItem {
+    ): ClassItem {
         val packageName = getPackageName(psiClass)
 
         // If the package could not be found then report an error.
@@ -184,18 +184,18 @@ internal class PsiBasedCodebase(
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
-    override fun findClass(className: String): PsiClassItem? {
+    override fun findClass(className: String): ClassItem? {
         return classMap[className]
     }
 
     override fun resolveClass(className: String): ClassItem? = findOrCreateClass(className)
 
-    fun findClass(psiClass: PsiClass): PsiClassItem? {
+    fun findClass(psiClass: PsiClass): ClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
         return classMap[qualifiedName]
     }
 
-    internal fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
+    internal fun findOrCreateClass(qualifiedName: String): ClassItem? {
         // Check to see if the class has already been seen and if so return it immediately.
         findClass(qualifiedName)?.let {
             return it
@@ -210,7 +210,7 @@ internal class PsiBasedCodebase(
     }
 
     /**
-     * Identifies a point in the [PsiClassItem] nesting structure where new [PsiClassItem]s need
+     * Identifies a point in the [ClassItem] nesting structure where new [ClassItem]s need
      * inserting.
      */
     data class NewClassInsertionPoint(
@@ -221,21 +221,20 @@ internal class PsiBasedCodebase(
         val missingPsiClass: PsiClass,
 
         /** The containing class item, or `null` if the top level. */
-        val containingClassItem: PsiClassItem?,
+        val containingClassItem: ClassItem?,
     )
 
     /**
-     * Called when no [PsiClassItem] was found by [findClass]`([PsiClass]) when called on
-     * [psiClass].
+     * Called when no [ClassItem] was found by [findClass]`([PsiClass]) when called on [psiClass].
      *
-     * The purpose of this is to find where a new [PsiClassItem] should be inserted in the nested
-     * class structure. It finds the outermost [PsiClass] with no associated [PsiClassItem] but
-     * which is either a top level class or whose containing [PsiClass] does have an associated
-     * [PsiClassItem]. That is the point where new classes need to be created.
+     * The purpose of this is to find where a new [ClassItem] should be inserted in the nested class
+     * structure. It finds the outermost [PsiClass] with no associated [ClassItem] but which is
+     * either a top level class or whose containing [PsiClass] does have an associated [ClassItem].
+     * That is the point where new classes need to be created.
      *
      * e.g. if the nesting structure is `A.B.C` and `A` has already been created then the insertion
-     * point would consist of [PsiClassItem] for `A` (the containing class item) and the [PsiClass]
-     * for `B` (the outermost [PsiClass] with no associated item).
+     * point would consist of [ClassItem] for `A` (the containing class item) and the [PsiClass] for
+     * `B` (the outermost [PsiClass] with no associated item).
      *
      * If none had already been created then it would return an insertion point consisting of no
      * containing class item and the [PsiClass] for `A`.
@@ -256,7 +255,7 @@ internal class PsiBasedCodebase(
         } while (true)
     }
 
-    internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
+    internal fun findOrCreateClass(psiClass: PsiClass): ClassItem {
         if (psiClass is PsiTypeParameter) {
             error(
                 "Must not be called with PsiTypeParameter; call findOrCreateTypeParameter(...) instead"
@@ -295,7 +294,7 @@ internal class PsiBasedCodebase(
         }
     }
 
-    internal fun findClass(psiType: PsiType): PsiClassItem? {
+    internal fun findClass(psiType: PsiType): ClassItem? {
         if (psiType is PsiClassType) {
             val cls = psiType.resolve() ?: return null
             return findOrCreateClass(cls)
@@ -354,7 +353,7 @@ internal class PsiBasedCodebase(
             // Probably switched psi classes (e.g. used source PsiClass in registry but found
             // duplicate class in .jar library, and we're now pointing to it; in that case, find the
             // equivalent method by signature
-            val psiClass = cls.psiClass
+            val psiClass = (cls as PsiClassItem).psiClass
             val updatedMethod = psiClass.findMethodBySignature(method, true)
             val result = methods[updatedMethod!!]
             if (result == null) {
@@ -449,9 +448,8 @@ internal class PsiBasedCodebase(
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
 
-    /** Add a class to the codebase. Called from [PsiClassItem.create]. */
+    /** Add a class to the codebase. Called from [DefaultClassItem]'s initialization block. */
     override fun registerClass(classItem: DefaultClassItem): Boolean {
-        classItem as PsiClassItem
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap[qualifiedName]

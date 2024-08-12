@@ -149,11 +149,11 @@ internal constructor(
         internal fun create(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
-            containingClassItem: PsiClassItem?,
+            containingClassItem: ClassItem?,
             containingPackage: PackageItem,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             fromClassPath: Boolean,
-        ): PsiClassItem {
+        ): ClassItem {
             if (psiClass is PsiTypeParameter) {
                 error(
                     "Must not be called with PsiTypeParameter; use PsiTypeParameterItem.create(...) instead"
