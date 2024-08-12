@@ -154,7 +154,6 @@ internal class PsiCodebaseAssembler(
      */
     private fun createTopLevelClassAndContents(
         psiClass: PsiClass,
-        isFromClassPath: Boolean,
         origin: ClassOrigin,
     ): ClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
@@ -162,7 +161,6 @@ internal class PsiCodebaseAssembler(
             psiClass,
             null,
             globalTypeItemFactory,
-            isFromClassPath,
             origin,
         )
     }
@@ -171,7 +169,6 @@ internal class PsiCodebaseAssembler(
         psiClass: PsiClass,
         containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        isFromClassPath: Boolean,
         origin: ClassOrigin,
     ): ClassItem {
         val packageName = getPackageName(psiClass)
@@ -230,7 +227,6 @@ internal class PsiCodebaseAssembler(
                 containingPackage = packageItem,
                 qualifiedName = qualifiedName,
                 typeParameterList = typeParameterList,
-                isFromClassPath = isFromClassPath,
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
@@ -332,7 +328,6 @@ internal class PsiCodebaseAssembler(
                 psiClass = psiNestedClass,
                 containingClassItem = classItem,
                 enclosingClassTypeItemFactory = classTypeItemFactory,
-                isFromClassPath = classItem.isFromClassPath(),
                 origin = origin,
             )
         }
@@ -545,7 +540,6 @@ internal class PsiCodebaseAssembler(
 
                 createTopLevelClassAndContents(
                     missingPsiClass,
-                    isFromClassPath = true,
                     origin,
                 )
             } else {
@@ -553,7 +547,6 @@ internal class PsiCodebaseAssembler(
                     missingPsiClass,
                     containingClassItem,
                     globalTypeItemFactory.from(containingClassItem),
-                    isFromClassPath = containingClassItem.isFromClassPath(),
                     origin = containingClassItem.origin,
                 )
             }
@@ -703,7 +696,6 @@ internal class PsiCodebaseAssembler(
             val classItem =
                 createTopLevelClassAndContents(
                     psiClass,
-                    isFromClassPath,
                     origin,
                 )
             codebase.addTopLevelClassFromSource(classItem)
@@ -731,12 +723,10 @@ internal class PsiCodebaseAssembler(
         codebase.packageTracker.createInitialPackages(packageDocs)
 
         // Process the `PsiClass`es.
-        val isFromClassPath = codebase.isFromClassPath()
         for (psiClass in psiClasses) {
             val classItem =
                 createTopLevelClassAndContents(
                     psiClass,
-                    isFromClassPath,
                     // Sources always come from the command line.
                     ClassOrigin.COMMAND_LINE,
                 )

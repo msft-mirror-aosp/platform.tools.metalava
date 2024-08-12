@@ -47,8 +47,6 @@ internal constructor(
     containingPackage: PackageItem,
     qualifiedName: String,
     typeParameterList: TypeParameterList,
-    /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
-    isFromClassPath: Boolean,
     origin: ClassOrigin,
     superClassType: ClassTypeItem?,
     interfaceTypes: List<ClassTypeItem>
@@ -66,7 +64,6 @@ internal constructor(
         containingPackage = containingPackage,
         qualifiedName = qualifiedName,
         typeParameterList = typeParameterList,
-        isFromClassPath = isFromClassPath,
         origin = origin,
         superClassType = superClassType,
         interfaceTypes = interfaceTypes,

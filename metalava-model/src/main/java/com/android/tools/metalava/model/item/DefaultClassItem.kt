@@ -50,7 +50,6 @@ open class DefaultClassItem(
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
     final override val typeParameterList: TypeParameterList,
-    private val isFromClassPath: Boolean,
     final override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
@@ -184,8 +183,6 @@ open class DefaultClassItem(
 
     /** Tracks whether the class has an implicit default constructor. */
     private var hasImplicitDefaultConstructor = false
-
-    final override fun isFromClassPath(): Boolean = isFromClassPath
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 

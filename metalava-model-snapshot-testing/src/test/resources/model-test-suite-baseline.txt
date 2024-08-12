@@ -53,7 +53,7 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with type cast values[text]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test isFromClassPath source path[turbine]
+  Test origin source path[turbine]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes[turbine]

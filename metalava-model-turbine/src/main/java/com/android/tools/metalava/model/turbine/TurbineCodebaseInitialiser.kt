@@ -481,7 +481,6 @@ internal class TurbineCodebaseInitialiser(
                 containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
                 typeParameterList = typeParameters,
-                isFromClassPath = isFromClassPath,
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,

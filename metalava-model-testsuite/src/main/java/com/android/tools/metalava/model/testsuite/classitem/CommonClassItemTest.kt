@@ -1630,23 +1630,17 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
-    private fun CodebaseContext.checkIsFromClassPath(
+    private fun CodebaseContext.checkClassOrigin(
         name: String,
-        expectedIsFromClassPath: Boolean,
         expectedOrigin: ClassOrigin,
     ) {
         // Make sure to resolve any class requested just in case it is on the class path.
         val testClass = codebase.assertResolvedClass(name)
-        assertEquals(
-            expectedIsFromClassPath,
-            testClass.isFromClassPath(),
-            message = "$name isFromClassPath()"
-        )
         assertEquals(expectedOrigin, testClass.origin, message = "$name origin")
     }
 
     @Test
-    fun `Test isFromClassPath`() {
+    fun `Test origin`() {
         runCodebaseTest(
             signature(
                 """
@@ -1667,27 +1661,25 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            checkIsFromClassPath(
+            checkClassOrigin(
                 "test.pkg.Test",
-                expectedIsFromClassPath = false,
                 expectedOrigin = ClassOrigin.COMMAND_LINE,
             )
-            checkIsFromClassPath(
+            checkClassOrigin(
                 "java.lang.String",
-                expectedIsFromClassPath = true,
                 expectedOrigin = ClassOrigin.CLASS_PATH,
             )
 
             // Some models may not return an unknown class but those that do should treat it as
             // coming from the class path.
             codebase.resolveClass("Unknown")?.let { testClass ->
-                assertEquals(true, testClass.isFromClassPath(), message = "Unknown")
+                assertEquals(ClassOrigin.CLASS_PATH, testClass.origin, message = "Unknown")
             }
         }
     }
 
     @Test
-    fun `Test isFromClassPath source path`() {
+    fun `Test origin source path`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -1711,9 +1703,8 @@ class CommonClassItemTest : BaseModelTest() {
                     ),
             )
         ) {
-            checkIsFromClassPath(
+            checkClassOrigin(
                 "test.pkg.SourcePathClass",
-                expectedIsFromClassPath = true,
                 expectedOrigin = ClassOrigin.SOURCE_PATH,
             )
         }

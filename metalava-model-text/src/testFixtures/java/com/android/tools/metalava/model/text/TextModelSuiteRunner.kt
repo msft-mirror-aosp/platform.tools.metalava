@@ -131,7 +131,6 @@ class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                     containingPackage = packageItem,
                     qualifiedName = cls.canonicalName,
                     typeParameterList = TypeParameterList.NONE,
-                    isFromClassPath = true,
                     origin = ClassOrigin.CLASS_PATH,
                     superClassType = null,
                     interfaceTypes = emptyList(),

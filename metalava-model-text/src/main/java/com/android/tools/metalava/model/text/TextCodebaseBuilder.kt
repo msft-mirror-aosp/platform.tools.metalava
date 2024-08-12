@@ -106,7 +106,6 @@ class TextCodebaseBuilder private constructor(private val assembler: TextCodebas
             containingPackage = pkg,
             qualifiedName = fullClass.qualifiedName(),
             typeParameterList = fullClass.typeParameterList,
-            isFromClassPath = fullClass.isFromClassPath(),
             origin = fullClass.origin,
             superClassType = fullClass.superClassType(),
             interfaceTypes = fullClass.interfaceTypes(),

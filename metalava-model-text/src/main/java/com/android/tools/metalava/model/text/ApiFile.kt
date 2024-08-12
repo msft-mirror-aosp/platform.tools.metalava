@@ -602,7 +602,6 @@ private constructor(
                 containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
                 typeParameterList = typeParameterList,
-                isFromClassPath = false,
                 // All signature files have to be explicitly specified.
                 origin = ClassOrigin.COMMAND_LINE,
                 superClassType = superClassType,
