@@ -71,7 +71,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
-import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
+import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtParameter
@@ -583,8 +583,8 @@ internal class PsiCodebaseAssembler(
             val ktParameter = psiParameter.sourcePsi as KtParameter
             val annotationProvider =
                 when (uastResolveService?.nullability(ktParameter)) {
-                    KtTypeNullability.NON_NULLABLE -> getNonNullAnnotationProvider()
-                    KtTypeNullability.NULLABLE -> getNullableAnnotationProvider()
+                    KaTypeNullability.NON_NULLABLE -> getNonNullAnnotationProvider()
+                    KaTypeNullability.NULLABLE -> getNullableAnnotationProvider()
                     else -> null
                 }
             val annotatedType =
