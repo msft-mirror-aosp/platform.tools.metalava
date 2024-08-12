@@ -1629,6 +1629,15 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    private fun CodebaseContext.checkIsFromClassPath(
+        name: String,
+        expectedIsFromClassPath: Boolean,
+    ) {
+        // Make sure to resolve any class requested just in case it is on the class path.
+        val testClass = codebase.assertResolvedClass(name)
+        assertEquals(expectedIsFromClassPath, testClass.isFromClassPath(), message = name)
+    }
+
     @Test
     fun `Test isFromClassPath`() {
         runCodebaseTest(
@@ -1651,12 +1660,6 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            fun checkIsFromClassPath(name: String, expectedIsFromClassPath: Boolean) {
-                // Make sure to resolve any class requested just in case it is on the class path.
-                val testClass = codebase.assertResolvedClass(name)
-                assertEquals(expectedIsFromClassPath, testClass.isFromClassPath(), message = name)
-            }
-
             checkIsFromClassPath("test.pkg.Test", expectedIsFromClassPath = false)
             checkIsFromClassPath("java.lang.String", expectedIsFromClassPath = true)
 
@@ -1665,6 +1668,35 @@ class CommonClassItemTest : BaseModelTest() {
             codebase.resolveClass("Unknown")?.let { testClass ->
                 assertEquals(true, testClass.isFromClassPath(), message = "Unknown")
             }
+        }
+    }
+
+    @Test
+    fun `Test isFromClassPath source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class SourcePathClass {}
+                            """
+                        )
+                    ),
+            )
+        ) {
+            checkIsFromClassPath("test.pkg.SourcePathClass", expectedIsFromClassPath = true)
         }
     }
 }
