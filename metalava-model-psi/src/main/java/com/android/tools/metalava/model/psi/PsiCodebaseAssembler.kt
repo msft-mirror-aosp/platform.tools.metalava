@@ -173,20 +173,14 @@ internal class PsiCodebaseAssembler(
 
         val packageItem = codebase.packageTracker.findOrCreatePackage(packageName)
 
-        // If initializing is true, this class is from source
-        val classItem =
-            PsiClassItem.create(
-                codebase,
-                psiClass,
-                containingClassItem,
-                packageItem,
-                enclosingClassTypeItemFactory,
-                isFromClassPath,
-            )
-        // Set emit to `true` for source classes but `false` for classpath classes.
-        classItem.emit = !classItem.isFromClassPath()
-
-        return classItem
+        return PsiClassItem.create(
+            codebase,
+            psiClass,
+            containingClassItem,
+            packageItem,
+            enclosingClassTypeItemFactory,
+            isFromClassPath,
+        )
     }
 
     private fun findOrCreateClass(qualifiedName: String): ClassItem? {
