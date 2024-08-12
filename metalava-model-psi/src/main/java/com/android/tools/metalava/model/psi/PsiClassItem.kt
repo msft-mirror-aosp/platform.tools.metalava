@@ -303,7 +303,7 @@ internal constructor(
             // classes.
             val psiNestedClasses = psiClass.innerClasses
             for (psiNestedClass in psiNestedClasses) {
-                codebase.createClass(
+                codebase.psiAssembler.createClass(
                     psiClass = psiNestedClass,
                     containingClassItem = classItem,
                     enclosingClassTypeItemFactory = classTypeItemFactory,
