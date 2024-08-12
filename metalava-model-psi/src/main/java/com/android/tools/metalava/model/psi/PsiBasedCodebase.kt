@@ -33,7 +33,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
@@ -269,24 +268,6 @@ internal class PsiBasedCodebase(
             // containing class was created.
             findClass(psiClass)!!
         }
-    }
-
-    internal fun findClass(psiType: PsiType): ClassItem? {
-        if (psiType is PsiClassType) {
-            val cls = psiType.resolve() ?: return null
-            return findOrCreateClass(cls)
-        } else if (psiType is PsiArrayType) {
-            var componentType = psiType.componentType
-            // We repeatedly get the component type because the array may have multiple dimensions
-            while (componentType is PsiArrayType) {
-                componentType = componentType.componentType
-            }
-            if (componentType is PsiClassType) {
-                val cls = componentType.resolve() ?: return null
-                return findOrCreateClass(cls)
-            }
-        }
-        return null
     }
 
     internal fun getClassType(cls: PsiClass): PsiClassType =
