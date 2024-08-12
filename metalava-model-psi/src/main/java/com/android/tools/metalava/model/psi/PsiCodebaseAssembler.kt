@@ -21,6 +21,7 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
@@ -59,6 +60,8 @@ internal class PsiCodebaseAssembler(
 ) : CodebaseAssembler {
 
     internal val codebase = codebaseFactory(this)
+
+    internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     internal val project: Project = uastEnvironment.ideaProject
 

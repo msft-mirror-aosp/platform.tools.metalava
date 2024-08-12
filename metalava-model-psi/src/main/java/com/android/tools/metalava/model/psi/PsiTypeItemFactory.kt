@@ -58,26 +58,28 @@ data class PsiTypeInfo(val psiType: PsiType, val context: PsiElement? = null)
  * [PsiTypeInfo].
  */
 internal class PsiTypeItemFactory(
-    val codebase: PsiBasedCodebase,
+    private val assembler: PsiCodebaseAssembler,
     typeParameterScope: TypeParameterScope
 ) : DefaultTypeItemFactory<PsiTypeInfo, PsiTypeItemFactory>(typeParameterScope) {
+
+    private val codebase = assembler.codebase
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [classItem]. */
     fun from(classItem: ClassItem): PsiTypeItemFactory {
         val scope = TypeParameterScope.from(classItem)
-        return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(assembler, scope)
     }
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [callableItem]. */
     fun from(callableItem: CallableItem): PsiTypeItemFactory {
         val scope = TypeParameterScope.from(callableItem)
-        return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(assembler, scope)
     }
 
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        PsiTypeItemFactory(codebase, scope)
+        PsiTypeItemFactory(assembler, scope)
 
     override fun getType(
         underlyingType: PsiTypeInfo,

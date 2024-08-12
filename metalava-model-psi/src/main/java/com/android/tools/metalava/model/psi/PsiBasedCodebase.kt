@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MutableCodebase
-import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -108,7 +107,8 @@ internal class PsiBasedCodebase(
         HashMap(METHOD_ESTIMATE)
 
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
-    internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
+    internal val globalTypeItemFactory
+        get() = psiAssembler.globalTypeItemFactory
 
     override fun dispose() {
         psiAssembler.dispose()
