@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -91,6 +92,7 @@ class DefaultItemFactory(
         qualifiedName: String = "",
         typeParameterList: TypeParameterList,
         isFromClassPath: Boolean,
+        origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
     ) =
@@ -108,6 +110,7 @@ class DefaultItemFactory(
             qualifiedName,
             typeParameterList,
             isFromClassPath,
+            origin,
             superClassType,
             interfaceTypes,
         )

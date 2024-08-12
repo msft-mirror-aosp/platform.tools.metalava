@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeParameterList
@@ -131,6 +132,7 @@ class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                     qualifiedName = cls.canonicalName,
                     typeParameterList = TypeParameterList.NONE,
                     isFromClassPath = true,
+                    origin = ClassOrigin.CLASS_PATH,
                     superClassType = null,
                     interfaceTypes = emptyList(),
                 )

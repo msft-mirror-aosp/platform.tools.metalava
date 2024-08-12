@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -50,6 +51,7 @@ open class DefaultClassItem(
     private val qualifiedName: String,
     final override val typeParameterList: TypeParameterList,
     private val isFromClassPath: Boolean,
+    override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
 ) :

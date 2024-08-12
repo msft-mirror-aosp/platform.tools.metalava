@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -602,6 +603,8 @@ private constructor(
                 qualifiedName = qualifiedClassName,
                 typeParameterList = typeParameterList,
                 isFromClassPath = false,
+                // All signature files have to be explicitly specified.
+                origin = ClassOrigin.COMMAND_LINE,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
             )
