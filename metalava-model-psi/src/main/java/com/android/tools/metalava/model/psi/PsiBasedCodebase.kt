@@ -31,10 +31,8 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MutableCodebase
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageTracker
@@ -64,7 +62,6 @@ import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.TypeAnnotationProvider
-import com.intellij.psi.impl.file.PsiPackageImpl
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
@@ -162,8 +159,7 @@ internal class PsiBasedCodebase(
      * been created.
      *
      * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
-     * and [ClassItem.isFromClassPath] to true for classpath classes. It is also used in
-     * [findOrCreatePackage] to set [PackageItem.emit] to true for source packages.
+     * and [ClassItem.isFromClassPath] to true for classpath classes.
      */
     private var initializing = false
 
@@ -373,13 +369,6 @@ internal class PsiBasedCodebase(
         super.dispose()
     }
 
-    private fun findOrCreatePackage(
-        psiPackage: PsiPackage,
-    ): DefaultPackageItem {
-        val pkgName = psiPackage.qualifiedName
-        return packageTracker.findOrCreatePackage(pkgName)
-    }
-
     internal fun initializeFromJar(
         uastEnvironment: UastEnvironment,
         jarFile: File,
@@ -446,26 +435,21 @@ internal class PsiBasedCodebase(
     ): PsiClassItem {
         val packageName = getPackageName(psiClass)
 
-        // Find the package, creating a fake one if necessary.
-        val psiPackage =
-            // If the package could be found then a fake package was not created.
-            findPsiPackage(packageName)
-                ?: run {
-                    val directory =
-                        psiClass.containingFile.containingDirectory.virtualFile.canonicalPath
-                    reporter.report(
-                        Issues.INVALID_PACKAGE,
-                        psiClass,
-                        "Could not find package $packageName for class ${psiClass.qualifiedName}." +
-                            " This is most likely due to a mismatch between the package statement" +
-                            " and the directory $directory"
-                    )
-                    // Fake up a PsiPackageImpl that matches the package statement as that is the
-                    // source of truth.
-                    PsiPackageImpl(psiClass.manager, packageName)
-                }
+        // If the package could not be found then report an error.
+        findPsiPackage(packageName)
+            ?: run {
+                val directory =
+                    psiClass.containingFile.containingDirectory.virtualFile.canonicalPath
+                reporter.report(
+                    Issues.INVALID_PACKAGE,
+                    psiClass,
+                    "Could not find package $packageName for class ${psiClass.qualifiedName}." +
+                        " This is most likely due to a mismatch between the package statement" +
+                        " and the directory $directory"
+                )
+            }
 
-        val packageItem = findOrCreatePackage(psiPackage)
+        val packageItem = packageTracker.findOrCreatePackage(packageName)
 
         // If initializing is true, this class is from source
         val classItem =
