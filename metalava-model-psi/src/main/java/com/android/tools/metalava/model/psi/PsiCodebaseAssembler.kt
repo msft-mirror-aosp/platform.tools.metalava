@@ -51,6 +51,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
+import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
@@ -104,13 +105,17 @@ internal class PsiCodebaseAssembler(
     private fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
         getFactory().createAnnotationFromText(s, parent)
 
+    internal fun findPsiPackage(pkgName: String): PsiPackage? {
+        return JavaPsiFacade.getInstance(project).findPackage(pkgName)
+    }
+
     override fun createPackageItem(
         packageName: String,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?
     ): DefaultPackageItem {
         val psiPackage =
-            codebase.findPsiPackage(packageName)
+            findPsiPackage(packageName)
                 ?: run {
                     // This can happen if a class's package statement does not match its file path.
                     // In that case, this fakes up a PsiPackageImpl that matches the package
@@ -259,7 +264,7 @@ internal class PsiCodebaseAssembler(
             gatherPackageJavadoc(
                 reporter,
                 sourceSet,
-                packageNameFilter = { codebase.findPsiPackage(it) != null },
+                packageNameFilter = { findPsiPackage(it) != null },
                 packageInfoFiles,
                 packageInfoDocExtractor = { getOptionalPackageDocFromPackageInfoFile(it) },
             )
@@ -366,7 +371,7 @@ internal class PsiCodebaseAssembler(
         val packageName = packageStatement.packageName
 
         // Make sure that this is actually a package.
-        codebase.findPsiPackage(packageName) ?: return null
+        findPsiPackage(packageName) ?: return null
 
         // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
         val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)

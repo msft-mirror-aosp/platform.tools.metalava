@@ -471,7 +471,7 @@ internal class PsiTypeItemFactory(
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
             // outer class reference. If the type is not a nested type, it returns the package
             // name (e.g. for "java.lang.String" it returns "java.lang").
-            if (outerClassName == "" || codebase.findPsiPackage(outerClassName) != null) {
+            if (outerClassName == "" || assembler.findPsiPackage(outerClassName) != null) {
                 null
             } else {
                 val psiOuterClassType =

@@ -30,7 +30,6 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
@@ -119,7 +118,7 @@ internal class PsiBasedCodebase(
         val packageName = getPackageName(psiClass)
 
         // If the package could not be found then report an error.
-        findPsiPackage(packageName)
+        psiAssembler.findPsiPackage(packageName)
             ?: run {
                 val directory =
                     psiClass.containingFile.containingDirectory.virtualFile.canonicalPath
@@ -148,10 +147,6 @@ internal class PsiBasedCodebase(
         classItem.emit = !classItem.isFromClassPath()
 
         return classItem
-    }
-
-    internal fun findPsiPackage(pkgName: String): PsiPackage? {
-        return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
     fun findClass(psiClass: PsiClass): ClassItem? {
