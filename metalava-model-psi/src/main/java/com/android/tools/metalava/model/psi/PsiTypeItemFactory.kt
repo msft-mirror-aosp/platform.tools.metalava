@@ -119,7 +119,7 @@ internal class PsiTypeItemFactory(
     fun getClassTypeForClass(psiClassItem: PsiClassItem): PsiClassTypeItem {
         // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class
         // has any type parameters then the PsiType will include references to those parameters.
-        val psiTypeWithTypeParametersIfAny = codebase.getClassType(psiClassItem.psiClass)
+        val psiTypeWithTypeParametersIfAny = assembler.getClassType(psiClassItem.psiClass)
         // Create a PsiTypeItemFactory that will correctly resolve any references to the class's
         // type parameters.
         val classTypeItemFactory = from(psiClassItem)
@@ -136,7 +136,7 @@ internal class PsiTypeItemFactory(
         psiTypeParameterItem: PsiTypeParameterItem
     ): VariableTypeItem {
         val psiTypeParameter = psiTypeParameterItem.psi()
-        val psiType = codebase.getClassType(psiTypeParameter)
+        val psiType = assembler.getClassType(psiTypeParameter)
         return createVariableTypeItem(
             psiType,
             null,
@@ -475,7 +475,7 @@ internal class PsiTypeItemFactory(
                 null
             } else {
                 val psiOuterClassType =
-                    codebase.createPsiType(
+                    assembler.createPsiType(
                         outerClassName,
                         // The context psi element allows variable types to be resolved (with no
                         // context, they would be interpreted as class types). The [psiContext]

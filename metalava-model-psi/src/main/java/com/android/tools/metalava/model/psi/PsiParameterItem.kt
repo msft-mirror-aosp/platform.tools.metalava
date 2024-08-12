@@ -135,7 +135,7 @@ internal constructor(
         ): PsiParameterItem {
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
-            val psiType = codebase.getPsiTypeForPsiParameter(psiParameter)
+            val psiType = codebase.psiAssembler.getPsiTypeForPsiParameter(psiParameter)
             val type =
                 enclosingMethodTypeItemFactory.getMethodParameterType(
                     underlyingParameterType = PsiTypeInfo(psiType, psiParameter),
