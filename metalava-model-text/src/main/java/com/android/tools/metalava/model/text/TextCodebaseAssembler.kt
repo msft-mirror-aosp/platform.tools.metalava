@@ -31,7 +31,9 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
+import java.io.PrintWriter
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
@@ -144,8 +146,7 @@ internal class TextCodebaseAssembler(
                 // We created a new nested class stub. We need to fully initialize it with outer
                 // classes, themselves possibly stubs
                 val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
-                val outerClass =
-                    getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase = true)
+                val outerClass = getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase)
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
                 // DefaultClassItem so cast it to one so that the code below can use
@@ -160,28 +161,23 @@ internal class TextCodebaseAssembler(
             if (outerClass == null) {
                 val endIndex = qualifiedName.lastIndexOf('.')
                 val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                codebase.findOrCreatePackage(pkgPath, emit = false)
+                codebase.findOrCreatePackage(pkgPath)
             } else {
                 outerClass.containingPackage() as DefaultPackageItem
             }
 
         // Build a stub class of the required kind.
         val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
-        val stubClass =
-            StubClassBuilder.build(
-                assembler = this,
-                qualifiedName = qualifiedName,
-                fullName = fullName,
-                containingClass = outerClass,
-                containingPackage = pkg,
-            ) {
-                // Apply stub kind specific mutations to the stub class being built.
-                requiredStubKind.mutator(this)
-            }
 
-        stubClass.emit = false
-
-        return stubClass
+        return StubClassBuilder.build(
+            assembler = this,
+            qualifiedName = qualifiedName,
+            containingClass = outerClass,
+            containingPackage = pkg,
+        ) {
+            // Apply stub kind specific mutations to the stub class being built.
+            requiredStubKind.mutator(this)
+        }
     }
 
     companion object {
@@ -195,6 +191,7 @@ internal class TextCodebaseAssembler(
             val assembler =
                 TextCodebaseAssembler(
                     codebaseFactory = { assembler ->
+                        val reporter = BasicReporter(PrintWriter(System.err))
                         DefaultCodebase(
                             location = location,
                             description = description,
@@ -202,6 +199,7 @@ internal class TextCodebaseAssembler(
                             annotationManager = annotationManager,
                             trustedApi = true,
                             supportsDocumentation = false,
+                            reporter = reporter,
                             assembler = assembler,
                         )
                     },
