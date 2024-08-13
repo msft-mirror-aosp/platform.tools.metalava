@@ -1308,7 +1308,11 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass =
+                codebase.assertResolvedClass(
+                    "test.pkg.HiddenClass",
+                    expectedEmit = true,
+                )
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
@@ -1377,7 +1381,11 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass =
+                codebase.assertResolvedClass(
+                    "test.pkg.HiddenClass",
+                    expectedEmit = true,
+                )
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypes =
@@ -1435,7 +1443,11 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass =
+                codebase.assertResolvedClass(
+                    "test.pkg.HiddenClass",
+                    expectedEmit = true,
+                )
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypesAndNullability =
