@@ -688,6 +688,12 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     var stubConstructor: ConstructorItem?
 
     /**
+     * The constructor that constructors in a stub version of this class must delegate to in their
+     * `super` call. Is `null` if the super class has a default constructor.
+     */
+    var superConstructor: ConstructorItem?
+
+    /**
      * Creates a map of type parameters of the target class to the type variables substituted for
      * those parameters by this class.
      *

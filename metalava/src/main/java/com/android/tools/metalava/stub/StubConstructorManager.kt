@@ -77,7 +77,7 @@ class StubConstructorManager(private val codebase: Codebase) {
      * [ClassItem.constructors] list, e.g. for package private default constructors we've inserted
      * (because there were no public constructors or constructors not using hidden parameter types.)
      *
-     * [ConstructorItem.superConstructor] : The default constructor to invoke.
+     * [ClassItem.superConstructor] : The default constructor to invoke.
      *
      * @param visited contains the [ClassItem]s that have already been visited; this method adds
      *   [cls] to it so [cls] will not be visited again.
@@ -134,9 +134,7 @@ class StubConstructorManager(private val codebase: Codebase) {
 
         val superDefaultConstructor = superClass?.stubConstructor
         if (superDefaultConstructor != null) {
-            cls.constructors().forEach { constructor ->
-                constructor.superConstructor = superDefaultConstructor
-            }
+            cls.superConstructor = superDefaultConstructor
         }
 
         // Find default constructor, if one doesn't exist
@@ -158,9 +156,7 @@ class StubConstructorManager(private val codebase: Codebase) {
                 // created. Technically, the stub now has a constructor that isn't available at
                 // runtime, but apps creating subclasses inside the android.* package is not
                 // supported.
-                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE).also {
-                    it.superConstructor = superDefaultConstructor
-                }
+                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
             } else {
                 null
             }

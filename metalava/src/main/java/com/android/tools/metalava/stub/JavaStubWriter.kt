@@ -182,8 +182,8 @@ internal class JavaStubWriter(
     }
 
     private fun writeConstructorBody(constructor: ConstructorItem) {
-        // Find any constructor in parent that we can compile against
-        constructor.superConstructor?.let { superConstructor ->
+        val optionalSuperConstructor = constructor.containingClass().superConstructor
+        optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
                 writer.print("super(")

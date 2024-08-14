@@ -250,6 +250,12 @@ class FilteringApiVisitor(
                 .map { FilteringConstructorItem(it) }
                 .toList()
 
+        override var superConstructor: ConstructorItem?
+            get() = delegate.superConstructor?.let { FilteringConstructorItem(it) }
+            set(_) {
+                error("cannot set value")
+            }
+
         override fun fields(): List<FieldItem> =
             delegate.filteredFields(filterReference, showUnannotated).map { FilteringFieldItem(it) }
     }
@@ -291,12 +297,6 @@ class FilteringApiVisitor(
         ConstructorItem by delegate {
 
         override fun containingClass() = FilteringClassItem(delegate.containingClass())
-
-        override var superConstructor: ConstructorItem?
-            get() = delegate.superConstructor?.let { FilteringConstructorItem(it) }
-            set(_) {
-                error("cannot set value")
-            }
 
         override fun returnType() = filteredReturnType(delegate) as ClassTypeItem
 
