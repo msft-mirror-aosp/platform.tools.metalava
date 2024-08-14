@@ -39,6 +39,7 @@ internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val modifierListWriter: ModifierListWriter,
     private val config: StubWriterConfig,
+    private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
@@ -182,7 +183,8 @@ internal class JavaStubWriter(
     }
 
     private fun writeConstructorBody(constructor: ConstructorItem) {
-        val optionalSuperConstructor = constructor.containingClass().superConstructor
+        val optionalSuperConstructor =
+            stubConstructorManager.optionalSuperConstructor(constructor.containingClass())
         optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {

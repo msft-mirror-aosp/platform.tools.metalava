@@ -178,4 +178,22 @@ class StubConstructorManager(private val codebase: Codebase) {
             } else next
         }
     }
+
+    /**
+     * Get the optional synthetic constructor, if created, for [classItem].
+     *
+     * If a [ClassItem] does not have an accessible constructor then one will be synthesized for use
+     * by subclasses. This method returns that constructor, or `null` if there was no synthetic
+     * constructor.
+     */
+    fun optionalSyntheticConstructor(classItem: ClassItem): ConstructorItem? {
+        val stubConstructor = classItem.stubConstructor ?: return null
+        if (stubConstructor in classItem.constructors()) return null
+        return stubConstructor
+    }
+
+    /** Get the optional super constructor, if needed, for [classItem]. */
+    fun optionalSuperConstructor(classItem: ClassItem): ConstructorItem? {
+        return classItem.superConstructor
+    }
 }
