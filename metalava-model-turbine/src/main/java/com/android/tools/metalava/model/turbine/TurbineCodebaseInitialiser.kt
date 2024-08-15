@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -37,23 +38,26 @@ import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocume
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
+import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.FieldValue
-import com.android.tools.metalava.model.source.SourceItemDocumentation
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.findPackage
+import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -70,7 +74,6 @@ import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
 import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
 import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
 import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
-import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.lookup.LookupKey
@@ -113,27 +116,29 @@ import javax.lang.model.element.TypeElement
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
  */
-internal open class TurbineCodebaseInitialiser(
-    private val codebase: TurbineBasedCodebase,
+internal class TurbineCodebaseInitialiser(
+    codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
     private val allowReadingComments: Boolean,
-) : CodebaseAssembler {
+) : DefaultCodebaseAssembler() {
+
+    internal val codebase = codebaseFactory(this)
+
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
-    /** Map between ClassSymbols and TurbineClass for classes present in source */
-    private lateinit var sourceClassMap: ImmutableMap<ClassSymbol, SourceTypeBoundClass>
-
-    /** Map between ClassSymbols and TurbineClass for classes present in classPath */
-    private lateinit var envClassMap: CompoundEnv<ClassSymbol, BytecodeBoundClass>
+    /**
+     * Map between ClassSymbols and TurbineClass for classes present on the source path or the class
+     * path
+     */
+    private lateinit var envClassMap: CompoundEnv<ClassSymbol, TypeBoundClass>
 
     private lateinit var index: TopLevelIndex
 
     /** Map between Class declaration and the corresponding source CompUnit */
     private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf()
 
-    private val globalTypeItemFactory =
-        TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
+    private val globalTypeItemFactory = TurbineTypeItemFactory(this, TypeParameterScope.empty)
 
     /** Creates [Item] instances for [codebase]. */
     override val itemFactory =
@@ -187,36 +192,125 @@ internal open class TurbineCodebaseInitialiser(
                     ClassPathBinder.bindClasspath(listOf()),
                     Optional.empty()
                 )!!
-            sourceClassMap = bindingResult.units()
-            envClassMap = bindingResult.classPathEnv()
             index = bindingResult.tli()
         } catch (e: Throwable) {
             throw e
         }
-        // maps class symbols to their source-based definitions
+        val sourceClassMap = bindingResult.units()
+        // Maps class symbols to their source-based definitions
         val sourceEnv = SimpleEnv(sourceClassMap)
-        // maps class symbols to their classpath-based definitions
-        val classpathEnv: CompoundEnv<ClassSymbol, TypeBoundClass> = CompoundEnv.of(envClassMap)
-        // provides a unified view of both source and classpath classes
-        val combinedEnv = classpathEnv.append(sourceEnv)
+
+        // Maps class symbols to their classpath-based definitions
+        val classPathEnv = bindingResult.classPathEnv()
+
+        // Provides a unified view of both source and classpath classes. Although, the `sourceEnv`
+        // is appended to the `CompoundEnv` that contains the `classPathEnv`, it is actually
+        // queried first. So, this will search for a class on the source path first and then on the
+        // class path.
+        envClassMap = CompoundEnv.of<ClassSymbol, TypeBoundClass>(classPathEnv).append(sourceEnv)
 
         // used to create language model elements for code analysis
-        val factory = ModelFactory(combinedEnv, ClassLoader.getSystemClassLoader(), index)
+        val factory = ModelFactory(envClassMap, ClassLoader.getSystemClassLoader(), index)
         // provides type-related operations within the Turbine compiler context
         val turbineTypes = TurbineTypes(factory)
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        // Scan the files looking for package.html files and return a map from name to file just in
-        // case they are needed to create packages.
-        val packageHtmlByPackageName = findPackageHtmlFileByPackageName(sources)
-
         // Split units into package-info.java units and normal class units.
         val (packageInfoUnits, classUnits) = units.partition { it.isPackageInfo() }
 
-        createAllPackages(packageInfoUnits, classUnits, packageHtmlByPackageName)
-        createAllClasses()
+        val (packageInfoClasses, sourceClasses) =
+            separatePackageInfoClassesFromRealClasses(sourceClassMap)
+
+        val packageInfoList =
+            combinePackageInfoClassesAndUnits(packageInfoClasses, packageInfoUnits)
+
+        // Scan the files looking for package.html and overview.html files and combine that with
+        // information from package-info.java units to create a comprehensive set of package
+        // documentation just in case they are needed during package creation.
+        val packageDocs =
+            gatherPackageJavadoc(
+                codebase.reporter,
+                sourceSet,
+                packageNameFilter = { true },
+                packageInfoList
+            ) { (unit, packageName, sourceTypeBoundClass) ->
+                val source = unit.source().source()
+                val file = File(unit.source().path())
+                val fileLocation = FileLocation.forFile(file)
+                val comment = getHeaderComments(source).toItemDocumentationFactory()
+
+                // Create a `TurbineSourceFile` for this unit. It is not used here but is used when
+                // creating annotations below.
+                createTurbineSourceFile(unit)
+                val annotations = createAnnotations(sourceTypeBoundClass.annotations())
+
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
+                MutablePackageDoc(packageName, fileLocation, modifiers, comment)
+            }
+
+        // Create a mapping between all the top level classes and their containing `CompUnit` so
+        // that the latter can be looked up in createClass to create a TurbineSourceFile.
+        for (unit in classUnits) {
+            unit.decls().forEach { decl -> classSourceMap[decl] = unit }
+        }
+
+        createAllPackages(packageDocs)
+        createAllClasses(sourceClasses)
     }
+
+    /**
+     * Separate `package-info.java` synthetic classes from real classes.
+     *
+     * Turbine treats a `package-info.java` file as if it created a class called `package-info`.
+     * This method separates the [sourceClassMap] into two, one for the synthetic `package-info`
+     * classes and one for real classes.
+     *
+     * @param sourceClassMap the map from [ClassSymbol] to [SourceTypeBoundClass] for all classes,
+     *   real or synthetic.
+     */
+    private fun separatePackageInfoClassesFromRealClasses(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+    ): Pair<Map<ClassSymbol, SourceTypeBoundClass>, Map<ClassSymbol, SourceTypeBoundClass>> {
+        val packageInfoClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
+        val sourceClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
+        for ((symbol, typeBoundClass) in sourceClassMap) {
+            if (symbol.simpleName() == "package-info") {
+                packageInfoClasses[symbol] = typeBoundClass
+            } else {
+                sourceClasses[symbol] = typeBoundClass
+            }
+        }
+        return Pair(packageInfoClasses, sourceClasses)
+    }
+
+    /**
+     * Encapsulates information needed to create a [DefaultPackageItem] in [gatherPackageJavadoc].
+     */
+    data class PackageInfoClass(
+        val unit: CompUnit,
+        val packageName: String,
+        val sourceTypeBoundClass: SourceTypeBoundClass,
+    )
+
+    /** Combine `package-info.java` synthetic classes and units */
+    private fun combinePackageInfoClassesAndUnits(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+        packageInfoUnits: List<CompUnit>
+    ): List<PackageInfoClass> {
+        // Create a mapping between the package name and the unit.
+        val packageInfoMap = packageInfoUnits.associateBy { getPackageName(it) }
+
+        return sourceClassMap.entries.map { (symbol, typeBoundClass) ->
+            val packageName = symbol.packageName().replace('/', '.')
+            PackageInfoClass(
+                unit = packageInfoMap[packageName]!!,
+                packageName = packageName,
+                sourceTypeBoundClass = typeBoundClass,
+            )
+        }
+    }
+
     /** Map from file path to the [TurbineSourceFile]. */
     private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
 
@@ -248,81 +342,14 @@ internal open class TurbineCodebaseInitialiser(
     private fun CompUnit.isPackageInfo() =
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
-    private fun createAllPackages(
-        packageInfoUnits: List<CompUnit>,
-        classUnits: List<CompUnit>,
-        packageHtmlByPackageName: Map<String, File>,
-    ) {
-        // Create packages for all the package-info.java files.
-        for (unit in packageInfoUnits) {
-            val source = unit.source().source()
-            val sourceFile = createTurbineSourceFile(unit)
-            val doc = getHeaderComments(source)
-            createPackage(getPackageName(unit), sourceFile, doc.toItemDocumentationFactory())
-        }
-
-        // Then, create package items for package.html files.
-        for ((name, file) in packageHtmlByPackageName.entries) {
-            codebase.findPackage(name)
-                ?: createPackage(name, null, SourceItemDocumentation.fromHTML(file.readText()))
-        }
-
-        // Then, create or find a package for every class.
-        for (unit in classUnits) {
-            val name = getPackageName(unit)
-            findOrCreatePackage(name)
-            unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
-        }
-
-        // Finally, make sure that there is a root package.
-        findOrCreatePackage("")
+    private fun createAllPackages(packageDocs: PackageDocs) {
+        // Create packages for all the documentation packages and make sure there is a root package.
+        codebase.packageTracker.createInitialPackages(packageDocs)
     }
 
-    /**
-     * Creates a package and registers it in the codebase's package map.
-     *
-     * Fails if there is a duplicate.
-     */
-    private fun createPackage(
-        name: String,
-        sourceFile: TurbineSourceFile?,
-        documentationFactory: ItemDocumentationFactory,
-    ): PackageItem {
-        codebase.findPackage(name)?.let {
-            error("Duplicate package-info.java files found for $name")
-        }
-
-        val modifiers = TurbineModifierItem.create(codebase, 0, null)
-        val fileLocation = TurbineFileLocation.forTree(sourceFile)
-        val turbinePkgItem =
-            itemFactory.createPackageItem(fileLocation, modifiers, documentationFactory, name)
-        codebase.addPackage(turbinePkgItem)
-        return turbinePkgItem
-    }
-
-    /**
-     * Searches for the package with supplied name in the codebase's package map and if not found
-     * creates the corresponding TurbinePackageItem and adds it to the package map.
-     */
-    private fun findOrCreatePackage(name: String): DefaultPackageItem {
-        codebase.findPackage(name)?.let {
-            return it
-        }
-
-        val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)
-        codebase.addPackage(turbinePkgItem)
-        return turbinePkgItem
-    }
-
-    private fun createAllClasses() {
+    private fun createAllClasses(sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>) {
+        // Iterate over all the classes in the sources.
         for ((classSymbol, sourceBoundClass) in sourceClassMap) {
-
-            // Turbine considers package-info as class and creates one for empty packages which is
-            // not consistent with Psi
-            if (classSymbol.simpleName() == "package-info") {
-                continue
-            }
-
             // Ignore nested classes, they will be created when the outer class is created.
             if (sourceBoundClass.owner() != null) {
                 continue
@@ -331,8 +358,6 @@ internal open class TurbineCodebaseInitialiser(
             val classItem = createTopLevelClassAndContents(classSymbol)
             codebase.addTopLevelClassFromSource(classItem)
         }
-
-        codebase.resolveSuperTypes()
     }
 
     val ClassSymbol.isTopClass
@@ -382,9 +407,10 @@ internal open class TurbineCodebaseInitialiser(
         containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ): ClassItem {
-
-        var cls: TypeBoundClass? = sourceClassMap[sym]
-        cls = if (cls != null) cls else envClassMap.get(sym)!!
+        // Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find
+        // it then look in the class path. It is guaranteed to be found in one of those places as
+        // otherwise there would be no `ClassSymbol`.
+        val cls = envClassMap.get(sym)!!
         val decl = (cls as? SourceTypeBoundClass)?.decl()
 
         val isTopClass = cls.owner() == null
@@ -392,7 +418,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName)
+        val pkgItem = codebase.findOrCreatePackage(pkgName)
 
         // Create the sourcefile
         val sourceFile =
@@ -411,13 +437,10 @@ internal open class TurbineCodebaseInitialiser(
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
-        val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-        val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
         val documentation = javadoc(decl)
         val modifierItem =
             TurbineModifierItem.create(
-                codebase,
                 cls.access(),
                 annotations,
             )
@@ -428,6 +451,25 @@ internal open class TurbineCodebaseInitialiser(
                 "class $qualifiedName",
             )
         val classKind = getClassKind(cls.kind())
+
+        modifierItem.setSynchronized(false) // A class can not be synchronized in java
+
+        if (classKind == ClassKind.ANNOTATION_TYPE) {
+            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
+                modifierItem.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
+            }
+        }
+
+        // Setup the SuperClass
+        val superClassType =
+            if (classKind != ClassKind.INTERFACE) {
+                cls.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+            } else null
+
+        // Set interface types
+        val interfaceTypes = cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
+
+        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
@@ -438,32 +480,11 @@ internal open class TurbineCodebaseInitialiser(
                 containingClass = containingClassItem,
                 containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
-                simpleName = simpleName,
-                fullName = fullName,
                 typeParameterList = typeParameters,
-                isFromClassPath = isFromClassPath,
+                origin = origin,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes,
             )
-        modifierItem.setSynchronized(false) // A class can not be synchronized in java
-
-        if (classKind == ClassKind.ANNOTATION_TYPE) {
-            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
-                modifierItem.addDefaultRetentionPolicyAnnotation(classItem)
-            }
-        }
-
-        // Setup the SuperClass
-        if (!classItem.isInterface()) {
-            val superClassType = cls.superClassType()
-            val superClassTypeItem =
-                if (superClassType == null) null
-                else classTypeItemFactory.getSuperClassType(superClassType)
-            classItem.setSuperClassType(superClassTypeItem)
-        }
-
-        // Set interface types
-        classItem.setInterfaceTypes(
-            cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
-        )
 
         // Create fields
         createFields(classItem, cls.fields(), classTypeItemFactory)
@@ -476,7 +497,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Do not emit to signature file if it is from classpath
         if (isFromClassPath) {
-            pkgItem.emit = false
             classItem.emit = false
         }
 
@@ -693,8 +713,7 @@ internal open class TurbineCodebaseInitialiser(
      * the same [TypeParameterList] can be resolved.
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
-        val modifiers =
-            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()))
+        val modifiers = TurbineModifierItem.create(0, createAnnotations(param.annotations()))
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -742,7 +761,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl = field.decl()
             val fieldModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     flags,
                     annotations,
                 )
@@ -791,7 +809,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl: MethDecl? = method.decl()
             val methodModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     method.access(),
                     annotations,
                 )
@@ -865,7 +882,7 @@ internal open class TurbineCodebaseInitialiser(
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
             val parameterModifierItem =
-                TurbineModifierItem.create(codebase, parameter.access(), annotations)
+                TurbineModifierItem.create(parameter.access(), annotations).toImmutable()
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
@@ -880,21 +897,23 @@ internal open class TurbineCodebaseInitialiser(
                     parameterDecls.get(idx - declaredParameterOffset)
                 else null
 
+            val fileLocation =
+                TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
             val parameterItem =
                 itemFactory.createParameterItem(
-                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl),
-                    parameterModifierItem,
-                    parameter.name(),
-                    { item ->
+                    fileLocation = fileLocation,
+                    modifiers = parameterModifierItem,
+                    name = parameter.name(),
+                    publicNameProvider = { item ->
                         // Java: Look for @ParameterName annotation
                         val modifiers = item.modifiers
                         val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
                         annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
                     },
-                    containingCallable,
-                    idx,
-                    type,
-                    TurbineDefaultValue(parameterModifierItem),
+                    containingCallable = containingCallable,
+                    parameterIndex = idx,
+                    type = type,
+                    defaultValueFactory = { TurbineDefaultValue(parameterModifierItem) },
                 )
             parameterItem
         }
@@ -913,7 +932,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     constructor.access(),
                     annotations,
                 )
@@ -1096,42 +1114,8 @@ internal open class TurbineCodebaseInitialiser(
     internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }
 
-/**
- * Finds `package.html` files in the source and returns a mapping from the package name, obtained
- * from the file path, to the file.
- */
-private fun findPackageHtmlFileByPackageName(files: List<File>): Map<String, File> {
-    return files
-        .filter { it.isFile && it.name == "package.html" }
-        .associateBy({ findPackageName(it) }) { it }
-}
-
 private fun getSourceFiles(sources: List<File>): List<SourceFile> {
     return sources
         .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
         .map { SourceFile(it.path, it.readText()) }
-}
-
-/**
- * Attempts to find the package name by looking for any Java class files in the same directory, if
- * unsuccessful, it will guess based on the directory structure.
- */
-private fun findPackageName(file: File): String {
-    // First try to find a package name using the utility method which might analyze the java
-    // file
-    file.parentFile
-        .listFiles()
-        ?.filter { it.isFile && it.extension == "java" }
-        ?.forEach { javaFile ->
-            findPackage(javaFile)?.let {
-                return it
-            }
-        }
-
-    // If no class file with package declaration was found, deduce from the directory structure
-    return file.parentFile.absolutePath
-        .split(File.separatorChar)
-        .dropWhile { it != "java" }
-        .drop(1)
-        .joinToString(".")
 }

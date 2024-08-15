@@ -80,7 +80,7 @@ internal class PsiItemDocumentation(
 
         // We can't just use element.docComment here because we may have modified the comment and
         // then the comment snapshot in PSI isn't up-to-date with our latest changes
-        val docComment = item.codebase.getComment(text)
+        val docComment = item.codebase.psiAssembler.getComment(text)
         val tagComment =
             if (value == null) {
                 docComment.findTagByName(tag)
@@ -116,7 +116,7 @@ internal class PsiItemDocumentation(
 
     override fun findMainDocumentation(): String {
         if (text == "") return text
-        val comment = item.codebase.getComment(text)
+        val comment = item.codebase.psiAssembler.getComment(text)
         val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
         return comment.text.substring(0, end)
     }
@@ -126,10 +126,10 @@ internal class PsiItemDocumentation(
             return documentation
         }
 
-        val codebase = item.codebase
+        val assembler = item.codebase.psiAssembler
         val comment =
             try {
-                codebase.getComment(documentation, psi)
+                assembler.getComment(documentation, psi)
             } catch (throwable: Throwable) {
                 // TODO: Get rid of line comments as documentation
                 // Invalid comment
@@ -138,7 +138,7 @@ internal class PsiItemDocumentation(
                         documentation.substring(documentation.indexOf("/**"))
                     )
                 }
-                codebase.getComment(documentation, psi)
+                assembler.getComment(documentation, psi)
             }
         return buildString(documentation.length) { expand(comment, this) }
     }
@@ -341,7 +341,7 @@ internal class PsiItemDocumentation(
                     val referenceElement = firstChildPsi as PsiJavaCodeReferenceElement?
                     val referencedElement = referenceElement!!.resolve()
                     if (referencedElement is PsiClass) {
-                        var className = PsiClassItem.computeFullClassName(referencedElement)
+                        var className = computeFullClassName(referencedElement)
                         if (className.indexOf('.') != -1 && !referenceText.startsWith(className)) {
                             val simpleName = referencedElement.name
                             if (simpleName != null && referenceText.startsWith(simpleName)) {
@@ -705,5 +705,30 @@ internal class PsiItemDocumentation(
 
             return ""
         }
+    }
+}
+
+/**
+ * Computes the "full" class name; this is not the qualified class name (e.g. with package) but for
+ * a nested class it includes all the outer classes
+ */
+private fun computeFullClassName(cls: PsiClass): String {
+    if (cls.containingClass == null) {
+        val name = cls.name
+        return name!!
+    } else {
+        val list = mutableListOf<String>()
+        var curr: PsiClass? = cls
+        while (curr != null) {
+            val name = curr.name
+            curr =
+                if (name != null) {
+                    list.add(name)
+                    curr.containingClass
+                } else {
+                    break
+                }
+        }
+        return list.asReversed().joinToString(separator = ".") { it }
     }
 }
