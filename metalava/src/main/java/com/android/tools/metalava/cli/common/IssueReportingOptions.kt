@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.DefaultReporter
-import com.android.tools.metalava.DefaultReporterEnvironment
-import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
@@ -35,15 +35,12 @@ import java.io.File
 const val ARG_ERROR = "--error"
 const val ARG_ERROR_WHEN_NEW = "--error-when-new"
 const val ARG_WARNING = "--warning"
-const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
 const val ARG_ERROR_CATEGORY = "--error-category"
 const val ARG_ERROR_WHEN_NEW_CATEGORY = "--error-when-new-category"
 const val ARG_WARNING_CATEGORY = "--warning-category"
-const val ARG_LINT_CATEGORY = "--lint-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
 
-const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 
 const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
@@ -77,7 +74,7 @@ class IssueReportingOptions(
      * A slight complexity is that this [Reporter] and its [IssueConfiguration] are both modified
      * and used during the process of processing the options.
      */
-    internal val bootstrapReporter: Reporter =
+    internal val bootstrapReporter: DefaultReporter =
         DefaultReporter(
             reporterEnvironment,
             issueConfiguration,
@@ -134,17 +131,6 @@ class IssueReportingOptions(
         registerOption(issueOption)
     }
 
-    private val lintsAsErrors: Boolean by
-        option(
-                ARG_LINTS_AS_ERRORS,
-                help =
-                    """
-                        Promote all API lint issues to errors.
-                    """
-                        .trimIndent()
-            )
-            .flag()
-
     private val warningsAsErrors: Boolean by
         option(
                 ARG_WARNINGS_AS_ERRORS,
@@ -185,9 +171,8 @@ class IssueReportingOptions(
             val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
 
             DefaultReporter.Config(
-                lintsAsErrors = lintsAsErrors,
                 warningsAsErrors = warningsAsErrors,
-                terminal = commonOptions.terminal,
+                outputReportFormatter = TerminalReportFormatter.forTerminal(commonOptions.terminal),
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
             )
         }
@@ -277,12 +262,6 @@ private enum class ConfigLabel(
         ConfigurableAspect.ISSUE,
         "Report issues of the given id as warnings.",
     ),
-    LINT(
-        ARG_LINT,
-        Severity.LINT,
-        ConfigurableAspect.ISSUE,
-        "Report issues of the given id as having lint-severity.",
-    ),
     HIDE(
         ARG_HIDE,
         Severity.HIDDEN,
@@ -306,12 +285,6 @@ private enum class ConfigLabel(
         Severity.WARNING,
         ConfigurableAspect.CATEGORY,
         "Report all issues in the given category as warnings.",
-    ),
-    LINT_CATEGORY(
-        ARG_LINT_CATEGORY,
-        Severity.LINT,
-        ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as having lint-severity.",
     ),
     HIDE_CATEGORY(
         ARG_HIDE_CATEGORY,

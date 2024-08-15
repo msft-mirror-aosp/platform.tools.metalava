@@ -21,9 +21,12 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 class CommonModelTest : BaseModelTest() {
@@ -81,14 +84,21 @@ class CommonModelTest : BaseModelTest() {
             ),
         ) {
             // Iterate over the codebase and try and find every item that is visited.
+            val items = mutableListOf<Item>()
             codebase.accept(
                 object : BaseItemVisitor() {
                     override fun visitItem(item: Item) {
                         val foundItem = item.findCorrespondingItemIn(codebase)
                         assertSame(item, foundItem)
+                        foundItem?.let { items += it }
                     }
                 }
             )
+
+            // Make sure that at least 11 items were found, that is every item listed in the input
+            // but does not include implicit items that may be found from elsewhere, e.g. classpath.
+            // TODO: The actual number varies from model to model which needs rectifying.
+            assertThat(items.size).isAtLeast(11)
         }
     }
 
@@ -229,6 +239,63 @@ class CommonModelTest : BaseModelTest() {
     }
 
     @Test
+    fun `test findCorrespondingItemIn does duplicate super methods`() {
+        val pairs = pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests
+        runCodebaseTest(*pairs.map { it.first }.toTypedArray()) {
+            val previouslyReleased = codebase
+            val previouslyReleasedFooFoo =
+                previouslyReleased.assertClass("test.pkg.Foo").assertMethod("foo", "int")
+            val previouslyReleasedFooFooParameter = previouslyReleasedFooFoo.parameters().first()
+            runCodebaseTest(*pairs.map { it.second }.toTypedArray()) {
+                val latest = codebase
+                val fooFoo = latest.assertClass("test.pkg.Foo").assertMethod("foo", "int")
+                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", "int")
+
+                // Make sure that super methods are not duplicated when requested unless necessary.
+                val correspondingFooFooMethodItem =
+                    fooFoo.findCorrespondingItemIn(
+                        previouslyReleased,
+                        superMethods = true,
+                        duplicate = true,
+                    )
+
+                assertSame(previouslyReleasedFooFoo, correspondingFooFooMethodItem)
+
+                // Make sure that super methods are duplicated when requested and necessary.
+                val correspondingBarFooMethodItem =
+                    barFoo.findCorrespondingItemIn(
+                        previouslyReleased,
+                        superMethods = true,
+                        duplicate = true,
+                    )
+
+                assertNotNull(correspondingBarFooMethodItem)
+                assertNotSame(previouslyReleasedFooFoo, correspondingBarFooMethodItem)
+                assertEquals(
+                    barFoo.containingClass().qualifiedName(),
+                    correspondingBarFooMethodItem.containingClass().qualifiedName()
+                )
+
+                // Ditto for the parameter.
+                val barFooParameter = barFoo.parameters().first()
+                val correspondingBarFooParameterItem =
+                    barFooParameter.findCorrespondingItemIn(
+                        previouslyReleased,
+                        superMethods = true,
+                        duplicate = true,
+                    )
+
+                assertNotNull(correspondingBarFooParameterItem)
+                assertNotSame(previouslyReleasedFooFooParameter, correspondingBarFooParameterItem)
+                assertEquals(
+                    barFoo.containingClass().qualifiedName(),
+                    correspondingBarFooParameterItem.containingClass().qualifiedName()
+                )
+            }
+        }
+    }
+
+    @Test
     fun `Test iterate and resolve unknown super classes`() {
         // TODO(b/323516595): Find a better way.
         runCodebaseTest(
@@ -264,11 +331,19 @@ class CommonModelTest : BaseModelTest() {
                 ),
             ),
         ) {
-            // Iterate over the codebase and try and find every item that is visited.
+            // Iterate over the codebase classes and resolve the super class of every class visited.
+            val items = mutableListOf<Item>()
             for (classItem in codebase.getPackages().allClasses()) {
+                items += classItem
                 // Resolve the super class which might trigger a change in the packages/classes.
-                classItem.superClass()
+                classItem.superClass()?.let { items += it }
             }
+
+            // Make sure that at least 2 items were found, that is every item listed in the input
+            // but does not include undefined classes which are treated differently in text model to
+            // other models.
+            // TODO: The actual number varies from model to model which needs rectifying.
+            assertThat(items.size).isAtLeast(2)
         }
     }
 
@@ -308,14 +383,23 @@ class CommonModelTest : BaseModelTest() {
                 ),
             ),
         ) {
-            // Iterate over the codebase and try and find every item that is visited.
+            // Iterate over the codebase classes and resolve the super interfaces of every class
+            // visited.
+            val items = mutableListOf<Item>()
             for (classItem in codebase.getPackages().allClasses()) {
+                items += classItem
                 for (interfaceType in classItem.interfaceTypes()) {
                     // Resolve the interface type which might trigger a change in the
                     // packages/classes.
-                    interfaceType.asClass()
+                    interfaceType.asClass()?.let { items += it }
                 }
             }
+
+            // Make sure that at least 2 items were found, that is every item listed in the input
+            // but does not include undefined classes which are treated differently in text model to
+            // other models.
+            // TODO: The actual number varies from model to model which needs rectifying.
+            assertThat(items.size).isAtLeast(2)
         }
     }
 
