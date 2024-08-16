@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import kotlin.test.assertEquals
@@ -233,8 +234,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
         val args =
             arrayOf(
-                ARG_HIDE_PACKAGE,
-                "android.annotation",
                 "--warning",
                 "UnflaggedApi",
                 *apiVersionsArgs,
@@ -258,6 +257,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         addAll(sourceFiles)
                         addAll(annotationsList)
                         add(flagsFile)
+                        // Hide android.annotation classes.
+                        add(KnownSourceFiles.androidAnnotationHide)
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
@@ -1324,6 +1325,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         public void nativeMethod() { throw new RuntimeException("Stub!"); }
                         public static final int field;
+                        static { field = 0; }
                         }
                     """
                 ),
