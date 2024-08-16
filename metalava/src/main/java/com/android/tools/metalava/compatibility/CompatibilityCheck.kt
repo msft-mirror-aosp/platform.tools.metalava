@@ -26,19 +26,21 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -816,7 +818,7 @@ class CompatibilityCheck(
     }
 
     @Suppress("DEPRECATION")
-    private fun handleAdded(issue: Issue, item: Item) {
+    private fun handleAdded(issue: Issue, item: SelectableItem) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
             // some public API. This is an error, but some existing code
@@ -880,7 +882,7 @@ class CompatibilityCheck(
             // API is OK (e.g. overriding toString() from java.lang.Object)
             val superMethods = new.superMethods()
             for (superMethod in superMethods) {
-                if (superMethod.isFromClassPath()) {
+                if (superMethod.origin == ClassOrigin.CLASS_PATH) {
                     return
                 }
             }
@@ -923,13 +925,9 @@ class CompatibilityCheck(
                             new.modifiers.isStatic() -> Issues.ADDED_METHOD
                             new.modifiers.isDefault() -> {
                                 // Hack to always mark added Kotlin interface methods as abstract
-                                // until
-                                // we properly support JVM default methods for Kotlin. This has to
-                                // check
-                                // if it's a PsiItem because TextItem doesn't support isKotlin.
-                                //
+                                // until we properly support JVM default methods for Kotlin.
                                 // TODO(b/200077254): Remove Kotlin special case
-                                if (new is PsiItem && new.isKotlin()) {
+                                if (new.itemLanguage == ItemLanguage.KOTLIN) {
                                     Issues.ADDED_ABSTRACT_METHOD
                                 } else {
                                     Issues.ADDED_METHOD
@@ -999,7 +997,7 @@ class CompatibilityCheck(
      * Otherwise, an [Item] will be treated as it was removed it if it is hidden/removed or the
      * [possibleMatch] does not match.
      */
-    private fun Item.treatAsRemoved(possibleMatch: MethodItem) =
+    private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
         !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
     override fun removed(old: FieldItem, from: ClassItem?) {

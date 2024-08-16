@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
@@ -27,34 +28,28 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
-import java.util.Collections
-import java.util.IdentityHashMap
 import java.util.Locale
 import java.util.function.Predicate
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.uast.UClass
 
 /**
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
@@ -120,163 +115,9 @@ class ApiAnalyzer(
         propagateHiddenRemovedAndDocOnly()
     }
 
-    fun addConstructors(filter: Predicate<Item>) {
-        // Let's say we have
-        //  class GrandParent { public GrandParent(int) {} }
-        //  class Parent {  Parent(int) {} }
-        //  class Child { public Child(int) {} }
-        //
-        // Here Parent's constructor is not public. For normal stub generation we'd end up with
-        // this:
-        //  class GrandParent { public GrandParent(int) {} }
-        //  class Parent { }
-        //  class Child { public Child(int) {} }
-        //
-        // This doesn't compile - Parent can't have a default constructor since there isn't
-        // one for it to invoke on GrandParent.
-        //
-        // we can generate a fake constructor instead, such as
-        //   Parent() { super(0); }
-        //
-        // But it's hard to do this lazily; what if we're generating the Child class first?
-        // Therefore, we'll instead walk over the hierarchy and insert these constructors into the
-        // Item hierarchy such that code generation can find them.
-        //
-        // We also need to handle the throws list, so we can't just unconditionally insert package
-        // private constructors
-
-        // Keep track of all the ClassItems that have been visited so classes are only visited once.
-        val visited = Collections.newSetFromMap(IdentityHashMap<ClassItem, Boolean>())
-
-        // Add constructors to the classes by walking up the super hierarchy and recursively add
-        // constructors; we'll do it recursively to make sure that the superclass has had its
-        // constructors initialized first (such that we can match the parameter lists and throws
-        // signatures), and we use the tag fields to avoid looking at all the internal classes more
-        // than once.
-        packages
-            .allClasses()
-            .filter { filter.test(it) }
-            .forEach { addConstructors(it, filter, visited) }
-    }
-
-    /**
-     * Handle computing constructor hierarchy.
-     *
-     * We'll be setting several attributes: [ClassItem.stubConstructor] : The default constructor to
-     * invoke in this class from subclasses. **NOTE**: This constructor may not be part of the
-     * [ClassItem.constructors] list, e.g. for package private default constructors we've inserted
-     * (because there were no public constructors or constructors not using hidden parameter types.)
-     *
-     * [ConstructorItem.superConstructor] : The default constructor to invoke.
-     *
-     * @param visited contains the [ClassItem]s that have already been visited; this method adds
-     *   [cls] to it so [cls] will not be visited again.
-     */
-    private fun addConstructors(
-        cls: ClassItem,
-        filter: Predicate<Item>,
-        visited: MutableSet<ClassItem>
-    ) {
-        // What happens if we have
-        //  package foo:
-        //     public class A { public A(int) }
-        //  package bar
-        //     public class B extends A { public B(int) }
-        // If we just try inserting package private constructors here things will NOT work:
-        //  package foo:
-        //     public class A { public A(int); A() {} }
-        //  package bar
-        //     public class B extends A { public B(int); B() }
-        // because A <() is not accessible from B() -- it's outside the same package.
-        //
-        // So, we'll need to model the real constructors for all the scenarios where that works.
-        //
-        // The remaining challenge is that there will be some gaps: when we don't have a default
-        // constructor, subclass constructors will have to have an explicit super(args) call to pick
-        // the parent constructor to use. And which one? It generally doesn't matter; just pick one,
-        // but unfortunately, the super constructor can throw exceptions, and in that case the
-        // subclass constructor must also throw all those exceptions (you can't surround a super
-        // call with try/catch.)
-        //
-        // Luckily, this does not seem to be an actual problem with any of the source code that
-        // metalava currently processes. If it did become a problem then the solution would be to
-        // pick super constructors with a compatible set of throws.
-
-        if (cls in visited) {
-            return
-        }
-
-        // Don't add constructors to interfaces, enums, annotations, etc
-        if (!cls.isClass()) {
-            return
-        }
-
-        // Remember that we have visited this class so that it is not visited again. This does not
-        // strictly need to be done before visiting the super classes as there should not be cycles
-        // in the class hierarchy. However, if due to some invalid input there is then doing this
-        // here will prevent those cycles from causing a stack overflow.
-        visited.add(cls)
-
-        // First handle its super class hierarchy to make sure that we've already constructed super
-        // classes.
-        val superClass = cls.filteredSuperclass(filter)
-        superClass?.let { addConstructors(it, filter, visited) }
-
-        val superDefaultConstructor = superClass?.stubConstructor
-        if (superDefaultConstructor != null) {
-            cls.constructors().forEach { constructor ->
-                constructor.superConstructor = superDefaultConstructor
-            }
-        }
-
-        // Find default constructor, if one doesn't exist
-        val filteredConstructors = cls.filteredConstructors(filter).toList()
-        cls.stubConstructor =
-            if (filteredConstructors.isNotEmpty()) {
-                // Try to pick the constructor, select first by fewest throwables,
-                // then fewest parameters, then based on order in listFilter.test(cls)
-                filteredConstructors.reduce { first, second -> pickBest(first, second) }
-            } else if (
-                cls.constructors().isNotEmpty() ||
-                    // For text based codebase, stub constructor needs to be generated even if
-                    // cls.constructors() is empty, so that public default constructor is not
-                    // created.
-                    cls.codebase.preFiltered
-            ) {
-
-                // No accessible constructors are available so a package private constructor is
-                // created. Technically, the stub now has a constructor that isn't available at
-                // runtime, but apps creating subclasses inside the android.* package is not
-                // supported.
-                cls.createDefaultConstructor().also {
-                    it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
-                    it.superConstructor = superDefaultConstructor
-                }
-            } else {
-                null
-            }
-    }
-
     // TODO: Annotation test: @ParameterName, if present, must be supplied on *all* the arguments!
     // Warn about @DefaultValue("null"); they probably meant @DefaultNull
     // Supplying default parameter in override is not allowed!
-
-    private fun pickBest(current: ConstructorItem, next: ConstructorItem): ConstructorItem {
-        val currentThrowsCount = current.throwsTypes().size
-        val nextThrowsCount = next.throwsTypes().size
-
-        return if (currentThrowsCount < nextThrowsCount) {
-            current
-        } else if (currentThrowsCount > nextThrowsCount) {
-            next
-        } else {
-            val currentParameterCount = current.parameters().size
-            val nextParameterCount = next.parameters().size
-            if (currentParameterCount <= nextParameterCount) {
-                current
-            } else next
-        }
-    }
 
     fun generateInheritedStubs(filterEmit: Predicate<Item>, filterReference: Predicate<Item>) {
         // When analyzing libraries we may discover some new classes during traversal; these aren't
@@ -554,12 +395,8 @@ class ApiAnalyzer(
     /** If a file facade class has no public members, don't add it to the api */
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
-            val psi = (cls as? PsiClassItem)?.psi()
             if (
-                psi != null &&
-                    psi.isKotlin() &&
-                    psi is UClass &&
-                    psi.javaPsi is KtLightClassForFacade &&
+                cls.isFileFacade() &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
@@ -584,7 +421,7 @@ class ApiAnalyzer(
         val mergeQualifierAnnotations = config.mergeQualifierAnnotations
         if (mergeQualifierAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeQualifierAnnotations(mergeQualifierAnnotations)
+                .mergeQualifierAnnotationsFromFiles(mergeQualifierAnnotations)
         }
     }
 
@@ -593,7 +430,7 @@ class ApiAnalyzer(
         val mergeInclusionAnnotations = config.mergeInclusionAnnotations
         if (mergeInclusionAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeInclusionAnnotations(mergeInclusionAnnotations)
+                .mergeInclusionAnnotationsFromFiles(mergeInclusionAnnotations)
         }
     }
 
@@ -602,171 +439,34 @@ class ApiAnalyzer(
      * methods and fields are hidden etc
      */
     private fun propagateHiddenRemovedAndDocOnly() {
-        // Iterate over the packages first and propagate hidden and docOnly down the package nesting
-        // structure, from containing to contained packages. This relies on the packages being kept
-        // in nesting order (i.e. containing package before any contained package).
-        //
-        // This must be done separate to the updating of the classes as that can change the hidden
-        // status of the containing package which would preventing it being propagated correctly
-        // onto its contained packages.
-        for (pkg in packages.packages) {
-            pkg.showability.let { showability ->
-                when {
-                    showability.show() -> pkg.hidden = false
-                    showability.hide() -> pkg.hidden = true
-                }
-            }
-            val containingPackage = pkg.containingPackage()
-            if (containingPackage != null) {
-                if (containingPackage.hidden && !containingPackage.isDefault) {
-                    pkg.hidden = true
-                }
-                if (containingPackage.docOnly) {
-                    pkg.docOnly = true
-                }
-            }
-
-            // If this package is hidden then hide its classes. This is done here to avoid ordering
-            // issues when a class with a show annotation unhides its containing package.
-            val hidden = pkg.hidden
-            val docOnly = pkg.docOnly
-            val removed = pkg.removed
-            if (hidden || docOnly || removed) {
-                for (topLevelClass in pkg.topLevelClasses()) {
-                    val showability = topLevelClass.showability
-                    if (!showability.show() && !showability.hide()) {
-                        if (hidden) {
-                            topLevelClass.hidden = true
-                        }
-                        if (hidden) {
-                            topLevelClass.docOnly = true
-                        }
-                        if (removed) {
-                            topLevelClass.removed = true
-                        }
-                    }
-                }
-            }
-        }
-
-        // Create a visitor to propagate the propagate hidden and docOnly from the containing
-        // package onto the top level classes and then propagate them, and removed status, down onto
-        // the nested classes and members.
+        // Create a visitor to propagate hidden and docOnly from the containing package onto the top
+        // level classes and then propagate them, and removed status, down onto the nested classes
+        // and members.
         val visitor =
             object : BaseItemVisitor(preserveClassNesting = true) {
 
+                override fun visitPackage(pkg: PackageItem) {
+                    pkg.variantSelectors.inheritInto()
+                }
+
                 override fun visitClass(cls: ClassItem) {
-                    val containingClass = cls.containingClass()
-                    val showability = cls.showability
-                    if (showability.show()) {
-                        cls.hidden = false
-                        // Make containing package non-hidden if it contains a show-annotation
-                        // class. Doclava does this in PackageInfo.isHidden(). This logic is why it
-                        // is necessary to visit packages before visiting any of their classes.
-                        cls.containingPackage().hidden = false
-                        if (containingClass != null) {
-                            ensureParentVisible(cls)
-                        }
-                    } else if (showability.hide()) {
-                        cls.hidden = true
-                    } else if (containingClass != null) {
-                        if (containingClass.hidden) {
-                            cls.hidden = true
-                        } else if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // See explanation in visitMethod
-                            cls.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            cls.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            cls.removed = true
-                        }
-                    }
+                    cls.variantSelectors.inheritInto()
                 }
 
                 override fun visitCallable(callable: CallableItem) {
-                    val showability = callable.showability
-                    if (showability.show()) {
-                        callable.hidden = false
-                        ensureParentVisible(callable)
-                    } else if (showability.hide()) {
-                        callable.hidden = true
-                    } else {
-                        val containingClass = callable.containingClass()
-                        if (containingClass.hidden) {
-                            callable.hidden = true
-                        } else if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // This is a member in a class that was hidden but then unhidden;
-                            // but it was unhidden by a non-recursive (single) show annotation, so
-                            // don't inherit the show annotation into this item.
-                            callable.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            callable.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            callable.removed = true
-                        }
-                    }
+                    callable.variantSelectors.inheritInto()
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val showability = field.showability
-                    if (showability.show()) {
-                        field.hidden = false
-                        ensureParentVisible(field)
-                    } else if (showability.hide()) {
-                        field.hidden = true
-                    } else {
-                        val containingClass = field.containingClass()
-                        if (
-                            containingClass.originallyHidden &&
-                                containingClass.showability.showNonRecursive()
-                        ) {
-                            // See explanation in visitMethod
-                            field.hidden = true
-                        }
-                        if (containingClass.docOnly) {
-                            field.docOnly = true
-                        }
-                        if (containingClass.removed) {
-                            field.removed = true
-                        }
-                    }
-                }
-
-                private fun ensureParentVisible(item: Item) {
-                    val parent = item.parent() ?: return
-                    if (!parent.hidden) {
-                        return
-                    }
-                    item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
-                        violatingAnnotation ->
-                        reporter.report(
-                            Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
-                            item,
-                            "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                                "hidden and should also be annotated with $violatingAnnotation"
-                        )
-                    }
+                    field.variantSelectors.inheritInto()
                 }
             }
 
-        // Just visit the top level classes as packages have already been dealt with.
-        for (topLevelClass in packages.allTopLevelClasses()) {
-            topLevelClass.accept(visitor)
-        }
+        codebase.accept(visitor)
     }
 
     private fun checkSystemPermissions(method: MethodItem) {
-        val annotation = method.modifiers.findAnnotation(ANDROID_REQUIRES_PERMISSION)
+        val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
         if (annotation != null) {
@@ -864,7 +564,7 @@ class ApiAnalyzer(
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
                 config.allShowAnnotations.isNotEmpty()
 
-        packages.accept(
+        codebase.accept(
             object :
                 ApiVisitor(
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
@@ -990,7 +690,10 @@ class ApiAnalyzer(
                         object : BaseTypeVisitor() {
                             override fun visitClassType(classType: ClassTypeItem) {
                                 val cls = classType.asClass() ?: return
-                                if (!filterReference.test(cls) && !cls.isFromClassPath()) {
+                                if (
+                                    !filterReference.test(cls) &&
+                                        cls.origin != ClassOrigin.CLASS_PATH
+                                ) {
                                     reporter.report(
                                         Issues.HIDDEN_TYPE_PARAMETER,
                                         item,
@@ -1093,7 +796,7 @@ class ApiAnalyzer(
         from: Item,
         usage: String
     ) {
-        if (cl.isFromClassPath()) {
+        if (cl.origin == ClassOrigin.CLASS_PATH) {
             return
         }
 
@@ -1148,7 +851,7 @@ class ApiAnalyzer(
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (!superItem.isFromClassPath()) {
+                if (superItem.origin != ClassOrigin.CLASS_PATH) {
                     reporter.report(
                         Issues.HIDDEN_SUPERCLASS,
                         cl,
@@ -1165,7 +868,7 @@ class ApiAnalyzer(
                 //   cantStripThis(superClass, filter, notStrippable, stubImportPackages, cl, "as
                 // super class")
 
-                if (superItem.isPrivate && !superItem.isFromClassPath()) {
+                if (superItem.isPrivate && superItem.origin != ClassOrigin.CLASS_PATH) {
                     reporter.report(
                         Issues.PRIVATE_SUPERCLASS,
                         cl,
@@ -1267,7 +970,7 @@ class ApiAnalyzer(
         val hiddenClasses = findHiddenClasses(type)
         val typeClassName = (type as? ClassTypeItem)?.qualifiedName
         for (hiddenClass in hiddenClasses) {
-            if (hiddenClass.isFromClassPath()) continue
+            if (hiddenClass.origin == ClassOrigin.CLASS_PATH) continue
             if (hiddenClass.qualifiedName() == typeClassName) {
                 // The type itself is hidden
                 reporter.report(
@@ -1327,7 +1030,7 @@ private fun String.capitalize(): String {
 }
 
 /** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
-private fun Item.isApiCandidate(): Boolean {
+private fun SelectableItem.isApiCandidate(): Boolean {
     return !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
 }
 
