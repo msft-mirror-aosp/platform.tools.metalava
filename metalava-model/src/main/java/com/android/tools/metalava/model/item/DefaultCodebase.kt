@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MutableCodebase
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
@@ -70,8 +71,7 @@ open class DefaultCodebase(
     fun findOrCreatePackage(
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
-        emit: Boolean = true,
-    ) = packageTracker.findOrCreatePackage(packageName, packageDocs, emit)
+    ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
 
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {
@@ -94,7 +94,7 @@ open class DefaultCodebase(
      */
     private val topLevelClassesFromSource: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
 
-    override fun getTopLevelClassesFromSource(): List<ClassItem> {
+    final override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
     }
 
@@ -117,19 +117,28 @@ open class DefaultCodebase(
         findClassInCodebase(className) ?: externalClassesByName[className]
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    override fun registerClass(classItem: DefaultClassItem) {
+    final override fun registerClass(classItem: DefaultClassItem): Boolean {
+        // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
-        val existing = allClassesByName.put(qualifiedName, classItem)
+        val existing = allClassesByName[qualifiedName]
         if (existing != null) {
-            error(
+            reporter.report(
+                Issues.DUPLICATE_SOURCE_CLASS,
+                classItem,
                 "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
             )
+            // The class was not registered.
+            return false
         }
 
-        addClass(classItem)
+        // Register it by name.
+        allClassesByName[qualifiedName] = classItem
 
         // Perform any subclass specific processing on the newly registered class.
         assembler.newClassRegistered(classItem)
+
+        // The class was registered.
+        return true
     }
 
     /** Map from name to an external class that was registered using [] */
@@ -153,7 +162,7 @@ open class DefaultCodebase(
         return created
     }
 
-    final override fun createAnnotation(
+    open override fun createAnnotation(
         source: String,
         context: Item?,
     ): AnnotationItem? {

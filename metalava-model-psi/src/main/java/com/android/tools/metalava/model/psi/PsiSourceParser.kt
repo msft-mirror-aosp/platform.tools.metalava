@@ -28,8 +28,12 @@ import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Reporter
+import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.pom.java.LanguageLevel
+import com.intellij.psi.ClassTypePointerFactory
+import com.intellij.psi.impl.smartPointers.PsiClassReferenceTypePointerFactory
 import java.io.File
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
@@ -129,20 +133,24 @@ internal class PsiSourceParser(
         }
 
         val environment = psiEnvironmentManager.createEnvironment(config)
-
+        registerClassTypePointerFactory(environment)
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
-        val codebase =
-            PsiBasedCodebase(
-                location = rootDir,
-                description = description,
-                annotationManager = annotationManager,
-                reporter = reporter,
-                allowReadingComments = allowReadingComments,
-            )
-        codebase.initializeFromSources(environment, sourceSet)
-        return codebase
+        val assembler =
+            PsiCodebaseAssembler(environment) {
+                PsiBasedCodebase(
+                    location = rootDir,
+                    description = description,
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = it,
+                )
+            }
+
+        assembler.initializeFromSources(sourceSet)
+        return assembler.codebase
     }
 
     private fun isJdkModular(homePath: File): Boolean {
@@ -151,15 +159,19 @@ internal class PsiSourceParser(
 
     override fun loadFromJar(apiJar: File): Codebase {
         val environment = loadUastFromJars(listOf(apiJar))
-        val codebase =
-            PsiBasedCodebase(
-                location = apiJar,
-                description = "Codebase loaded from $apiJar",
-                annotationManager = annotationManager,
-                reporter = reporter,
-                allowReadingComments = allowReadingComments
-            )
-        codebase.initializeFromJar(environment, apiJar)
+        val assembler =
+            PsiCodebaseAssembler(environment) { assembler ->
+                PsiBasedCodebase(
+                    location = apiJar,
+                    description = "Codebase loaded from $apiJar",
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                )
+            }
+        val codebase = assembler.codebase
+        assembler.initializeFromJar(apiJar)
         return codebase
     }
 
@@ -170,6 +182,7 @@ internal class PsiSourceParser(
         configureUastEnvironment(config, listOf(psiEnvironmentManager.emptyDir), apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
+        registerClassTypePointerFactory(environment)
         environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
         return environment
     }
@@ -310,6 +323,26 @@ internal class PsiSourceParser(
                 )
             }
         )
+    }
+
+    // TODO: remove this after AGP 8.7.0-alpha06
+    private fun registerClassTypePointerFactory(uastEnvironment: UastEnvironment) {
+        val application = uastEnvironment.coreAppEnv.application
+        val applicationArea = application.extensionArea
+        if (!applicationArea.hasExtensionPoint(ClassTypePointerFactory.EP_NAME)) {
+            KotlinCoreEnvironment.underApplicationLock {
+                if (applicationArea.hasExtensionPoint(ClassTypePointerFactory.EP_NAME)) {
+                    return@underApplicationLock
+                }
+                CoreApplicationEnvironment.registerApplicationExtensionPoint(
+                    ClassTypePointerFactory.EP_NAME,
+                    ClassTypePointerFactory::class.java,
+                )
+                applicationArea
+                    .getExtensionPoint(ClassTypePointerFactory.EP_NAME)
+                    .registerExtension(PsiClassReferenceTypePointerFactory(), application)
+            }
+        }
     }
 
     companion object {

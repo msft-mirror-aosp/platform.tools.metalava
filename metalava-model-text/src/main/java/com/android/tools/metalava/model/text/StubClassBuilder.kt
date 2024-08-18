@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -33,7 +34,6 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class StubClassBuilder(
     internal val assembler: TextCodebaseAssembler,
     internal val qualifiedName: String,
-    private val fullName: String,
     private val containingClass: ClassItem?,
     val containingPackage: PackageItem,
 ) {
@@ -53,12 +53,11 @@ internal class StubClassBuilder(
             containingClass = containingClass,
             containingPackage = containingPackage,
             qualifiedName = qualifiedName,
-            fullName = fullName,
             typeParameterList = TypeParameterList.NONE,
-            // If this was from the class path then it would have been provided by the external
-            // `ClassResolver`. So, while this does not come from the signature file it also
-            // does not come from the class path either.
-            isFromClassPath = false,
+            // Always treat stubs as if they are from the class path. While that is not strictly
+            // true stubs classes should be treated as if they did come from there, i.e. they can be
+            // referenced but not emitted.
+            origin = ClassOrigin.CLASS_PATH,
             superClassType = superClassType,
             interfaceTypes = emptyList(),
         )
@@ -71,7 +70,6 @@ internal class StubClassBuilder(
         fun build(
             assembler: TextCodebaseAssembler,
             qualifiedName: String,
-            fullName: String,
             containingClass: ClassItem?,
             containingPackage: PackageItem,
             mutator: StubClassBuilder.() -> Unit,
@@ -80,7 +78,6 @@ internal class StubClassBuilder(
                 StubClassBuilder(
                     assembler = assembler,
                     qualifiedName = qualifiedName,
-                    fullName = fullName,
                     containingClass = containingClass,
                     containingPackage = containingPackage,
                 )

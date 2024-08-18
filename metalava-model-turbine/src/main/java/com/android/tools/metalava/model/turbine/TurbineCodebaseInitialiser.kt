@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -357,8 +358,6 @@ internal class TurbineCodebaseInitialiser(
             val classItem = createTopLevelClassAndContents(classSymbol)
             codebase.addTopLevelClassFromSource(classItem)
         }
-
-        codebase.resolveSuperTypes()
     }
 
     val ClassSymbol.isTopClass
@@ -419,7 +418,7 @@ internal class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = codebase.findOrCreatePackage(pkgName, emit = !isFromClassPath)
+        val pkgItem = codebase.findOrCreatePackage(pkgName)
 
         // Create the sourcefile
         val sourceFile =
@@ -438,8 +437,6 @@ internal class TurbineCodebaseInitialiser(
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
-        val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-        val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
         val documentation = javadoc(decl)
         val modifierItem =
@@ -472,6 +469,7 @@ internal class TurbineCodebaseInitialiser(
         // Set interface types
         val interfaceTypes = cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
@@ -482,10 +480,8 @@ internal class TurbineCodebaseInitialiser(
                 containingClass = containingClassItem,
                 containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
-                simpleName = simpleName,
-                fullName = fullName,
                 typeParameterList = typeParameters,
-                isFromClassPath = isFromClassPath,
+                origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
             )
