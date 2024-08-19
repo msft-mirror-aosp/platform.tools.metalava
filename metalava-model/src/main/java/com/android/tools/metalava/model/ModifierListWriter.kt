@@ -237,7 +237,7 @@ private constructor(
         val separateLines =
             target != AnnotationTarget.SIGNATURE_FILE &&
                 when (item) {
-                    is MethodItem,
+                    is CallableItem,
                     is ClassItem,
                     is PackageItem -> true
                     is FieldItem -> item.isEnumConstant()
@@ -302,7 +302,7 @@ private constructor(
                     // Special cased in stubs and signature files: emitted first
                     continue
                 } else {
-                    val typedefMode = list.codebase.annotationManager.typedefMode
+                    val typedefMode = item.codebase.annotationManager.typedefMode
                     if (typedefMode == TypedefMode.INLINE) {
                         val typedef = annotation.findTypedefAnnotation()
                         if (typedef != null) {
@@ -315,9 +315,7 @@ private constructor(
                     ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
-                        writer.write(
-                            annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
-                        )
+                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
                         if (separateLines) {
                             writer.write("\n")
                         } else {
