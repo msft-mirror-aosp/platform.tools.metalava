@@ -17,66 +17,54 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.model.item.ResourceFile
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
 internal class PsiPackageItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
-    modifiers: DefaultModifierList,
+    fileLocation: FileLocation,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     qualifiedName: String,
-    override val overviewDocumentation: String?,
-    /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
+    containingPackage: PackageItem?,
+    overviewDocumentation: ResourceFile?,
 ) :
     DefaultPackageItem(
         codebase = codebase,
-        fileLocation = PsiFileLocation.fromPsiElement(psiPackage),
+        fileLocation = fileLocation,
         itemLanguage = psiPackage.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         qualifiedName = qualifiedName,
+        containingPackage = containingPackage,
+        overviewDocumentation = overviewDocumentation,
     ),
     PackageItem,
     PsiItem {
 
     override fun psi() = psiPackage
 
-    override fun isFromClassPath(): Boolean = fromClassPath
-
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
-
-    fun addTopClass(classItem: PsiClassItem) {
-        if (!classItem.isTopLevelClass()) {
-            return
-        }
-
-        super.addTopClass(classItem)
-        classItem.containingPackage = this
-    }
-
-    fun addClasses(classList: List<PsiClassItem>) {
-        for (cls in classList) {
-            addTopClass(cls)
-        }
-    }
 
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
-            extraDocs: String?,
-            overviewHtml: String?,
-            fromClassPath: Boolean,
+            packageDoc: PackageDoc,
+            containingPackage: PackageItem?,
         ): PsiPackageItem {
             val modifiers = PsiModifierItem.create(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
@@ -88,12 +76,12 @@ internal constructor(
             return PsiPackageItem(
                 codebase = codebase,
                 psiPackage = psiPackage,
+                fileLocation = packageDoc.fileLocation,
                 modifiers = modifiers,
-                documentationFactory =
-                    PsiItemDocumentation.factory(psiPackage, codebase, extraDocs),
+                documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
                 qualifiedName = qualifiedName,
-                overviewDocumentation = overviewHtml,
-                fromClassPath = fromClassPath
+                containingPackage = containingPackage,
+                overviewDocumentation = packageDoc.overview,
             )
         }
     }
