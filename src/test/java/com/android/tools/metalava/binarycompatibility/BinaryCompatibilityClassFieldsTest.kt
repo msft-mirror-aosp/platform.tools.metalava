@@ -24,20 +24,17 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     @Test
     fun `Change type of API field (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed type from java.lang.String to int [ChangedType]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed type from java.lang.String to int [ChangedType]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public int bar;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public String bar;
@@ -46,24 +43,20 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Change value of API field, compile-time constant (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public static final int bar = 7;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public static final int bar = 8;
@@ -72,17 +65,14 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Decrease access from protected to default or private, or public to protected, default, or private (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Field test.pkg.Foo.bar changed visibility from protected to private [ChangedScope]
-                load-api.txt:5: error: Field test.pkg.Foo.baz changed visibility from public to protected [ChangedScope]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar changed visibility from protected to private [ChangedScope]
+                TESTROOT/load-api.txt:4: error: Field test.pkg.Foo.baz changed visibility from public to protected [ChangedScope]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field private static final int bar = 8;
@@ -90,8 +80,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field protected static final int bar = 8;
@@ -101,12 +90,10 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Increase access, eg from protected to public (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field protected static final int bar = 8;
@@ -114,8 +101,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field private static final int bar = 8;
@@ -125,20 +111,17 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Change final to non-final, non-static (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public int bar;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public final int bar;
@@ -147,24 +130,20 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Change final to non-final, static with compile-time constant value (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public static int bar = 0;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public static final int bar = 0;
@@ -173,24 +152,20 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Change non-final to final (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public final int bar;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public int bar;
@@ -199,24 +174,20 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Change static to non-static (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public int bar = 0;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public static int bar = 0;
@@ -225,24 +196,20 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Change non-static to static (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public static int bar = 0;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public int bar = 0;
@@ -251,20 +218,17 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
-
     @Test
     fun `Change transient to non-transient (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public int bar = 0;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public transient int bar = 0;
@@ -277,16 +241,14 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     @Test
     fun `Change non-transient to transient (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Foo {
                     field public transient int bar = 0;
                   }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                     field public int bar = 0;

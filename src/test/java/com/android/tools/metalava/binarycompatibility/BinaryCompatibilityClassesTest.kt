@@ -28,8 +28,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add API method, if method need not be reimplemented by client (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public abstract class Foo {
                         ctor public Foo();
@@ -37,8 +36,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public abstract class Foo {
                         ctor public Foo();
@@ -51,12 +49,10 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add API method, if method must be reimplemented by client (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:5: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+            expectedIssues = """
+                TESTROOT/load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public abstract class Foo {
                         ctor public Foo();
@@ -64,8 +60,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public abstract class Foo {
                         ctor public Foo();
@@ -78,19 +73,16 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Delete API method (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
+            expectedIssues = """
+                TESTROOT/released-api.txt:3: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                         method public void bar();
@@ -103,8 +95,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Move API method up type hierarchy, if method in supertype need not be reimplemented by client (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Upper {
                         method public void foo();
@@ -113,8 +104,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Upper {
                     }
@@ -129,30 +119,23 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Move API method up type hierarchy, if method in supertype must be reimplemented by client (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:5: error: Added method test.pkg.Upper.foo() [AddedAbstractMethod]
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Added method test.pkg.Upper.foo() [AddedAbstractMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public abstract class Upper {
-                        ctor public Upper();
                         method public abstract void foo();
                     }
                     public abstract class Lower extends test.pkg.Upper {
-                        ctor public Lower();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public abstract class Upper {
-                        ctor public Upper();
                     }
                     public abstract class Lower extends test.pkg.Upper {
-                        ctor public Lower();
                         method public abstract void foo();
                     }
                 }
@@ -163,12 +146,10 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Move API method down type hierarchy (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:4: error: Removed method test.pkg.Upper.foo() [RemovedMethod]
+            expectedIssues = """
+                TESTROOT/released-api.txt:3: error: Removed method test.pkg.Upper.foo() [RemovedMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Upper {
                     }
@@ -177,8 +158,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Upper {
                         method public void foo();
@@ -193,8 +173,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add API constructor, if there are other constructors (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo {
                         ctor public Foo(int);
@@ -202,8 +181,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                         ctor public Foo(int);
@@ -216,12 +194,10 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add API constructor, if this is the only constructor (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:4: error: Removed constructor test.pkg.Foo() [RemovedMethod]
+            expectedIssues = """
+                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Foo() [RemovedMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo {
                         ctor public Foo(int);
@@ -230,8 +206,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
             """,
             // A default constructor would be tracked as a zero-arg constructor in the signature
             // file, as below. (Indistinguishable from a hand-coded zero-arg constructor)
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                         ctor public Foo();
@@ -244,19 +219,16 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Delete API constructor (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:4: error: Removed constructor test.pkg.Foo() [RemovedMethod]
+            expectedIssues = """
+                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Foo() [RemovedMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                         ctor public Foo();
@@ -269,16 +241,14 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add API field (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public final class Foo {
                         field public int bar;
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public final class Foo {
                     }
@@ -290,19 +260,16 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Delete API field (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:4: error: Removed field test.pkg.Foo.bar [RemovedField]
+            expectedIssues = """
+                TESTROOT/released-api.txt:3: error: Removed field test.pkg.Foo.bar [RemovedField]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                         field public int bar;
@@ -315,8 +282,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Expand superinterface set (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface One {
                     }
@@ -326,8 +292,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface One {
                     }
@@ -343,12 +308,10 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Contract superinterface set (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:7: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
+            expectedIssues = """
+                TESTROOT/load-api.txt:6: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface One {
                     }
@@ -358,8 +321,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface One {
                     }
@@ -375,8 +337,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Expand superclass set (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Upper {
                     }
@@ -386,8 +347,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Upper {
                     }
@@ -401,12 +361,10 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Contract superclass set (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:7: error: Class test.pkg.Foo superclass changed from test.pkg.Baz to test.pkg.Bar [ChangedSuperclass]
+            expectedIssues = """
+                TESTROOT/load-api.txt:6: error: Class test.pkg.Foo superclass changed from test.pkg.Baz to test.pkg.Bar [ChangedSuperclass]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Bar {
                     }
@@ -416,8 +374,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Bar {
                     }
@@ -433,8 +390,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add API type member (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Outer {
                     }
@@ -442,8 +398,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Outer {
                     }
@@ -455,19 +410,16 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Delete API type member (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:5: error: Removed class test.pkg.Outer.Inner [RemovedClass]
+            expectedIssues = """
+                TESTROOT/released-api.txt:4: error: Removed class test.pkg.Outer.Inner [RemovedClass]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Outer {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Outer {
                     }
@@ -481,15 +433,13 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Change abstract to non-abstract (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public abstract class Foo {
                     }
@@ -501,19 +451,16 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Change non-abstract to abstract (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public abstract class Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                     }
@@ -523,22 +470,16 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final (Compatible but Disallowed)`() {
+    fun `Change final to non-final (Compatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Constructor test.pkg.Foo has removed 'final' qualifier [RemovedFinalStrict]
-            """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo {
                         ctor public Foo();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public final class Foo {
                         ctor public Foo();
@@ -551,21 +492,18 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Change non-final to final (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Class test.pkg.Foo added 'final' qualifier [AddedFinal]
-                load-api.txt:4: error: Constructor test.pkg.Foo has added 'final' qualifier [AddedFinal]
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo added 'final' qualifier [AddedFinal]
+                TESTROOT/load-api.txt:3: error: Constructor test.pkg.Foo has added 'final' qualifier [AddedFinal]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public final class Foo {
                         ctor public Foo();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                         ctor public Foo();
@@ -578,15 +516,13 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add type parameter, if class has no type parameters (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo<A> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo {
                     }
@@ -598,19 +534,16 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add type parameter, if class has type parameters (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo<A, B> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo<A> {
                     }
@@ -622,13 +555,11 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Delete type parameter (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Class test.pkg.Bar changed number of type parameters from 1 to 0 [ChangedType]
-                load-api.txt:5: error: Class test.pkg.Foo changed number of type parameters from 2 to 1 [ChangedType]
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Bar changed number of type parameters from 1 to 0 [ChangedType]
+                TESTROOT/load-api.txt:4: error: Class test.pkg.Foo changed number of type parameters from 2 to 1 [ChangedType]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Bar {
                     }
@@ -636,8 +567,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Bar<A> {
                     }
@@ -655,15 +585,13 @@ class BinaryCompatibilityClassesTest : DriverTest() {
             expectedIssues = """
                 (expected issue for class Foo)
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo<B, A> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo<A, B> {
                     }
@@ -675,15 +603,13 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Rename type parameter (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Foo<B> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Foo<A> {
                     }
@@ -696,14 +622,12 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add, delete, or change type bounds of type parameter (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 (expected issue for class Add)
                 (expected issue for class Change)
                 (expected issue for class Delete)
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public class Add<T extends java.util.List> {
                     }
@@ -713,8 +637,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public class Add<T> {
                     }
@@ -730,20 +653,17 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Rename enum constant (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:4: error: Removed enum constant test.pkg.Foo.OLD [RemovedField]
+            expectedIssues = """
+                TESTROOT/released-api.txt:3: error: Removed enum constant test.pkg.Foo.OLD [RemovedField]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo NEW;
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo OLD;
@@ -756,8 +676,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Add enum constant (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo ONE;
@@ -765,8 +684,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo ONE;
@@ -779,20 +697,17 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Delete enum constant (Incompatible)`() {
         check(
-            expectedIssues =
-                """
-                released-api.txt:5: error: Removed enum constant test.pkg.Foo.TWO [RemovedField]
+            expectedIssues = """
+                TESTROOT/released-api.txt:4: error: Removed enum constant test.pkg.Foo.TWO [RemovedField]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo ONE;
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo ONE;
@@ -806,8 +721,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Re-order enum constants (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo TWO;
@@ -815,8 +729,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public enum Foo {
                         enum_constant public static final test.pkg.Foo ONE;

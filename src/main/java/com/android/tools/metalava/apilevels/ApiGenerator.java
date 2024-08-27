@@ -16,193 +16,178 @@
 
 package com.android.tools.metalava.apilevels;
 
-import com.android.tools.metalava.SignatureFileLoader;
 import com.android.tools.metalava.model.Codebase;
-import com.android.tools.metalava.SdkIdentifier;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
  * simple text files.
  */
 public class ApiGenerator {
-    public static boolean generateXml(@NotNull File[] apiLevels,
-                                      int firstApiLevel,
-                                      int currentApiLevel,
-                                      boolean isDeveloperPreviewBuild,
-                                      @NotNull File outputFile,
-                                      @NotNull Codebase codebase,
-                                      @Nullable File sdkJarRoot,
-                                      @Nullable File sdkFilterFile,
-                                      boolean removeMissingClasses) throws IOException, IllegalArgumentException {
-        if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
-            throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
-        }
+    public static void main(String[] args) {
+        boolean error = false;
+        int minApi = 1;
+        int currentApi = -1;
+        String currentCodename = null;
+        File currentJar = null;
+        List<String> patterns = new ArrayList<>();
+        String outPath = null;
 
-        int notFinalizedApiLevel = currentApiLevel + 1;
-        Api api = createApiFromAndroidJars(apiLevels, firstApiLevel);
-        if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
-            // Only include codebase if we don't have a prebuilt, finalized jar for it.
-            int apiLevel = isDeveloperPreviewBuild ? notFinalizedApiLevel : currentApiLevel;
-            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase, true);
-        }
-        api.backfillHistoricalFixes();
+        for (int i = 0; i < args.length && !error; i++) {
+            String arg = args[i];
 
-        Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
-        if (sdkJarRoot != null && sdkFilterFile != null) {
-            sdkIdentifiers = processExtensionSdkApis(api, notFinalizedApiLevel, sdkJarRoot, sdkFilterFile);
-        }
-        api.inlineFromHiddenSuperClasses();
-        api.removeImplicitInterfaces();
-        api.removeOverridingMethods();
-        api.prunePackagePrivateClasses();
-        if (removeMissingClasses) {
-            api.removeMissingClasses();
-        } else {
-            api.verifyNoMissingClasses();
-        }
-        return createApiLevelsXml(outputFile, api, sdkIdentifiers);
-    }
-
-    /**
-     * Creates an [Api] from a list of past API signature files. In the generated [Api], the oldest API
-     * version will be represented as level 1, the next as level 2, etc.
-     *
-     * @param previousApiFiles A list of API signature files, one for each version of the API, in order
-     *                         from oldest to newest API version.
-     */
-    private static Api createApiFromSignatureFiles(
-        List<File> previousApiFiles
-    ) {
-        // Starts at level 1 because 0 is not a valid API level.
-        int apiLevel = 1;
-        Api api = new Api(apiLevel);
-        for (File apiFile : previousApiFiles) {
-            Codebase codebase = SignatureFileLoader.INSTANCE.load(apiFile);
-            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase, false);
-            apiLevel += 1;
-        }
-        api.clean();
-        return api;
-    }
-
-    /**
-     * Generates an API version history file based on the API surfaces of the versions provided.
-     *
-     * @param pastApiVersions   A list of API signature files, ordered from oldest API version to newest.
-     * @param currentApiVersion A codebase representing the current API surface.
-     * @param outputFile        Path of the JSON file to write output to.
-     * @param apiVersionNames   The names of the API versions, ordered starting from version 1. This should include the
-     *                          names of all the [pastApiVersions], then the name of the [currentVersion].
-     */
-    public static void generateJson(@NotNull List<File> pastApiVersions,
-                                    @NotNull Codebase currentApiVersion,
-                                    @NotNull File outputFile,
-                                    @NotNull List<String> apiVersionNames) {
-        Api api = createApiFromSignatureFiles(pastApiVersions);
-        AddApisFromCodebaseKt.addApisFromCodebase(api, apiVersionNames.size(), currentApiVersion, false);
-        ApiJsonPrinter printer = new ApiJsonPrinter(apiVersionNames);
-        printer.print(api, outputFile);
-    }
-
-    private static Api createApiFromAndroidJars(File[] apiLevels, int firstApiLevel) {
-        Api api = new Api(firstApiLevel);
-        for (int apiLevel = firstApiLevel; apiLevel < apiLevels.length; apiLevel++) {
-            File jar = apiLevels[apiLevel];
-            JarReaderUtilsKt.readAndroidJar(api, apiLevel, jar);
-        }
-        return api;
-    }
-
-    /**
-     * Modify the extension SDK API parts of an API as dictated by a filter.
-     *
-     *   - remove APIs not listed in the filter
-     *   - assign APIs listed in the filter their corresponding extensions
-     *
-     * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
-     * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
-     * assign such APIs some Android SDK API level. The recommended value is current-api-level + 1,
-     * which is what non-finalized APIs use.
-     *
-     * @param api the api to modify
-     * @param apiLevelNotInAndroidSdk fallback API level for APIs not in the Android SDK
-     * @param sdkJarRoot path to directory containing extension SDK jars (usually $ANDROID_ROOT/prebuilts/sdk/extensions)
-     * @param filterPath: path to the filter file. @see ApiToExtensionsMap
-     * @throws IOException if the filter file can not be read
-     * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar files were found
-     */
-    private static Set<SdkIdentifier> processExtensionSdkApis(
-            @NotNull Api api,
-            int apiLevelNotInAndroidSdk,
-            @NotNull File sdkJarRoot,
-            @NotNull File filterPath) throws IOException, IllegalArgumentException {
-        String rules = new String(Files.readAllBytes(filterPath.toPath()));
-
-        Map<String, List<VersionAndPath>> map = ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles(sdkJarRoot);
-        if (map.isEmpty()) {
-            throw new IllegalArgumentException("no extension sdk jar files found in " + sdkJarRoot);
-        }
-        Map<String, ApiToExtensionsMap> moduleMaps = new HashMap<>();
-        for (Map.Entry<String, List<VersionAndPath>> entry : map.entrySet()) {
-            String mainlineModule = entry.getKey();
-            ApiToExtensionsMap moduleMap = ApiToExtensionsMap.Companion.fromXml(mainlineModule, rules);
-            if (moduleMap.isEmpty()) continue; // TODO(b/259115852): remove this (though it is an optimization too).
-
-            moduleMaps.put(mainlineModule, moduleMap);
-            for (VersionAndPath f : entry.getValue()) {
-                JarReaderUtilsKt.readExtensionJar(api, f.version, mainlineModule, f.path, apiLevelNotInAndroidSdk);
+            if (arg.equals("--pattern")) {
+                i++;
+                if (i < args.length) {
+                    patterns.add(args[i]);
+                } else {
+                    System.err.println("Missing argument after " + arg);
+                    error = true;
+                }
+            } else if (arg.equals("--current-version")) {
+                i++;
+                if (i < args.length) {
+                    currentApi = Integer.parseInt(args[i]);
+                    if (currentApi <= 22) {
+                        System.err.println("Suspicious currentApi=" + currentApi + ", expected at least 23");
+                        error = true;
+                    }
+                } else {
+                    System.err.println("Missing number >= 1 after " + arg);
+                    error = true;
+                }
+            } else if (arg.equals("--current-codename")) {
+                i++;
+                if (i < args.length) {
+                    currentCodename = args[i];
+                } else {
+                    System.err.println("Missing codename after " + arg);
+                    error = true;
+                }
+            } else if (arg.equals("--current-jar")) {
+                i++;
+                if (i < args.length) {
+                    if (currentJar != null) {
+                        System.err.println("--current-jar should only be specified once");
+                        error = true;
+                    }
+                    String path = args[i];
+                    currentJar = new File(path);
+                } else {
+                    System.err.println("Missing argument after " + arg);
+                    error = true;
+                }
+            } else if (arg.equals("--min-api")) {
+                i++;
+                if (i < args.length) {
+                    minApi = Integer.parseInt(args[i]);
+                } else {
+                    System.err.println("Missing number >= 1 after " + arg);
+                    error = true;
+                }
+            } else if (arg.length() >= 2 && arg.startsWith("--")) {
+                System.err.println("Unknown argument: " + arg);
+                error = true;
+            } else if (outPath == null) {
+                outPath = arg;
+            } else if (new File(arg).isDirectory()) {
+                String pattern = arg;
+                if (!pattern.endsWith(File.separator)) {
+                    pattern += File.separator;
+                }
+                pattern += "platforms" + File.separator + "android-%" + File.separator + "android.jar";
+                patterns.add(pattern);
+            } else {
+                System.err.println("Unknown argument: " + arg);
+                error = true;
             }
         }
-        for (ApiClass clazz : api.getClasses()) {
-            String module = clazz.getMainlineModule();
-            if (module == null) continue;
-            ApiToExtensionsMap extensionsMap = moduleMaps.get(module);
-            String sdks = extensionsMap.calculateSdksAttr(clazz.getSince(), apiLevelNotInAndroidSdk,
-                extensionsMap.getExtensions(clazz), clazz.getSinceExtension());
-            clazz.updateSdks(sdks);
 
-            Iterator<ApiElement> iter = clazz.getFieldIterator();
-            while (iter.hasNext()) {
-                ApiElement field = iter.next();
-                sdks = extensionsMap.calculateSdksAttr(field.getSince(), apiLevelNotInAndroidSdk,
-                    extensionsMap.getExtensions(clazz, field), field.getSinceExtension());
-                field.updateSdks(sdks);
-            }
-
-            iter = clazz.getMethodIterator();
-            while (iter.hasNext()) {
-                ApiElement method = iter.next();
-                sdks = extensionsMap.calculateSdksAttr(method.getSince(), apiLevelNotInAndroidSdk,
-                    extensionsMap.getExtensions(clazz, method), method.getSinceExtension());
-                method.updateSdks(sdks);
-            }
+        if (!error && outPath == null) {
+            System.err.println("Missing out file path");
+            error = true;
         }
-        return ApiToExtensionsMap.Companion.fromXml("", rules).getSdkIdentifiers();
+
+        if (!error && patterns.isEmpty()) {
+            System.err.println("Missing SdkFolder or --pattern.");
+            error = true;
+        }
+
+        if (currentJar != null && currentApi == -1 || currentJar == null && currentApi != -1) {
+            System.err.println("You must specify both --current-jar and --current-version (or neither one)");
+            error = true;
+        }
+
+        // The SDK version number
+        if (currentCodename != null && !"REL".equals(currentCodename)) {
+            currentApi++;
+        }
+
+        if (error) {
+            printUsage();
+            System.exit(1);
+        }
+
+        try {
+            if (!generate(minApi, currentApi, currentJar, patterns, outPath, null)) {
+                System.exit(1);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+    }
+
+    private static boolean generate(int minApi,
+                                    int currentApi,
+                                    @NotNull File currentJar,
+                                    @NotNull List<String> patterns,
+                                    @NotNull String outPath,
+                                    @Nullable Codebase codebase) throws IOException {
+        AndroidJarReader reader = new AndroidJarReader(patterns, minApi, currentJar, currentApi, codebase);
+        Api api = reader.getApi();
+        return createApiFile(new File(outPath), api);
+    }
+
+    public static boolean generate(@NotNull File[] apiLevels,
+                                   int firstApiLevel,
+                                   @NotNull File outputFile,
+                                   @Nullable Codebase codebase) throws IOException {
+        AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
+        Api api = reader.getApi();
+        return createApiFile(outputFile, api);
+    }
+
+    private static void printUsage() {
+        System.err.println("\nGenerates a single API file from the content of an SDK.");
+        System.err.println("Usage:");
+        System.err.println("\tApiCheck [--min-api=1] OutFile [SdkFolder | --pattern sdk/%/public/android.jar]+");
+        System.err.println("Options:");
+        System.err.println("--min-api <int> : The first API level to consider (>=1).");
+        System.err.println("--pattern <pattern>: Path pattern to find per-API android.jar files, where\n" +
+            "            '%' is replaced by the API level.");
+        System.err.println("--current-jar <path>: Path pattern to find the current android.jar");
+        System.err.println("--current-version <int>: The API level for the current API");
+        System.err.println("--current-codename <name>: REL, if a release, or codename for previews");
+        System.err.println("SdkFolder: if given, this adds the pattern\n" +
+            "           '$SdkFolder/platforms/android-%/android.jar'");
+        System.err.println("If multiple --pattern are specified, they are tried in the order given.\n");
     }
 
     /**
      * Creates the simplified diff-based API level.
      *
-     * @param outFile        the output file
-     * @param api            the api to write
-     * @param sdkIdentifiers SDKs referenced by the api
+     * @param outFile the output file
+     * @param api     the api to write
      */
-    private static boolean createApiLevelsXml(@NotNull File outFile, @NotNull Api api, @NotNull Set<SdkIdentifier> sdkIdentifiers) {
+    private static boolean createApiFile(File outFile, Api api) {
         File parentFile = outFile.getParentFile();
         if (!parentFile.exists()) {
             boolean ok = parentFile.mkdirs();
@@ -211,9 +196,9 @@ public class ApiGenerator {
                 return false;
             }
         }
-        try (PrintStream stream = new PrintStream(outFile, StandardCharsets.UTF_8)) {
+        try (PrintStream stream = new PrintStream(outFile, "UTF-8")) {
             stream.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-            api.print(stream, sdkIdentifiers);
+            api.print(stream);
         } catch (Exception e) {
             e.printStackTrace();
             return false;

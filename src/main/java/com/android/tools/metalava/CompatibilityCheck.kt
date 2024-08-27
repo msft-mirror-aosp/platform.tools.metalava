@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -30,18 +30,17 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiItem
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Issues.Issue
-import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.model.text.TextCodebase
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
 
 /**
- * Compares the current API with a previous version and makes sure the changes are compatible. For
- * example, you can make a previously nullable parameter non null, but not vice versa.
+ * Compares the current API with a previous version and makes sure
+ * the changes are compatible. For example, you can make a previously
+ * nullable parameter non null, but not vice versa.
  *
  * TODO: Only allow nullness changes on final classes!
  */
@@ -50,20 +49,35 @@ class CompatibilityCheck(
     private val oldCodebase: Codebase,
     private val apiType: ApiType,
     private val base: Codebase? = null,
-    private val reporter: Reporter,
-    private val issueConfiguration: IssueConfiguration,
+    private val reporter: Reporter
 ) : ComparisonVisitor() {
 
     /**
-     * Request for compatibility checks. [file] represents the signature file to be checked.
-     * [apiType] represents which part of the API should be checked, [releaseType] represents what
-     * kind of codebase we are comparing it against.
+     * Request for compatibility checks.
+     * [file] represents the signature file to be checked. [apiType] represents which
+     * part of the API should be checked, [releaseType] represents what kind of codebase
+     * we are comparing it against. If [codebase] is specified, compare the signature file
+     * against the codebase instead of metalava's current source tree configured via the
+     * normal source path flags.
      */
-    data class CheckRequest(val file: File, val apiType: ApiType) {
+    data class CheckRequest(
+        val file: File,
+        val apiType: ApiType,
+        val codebase: File? = null
+    ) {
         override fun toString(): String {
             return "--check-compatibility:${apiType.flagName}:released $file"
         }
     }
+
+    /** In old signature files, methods inherited from hidden super classes
+     * are not included. An example of this is StringBuilder.setLength.
+     * More details about this are listed in Compatibility.skipInheritedMethods.
+     * We may see these in the codebase but not in the (old) signature files,
+     * so in these cases we want to ignore certain changes such as considering
+     * StringBuilder.setLength a newly added method.
+     */
+    private val comparingWithPartialSignatures = oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1
 
     var foundProblems = false
 
@@ -82,16 +96,10 @@ class CompatibilityCheck(
         val newMethod = containingMethod(new)
 
         if (oldMethod != null && newMethod != null) {
-            if (
-                oldMethod.containingClass().qualifiedName() !=
-                    newMethod.containingClass().qualifiedName() ||
-                    ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))
-            ) {
-                // If the old method and new method are defined on different classes, then it's
-                // possible
+            if (oldMethod.containingClass().qualifiedName() != newMethod.containingClass().qualifiedName() || ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))) {
+                // If the old method and new method are defined on different classes, then it's possible
                 // that the old method was previously overridden and we omitted it.
-                // So, if the old method and new methods are defined on different classes, then we
-                // skip
+                // So, if the old method and new methods are defined on different classes, then we skip
                 // nullability checks
                 return
             }
@@ -102,7 +110,7 @@ class CompatibilityCheck(
         if (oldNullnessAnnotation != null) {
             val newNullnessAnnotation = findNullnessAnnotation(new)
             if (newNullnessAnnotation == null) {
-                val implicitNullness = new.implicitNullness()
+                val implicitNullness = AnnotationItem.getImplicitNullness(new)
                 if (implicitNullness == true && isNullable(old)) {
                     return
                 }
@@ -114,8 +122,7 @@ class CompatibilityCheck(
                     return
                 }
                 report(
-                    Issues.INVALID_NULL_CONVERSION,
-                    new,
+                    Issues.INVALID_NULL_CONVERSION, new,
                     "Attempted to remove $name annotation from ${describe(new)}"
                 )
             } else {
@@ -162,14 +169,6 @@ class CompatibilityCheck(
                 Issues.INFIX_REMOVAL,
                 new,
                 "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
-            )
-        }
-
-        if (!old.isCompatibilitySuppressed() && new.isCompatibilitySuppressed()) {
-            report(
-                Issues.BECAME_UNCHECKED,
-                old,
-                "Removed ${describe(old)} from compatibility checked API surface"
             )
         }
 
@@ -225,27 +224,21 @@ class CompatibilityCheck(
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
-        if (
-            old.isInterface() != new.isInterface() ||
-                old.isEnum() != new.isEnum() ||
-                old.isAnnotationType() != new.isAnnotationType()
+        if (old.isInterface() != new.isInterface() ||
+            old.isEnum() != new.isEnum() ||
+            old.isAnnotationType() != new.isAnnotationType()
         ) {
             report(
-                Issues.CHANGED_CLASS,
-                new,
-                "${describe(new, capitalize = true)} changed class/interface declaration"
+                Issues.CHANGED_CLASS, new, "${describe(new, capitalize = true)} changed class/interface declaration"
             )
-            return // Avoid further warnings like "has changed abstract qualifier" which is implicit
-            // in this change
+            return // Avoid further warnings like "has changed abstract qualifier" which is implicit in this change
         }
 
         for (iface in old.interfaceTypes()) {
             val qualifiedName = iface.asClass()?.qualifiedName() ?: continue
             if (!new.implements(qualifiedName)) {
                 report(
-                    Issues.REMOVED_INTERFACE,
-                    new,
-                    "${describe(old, capitalize = true)} no longer implements $iface"
+                    Issues.REMOVED_INTERFACE, new, "${describe(old, capitalize = true)} no longer implements $iface"
                 )
             }
         }
@@ -254,24 +247,16 @@ class CompatibilityCheck(
             val qualifiedName = iface.asClass()?.qualifiedName() ?: continue
             if (!old.implements(qualifiedName)) {
                 report(
-                    Issues.ADDED_INTERFACE,
-                    new,
-                    "Added interface $iface to class ${describe(old)}"
+                    Issues.ADDED_INTERFACE, new, "Added interface $iface to class ${describe(old)}"
                 )
             }
         }
 
         if (!oldModifiers.isSealed() && newModifiers.isSealed()) {
-            report(
-                Issues.ADD_SEALED,
-                new,
-                "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change"
-            )
+            report(Issues.ADD_SEALED, new, "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change")
         } else if (old.isClass() && !oldModifiers.isAbstract() && newModifiers.isAbstract()) {
             report(
-                Issues.CHANGED_ABSTRACT,
-                new,
-                "${describe(new, capitalize = true)} changed 'abstract' qualifier"
+                Issues.CHANGED_ABSTRACT, new, "${describe(new, capitalize = true)} changed 'abstract' qualifier"
             )
         }
 
@@ -283,29 +268,23 @@ class CompatibilityCheck(
             )
         }
 
-        // Check for changes in final & static, but not in enums (since PSI and signature files
-        // differ
+        // Check for changes in final & static, but not in enums (since PSI and signature files differ
         // a bit in whether they include these for enums
         if (!new.isEnum()) {
             if (!oldModifiers.isFinal() && newModifiers.isFinal()) {
-                // It is safe to make a class final if was impossible for an application to create a
-                // subclass.
-                if (!old.isExtensible()) {
+                // It is safe to make a class final if it did not previously have any public
+                // constructors because it was impossible for an application to create a subclass.
+                if (old.constructors().filter { it.isPublic || it.isProtected }.none()) {
                     report(
-                        Issues.ADDED_FINAL_UNINSTANTIABLE,
-                        new,
-                        "${
-                            describe(
-                                new,
-                                capitalize = true
-                            )
-                        } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
+                        Issues.ADDED_FINAL_UNINSTANTIABLE, new,
+                        "${describe(
+                            new,
+                            capitalize = true
+                        )} added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
                     )
                 } else {
                     report(
-                        Issues.ADDED_FINAL,
-                        new,
-                        "${describe(new, capitalize = true)} added 'final' qualifier"
+                        Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} added 'final' qualifier"
                     )
                 }
             }
@@ -325,23 +304,18 @@ class CompatibilityCheck(
         val oldVisibility = oldModifiers.getVisibilityString()
         val newVisibility = newModifiers.getVisibilityString()
         if (oldVisibility != newVisibility) {
-            // TODO: Use newModifiers.asAccessibleAs(oldModifiers) to provide different error
-            // messages
-            // based on whether this seems like a reasonable change, e.g. making a private or final
-            // method more
-            // accessible is fine (no overridden method affected) but not making methods less
-            // accessible etc
+            // TODO: Use newModifiers.asAccessibleAs(oldModifiers) to provide different error messages
+            // based on whether this seems like a reasonable change, e.g. making a private or final method more
+            // accessible is fine (no overridden method affected) but not making methods less accessible etc
             report(
-                Issues.CHANGED_SCOPE,
-                new,
+                Issues.CHANGED_SCOPE, new,
                 "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
             )
         }
 
         if (!old.deprecated == new.deprecated) {
             report(
-                Issues.CHANGED_DEPRECATED,
-                new,
+                Issues.CHANGED_DEPRECATED, new,
                 "${describe(
                     new,
                     capitalize = true
@@ -353,8 +327,7 @@ class CompatibilityCheck(
         if (oldSuperClassName != null) { // java.lang.Object can't have a superclass.
             if (!new.extends(oldSuperClassName)) {
                 report(
-                    Issues.CHANGED_SUPERCLASS,
-                    new,
+                    Issues.CHANGED_SUPERCLASS, new,
                     "${describe(
                         new,
                         capitalize = true
@@ -368,8 +341,7 @@ class CompatibilityCheck(
             val newTypeParamsCount = new.typeParameterList().typeParameterCount()
             if (oldTypeParamsCount > 0 && oldTypeParamsCount != newTypeParamsCount) {
                 report(
-                    Issues.CHANGED_TYPE,
-                    new,
+                    Issues.CHANGED_TYPE, new,
                     "${describe(
                         old,
                         capitalize = true
@@ -377,28 +349,7 @@ class CompatibilityCheck(
                 )
             }
         }
-
-        if (
-            old.modifiers.isAnnotatedWith(JVM_DEFAULT_WITH_COMPATIBILITY) &&
-                !new.modifiers.isAnnotatedWith(JVM_DEFAULT_WITH_COMPATIBILITY)
-        ) {
-            report(
-                Issues.REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY,
-                new,
-                "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
-                    "${describe(new)}: Incompatible change"
-            )
-        }
     }
-
-    /**
-     * Return true if a [ClassItem] loaded from a signature file could be subclassed, i.e. is not
-     * final, or sealed and has at least one accessible constructor.
-     */
-    private fun ClassItem.isExtensible() =
-        !modifiers.isFinal() &&
-            !modifiers.isSealed() &&
-            constructors().any { it.isPublic || it.isProtected }
 
     override fun compare(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
@@ -406,14 +357,15 @@ class CompatibilityCheck(
 
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
-        if (!new.isConstructor()) {
+        if (!new.isConstructor() && oldReturnType != null && newReturnType != null) {
             val oldTypeParameter = oldReturnType.asTypeParameter(old)
             val newTypeParameter = newReturnType.asTypeParameter(new)
             var compatible = true
-            if (oldTypeParameter == null && newTypeParameter == null) {
-                if (
-                    oldReturnType != newReturnType ||
-                        oldReturnType.arrayDimensions() != newReturnType.arrayDimensions()
+            if (oldTypeParameter == null &&
+                newTypeParameter == null
+            ) {
+                if (oldReturnType != newReturnType ||
+                    oldReturnType.arrayDimensions() != newReturnType.arrayDimensions()
                 ) {
                     compatible = false
                 }
@@ -422,11 +374,7 @@ class CompatibilityCheck(
                 for (constraint in constraints) {
                     val oldClass = oldReturnType.asClass()
                     val newClass = constraint.asClass()
-                    if (
-                        oldClass == null ||
-                            newClass == null ||
-                            !oldClass.extendsOrImplements(newClass.qualifiedName())
-                    ) {
+                    if (oldClass == null || newClass == null || !oldClass.extendsOrImplements(newClass.qualifiedName())) {
                         compatible = false
                     }
                 }
@@ -439,8 +387,8 @@ class CompatibilityCheck(
                 // exactly the same.
                 val oldConstraints = oldTypeParameter?.typeBounds() ?: emptyList()
                 val newConstraints = newTypeParameter?.typeBounds() ?: emptyList()
-                if (
-                    oldConstraints.size != newConstraints.size || newConstraints != oldConstraints
+                if (oldConstraints.size != newConstraints.size ||
+                    newConstraints != oldConstraints
                 ) {
                     val oldTypeString = describeBounds(oldReturnType, oldConstraints)
                     val newTypeString = describeBounds(newReturnType, newConstraints)
@@ -458,12 +406,10 @@ class CompatibilityCheck(
             if (!compatible) {
                 var oldTypeString = oldReturnType.toSimpleType()
                 var newTypeString = newReturnType.toSimpleType()
-                // Typically, show short type names like "String" if they're distinct (instead of
-                // long type names like
+                // Typically, show short type names like "String" if they're distinct (instead of long type names like
                 // "java.util.Set<T!>")
                 if (oldTypeString == newTypeString) {
-                    // If the short names aren't unique, then show full type names like
-                    // "java.util.Set<T!>"
+                    // If the short names aren't unique, then show full type names like "java.util.Set<T!>"
                     oldTypeString = oldReturnType.toString()
                     newTypeString = newReturnType.toString()
                 }
@@ -475,26 +421,23 @@ class CompatibilityCheck(
             // Annotation methods
             if (
                 new.containingClass().isAnnotationType() &&
-                    old.containingClass().isAnnotationType() &&
-                    new.defaultValue() != old.defaultValue()
+                old.containingClass().isAnnotationType() &&
+                new.defaultValue() != old.defaultValue()
             ) {
                 val prevValue = old.defaultValue()
-                val prevString =
-                    if (prevValue.isEmpty()) {
-                        "nothing"
-                    } else {
-                        prevValue
-                    }
+                val prevString = if (prevValue.isEmpty()) {
+                    "nothing"
+                } else {
+                    prevValue
+                }
 
                 val newValue = new.defaultValue()
-                val newString =
-                    if (newValue.isEmpty()) {
-                        "nothing"
-                    } else {
-                        newValue
-                    }
-                val message =
-                    "${describe(
+                val newString = if (newValue.isEmpty()) {
+                    "nothing"
+                } else {
+                    newValue
+                }
+                val message = "${describe(
                     new,
                     capitalize = true
                 )} has changed value from $prevString to $newString"
@@ -512,11 +455,25 @@ class CompatibilityCheck(
         // Check for changes in abstract, but only for regular classes; older signature files
         // sometimes describe interface methods as abstract
         if (new.containingClass().isClass()) {
-            if (!oldModifiers.isAbstract() && newModifiers.isAbstract()) {
+            if (!oldModifiers.isAbstract() && newModifiers.isAbstract() &&
+                // In old signature files, overridden methods of abstract methods declared
+                // in super classes are sometimes omitted by doclava. This means that the method
+                // looks (from the signature file perspective) like it has not been implemented,
+                // whereas in reality it has. For just one example of this, consider
+                // FragmentBreadCrumbs.onLayout: it's a concrete implementation in that class
+                // of the inherited method from ViewGroup. However, in the signature file,
+                // FragmentBreadCrumbs does not list this method; it's only listed (as abstract)
+                // in the super class. In this scenario, the compatibility check would believe
+                // the old method in FragmentBreadCrumbs is abstract and the new method is not,
+                // which is not the case. Therefore, if the old method is coming from a signature
+                // file based codebase with an old format, we omit abstract change warnings.
+                // The reverse situation can also happen: AbstractSequentialList defines listIterator
+                // as abstract, but it's not recorded as abstract in the signature files anywhere,
+                // so we treat this as a nearly abstract method, which it is not.
+                (old.inheritedFrom == null || !comparingWithPartialSignatures)
+            ) {
                 report(
-                    Issues.CHANGED_ABSTRACT,
-                    new,
-                    "${describe(new, capitalize = true)} has changed 'abstract' qualifier"
+                    Issues.CHANGED_ABSTRACT, new, "${describe(new, capitalize = true)} has changed 'abstract' qualifier"
                 )
             }
         }
@@ -524,66 +481,42 @@ class CompatibilityCheck(
         if (new.containingClass().isInterface() || new.containingClass().isAnnotationType()) {
             if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
                 report(
-                    Issues.CHANGED_DEFAULT,
-                    new,
-                    "${describe(new, capitalize = true)} has changed 'default' qualifier"
+                    Issues.CHANGED_DEFAULT, new, "${describe(new, capitalize = true)} has changed 'default' qualifier"
                 )
             }
         }
 
         if (oldModifiers.isNative() != newModifiers.isNative()) {
             report(
-                Issues.CHANGED_NATIVE,
-                new,
-                "${describe(new, capitalize = true)} has changed 'native' qualifier"
+                Issues.CHANGED_NATIVE, new, "${describe(new, capitalize = true)} has changed 'native' qualifier"
             )
         }
 
-        // Check changes to final modifier. But skip enums where it varies between signature files
-        // and PSI
+        // Check changes to final modifier. But skip enums where it varies between signature files and PSI
         // whether the methods are considered final.
         if (!new.containingClass().isEnum() && !oldModifiers.isStatic()) {
-            // Compiler-generated methods vary in their 'final' qualifier between versions of
-            // the compiler, so this check needs to be quite narrow. A change in 'final'
-            // status of a method is only relevant if (a) the method is not declared 'static'
-            // and (b) the method is not already inferred to be 'final' by virtue of its class.
-            if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
-                if (!old.containingClass().isExtensible()) {
-                    report(
-                        Issues.ADDED_FINAL_UNINSTANTIABLE,
-                        new,
-                        "${
-                            describe(
-                                new,
-                                capitalize = true
-                            )
-                        } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed"
-                    )
-                } else {
+            // Skip changes in final; modifier change could come from inherited
+            // implementation from hidden super class. An example of this
+            // is SpannableString.charAt whose implementation comes from
+            // SpannableStringInternal.
+            if (old.inheritedFrom == null || !comparingWithPartialSignatures) {
+                // Compiler-generated methods vary in their 'final' qualifier between versions of
+                // the compiler, so this check needs to be quite narrow. A change in 'final'
+                // status of a method is only relevant if (a) the method is not declared 'static'
+                // and (b) the method is not already inferred to be 'final' by virtue of its class.
+                if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
                     report(
                         Issues.ADDED_FINAL,
                         new,
                         "${describe(new, capitalize = true)} has added 'final' qualifier"
                     )
                 }
-            } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
-                // Disallowed removing final: If an app inherits the class and starts overriding
-                // the method it's going to crash on earlier versions where the method is final
-                // It doesn't break compatibility in the strict sense, but does make it very
-                // difficult to extend this method in practice.
-                report(
-                    Issues.REMOVED_FINAL_STRICT,
-                    new,
-                    "${describe(new, capitalize = true)} has removed 'final' qualifier"
-                )
             }
         }
 
         if (oldModifiers.isStatic() != newModifiers.isStatic()) {
             report(
-                Issues.CHANGED_STATIC,
-                new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier"
+                Issues.CHANGED_STATIC, new, "${describe(new, capitalize = true)} has changed 'static' qualifier"
             )
         }
 
@@ -593,8 +526,7 @@ class CompatibilityCheck(
             // Only report issue if the change is a decrease in access; e.g. public -> protected
             if (!newModifiers.asAccessibleAs(oldModifiers)) {
                 report(
-                    Issues.CHANGED_SCOPE,
-                    new,
+                    Issues.CHANGED_SCOPE, new,
                     "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
                 )
             }
@@ -602,8 +534,7 @@ class CompatibilityCheck(
 
         if (old.deprecated != new.deprecated) {
             report(
-                Issues.CHANGED_DEPRECATED,
-                new,
+                Issues.CHANGED_DEPRECATED, new,
                 "${describe(
                     new,
                     capitalize = true
@@ -630,8 +561,7 @@ class CompatibilityCheck(
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
                     report(
-                        Issues.CHANGED_THROWS,
-                        new,
+                        Issues.CHANGED_THROWS, new,
                         "${describe(new, capitalize = true)} no longer throws exception ${exception.qualifiedName()}"
                     )
                 }
@@ -641,14 +571,12 @@ class CompatibilityCheck(
         for (exec in new.filteredThrowsTypes(filterReference)) {
             if (!old.throws(exec.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
-                if (
-                    !(old.name() == "finalize" && old.parameters().isEmpty()) &&
-                        // exclude cases where throws clause was missing in signatures from
-                        // old enum methods
-                        !old.isEnumSyntheticMethod()
+                if (!(old.name() == "finalize" && old.parameters().isEmpty()) &&
+                    // exclude cases where throws clause was missing in signatures from
+                    // old enum methods
+                    !old.isEnumSyntheticMethod()
                 ) {
-                    val message =
-                        "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
+                    val message = "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }
             }
@@ -662,8 +590,7 @@ class CompatibilityCheck(
                     break
                 }
                 if (newTypes[i].isReified() && !oldTypes[i].isReified()) {
-                    val message =
-                        "${describe(
+                    val message = "${describe(
                         new,
                         capitalize = true
                     )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
@@ -673,7 +600,10 @@ class CompatibilityCheck(
         }
     }
 
-    private fun describeBounds(type: TypeItem, constraints: List<TypeItem>): String {
+    private fun describeBounds(
+        type: TypeItem,
+        constraints: List<TypeItem>
+    ): String {
         return type.toSimpleType() +
             if (constraints.isEmpty()) {
                 " (extends java.lang.Object)"
@@ -690,27 +620,23 @@ class CompatibilityCheck(
             val oldType = old.type()
             val newType = new.type()
             if (oldType != newType) {
-                val message =
-                    "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
+                val message = "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
             } else if (!old.hasSameValue(new)) {
                 val prevValue = old.initialValue()
-                val prevString =
-                    if (prevValue == null && !old.modifiers.isFinal()) {
-                        "nothing/not constant"
-                    } else {
-                        prevValue
-                    }
+                val prevString = if (prevValue == null && !old.modifiers.isFinal()) {
+                    "nothing/not constant"
+                } else {
+                    prevValue
+                }
 
                 val newValue = new.initialValue()
-                val newString =
-                    if (newValue is PsiField) {
-                        newValue.containingClass?.qualifiedName + "." + newValue.name
-                    } else {
-                        newValue
-                    }
-                val message =
-                    "${describe(
+                val newString = if (newValue is PsiField) {
+                    newValue.containingClass?.qualifiedName + "." + newValue.name
+                } else {
+                    newValue
+                }
+                val message = "${describe(
                     new,
                     capitalize = true
                 )} has changed value from $prevString to $newString"
@@ -725,8 +651,7 @@ class CompatibilityCheck(
             // Only report issue if the change is a decrease in access; e.g. public -> protected
             if (!newModifiers.asAccessibleAs(oldModifiers)) {
                 report(
-                    Issues.CHANGED_SCOPE,
-                    new,
+                    Issues.CHANGED_SCOPE, new,
                     "${
                     describe(
                         new,
@@ -739,44 +664,33 @@ class CompatibilityCheck(
 
         if (oldModifiers.isStatic() != newModifiers.isStatic()) {
             report(
-                Issues.CHANGED_STATIC,
-                new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier"
+                Issues.CHANGED_STATIC, new, "${describe(new, capitalize = true)} has changed 'static' qualifier"
             )
         }
 
         if (!oldModifiers.isFinal() && newModifiers.isFinal()) {
             report(
-                Issues.ADDED_FINAL,
-                new,
-                "${describe(new, capitalize = true)} has added 'final' qualifier"
+                Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} has added 'final' qualifier"
             )
         } else if (
             // Final can't be removed if field is static with compile-time constant
-            oldModifiers.isFinal() &&
-                !newModifiers.isFinal() &&
-                oldModifiers.isStatic() &&
-                old.initialValue() != null
+            oldModifiers.isFinal() && !newModifiers.isFinal() &&
+            oldModifiers.isStatic() && old.initialValue() != null
         ) {
             report(
-                Issues.REMOVED_FINAL,
-                new,
-                "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} has removed 'final' qualifier"
             )
         }
 
         if (oldModifiers.isVolatile() != newModifiers.isVolatile()) {
             report(
-                Issues.CHANGED_VOLATILE,
-                new,
-                "${describe(new, capitalize = true)} has changed 'volatile' qualifier"
+                Issues.CHANGED_VOLATILE, new, "${describe(new, capitalize = true)} has changed 'volatile' qualifier"
             )
         }
 
         if (old.deprecated != new.deprecated) {
             report(
-                Issues.CHANGED_DEPRECATED,
-                new,
+                Issues.CHANGED_DEPRECATED, new,
                 "${describe(
                     new,
                     capitalize = true
@@ -785,7 +699,6 @@ class CompatibilityCheck(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: Item) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -804,10 +717,10 @@ class CompatibilityCheck(
         // Clarify error message for removed API to make it less ambiguous
         if (apiType == ApiType.REMOVED) {
             message += " to the removed API"
-        } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesSuffix("SystemApi")) {
+        } else if (options.showAnnotations.isNotEmpty()) {
+            if (options.showAnnotations.matchesSuffix("SystemApi")) {
                 message += " to the system API"
-            } else if (options.allShowAnnotations.matchesSuffix("TestApi")) {
+            } else if (options.showAnnotations.matchesSuffix("TestApi")) {
                 message += " to the test API"
             }
         }
@@ -832,25 +745,23 @@ class CompatibilityCheck(
             return
         }
 
-        report(
-            issue,
-            item,
-            "Removed ${if (item.deprecated) "deprecated " else ""}${describe(item)}"
-        )
+        report(issue, item, "Removed ${if (item.deprecated) "deprecated " else ""}${describe(item)}")
     }
 
-    private fun findBaseItem(item: Item): Item? {
+    private fun findBaseItem(
+        item: Item
+    ): Item? {
         base ?: return null
 
         return when (item) {
             is PackageItem -> base.findPackage(item.qualifiedName())
             is ClassItem -> base.findClass(item.qualifiedName())
-            is MethodItem ->
-                base
-                    .findClass(item.containingClass().qualifiedName())
-                    ?.findMethod(item, includeSuperClasses = true, includeInterfaces = true)
-            is FieldItem ->
-                base.findClass(item.containingClass().qualifiedName())?.findField(item.name())
+            is MethodItem -> base.findClass(item.containingClass().qualifiedName())?.findMethod(
+                item,
+                includeSuperClasses = true,
+                includeInterfaces = true
+            )
+            is FieldItem -> base.findClass(item.containingClass().qualifiedName())?.findField(item.name())
             else -> null
         }
     }
@@ -860,16 +771,24 @@ class CompatibilityCheck(
     }
 
     override fun added(new: ClassItem) {
-        val error =
-            if (new.isInterface()) {
-                Issues.ADDED_INTERFACE
-            } else {
-                Issues.ADDED_CLASS
-            }
+        val error = if (new.isInterface()) {
+            Issues.ADDED_INTERFACE
+        } else {
+            Issues.ADDED_CLASS
+        }
         handleAdded(error, new)
     }
 
     override fun added(new: MethodItem) {
+        // In old signature files, methods inherited from hidden super classes
+        // are not included. An example of this is StringBuilder.setLength.
+        // More details about this are listed in Compatibility.skipInheritedMethods.
+        // We may see these in the codebase but not in the (old) signature files,
+        // so skip these -- they're not really "added".
+        if (new.inheritedFrom != null && comparingWithPartialSignatures) {
+            return
+        }
+
         // *Overriding* methods from super classes that are outside the
         // API is OK (e.g. overriding toString() from java.lang.Object)
         val superMethods = new.superMethods()
@@ -883,16 +802,23 @@ class CompatibilityCheck(
         // existing superclass method, but we should fail if this is overriding
         // an abstract method, because method's abstractness affects how users use it.
         // See if there's a member from inherited class
-        val inherited =
-            if (new.isConstructor()) {
-                null
-            } else {
-                new.containingClass()
-                    .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
-            }
+        val inherited = if (new.isConstructor()) {
+            null
+        } else {
+            new.containingClass().findMethod(
+                new,
+                includeSuperClasses = true,
+                includeInterfaces = false
+            )
+        }
 
         // Builtin annotation methods: just a difference in signature file
         if (new.isEnumSyntheticMethod()) {
+            return
+        }
+
+        // In old signature files, annotation methods are missing! This will show up as an added method.
+        if (new.containingClass().isAnnotationType() && oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1) {
             return
         }
 
@@ -905,45 +831,36 @@ class CompatibilityCheck(
             return
         }
 
-        // It is ok to add a new abstract method to a class that has no public constructors
-        if (
-            new.containingClass().isClass() &&
-                !new.containingClass().constructors().any { it.isPublic && !it.hidden } &&
-                new.modifiers.isAbstract()
-        ) {
-            return
-        }
-
         if (inherited == null || inherited == new || !inherited.modifiers.isAbstract()) {
-            val error =
-                when {
-                    new.modifiers.isAbstract() -> Issues.ADDED_ABSTRACT_METHOD
-                    new.containingClass().isInterface() ->
-                        when {
-                            new.modifiers.isStatic() -> Issues.ADDED_METHOD
-                            new.modifiers.isDefault() -> {
-                                // Hack to always mark added Kotlin interface methods as abstract
-                                // until
-                                // we properly support JVM default methods for Kotlin. This has to
-                                // check
-                                // if it's a PsiItem because TextItem doesn't support isKotlin.
-                                //
-                                // TODO(b/200077254): Remove Kotlin special case
-                                if (new is PsiItem && new.isKotlin()) {
-                                    Issues.ADDED_ABSTRACT_METHOD
-                                } else {
-                                    Issues.ADDED_METHOD
-                                }
-                            }
-                            else -> Issues.ADDED_ABSTRACT_METHOD
+            val error = when {
+                new.modifiers.isAbstract() -> Issues.ADDED_ABSTRACT_METHOD
+                new.containingClass().isInterface() -> when {
+                    new.modifiers.isStatic() -> Issues.ADDED_METHOD
+                    new.modifiers.isDefault() -> {
+                        // Hack to always mark added Kotlin interface methods as abstract until
+                        // we properly support JVM default methods for Kotlin. This has to check
+                        // if it's a PsiItem because TextItem doesn't support isKotlin.
+                        //
+                        // TODO(b/200077254): Remove Kotlin special case
+                        if (new is PsiItem && new.isKotlin()) {
+                            Issues.ADDED_ABSTRACT_METHOD
+                        } else {
+                            Issues.ADDED_METHOD
                         }
-                    else -> Issues.ADDED_METHOD
+                    }
+                    else -> Issues.ADDED_ABSTRACT_METHOD
                 }
+                else -> Issues.ADDED_METHOD
+            }
             handleAdded(error, new)
         }
     }
 
     override fun added(new: FieldItem) {
+        if (new.inheritedFrom != null && comparingWithPartialSignatures) {
+            return
+        }
+
         handleAdded(Issues.ADDED_FIELD, new)
     }
 
@@ -952,110 +869,80 @@ class CompatibilityCheck(
     }
 
     override fun removed(old: ClassItem, from: Item?) {
-        val error =
-            when {
-                old.isInterface() -> Issues.REMOVED_INTERFACE
-                old.deprecated -> Issues.REMOVED_DEPRECATED_CLASS
-                else -> Issues.REMOVED_CLASS
-            }
+        val error = when {
+            old.isInterface() -> Issues.REMOVED_INTERFACE
+            old.deprecated -> Issues.REMOVED_DEPRECATED_CLASS
+            else -> Issues.REMOVED_CLASS
+        }
 
         handleRemoved(error, old)
     }
 
     override fun removed(old: MethodItem, from: ClassItem?) {
         // See if there's a member from inherited class
-        val inherited =
-            if (old.isConstructor()) {
-                null
-            } else {
-                // This can also return self, specially handled below
-                from?.findMethod(
-                    old,
-                    includeSuperClasses = true,
-                    includeInterfaces = from.isInterface()
-                )
-            }
+        val inherited = if (old.isConstructor()) {
+            null
+        } else {
+            // This can also return self, specially handled below
+            from?.findMethod(
+                old,
+                includeSuperClasses = true,
+                includeInterfaces = from.isInterface()
+            )
+        }
         if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
-            val error =
-                if (old.deprecated) Issues.REMOVED_DEPRECATED_METHOD else Issues.REMOVED_METHOD
+            val error = if (old.deprecated) Issues.REMOVED_DEPRECATED_METHOD else Issues.REMOVED_METHOD
             handleRemoved(error, old)
         }
     }
 
     override fun removed(old: FieldItem, from: ClassItem?) {
-        val inherited =
-            from?.findField(
-                old.name(),
-                includeSuperClasses = true,
-                includeInterfaces = from.isInterface()
-            )
+        val inherited = from?.findField(
+            old.name(),
+            includeSuperClasses = true,
+            includeInterfaces = from.isInterface()
+        )
         if (inherited == null) {
-            val error =
-                if (old.deprecated) Issues.REMOVED_DEPRECATED_FIELD else Issues.REMOVED_FIELD
+            val error = if (old.deprecated) Issues.REMOVED_DEPRECATED_FIELD else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
     }
 
-    private fun report(issue: Issue, item: Item, message: String) {
-        if (item.isCompatibilitySuppressed()) {
-            // Long-term, we should consider allowing meta-annotations to specify a different
-            // `configuration` so it can use a separate set of severities. For now, though, we'll
-            // treat all issues for all unchecked items as `Severity.IGNORE`.
-            return
-        }
-        if (
-            reporter.report(issue, item, message) &&
-                issueConfiguration.getSeverity(issue) == Severity.ERROR
-        ) {
+    private fun report(
+        issue: Issue,
+        item: Item,
+        message: String
+    ) {
+        if (reporter.report(issue, item, message) && configuration.getSeverity(issue) == Severity.ERROR) {
             foundProblems = true
         }
     }
 
     companion object {
-        @Suppress("DEPRECATION")
         fun checkCompatibility(
-            newCodebase: Codebase,
-            oldCodebase: Codebase,
+            codebase: Codebase,
+            previous: Codebase,
             apiType: ApiType,
-            baseApi: Codebase?,
-            reporter: Reporter,
-            issueConfiguration: IssueConfiguration,
+            oldBase: Codebase? = null,
+            newBase: Codebase? = null
         ) {
-            val filter =
-                apiType
-                    .getReferenceFilter()
-                    .or(apiType.getEmitFilter())
-                    .or(ApiType.PUBLIC_API.getReferenceFilter())
-                    .or(ApiType.PUBLIC_API.getEmitFilter())
+            val filter = apiType.getReferenceFilter()
+                .or(apiType.getEmitFilter())
+                .or(ApiType.PUBLIC_API.getReferenceFilter())
+                .or(ApiType.PUBLIC_API.getEmitFilter())
+            val checker = CompatibilityCheck(filter, previous, apiType, newBase, options.reporterCompatibilityReleased)
+            // newBase is considered part of the current codebase
+            val currentFullCodebase = MergedCodebase(listOf(newBase, codebase).filterNotNull())
+            // oldBase is considered part of the previous codebase
+            val previousFullCodebase = MergedCodebase(listOf(oldBase, previous).filterNotNull())
 
-            val checker =
-                CompatibilityCheck(
-                    filter,
-                    oldCodebase,
-                    apiType,
-                    baseApi,
-                    reporter,
-                    issueConfiguration,
-                )
+            CodebaseComparator().compare(checker, previousFullCodebase, currentFullCodebase, filter)
 
-            val oldFullCodebase =
-                if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-                    MergedCodebase(listOfNotNull(oldCodebase, baseApi))
-                } else {
-                    // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
-                    // first parameter is master, so we don't change values of oldCodeBase
-                    MergedCodebase(listOfNotNull(oldCodebase, newCodebase))
-                }
-            val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
-
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
-
-            val message =
-                "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+            val message = "Found compatibility problems checking " +
+                "the ${apiType.displayName} API (${codebase.location}) against the API in ${previous.location}"
 
             if (checker.foundProblems) {
-                throw MetalavaCliException(exitCode = -1, stderr = message)
+                throw DriverException(exitCode = -1, stderr = message)
             }
         }
     }

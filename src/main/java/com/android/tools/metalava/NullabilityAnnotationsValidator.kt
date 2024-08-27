@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -25,8 +24,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import com.google.common.io.Files
 import java.io.File
 import java.io.PrintWriter
@@ -34,12 +31,10 @@ import kotlin.text.Charsets.UTF_8
 
 private const val RETURN_LABEL = "return value"
 
-/** Class that validates nullability annotations in the codebase. */
-class NullabilityAnnotationsValidator(
-    private val reporter: Reporter,
-    private val nullabilityErrorsFatal: Boolean,
-    private val nullabilityWarningsTxt: File?,
-) {
+/**
+ * Class that validates nullability annotations in the codebase.
+ */
+class NullabilityAnnotationsValidator {
 
     private enum class ErrorType {
         MULTIPLE,
@@ -84,31 +79,21 @@ class NullabilityAnnotationsValidator(
      */
     fun validateAll(codebase: Codebase, topLevelClassNames: List<String>) {
         for (topLevelClassName in topLevelClassNames) {
-            val topLevelClass =
-                codebase.findClass(topLevelClassName)
-                    ?: throw MetalavaCliException(
-                        "Trying to validate nullability annotations for class $topLevelClassName which could not be found in main codebase"
-                    )
+            val topLevelClass = codebase.findClass(topLevelClassName)
+                ?: throw DriverException("Trying to validate nullability annotations for class $topLevelClassName which could not be found in main codebase")
             // Visit methods to check their return type, and parameters to check them. Don't visit
             // constructors as we don't want to check their return types. This visits members of
             // inner classes as well.
-            topLevelClass.accept(
-                object : ApiVisitor(visitConstructorsAsMethods = false) {
+            topLevelClass.accept(object : ApiVisitor(visitConstructorsAsMethods = false) {
 
-                    override fun visitMethod(method: MethodItem) {
-                        checkItem(method, RETURN_LABEL, method.returnType(), method)
-                    }
-
-                    override fun visitParameter(parameter: ParameterItem) {
-                        checkItem(
-                            parameter.containingMethod(),
-                            parameter.toString(),
-                            parameter.type(),
-                            parameter
-                        )
-                    }
+                override fun visitMethod(method: MethodItem) {
+                    checkItem(method, RETURN_LABEL, method.returnType(), method)
                 }
-            )
+
+                override fun visitParameter(parameter: ParameterItem) {
+                    checkItem(parameter.containingMethod(), parameter.toString(), parameter.type(), parameter)
+                }
+            })
         }
     }
 
@@ -130,7 +115,7 @@ class NullabilityAnnotationsValidator(
 
     private fun checkItem(method: MethodItem, label: String, type: TypeItem?, item: Item) {
         if (type == null) {
-            throw MetalavaCliException("Missing type on $method item $label")
+            throw DriverException("Missing type on $method item $label")
         }
         if (method.synthetic) {
             // Don't validate items which don't exist in source such as an enum's valueOf(String)
@@ -194,24 +179,26 @@ class NullabilityAnnotationsValidator(
         }
     }
 
-    /** Report on any violations found during earlier validation calls. */
+    /**
+     * Report on any violations found during earlier validation calls.
+     */
     fun report() {
         errors.sortBy { it.toString() }
         warnings.sortBy { it.toString() }
-        val warningsTxtFile = nullabilityWarningsTxt
+        val warningsTxtFile = options.nullabilityWarningsTxt
         val fatalIssues = mutableListOf<Issue>()
         val nonFatalIssues = mutableListOf<Issue>()
 
-        // Errors are fatal iff nullabilityErrorsFatal is set.
-        if (nullabilityErrorsFatal) {
+        // Errors are fatal iff options.nullabilityErrorsFatal is set.
+        if (options.nullabilityErrorsFatal) {
             fatalIssues.addAll(errors)
         } else {
             nonFatalIssues.addAll(errors)
         }
 
         // Warnings go to the configured .txt file if present, which means they're not fatal.
-        // Else they're fatal iff nullabilityErrorsFatal is set.
-        if (warningsTxtFile == null && nullabilityErrorsFatal) {
+        // Else they're fatal iff options.nullabilityErrorsFatal is set.
+        if (warningsTxtFile == null && options.nullabilityErrorsFatal) {
             fatalIssues.addAll(warnings)
         } else {
             nonFatalIssues.addAll(warnings)
@@ -219,9 +206,7 @@ class NullabilityAnnotationsValidator(
 
         // Fatal issues are thrown.
         if (fatalIssues.isNotEmpty()) {
-            fatalIssues.forEach {
-                reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION, it.method, it.toString())
-            }
+            fatalIssues.forEach { reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION, it.method, it.toString()) }
         }
 
         // Non-fatal issues are written to the warnings .txt file if present, else logged.
@@ -231,11 +216,7 @@ class NullabilityAnnotationsValidator(
             }
         } else {
             nonFatalIssues.forEach {
-                reporter.report(
-                    Issues.INVALID_NULLABILITY_ANNOTATION_WARNING,
-                    it.method,
-                    "Nullability issue: $it"
-                )
+                reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION_WARNING, it.method, "Nullability issue: $it")
             }
         }
     }

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class SystemServiceCheckTest : DriverTest() {
@@ -25,10 +24,9 @@ class SystemServiceCheckTest : DriverTest() {
         check(
             expectedIssues = "", // OK
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @android.annotation.SystemService
@@ -37,12 +35,11 @@ class SystemServiceCheckTest : DriverTest() {
                         public int myMethod1() { }
                     }
                     """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
                     <permission
                         android:name="foo.bar.PERMISSION1"
@@ -63,10 +60,9 @@ class SystemServiceCheckTest : DriverTest() {
         check(
             expectedIssues = "", // OK
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
 
                     @android.annotation.SystemService
@@ -76,11 +72,10 @@ class SystemServiceCheckTest : DriverTest() {
                         }
                     }
                     """
-                    ),
-                    systemServiceSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource
+            ),
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
                     <permission
                         android:name="foo.bar.PERMISSION1"
@@ -99,25 +94,22 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- no permission annotation`() {
         check(
-            expectedIssues =
-                "src/test/pkg/MyTest1.java:4: lint: Method 'myMethod2' must be protected with a system permission. [RequiresPermission]",
+            expectedIssues = "src/test/pkg/MyTest1.java:4: lint: Method 'myMethod2' must be protected with a system permission. [RequiresPermission]",
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     @android.annotation.SystemService
                     public class MyTest1 {
                         public int myMethod2() { }
                     }
                     """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest/>
                 """
         )
@@ -128,10 +120,9 @@ class SystemServiceCheckTest : DriverTest() {
         check(
             expectedIssues = "",
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @android.annotation.SystemService
@@ -140,12 +131,12 @@ class SystemServiceCheckTest : DriverTest() {
                         public int myMethod1() { }
                     }
                     """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
                     <permission
                         android:name="foo.bar.PERMISSION1"
@@ -160,16 +151,14 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService such that at least one permission must be defined with anyOf`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/test/pkg/MyTest2.java:6: lint: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: lint: Method 'myMethod1' must be protected with a system permission. [RequiresPermission]
                 """,
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @android.annotation.SystemService
@@ -178,12 +167,12 @@ class SystemServiceCheckTest : DriverTest() {
                         public int myMethod1() { }
                     }
                     """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest/>
                 """
         )
@@ -192,13 +181,11 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- missing one permission with allOf`() {
         check(
-            expectedIssues =
-                "src/test/pkg/MyTest2.java:6: lint: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]",
+            expectedIssues = "src/test/pkg/MyTest2.java:6: lint: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]",
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                         package test.pkg;
                         import android.annotation.RequiresPermission;
                         @android.annotation.SystemService
@@ -207,12 +194,12 @@ class SystemServiceCheckTest : DriverTest() {
                             public int test() { }
                         }
                         """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
                     <permission
                         android:name="foo.bar.PERMISSION1"
@@ -227,15 +214,13 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- must be system permission, not normal`() {
         check(
-            expectedIssues =
-                "src/test/pkg/MyTest2.java:7: lint: Method 'test' must be protected with a system " +
-                    "permission; it currently allows non-system callers holding [foo.bar.PERMISSION1, " +
-                    "foo.bar.PERMISSION2] [RequiresPermission]",
+            expectedIssues = "src/test/pkg/MyTest2.java:7: lint: Method 'test' must be protected with a system " +
+                "permission; it currently allows non-system callers holding [foo.bar.PERMISSION1, " +
+                "foo.bar.PERMISSION2] [RequiresPermission]",
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
@@ -245,12 +230,12 @@ class SystemServiceCheckTest : DriverTest() {
                         public int test() { }
                     }
                     """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                     <manifest xmlns:android="http://schemas.android.com/apk/res/android">
                         <permission
                             android:name="foo.bar.PERMISSION1"
@@ -269,17 +254,15 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- missing manifest permissions`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/test/pkg/MyTest2.java:6: lint: Permission 'Manifest.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: lint: Permission 'Manifest.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: lint: Method 'test' must be protected with a system permission. [RequiresPermission]
                 """,
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @android.annotation.SystemService
@@ -288,12 +271,11 @@ class SystemServiceCheckTest : DriverTest() {
                         public int test() { }
                     }
                     """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest/>
                 """
         )
@@ -302,17 +284,15 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Invalid manifest`() {
         check(
-            expectedIssues =
-                """
-                manifest.xml: error: Failed to parse TESTROOT/manifest.xml: The markup in the document preceding the root element must be well-formed. [ParseError]
+            expectedIssues = """
+                TESTROOT/manifest.xml: error: Failed to parse TESTROOT/manifest.xml: The markup in the document preceding the root element must be well-formed. [ParseError]
                 src/test/pkg/MyTest2.java:7: lint: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:7: lint: Method 'test' must be protected with a system permission. [RequiresPermission]
                 """,
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
@@ -322,12 +302,11 @@ class SystemServiceCheckTest : DriverTest() {
                         public int test() { }
                     }
                     """
-                    ),
-                    systemServiceSource,
-                    requiresPermissionSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource,
+                requiresPermissionSource
+            ),
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 </error>
                 """
         )
@@ -338,10 +317,9 @@ class SystemServiceCheckTest : DriverTest() {
         check(
             expectedIssues = "", // OK (suppressed)
             includeSystemApiAnnotations = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
 
                     @android.annotation.SystemService
@@ -352,11 +330,10 @@ class SystemServiceCheckTest : DriverTest() {
                         }
                     }
                     """
-                    ),
-                    systemServiceSource
                 ),
-            manifest =
-                """<?xml version="1.0" encoding="UTF-8"?>
+                systemServiceSource
+            ),
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest/>
                 """
         )

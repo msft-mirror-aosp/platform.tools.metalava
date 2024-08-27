@@ -16,47 +16,48 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
-import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
-@Suppress("DEPRECATION")
 object SignatureFileLoader {
-    private val map = mutableMapOf<File, TextCodebase>()
-
-    /** Used by java file. */
-    fun load(file: File): TextCodebase {
-        return load(file, null)
-    }
+    private val map = mutableMapOf<File, Codebase>()
 
     fun load(
         file: File,
-        classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager = options.annotationManager,
-    ): TextCodebase {
-        return map[file]
-            ?: run {
-                val loaded = loadFiles(listOf(file), classResolver, annotationManager)
-                map[file] = loaded
-                loaded
-            }
+        kotlinStyleNulls: Boolean? = null
+    ): Codebase {
+        return map[file] ?: run {
+            val loaded = loadFromSignatureFiles(file, kotlinStyleNulls)
+            map[file] = loaded
+            loaded
+        }
     }
 
-    fun loadFiles(
-        files: List<File>,
-        classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager = options.annotationManager,
-    ): TextCodebase {
-        require(files.isNotEmpty()) { "files must not be empty" }
-
+    private fun loadFromSignatureFiles(
+        file: File,
+        kotlinStyleNulls: Boolean? = null
+    ): Codebase {
         try {
-            return ApiFile.parseApi(files, classResolver, annotationManager)
+            val codebase = ApiFile.parseApi(File(file.path), kotlinStyleNulls ?: false)
+            codebase.description = "Codebase loaded from ${file.path}"
+            return codebase
         } catch (ex: ApiParseException) {
-            throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
+            val message = "Unable to parse signature file $file: ${ex.message}"
+            throw DriverException(message)
+        }
+    }
+
+    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean? = null): Codebase {
+        if (files.isEmpty()) {
+            throw IllegalArgumentException("files must not be empty")
+        }
+        try {
+            return ApiFile.parseApi(files, kotlinStyleNulls ?: false)
+        } catch (ex: ApiParseException) {
+            val message = "Unable to parse signature file: ${ex.message}"
+            throw DriverException(message)
         }
     }
 }
