@@ -18,18 +18,21 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class SdkFileWriterTest : DriverTest() {
     @Test
     fun `Test generating broadcast actions`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/android/telephony/SubscriptionManager.java:11: lint: Field 'ACTION_DEFAULT_SUBSCRIPTION_CHANGED' is missing @BroadcastBehavior [BroadcastBehavior]
                 """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                 package android.telephony;
 
                 import android.annotation.SdkConstant;
@@ -44,10 +47,11 @@ class SdkFileWriterTest : DriverTest() {
                             = "android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED";
                 }
             """
+                    ),
+                    sdkConstantSource
                 ),
-                sdkConstantSource
-            ),
-            sdk_broadcast_actions = """
+            sdkBroadcastActions =
+                """
             android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED
             """
         )
@@ -56,9 +60,10 @@ class SdkFileWriterTest : DriverTest() {
     @Test
     fun `Test generating activity actions`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                 package android.content;
 
                 import android.annotation.SdkConstant;
@@ -69,10 +74,10 @@ class SdkFileWriterTest : DriverTest() {
                     public static final String ACTION_MAIN = "android.intent.action.MAIN";
                 }
                 """
+                    ),
+                    sdkConstantSource
                 ),
-                sdkConstantSource
-            ),
-            sdk_activity_actions = """
+            sdkActivityActions = """
             android.intent.action.MAIN
             """
         )
@@ -81,9 +86,10 @@ class SdkFileWriterTest : DriverTest() {
     @Test
     fun `Test generating widgets`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                 package android.widget;
 
                 import android.content.Context;
@@ -96,10 +102,11 @@ class SdkFileWriterTest : DriverTest() {
                     }
                 }
             """
+                    ),
+                    widgetSource
                 ),
-                widgetSource
-            ),
-            sdk_widgets = """
+            sdkWidgets =
+                """
             Wandroid.view.View java.lang.Object
             Wandroid.widget.MyButton android.view.View java.lang.Object
             """

@@ -17,17 +17,15 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Language
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.visitors.ItemVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
@@ -38,8 +36,9 @@ class KotlinStubWriter(
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean
-) : ItemVisitor() {
-    private val annotationTarget = if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+) : BaseItemVisitor() {
+    private val annotationTarget =
+        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -48,16 +47,9 @@ class KotlinStubWriter(
                 writer.println("package $qualifiedName")
                 writer.println()
             }
-            cls.getSourceFile()?.getImportStatements(filterReference)?.let {
+            cls.getSourceFile()?.getImports(filterReference)?.let {
                 for (item in it) {
-                    when (item) {
-                        is PackageItem ->
-                            writer.println("import ${item.qualifiedName()}.*")
-                        is ClassItem ->
-                            writer.println("import ${item.qualifiedName()}")
-                        is MemberItem ->
-                            writer.println("import static ${item.containingClass().qualifiedName()}.${item.name()}")
-                    }
+                    writer.println("import ${item.pattern}")
                 }
                 writer.println()
             }
@@ -88,10 +80,7 @@ class KotlinStubWriter(
         writer.print(" {\n")
     }
 
-    private fun generateTypeParameterList(
-        typeList: TypeParameterList,
-        addSpace: Boolean
-    ) {
+    private fun generateTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
         val typeListString = typeList.toString()
         if (typeListString.isNotEmpty()) {
             writer.print(typeListString)
@@ -112,7 +101,9 @@ class KotlinStubWriter(
         val separateLines = item is ClassItem || item is MethodItem
 
         ModifierList.write(
-            writer, modifiers, item,
+            writer,
+            modifiers,
+            item,
             target = annotationTarget,
             skipNullnessAnnotations = true,
             includeDeprecated = true,
@@ -127,16 +118,17 @@ class KotlinStubWriter(
 
     private fun generateSuperClassDeclaration(cls: ClassItem): Boolean {
         if (cls.isEnum() || cls.isAnnotationType()) {
-            // No extends statement for enums and annotations; it's implied by the "enum" and "@interface" keywords
+            // No extends statement for enums and annotations; it's implied by the "enum" and
+            // "@interface" keywords
             return false
         }
 
-        val superClass = if (preFiltered)
-            cls.superClassType()
-        else cls.filteredSuperClassType(filterReference)
+        val superClass =
+            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
 
         if (superClass != null && !superClass.isJavaLangObject()) {
-            val qualifiedName = superClass.toTypeString() // TODO start passing language = Language.KOTLIN
+            val qualifiedName =
+                superClass.toTypeString() // TODO start passing language = Language.KOTLIN
             writer.print(" : ")
 
             if (qualifiedName.contains("<")) {
@@ -165,9 +157,9 @@ class KotlinStubWriter(
             return
         }
 
-        val interfaces = if (preFiltered)
-            cls.interfaceTypes().asSequence()
-        else cls.filteredInterfaceTypes(filterReference).asSequence()
+        val interfaces =
+            if (preFiltered) cls.interfaceTypes().asSequence()
+            else cls.filteredInterfaceTypes(filterReference).asSequence()
 
         if (interfaces.any()) {
             if (printedSuperClass) {
@@ -185,21 +177,19 @@ class KotlinStubWriter(
         }
     }
 
-    private fun writeType(
-        item: Item,
-        type: TypeItem?
-    ) {
+    private fun writeType(item: Item, type: TypeItem?) {
         type ?: return
 
-        val typeString = type.toTypeString(
-            outerAnnotations = false,
-            innerAnnotations = generateAnnotations,
-            erased = false,
-            kotlinStyleNulls = true,
-            context = item,
-            filter = filterReference
-            // TODO pass in language = Language.KOTLIN
-        )
+        val typeString =
+            type.toTypeString(
+                outerAnnotations = false,
+                innerAnnotations = generateAnnotations,
+                erased = false,
+                kotlinStyleNulls = true,
+                context = item,
+                filter = filterReference
+                // TODO pass in language = Language.KOTLIN
+            )
 
         writer.print(typeString)
     }
@@ -280,11 +270,12 @@ class KotlinStubWriter(
 
     private fun generateThrowsList(method: MethodItem) {
         // Note that throws types are already sorted internally to help comparison matching
-        val throws = if (preFiltered) {
-            method.throwsTypes().asSequence()
-        } else {
-            method.filteredThrowsTypes(filterReference).asSequence()
-        }
+        val throws =
+            if (preFiltered) {
+                method.throwsTypes().asSequence()
+            } else {
+                method.filteredThrowsTypes(filterReference).asSequence()
+            }
         if (throws.any()) {
             writer.print("@Throws(")
             throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->

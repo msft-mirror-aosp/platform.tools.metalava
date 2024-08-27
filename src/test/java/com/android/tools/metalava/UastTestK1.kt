@@ -16,33 +16,21 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.FIR_UAST_KEY
-import org.junit.BeforeClass
 import org.junit.Test
 
 class UastTestK1 : UastTestBase() {
-    companion object {
-        @BeforeClass
-        @JvmStatic
-        fun classSetup() {
-            System.setProperty(FIR_UAST_KEY, "false")
-        }
-    }
 
     @Test
-    fun `Kotlin language level -- K1`() {
-        `Kotlin language level`(isK2 = false)
-    }
-
-    @Test
-    fun `Test Experimental and UseExperimental -- K1`() {
-        `Test Experimental and UseExperimental`(isK2 = false)
+    fun `Test RequiresOptIn and OptIn -- K1`() {
+        `Test RequiresOptIn and OptIn`(isK2 = false)
     }
 
     @Test
     fun `renamed via @JvmName -- K1`() {
         `renamed via @JvmName`(
-            api = """
+            isK2 = false,
+            api =
+                """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class ColorRamp {
@@ -68,12 +56,47 @@ class UastTestK1 : UastTestBase() {
     }
 
     @Test
-    fun `Nullness in reified signatures -- K1`() {
-        `Nullness in reified signatures`(isK2 = false)
+    fun `Annotation on parameters of data class synthetic copy -- K1`() {
+        `Annotation on parameters of data class synthetic copy`(isK2 = false)
     }
 
     @Test
-    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN -- K1`() {
-        `Annotations aren't dropped when DeprecationLevel is HIDDEN`(isK2 = false)
+    fun `declarations with value class in its signature -- K1`() {
+        `declarations with value class in its signature`(isK2 = false)
+    }
+
+    @Test
+    fun `non-last vararg type -- K1`() {
+        `non-last vararg type`(isK2 = false)
+    }
+
+    @Test
+    fun `implements Comparator -- K1`() {
+        `implements Comparator`(isK2 = false)
+    }
+
+    @Test
+    fun `constant in file-level annotation -- K1`() {
+        `constant in file-level annotation`(isK2 = false)
+    }
+
+    @Test
+    fun `final modifier in enum members -- K1`() {
+        `final modifier in enum members`(isK2 = false)
+    }
+
+    @Test
+    fun `lateinit var as mutable bare field -- K1`() {
+        `lateinit var as mutable bare field`(isK2 = false)
+    }
+
+    @Test
+    fun `Upper bound wildcards -- K1`() {
+        `Upper bound wildcards`(isK2 = false)
+    }
+
+    @Test
+    fun `boxed type argument as method return type -- K1`() {
+        `boxed type argument as method return type`(isK2 = false)
     }
 }

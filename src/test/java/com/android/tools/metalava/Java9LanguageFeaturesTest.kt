@@ -18,6 +18,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class Java9LanguageFeaturesTest : DriverTest() {
@@ -25,11 +27,12 @@ class Java9LanguageFeaturesTest : DriverTest() {
     fun `Private Interface Method`() {
         // Basic class; also checks that default constructor is made explicit
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             checkCompilation = false, // Not compiling with JDK 9 yet
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public interface Person {
@@ -39,9 +42,10 @@ class Java9LanguageFeaturesTest : DriverTest() {
                         }
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public interface Person {
                     method public String name();
@@ -56,11 +60,12 @@ class Java9LanguageFeaturesTest : DriverTest() {
     fun `Basic class signature extraction`() {
         // Basic class; also checks that default constructor is made explicit
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             checkCompilation = false, // Not compiling with JDK 9 yet
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package libcore.internal;
 
                     import java.io.ByteArrayInputStream;
@@ -126,9 +131,10 @@ class Java9LanguageFeaturesTest : DriverTest() {
                         }
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package libcore.internal {
                   public class Java9LanguageFeatures {
                     ctor public Java9LanguageFeatures();
@@ -153,19 +159,20 @@ class Java9LanguageFeaturesTest : DriverTest() {
         val jdk = System.getProperty("java.home") ?: error("Expected java.home to be set")
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import javax.swing.JButton;
                     public class SwingTest extends JButton {
                         public JButton button;
                     }
                     """
-                )
-            ),
+                    )
+                ),
             api =
-            """
+                """
                 package test.pkg {
                   public class SwingTest extends javax.swing.JButton {
                     ctor public SwingTest();

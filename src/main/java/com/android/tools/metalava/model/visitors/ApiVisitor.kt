@@ -17,32 +17,32 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.Options
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.VisitCandidate
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.options
+import com.android.tools.metalava.tick
 import java.util.function.Predicate
 
 open class ApiVisitor(
     /**
-     * Whether constructors should be visited as part of a [#visitMethod] call
-     * instead of just a [#visitConstructor] call. Helps simplify visitors that
-     * don't care to distinguish between the two cases. Defaults to true.
+     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
+     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
+     * two cases. Defaults to true.
      */
     visitConstructorsAsMethods: Boolean = true,
     /**
-     * Whether inner classes should be visited "inside" a class; when this property
-     * is true, inner classes are visited before the [#afterVisitClass] method is
-     * called; when false, it's done afterwards. Defaults to false.
+     * Whether inner classes should be visited "inside" a class; when this property is true, inner
+     * classes are visited before the [#afterVisitClass] method is called; when false, it's done
+     * afterwards. Defaults to false.
      */
     nestInnerClasses: Boolean = false,
 
-    /**
-     * Whether to include inherited fields too
-     */
+    /** Whether to include inherited fields too */
     val inlineInheritedFields: Boolean = true,
 
     /** Comparator to sort methods with, or null to use natural (source) order */
@@ -58,33 +58,31 @@ open class ApiVisitor(
     val filterReference: Predicate<Item>,
 
     /**
-     * Whether the visitor should include visiting top-level classes that have
-     * nothing other than non-empty inner classes within.
-     * Typically these are not included in signature files, but when generating
-     * stubs we need to include them.
+     * Whether the visitor should include visiting top-level classes that have nothing other than
+     * non-empty inner classes within. Typically these are not included in signature files, but when
+     * generating stubs we need to include them.
      */
     val includeEmptyOuterClasses: Boolean = false,
 
     /**
-     * Whether this visitor should visit elements that have not been
-     * annotated with one of the annotations passed in using the
-     * --show-annotation flag. This is normally true, but signature files
-     * sometimes sets this to false to make the signature file only contain
-     * the "diff" of the annotated API relative to the base API.
+     * Whether this visitor should visit elements that have not been annotated with one of the
+     * annotations passed in using the --show-annotation flag. This is normally true, but signature
+     * files sometimes sets this to false to make the signature file only contain the "diff" of the
+     * annotated API relative to the base API.
      */
     val showUnannotated: Boolean = true
-) : ItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
+) : BaseItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
     constructor(
         /**
-         * Whether constructors should be visited as part of a [#visitMethod] call
-         * instead of just a [#visitConstructor] call. Helps simplify visitors that
-         * don't care to distinguish between the two cases. Defaults to true.
+         * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
+         * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between
+         * the two cases. Defaults to true.
          */
         visitConstructorsAsMethods: Boolean = true,
         /**
-         * Whether inner classes should be visited "inside" a class; when this property
-         * is true, inner classes are visited before the [#afterVisitClass] method is
-         * called; when false, it's done afterwards. Defaults to false.
+         * Whether inner classes should be visited "inside" a class; when this property is true,
+         * inner classes are visited before the [#afterVisitClass] method is called; when false,
+         * it's done afterwards. Defaults to false.
          */
         nestInnerClasses: Boolean = false,
 
@@ -100,13 +98,23 @@ open class ApiVisitor(
         /** Comparator to sort fields with, or null to use natural (source) order */
         fieldComparator: Comparator<FieldItem>? = null,
 
-        /** Whether to include "for stub purposes" APIs. See [Options.showForStubPurposesAnnotations] */
+        /**
+         * Whether to include "for stub purposes" APIs.
+         *
+         * See [ApiPredicate.includeOnlyForStubPurposes]
+         */
         includeApisForStubPurposes: Boolean = true
     ) : this(
-        visitConstructorsAsMethods, nestInnerClasses,
-        true, methodComparator,
+        visitConstructorsAsMethods,
+        nestInnerClasses,
+        true,
+        methodComparator,
         fieldComparator,
-        ApiPredicate(ignoreShown = ignoreShown, matchRemoved = remove, includeApisForStubPurposes = includeApisForStubPurposes),
+        ApiPredicate(
+            ignoreShown = ignoreShown,
+            matchRemoved = remove,
+            includeApisForStubPurposes = includeApisForStubPurposes
+        ),
         ApiPredicate(ignoreShown = true, ignoreRemoved = remove)
     )
 
@@ -114,14 +122,46 @@ open class ApiVisitor(
     // this property keeps track of whether we've already visited the current package
     var visitingPackage = false
 
-    /**
-     * @return Whether this class is generally one that we want to recurse into
-     */
+    override fun visit(cls: ClassItem) {
+        if (!include(cls)) {
+            return
+        }
+
+        // We build up a separate data structure such that we can compute the
+        // sets of fields, methods, etc even for inner classes (recursively); that way
+        // we can easily and up front determine whether we have any matches for
+        // inner classes (which is vital for computing the removed-api for example, where
+        // only something like the appearance of a removed method inside an inner class
+        // results in the outer class being described in the signature file.
+        val candidate = VisitCandidate(cls, this)
+        candidate.accept()
+    }
+
+    override fun visit(pkg: PackageItem) {
+        if (!pkg.emit) {
+            return
+        }
+
+        // For the API visitor packages are visited lazily; only when we encounter
+        // an unfiltered item within the class
+        pkg.topLevelClasses().asSequence().sortedWith(ClassItem.classNameSorter()).forEach {
+            tick()
+            it.accept(this)
+        }
+
+        if (visitingPackage) {
+            visitingPackage = false
+            afterVisitPackage(pkg)
+            afterVisitItem(pkg)
+        }
+    }
+
+    /** @return Whether this class is generally one that we want to recurse into */
     open fun include(cls: ClassItem): Boolean {
         if (skip(cls)) {
             return false
         }
-        val filter = options.stubPackages
+        @Suppress("DEPRECATION") val filter = options.stubPackages
         if (filter != null && !filter.matches(cls.containingPackage())) {
             return false
         }
@@ -131,7 +171,7 @@ open class ApiVisitor(
 
     /**
      * @return Whether the given VisitCandidate's visitor should recurse into the given
-     * VisitCandidate's class
+     *   VisitCandidate's class
      */
     fun include(vc: VisitCandidate): Boolean {
         if (!include(vc.cls)) {
@@ -141,15 +181,16 @@ open class ApiVisitor(
     }
 
     /**
-     * @return Whether this class should be visited
-     * Note that if [include] returns true then we will still visit classes that are contained by this one
+     * @return Whether this class should be visited Note that if [include] returns true then we will
+     *   still visit classes that are contained by this one
      */
     open fun shouldEmitClass(vc: VisitCandidate): Boolean {
         return vc.cls.emit && (includeEmptyOuterClasses || shouldEmitClassBody(vc))
     }
 
     /**
-     * @return Whether the body of this class (everything other than the inner classes) emits anything
+     * @return Whether the body of this class (everything other than the inner classes) emits
+     *   anything
      */
     private fun shouldEmitClassBody(vc: VisitCandidate): Boolean {
         return when {
@@ -159,17 +200,149 @@ open class ApiVisitor(
         }
     }
 
-    /**
-     * @return Whether the inner classes of this class will emit anything
-     */
+    /** @return Whether the inner classes of this class will emit anything */
     fun shouldEmitInnerClasses(vc: VisitCandidate): Boolean {
         return vc.innerClasses.any { shouldEmitAnyClass(it) }
     }
 
-    /**
-     * @return Whether this class will emit anything
-     */
+    /** @return Whether this class will emit anything */
     private fun shouldEmitAnyClass(vc: VisitCandidate): Boolean {
         return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
+    }
+}
+
+class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
+    val innerClasses: Sequence<VisitCandidate>
+    private val constructors: Sequence<MethodItem>
+    private val methods: Sequence<MethodItem>
+    private val fields: Sequence<FieldItem>
+    private val enums: Sequence<FieldItem>
+    private val properties: Sequence<PropertyItem>
+
+    init {
+        val filterEmit = visitor.filterEmit
+
+        constructors =
+            cls.constructors()
+                .asSequence()
+                .filter { filterEmit.test(it) }
+                .sortedWith(MethodItem.comparator)
+
+        methods =
+            cls.methods()
+                .asSequence()
+                .filter { filterEmit.test(it) }
+                .sortedWith(MethodItem.comparator)
+
+        val fieldSequence =
+            if (visitor.inlineInheritedFields) {
+                cls.filteredFields(filterEmit, visitor.showUnannotated).asSequence()
+            } else {
+                cls.fields().asSequence().filter { filterEmit.test(it) }
+            }
+        if (cls.isEnum()) {
+            fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(FieldItem.comparator)
+            enums =
+                fieldSequence
+                    .filter { it.isEnumConstant() }
+                    .filter { filterEmit.test(it) }
+                    .sortedWith(FieldItem.comparator)
+        } else {
+            fields = fieldSequence.sortedWith(FieldItem.comparator)
+            enums = emptySequence()
+        }
+
+        properties =
+            if (cls.properties().isEmpty()) {
+                emptySequence()
+            } else {
+                cls.properties()
+                    .asSequence()
+                    .filter { filterEmit.test(it) }
+                    .sortedWith(PropertyItem.comparator)
+            }
+
+        innerClasses =
+            cls.innerClasses().asSequence().sortedWith(ClassItem.classNameSorter()).map {
+                VisitCandidate(it, visitor)
+            }
+    }
+
+    /** Whether the class body contains any Item's (other than inner Classes) */
+    fun nonEmpty(): Boolean {
+        return !(constructors.none() &&
+            methods.none() &&
+            enums.none() &&
+            fields.none() &&
+            properties.none())
+    }
+
+    fun accept() {
+        if (!visitor.include(this)) {
+            return
+        }
+
+        val emitThis = visitor.shouldEmitClass(this)
+        if (emitThis) {
+            if (!visitor.visitingPackage) {
+                visitor.visitingPackage = true
+                val pkg = cls.containingPackage()
+                visitor.visitItem(pkg)
+                visitor.visitPackage(pkg)
+            }
+
+            visitor.visitItem(cls)
+            visitor.visitClass(cls)
+
+            val sortedConstructors =
+                if (visitor.methodComparator != null) {
+                    constructors.sortedWith(visitor.methodComparator)
+                } else {
+                    constructors
+                }
+            val sortedMethods =
+                if (visitor.methodComparator != null) {
+                    methods.sortedWith(visitor.methodComparator)
+                } else {
+                    methods
+                }
+            val sortedFields =
+                if (visitor.fieldComparator != null) {
+                    fields.sortedWith(visitor.fieldComparator)
+                } else {
+                    fields
+                }
+
+            for (constructor in sortedConstructors) {
+                constructor.accept(visitor)
+            }
+
+            for (method in sortedMethods) {
+                method.accept(visitor)
+            }
+
+            for (property in properties) {
+                property.accept(visitor)
+            }
+            for (enumConstant in enums) {
+                enumConstant.accept(visitor)
+            }
+            for (field in sortedFields) {
+                field.accept(visitor)
+            }
+        }
+
+        if (visitor.nestInnerClasses) { // otherwise done below
+            innerClasses.forEach { it.accept() }
+        }
+
+        if (emitThis) {
+            visitor.afterVisitClass(cls)
+            visitor.afterVisitItem(cls)
+        }
+
+        if (!visitor.nestInnerClasses) {
+            innerClasses.forEach { it.accept() }
+        }
     }
 }
