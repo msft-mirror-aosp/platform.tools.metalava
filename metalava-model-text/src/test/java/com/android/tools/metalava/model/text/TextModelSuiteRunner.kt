@@ -18,16 +18,22 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import java.io.File
 
 // @AutoService(ModelSuiteRunner::class)
 class TextModelSuiteRunner : ModelSuiteRunner {
+
+    override val supportedInputFormats = setOf(InputFormat.SIGNATURE)
+
     override fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit
+        tempDir: File,
+        input: List<TestFile>,
+        test: (Codebase) -> Unit,
     ) {
-        val codebase = ApiFile.parseApi("test", signature.trimIndent())
+        val signatureFiles = input.map { it.createFile(tempDir) }
+        val codebase = ApiFile.parseApi(signatureFiles)
         test(codebase)
     }
 

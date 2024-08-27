@@ -42,8 +42,11 @@ import org.jetbrains.uast.UFile
 /** Whether we should limit import statements to symbols found in class docs */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
-class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile: UFile? = null) :
-    SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
+internal class PsiSourceFileItem(
+    codebase: PsiBasedCodebase,
+    val file: PsiFile,
+    val uFile: UFile? = null
+) : SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null
@@ -226,7 +229,7 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
             .orEmpty()
     }
 
-    override fun containingPackage(strict: Boolean): PackageItem? {
+    override fun containingPackage(): PackageItem? {
         return when {
             uFile != null -> codebase.findPackage(uFile.packageName)
             file is PsiJavaFile -> codebase.findPackage(file.packageName)

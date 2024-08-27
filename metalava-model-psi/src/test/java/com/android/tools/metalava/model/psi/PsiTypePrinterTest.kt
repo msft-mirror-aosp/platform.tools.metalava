@@ -65,8 +65,10 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
         override fun apply(base: Statement, description: Description): Statement {
             return object : Statement() {
                 override fun evaluate() {
-                    PsiEnvironmentManager().use {
-                        manager = it
+                    // TODO(b/302708854): can be back to implicit lambda parameter `it`
+                    //  after AGP 8.3.0-alpha08 or later
+                    PsiEnvironmentManager().use { m ->
+                        manager = m
                         base.evaluate()
                     }
                 }
@@ -884,7 +886,7 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
                     sourceFiles,
                     "test project",
                     sourcePath = sourcePath,
-                    classpath = classPath,
+                    classPath = classPath,
                 )
 
         val results = LinkedHashMap<String, Entry>()

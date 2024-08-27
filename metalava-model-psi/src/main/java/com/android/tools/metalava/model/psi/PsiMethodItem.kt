@@ -28,10 +28,13 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
 import java.io.StringWriter
 import org.intellij.lang.annotations.Language
+import org.jetbrains.kotlin.name.JvmNames
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UClass
@@ -80,6 +83,9 @@ open class PsiMethodItem(
     override var inheritedFrom: ClassItem? = null
 
     override var property: PsiPropertyItem? = null
+
+    @Deprecated("This property should not be accessed directly.")
+    override var _requiresOverride: Boolean? = null
 
     override fun name(): String = name
 
@@ -151,7 +157,7 @@ open class PsiMethodItem(
     //    private var throwsTypes: List<ClassItem>? = null
     private lateinit var throwsTypes: List<ClassItem>
 
-    fun setThrowsTypes(throwsTypes: List<ClassItem>) {
+    internal fun setThrowsTypes(throwsTypes: List<ClassItem>) {
         this.throwsTypes = throwsTypes
     }
 
@@ -238,7 +244,7 @@ open class PsiMethodItem(
         return exceptions
     }
 
-    fun areAllParametersOptional(): Boolean {
+    internal fun areAllParametersOptional(): Boolean {
         for (param in parameters) {
             if (!param.hasDefaultValue()) {
                 return false
@@ -293,6 +299,16 @@ open class PsiMethodItem(
     }
     */
 
+    override fun shouldExpandOverloads(): Boolean {
+        val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
+        return ktFunction.hasActualModifier() &&
+            psiMethod.hasAnnotation(JvmNames.JVM_OVERLOADS_FQ_NAME.asString()) &&
+            // It is /technically/ invalid to have actual functions with default values, but
+            // some places suppress the compiler error, so we should handle it here too.
+            ktFunction.valueParameters.none { it.hasDefaultValue() } &&
+            parameters.any { it.hasDefaultValue() }
+    }
+
     /**
      * Converts the method to a stub that can be converted back to a PsiMethod.
      *
@@ -302,7 +318,7 @@ open class PsiMethodItem(
      * @param replacementMap a map that specifies replacement types for formal type parameters.
      */
     @Language("JAVA")
-    fun toStubForCloning(replacementMap: Map<String, String> = emptyMap()): String {
+    internal fun toStubForCloning(replacementMap: Map<String, String> = emptyMap()): String {
         val method = this
         // There are type variables; we have to recreate the method signature
         val sb = StringBuilder(100)
@@ -377,7 +393,7 @@ open class PsiMethodItem(
     }
 
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
             psiMethod: PsiMethod
@@ -439,7 +455,7 @@ open class PsiMethodItem(
             return method
         }
 
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             original: PsiMethodItem

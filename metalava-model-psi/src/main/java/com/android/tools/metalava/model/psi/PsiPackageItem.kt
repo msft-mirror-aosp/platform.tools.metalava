@@ -21,7 +21,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.intellij.psi.PsiPackage
 
-class PsiPackageItem(
+class PsiPackageItem
+internal constructor(
     override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
@@ -46,12 +47,9 @@ class PsiPackageItem(
 
     lateinit var containingPackageField: PsiPackageItem
 
-    override fun containingClass(strict: Boolean): ClassItem? = null
+    override fun containingClass(): ClassItem? = null
 
-    override fun containingPackage(strict: Boolean): PackageItem? {
-        if (!strict) {
-            return this
-        }
+    override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
         else {
             if (!::containingPackageField.isInitialized) {
