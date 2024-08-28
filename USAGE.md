@@ -22,10 +22,9 @@ platform and AndroidX libraries.
 - Rewriting of nullness annotations to @RecentlyNull/NonNull (`--migrate-nullness`,
 `--force-convert-to-warning-nullability-annotations`) for SDK
 - Tracking @removed APIs (`--removed-api`)
-- DEX API signature generation (`--dex-api`) for for hidden API enforcement
+- DEX API signature generation (`signature-to-dex`) for for hidden API enforcement
 - XML API signature generation (`--api-xml`) for CTS tests and test coverage infrastructure
 - Annotation include, exclude, rewrite, passthrough in stubs (`--include-annotations`, `--exclude-all-annotations`,
 `--pass-through-annotation`, `--exclude-annotation`)
-- Annotation extraction (`--extract-annotations`, `--include-annotation-classes`, `--rewrite-annotations`,
-`--copy-annotations`, `--include-source-retention`) for generating SDK
+- Annotation extraction (`--extract-annotations`, `--copy-annotations`) for generating the SDK
 - Generating SDK metadata (`--sdk-`values`)
