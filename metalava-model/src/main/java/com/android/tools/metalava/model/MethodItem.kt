@@ -583,7 +583,10 @@ interface MethodItem : MemberItem {
 
     private fun computeRequiresOverride(): Boolean {
         val isVisible = !hidden || hasShowAnnotation()
-        return if (!modifiers.isAbstract()) {
+
+        // When the method is a concrete, non-default method, its overriding method is not required
+        // to be shown in the signature file.
+        return if (!modifiers.isAbstract() && !modifiers.isDefault()) {
             false
         } else if (superMethods().isEmpty()) {
             // If the method is abstract and is not overriding any parent methods,
