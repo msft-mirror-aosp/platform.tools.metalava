@@ -16,37 +16,26 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.configuration
-import com.intellij.openapi.vfs.VfsUtilCore
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiParameter
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.psiUtil.containingClass
-import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
+private const val BASELINE_FILE_HEADER = "// Baseline format: 1.0\n"
+
+@Suppress("DEPRECATION")
 class Baseline(
     /** Description of this baseline. e.g. "api-lint. */
     val description: String,
     val file: File?,
     var updateFile: File?,
-    // TODO(roosa): unless file == updateFile, existing baselines will be merged into the updateFile regardless of this value
+    // TODO(roosa): unless file == updateFile, existing baselines will be merged into the updateFile
+    // regardless of this value
     var merge: Boolean = false,
     private var headerComment: String = "",
     /**
@@ -54,7 +43,6 @@ class Baseline(
      * does not contain all issues that would normally fail the run (by default ERROR level).
      */
     var silentUpdate: Boolean = updateFile != null && updateFile.path == file?.path,
-    private var format: FileFormat = FileFormat.BASELINE
 ) {
 
     /** Map from issue id to element id to message */
@@ -68,36 +56,30 @@ class Baseline(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(element: Item, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(element)
+    fun mark(location: Location, message: String, issue: Issues.Issue): Boolean {
+        val elementId =
+            location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
     }
 
-    /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(element: PsiElement, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(element)
-        return mark(elementId, message, issue)
-    }
-
-    /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(file: File, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(file)
-        return mark(elementId, message, issue)
-    }
-
-    private fun mark(elementId: String, @Suppress("UNUSED_PARAMETER") message: String, issue: Issues.Issue): Boolean {
-        val idMap: MutableMap<String, String>? = map[issue] ?: run {
-            if (updateFile != null) {
-                if (options.baselineErrorsOnly && configuration.getSeverity(issue) != Severity.ERROR) {
-                    return true
+    private fun mark(elementId: String, message: String, issue: Issues.Issue): Boolean {
+        val idMap: MutableMap<String, String>? =
+            map[issue]
+                ?: run {
+                    if (updateFile != null) {
+                        if (
+                            options.baselineErrorsOnly &&
+                                options.issueConfiguration.getSeverity(issue) != Severity.ERROR
+                        ) {
+                            return true
+                        }
+                        val new = HashMap<String, String>()
+                        map[issue] = new
+                        new
+                    } else {
+                        null
+                    }
                 }
-                val new = HashMap<String, String>()
-                map[issue] = new
-                new
-            } else {
-                null
-            }
-        }
 
         val oldMessage: String? = idMap?.get(elementId)
         if (oldMessage != null) {
@@ -118,70 +100,16 @@ class Baseline(
         return false
     }
 
-    private fun getBaselineKey(element: Item): String {
-        return when (element) {
-            is ClassItem -> element.qualifiedName()
-            is MethodItem -> element.containingClass().qualifiedName() + "#" +
-                element.name() + "(" + element.parameters().joinToString { it.type().toSimpleType() } + ")"
-            is FieldItem -> element.containingClass().qualifiedName() + "#" + element.name()
-            is PackageItem -> element.qualifiedName()
-            is ParameterItem -> getBaselineKey(element.containingMethod()) + " parameter #" + element.parameterIndex
-            else -> element.describe(false)
-        }
-    }
-
-    private fun getBaselineKey(element: PsiElement): String {
-        return when (element) {
-            is PsiClass -> element.qualifiedName ?: element.name ?: "?"
-            is KtClass -> element.fqName?.asString() ?: element.name ?: "?"
-            is PsiMethod -> {
-                val containingClass = element.containingClass
-                val name = element.name
-                val parameterList = "(" + element.parameterList.parameters.joinToString { it.type.canonicalText } + ")"
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name + parameterList
-                } else {
-                    name + parameterList
-                }
-            }
-            is PsiField -> {
-                val containingClass = element.containingClass
-                val name = element.name
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name
-                } else {
-                    name
-                }
-            }
-            is KtProperty -> {
-                val containingClass = element.containingClass()
-                val name = element.nameAsSafeName.asString()
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name
-                } else {
-                    name
-                }
-            }
-            is PsiPackage -> element.qualifiedName
-            is PsiParameter -> {
-                val method = element.declarationScope.parent
-                if (method is PsiMethod) {
-                    getBaselineKey(method) + " parameter #" + element.parameterIndex()
-                } else {
-                    "?"
-                }
-            }
-            is PsiFile -> {
-                val virtualFile = element.virtualFile
-                val file = VfsUtilCore.virtualToIoFile(virtualFile)
-                return getBaselineKey(file)
-            }
-            else -> element.toString()
-        }
-    }
-
     private fun getBaselineKey(file: File): String {
-        val path = file.path
+        return transformBaselinePath(file.path)
+    }
+
+    /**
+     * Transform the path (which is absolute) so that it is relative to one of the source roots, and
+     * make sure that it uses `/` consistently as the file separator so that the generated files are
+     * platform independent.
+     */
+    private fun transformBaselinePath(path: String): String {
         for (sourcePath in options.sourcePath) {
             if (path.startsWith(sourcePath.path)) {
                 return path.substring(sourcePath.path.length).replace('\\', '/').removePrefix("/")
@@ -191,7 +119,10 @@ class Baseline(
         return path.replace('\\', '/')
     }
 
-    /** Close the baseline file. If "update file" is set, update this file, and returns TRUE. If not, returns false. */
+    /**
+     * Close the baseline file. If "update file" is set, update this file, and returns TRUE. If not,
+     * returns false.
+     */
     fun close(): Boolean {
         return write()
     }
@@ -201,10 +132,11 @@ class Baseline(
         val lines = file.readLines(UTF_8)
         for (i in 0 until lines.size - 1) {
             val line = lines[i]
-            if (line.startsWith("//") ||
-                line.startsWith("#") ||
-                line.isBlank() ||
-                line.startsWith(" ")
+            if (
+                line.startsWith("//") ||
+                    line.startsWith("#") ||
+                    line.isBlank() ||
+                    line.startsWith(" ")
             ) {
                 continue
             }
@@ -222,11 +154,13 @@ class Baseline(
             if (issue == null) {
                 println("Invalid metalava baseline file: unknown issue id '$issueId'")
             } else {
-                val newIdMap = map[issue] ?: run {
-                    val new = HashMap<String, String>()
-                    map[issue] = new
-                    new
-                }
+                val newIdMap =
+                    map[issue]
+                        ?: run {
+                            val new = HashMap<String, String>()
+                            map[issue] = new
+                            new
+                        }
                 newIdMap[elementId] = message
             }
         }
@@ -236,20 +170,23 @@ class Baseline(
         val updateFile = this.updateFile ?: return false
         if (map.isNotEmpty() || !options.deleteEmptyBaselines) {
             val sb = StringBuilder()
-            sb.append(format.header())
+            sb.append(BASELINE_FILE_HEADER)
             sb.append(headerComment)
 
-            map.keys.asSequence().sortedBy { it.name }.forEach { issue ->
-                val idMap = map[issue]
-                idMap?.keys?.sorted()?.forEach { elementId ->
-                    val message = idMap[elementId]!!
-                    sb.append(issue.name).append(": ")
-                    sb.append(elementId)
-                    sb.append(":\n    ")
-                    sb.append(message).append('\n')
+            map.keys
+                .asSequence()
+                .sortedBy { it.name }
+                .forEach { issue ->
+                    val idMap = map[issue]
+                    idMap?.keys?.sorted()?.forEach { elementId ->
+                        val message = idMap[elementId]!!
+                        sb.append(issue.name).append(": ")
+                        sb.append(elementId)
+                        sb.append(":\n    ")
+                        sb.append(message).append('\n')
+                    }
+                    sb.append("\n\n")
                 }
-                sb.append("\n\n")
-            }
 
             if (sb.endsWith("\n\n")) {
                 sb.setLength(sb.length - 2)
@@ -280,10 +217,13 @@ class Baseline(
         val list = counts.entries.toMutableList()
         list.sortWith(compareBy({ -it.value }, { it.key.name }))
         var total = 0
+        val issueConfiguration = options.issueConfiguration
         for (entry in list) {
             val count = entry.value
             val issue = entry.key
-            writer.println("    ${String.format("%5d", count)} ${String.format("%-30s", issue.name)} ${configuration.getSeverity(issue)}")
+            writer.println(
+                "    ${String.format("%5d", count)} ${String.format("%-30s", issue.name)} ${issueConfiguration.getSeverity(issue)}"
+            )
             total += count
         }
         writer.println(
@@ -304,16 +244,21 @@ class Baseline(
         var file: File? = null
             set(value) {
                 if (field != null) {
-                    throw DriverException("Only one baseline is allowed; found both $field and $value")
+                    throw MetalavaCliException(
+                        "Only one baseline is allowed; found both $field and $value"
+                    )
                 }
                 field = value
             }
+
         var merge: Boolean = false
 
         var updateFile: File? = null
             set(value) {
                 if (field != null) {
-                    throw DriverException("Only one update-baseline is allowed; found both $field and $value")
+                    throw MetalavaCliException(
+                        "Only one update-baseline is allowed; found both $field and $value"
+                    )
                 }
                 field = value
             }
@@ -326,7 +271,7 @@ class Baseline(
                 return null
             }
             if (description.isEmpty()) {
-                throw DriverException("Baseline description must be set")
+                throw MetalavaCliException("Baseline description must be set")
             }
             return Baseline(description, file, updateFile, merge, headerComment)
         }
