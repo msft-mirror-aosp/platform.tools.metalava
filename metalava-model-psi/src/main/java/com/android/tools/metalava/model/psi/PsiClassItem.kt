@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.updateCopiedMethodState
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -74,7 +75,9 @@ internal constructor(
     ),
     ClassItem {
 
-    override var emit: Boolean = !modifiers.isExpect()
+    init {
+        emit = !modifiers.isExpect()
+    }
 
     lateinit var containingPackage: PsiPackageItem
 
@@ -86,8 +89,6 @@ internal constructor(
     override fun fullName(): String = fullName
 
     override fun qualifiedName(): String = qualifiedName
-
-    override fun isDefined(): Boolean = codebase.unsupported()
 
     override fun psi() = psiClass
 
@@ -231,6 +232,8 @@ internal constructor(
 
         // Remember which class this method was copied from.
         newMethod.inheritedFrom = template.containingClass()
+
+        newMethod.updateCopiedMethodState()
 
         return newMethod
     }

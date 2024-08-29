@@ -37,6 +37,8 @@ interface TypeItem {
 
     fun accept(visitor: TypeVisitor)
 
+    fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>)
+
     /**
      * Whether this type is equal to [other], not considering modifiers.
      *
@@ -539,21 +541,51 @@ abstract class DefaultTypeItem(
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append("?")
+
+                    type.superBound?.let {
+                        append(" super ")
+                        appendTypeString(it, configuration)
+                        // If there's a super bound, don't also print an object extends bound.
+                        return
+                    }
+
                     type.extendsBound?.let {
-                        // Leave out object bounds, because they're implied
-                        if (!it.isJavaLangObject()) {
+                        if (shouldIncludeExtendsBound(it, configuration)) {
                             append(" extends ")
                             appendTypeString(it, configuration)
                         }
                     }
-                    type.superBound?.let {
-                        append(" super ")
-                        appendTypeString(it, configuration)
-                    }
+
                     // It doesn't make sense to have a nullness suffix on a wildcard, this should be
                     // handled by the bound.
                 }
             }
+        }
+
+        /**
+         * Returns whether the [extendsBound] should be included in the type string based on the
+         * [configuration].
+         */
+        private fun shouldIncludeExtendsBound(
+            extendsBound: ReferenceTypeItem,
+            configuration: TypeStringConfiguration
+        ): Boolean {
+            // Non-object bounds should always be included.
+            if (!extendsBound.isJavaLangObject()) return true
+
+            // If the bound is Object, it should only be included when the nullability isn't implied
+            // by the configuration. If both kotlinStyleNulls and annotations are false, no
+            // nullability information is included anyway.
+            if (!configuration.kotlinStyleNulls && !configuration.annotations) return false
+
+            // When nullability information is included, excluded bounds imply non-null when
+            // kotlinStyleNulls is true and platform when it is false.
+            val nullability = extendsBound.modifiers.nullability()
+            if (configuration.kotlinStyleNulls && nullability == TypeNullability.NONNULL)
+                return false
+            if (!configuration.kotlinStyleNulls && nullability == TypeNullability.PLATFORM)
+                return false
+            return true
         }
 
         private fun StringBuilder.appendAnnotations(
@@ -782,6 +814,10 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
     override fun duplicate(): PrimitiveTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
@@ -807,6 +843,10 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
     }
 
     override fun duplicate(): ArrayTypeItem = duplicate(componentType.duplicate())
@@ -858,6 +898,10 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
     }
 
     /**
@@ -959,6 +1003,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
         val nullability = modifiers.nullability()
         return (typeParameterBindings[asTypeParameter] ?: this).duplicate().apply {
@@ -1006,6 +1054,10 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
     override fun duplicate(): WildcardTypeItem =
         duplicate(extendsBound?.duplicate(), superBound?.duplicate())
 
@@ -1034,9 +1086,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 
-    override fun asClass(): ClassItem? {
-        TODO("Not yet implemented")
-    }
+    override fun asClass(): ClassItem? = null
 }
 
 /**
