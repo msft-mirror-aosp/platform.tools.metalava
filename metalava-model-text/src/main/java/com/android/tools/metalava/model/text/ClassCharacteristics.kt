@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Characteristics of a class apart from its members.
@@ -27,7 +29,7 @@ import com.android.tools.metalava.model.ModifierList
  */
 internal data class ClassCharacteristics(
     /** The position of the class definition within the API signature file. */
-    val position: SourcePositionInfo,
+    val fileLocation: FileLocation,
 
     /** Name including package and full name. */
     val qualifiedName: String,
@@ -46,8 +48,8 @@ internal data class ClassCharacteristics(
     /** The modifiers. */
     val modifiers: ModifierList,
 
-    /** The super class type string. */
-    val superClassTypeString: String?,
+    /** The super class type . */
+    val superClassType: ClassTypeItem?,
 // TODO(b/323168612): Add interface type strings.
 ) {
     /**
@@ -64,18 +66,18 @@ internal data class ClassCharacteristics(
         // TextClassItem
         return fullName == other.fullName &&
             classKind == other.classKind &&
-            modifiers == other.modifiers
+            modifiers.equivalentTo(other.modifiers)
     }
 
     companion object {
         fun of(classItem: TextClassItem): ClassCharacteristics =
             ClassCharacteristics(
-                position = classItem.position,
+                fileLocation = classItem.fileLocation,
                 qualifiedName = classItem.qualifiedName,
                 fullName = classItem.fullName(),
                 classKind = classItem.classKind,
                 modifiers = classItem.modifiers,
-                superClassTypeString = classItem.superClassType()?.toTypeString(),
+                superClassType = classItem.superClassType(),
             )
     }
 }

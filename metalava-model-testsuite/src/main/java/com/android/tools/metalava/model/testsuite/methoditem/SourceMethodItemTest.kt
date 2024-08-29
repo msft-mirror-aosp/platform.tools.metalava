@@ -20,11 +20,8 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem] for source based models. */
-@RunWith(Parameterized::class)
 class SourceMethodItemTest : BaseModelTest() {
     @Test
     fun `test duplicate() for methoditem`() {
@@ -67,10 +64,7 @@ class SourceMethodItemTest : BaseModelTest() {
                 listOf("A", "B"),
                 duplicateMethod.parameters().map { it.type().toTypeString() }
             )
-            assertEquals(
-                methodItem.typeParameterList().typeParameters(),
-                duplicateMethod.typeParameterList().typeParameters()
-            )
+            assertEquals(methodItem.typeParameterList, duplicateMethod.typeParameterList)
             assertEquals(methodItem.throwsTypes(), duplicateMethod.throwsTypes())
             assertEquals(classItem, duplicateMethod.inheritedFrom)
 
@@ -86,10 +80,7 @@ class SourceMethodItemTest : BaseModelTest() {
                 listOf("C", "D"),
                 duplicateMethod1.parameters().map { it.type().toTypeString() }
             )
-            assertEquals(
-                methodItem1.typeParameterList().typeParameters(),
-                duplicateMethod1.typeParameterList().typeParameters()
-            )
+            assertEquals(methodItem1.typeParameterList, duplicateMethod1.typeParameterList)
             assertEquals(methodItem1.throwsTypes(), duplicateMethod1.throwsTypes())
             assertEquals(classItem, duplicateMethod1.inheritedFrom)
         }
@@ -136,10 +127,7 @@ class SourceMethodItemTest : BaseModelTest() {
                 listOf("M", "String"),
                 inheritedMethod.parameters().map { it.type().toTypeString() }
             )
-            assertEquals(
-                methodItem.typeParameterList().typeParameters(),
-                inheritedMethod.typeParameterList().typeParameters()
-            )
+            assertEquals(methodItem.typeParameterList, inheritedMethod.typeParameterList)
             assertEquals(methodItem.throwsTypes(), inheritedMethod.throwsTypes())
             assertEquals(classItem, inheritedMethod.inheritedFrom)
 
@@ -156,10 +144,7 @@ class SourceMethodItemTest : BaseModelTest() {
                 listOf("C", "D"),
                 inheritedMethod1.parameters().map { it.type().toTypeString() }
             )
-            assertEquals(
-                methodItem1.typeParameterList().typeParameters(),
-                inheritedMethod1.typeParameterList().typeParameters()
-            )
+            assertEquals(methodItem1.typeParameterList, inheritedMethod1.typeParameterList)
             assertEquals(methodItem1.throwsTypes(), inheritedMethod1.throwsTypes())
             assertEquals(classItem, inheritedMethod1.inheritedFrom)
         }
