@@ -302,16 +302,15 @@ class ApiAnalyzer(
     ) {
         if (!cls.isClass()) return
         if (cls.superClass() == null) return
-        val superClasses: Sequence<ClassItem> =
-            generateSequence(cls.superClass()) { it.superClass() }
-        val hiddenSuperClasses: Sequence<ClassItem> =
-            superClasses.filter { !filterReference.test(it) && !it.isJavaLangObject() }
+        val allSuperClasses = cls.allSuperClasses()
+        val hiddenSuperClasses =
+            allSuperClasses.filter { !filterReference.test(it) && !it.isJavaLangObject() }
 
         if (hiddenSuperClasses.none()) { // not missing any implementation methods
             return
         }
 
-        addInheritedStubsFrom(cls, hiddenSuperClasses, superClasses, filterEmit, filterReference)
+        addInheritedStubsFrom(cls, hiddenSuperClasses, allSuperClasses, filterEmit, filterReference)
         addInheritedInterfacesFrom(cls, hiddenSuperClasses, filterReference)
     }
 
@@ -320,7 +319,7 @@ class ApiAnalyzer(
         hiddenSuperClasses: Sequence<ClassItem>,
         filterReference: Predicate<Item>
     ) {
-        var interfaceTypes: MutableList<TypeItem>? = null
+        var interfaceTypes: MutableList<ClassTypeItem>? = null
         var interfaceTypeClasses: MutableList<ClassItem>? = null
         for (hiddenSuperClass in hiddenSuperClasses) {
             for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
@@ -344,7 +343,7 @@ class ApiAnalyzer(
                     if (hiddenInterfaceClass.hasTypeVariables()) {
                         val mapping = cls.mapTypeVariables(hiddenSuperClass)
                         if (mapping.isNotEmpty()) {
-                            val mappedType: TypeItem = hiddenInterface.convertType(mapping, cls)
+                            val mappedType = hiddenInterface.convertType(mapping)
                             interfaceTypes.add(mappedType)
                             continue
                         }
@@ -414,15 +413,12 @@ class ApiAnalyzer(
             // Determine if there is a non-hidden class between the superClass and this class.
             // If non-hidden classes are found, don't include the methods for this hiddenSuperClass,
             // as it will already have been included in a previous super class
-            var includeHiddenSuperClassMethods = true
-            var currentClass = cls.superClass()
-            while (currentClass != superClass && currentClass != null) {
-                if (!hiddenSuperClasses.contains(currentClass)) {
-                    includeHiddenSuperClassMethods = false
-                    break
-                }
-                currentClass = currentClass.superClass()
-            }
+            val includeHiddenSuperClassMethods =
+                !cls.allSuperClasses()
+                    // Search from this class up to, but not including the superClass.
+                    .takeWhile { currentClass -> currentClass != superClass }
+                    // Find any class that is not hidden.
+                    .any { currentClass -> !hiddenSuperClasses.contains(currentClass) }
 
             if (!includeHiddenSuperClassMethods) {
                 continue
@@ -525,14 +521,12 @@ class ApiAnalyzer(
         // public
         // interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
-            val method = cls.createMethod(it)
+            val method = cls.inheritMethodFromNonApiAncestor(it)
             /* Insert comment marker: This is useful for debugging purposes but doesn't
                belong in the stub
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
                     method.documentation
              */
-            method.inheritedMethod = true
-            method.inheritedFrom = it.containingClass()
 
             val name = method.name()
             val candidates = existingMethodMap[name]
@@ -572,10 +566,12 @@ class ApiAnalyzer(
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
-                        //  1) it doesn't have a hide annotation and
-                        //  2) it is either public or has a show annotation
+                        //  1) it doesn't have a hide annotation;
+                        //  2) it is either public or has a show annotation;
+                        //  3) it is not `expect`
                         !member.hasHideAnnotation() &&
-                            (member.isPublic || member.hasShowAnnotation())
+                            (member.isPublic || member.hasShowAnnotation()) &&
+                            !member.modifiers.isExpect()
                     }
             ) {
                 cls.emit = false
@@ -1261,10 +1257,7 @@ class ApiAnalyzer(
             return
         }
 
-        if (
-            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) &&
-                !cl.isTypeParameter
-        ) {
+        if (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) {
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
@@ -1385,8 +1378,9 @@ class ApiAnalyzer(
                 )
             }
             for (thrown in method.throwsTypes()) {
+                if (thrown.isTypeParameter) continue
                 cantStripThis(
-                    thrown,
+                    thrown.classItem,
                     filter,
                     notStrippable,
                     stubImportPackages,
