@@ -30,8 +30,10 @@ Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
   Convert an API signature file into a file in the JDiff XML format.
 
 Options:
-  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
-                                             output or not. (default: false)
+  --strip / --no-strip                       Determines whether types that are not defined within the input signature
+                                             file should be stripped from the output or not. This does not include super
+                                             class types, i.e. the `extends` attribute in the generated JDiff file.
+                                             Historically, they have not been filtered. (default: false)
   --format-for-legacy-files <format-specifier>
                                              Optional format to use when reading legacy, i.e. no longer supported,
                                              format versions. Forces the signature file to be parsed as if it was in
@@ -55,7 +57,7 @@ Arguments:
     """
         .trimIndent()
 
-class SignatureToJDiffCommandTest :
+open class SignatureToJDiffCommandTest :
     BaseCommandTest<SignatureToJDiffCommand>({ SignatureToJDiffCommand() }) {
 
     @Test
@@ -604,6 +606,108 @@ $signatureToJdiffHelp
                     </api>
                 """
                     .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test producing full JDiff for class with super class and interfaces`() {
+        jdiffConversionTest {
+            formatForLegacyFiles = FileFormat.V2
+
+            api =
+                """
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<Test> {
+                        field public static final int FIELD = 1;
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Number"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    </implements>
+                    <field name="FIELD"
+                     type="int"
+                     transient="false"
+                     volatile="false"
+                     value="1"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test producing delta JDiff for class with super class and interfaces`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<Test> {
+                        field public static final int FIELD = 1;
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<Test> {
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Number"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    </implements>
+                    <field name="FIELD"
+                     type="int"
+                     transient="false"
+                     volatile="false"
+                     value="1"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
         }
     }
 }

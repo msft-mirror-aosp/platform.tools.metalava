@@ -272,8 +272,9 @@ class DocAnalyzerTest : DriverTest() {
                     requiresPermissionSource
                 ),
             checkCompilation = false, // needs androidx.annotations in classpath
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/PermissionTest.java:33: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
+                "src/test/pkg/PermissionTest.java:33: error: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
             stubFiles =
                 arrayOf(
                     // common_typos_disable
@@ -434,8 +435,9 @@ class DocAnalyzerTest : DriverTest() {
                     workerThreadSource
                 ),
             checkCompilation = true,
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/RangeTest.java:6: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
+                "src/test/pkg/RangeTest.java:6: error: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
             stubFiles =
                 arrayOf(
@@ -606,8 +608,9 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/RangeTest.java:5: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
+                "src/test/pkg/RangeTest.java:5: error: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
             stubFiles =
                 arrayOf(
                     java(
@@ -1711,40 +1714,43 @@ class DocAnalyzerTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
-                    import java.lang.annotation.Target;
-                    /**
-                     * More text here
-                     * @memberDoc Important {@link another.pkg.Bar#BAR}
-                     * and here
-                     */
-                    @Target({ ElementType.FIELD })
-                    @Retention(RetentionPolicy.SOURCE)
-                    public @interface Foo { }
-                """
+                            package test.pkg;
+                            import java.lang.annotation.ElementType;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+                            import java.lang.annotation.Target;
+                            /**
+                             * More text here
+                             * @memberDoc Important {@link another.pkg.Bar#BAR}
+                             * and here
+                             */
+                            @Target({ ElementType.FIELD })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface Foo { }
+                        """
                     ),
                     java(
                         """
-                    package another.pkg;
-                    public class Bar {
-                        public String BAR = "BAAAAR";
-                    }
-                """
+                            package another.pkg;
+                            public class Bar {
+                                public String BAR = "BAAAAR";
+                            }
+                        """
                     ),
                     java(
                         """
-                    package yetonemore.pkg;
-                    public class Fun {
-                        /**
-                         * Separate comment
-                         */
-                        @test.pkg.Foo
-                        public static final String FUN = "FUN";
-                    }
-                """
+                            package yetonemore.pkg;
+                            public class Fun {
+                                @test.pkg.Foo
+                                public Fun() {}
+
+                                /**
+                                 * Separate comment
+                                 */
+                                @test.pkg.Foo
+                                public static final String FUN = "FUN";
+                            }
+                        """
                     )
                 ),
             docStubs = true,
@@ -1752,19 +1758,23 @@ class DocAnalyzerTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package yetonemore.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Fun {
-                    public Fun() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Separate comment
-                     * <br>
-                     * Important {@link another.pkg.Bar#BAR}
-                     * and here
-                     */
-                    public static final java.lang.String FUN = "FUN";
-                    }
-                """
+                            package yetonemore.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Fun {
+                            /**
+                             * Important {@link another.pkg.Bar#BAR}
+                             * and here
+                             */
+                            public Fun() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Separate comment
+                             * <br>
+                             * Important {@link another.pkg.Bar#BAR}
+                             * and here
+                             */
+                            public static final java.lang.String FUN = "FUN";
+                            }
+                        """
                     )
                 )
         )

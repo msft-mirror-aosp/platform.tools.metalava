@@ -83,7 +83,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     init {
         /** Use the complete source representation of the item as the key. */
         fun useSourceAsKey(annotationItem: AnnotationItem): String {
-            val qualifiedName = annotationItem.qualifiedName!!
+            val qualifiedName = annotationItem.qualifiedName
             val attributes = annotationItem.attributes
             if (attributes.isEmpty()) {
                 return qualifiedName
@@ -121,7 +121,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
-        val qualifiedName = annotationItem.qualifiedName!!
+        val qualifiedName = annotationItem.qualifiedName
 
         // Check to see if this requires a special [KeyFactory] and use it if it does.
         val keyFactory = annotationNameToKeyFactory.get(qualifiedName)
@@ -235,6 +235,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
             // These aren't support annotations, but could/should be:
             "android.annotation.CurrentTimeMillisLong",
+            "android.annotation.DurationMicrosLong",
             "android.annotation.DurationMillisLong",
             "android.annotation.ElapsedRealtimeLong",
             "android.annotation.UserIdInt",
@@ -333,7 +334,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         annotation: AnnotationItem,
         classFinder: (String) -> ClassItem?
     ): Set<AnnotationTarget> {
-        val qualifiedName = annotation.qualifiedName ?: return NO_ANNOTATION_TARGETS
+        val qualifiedName = annotation.qualifiedName
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
         }
@@ -361,13 +362,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             ANDROID_FLAGGED_API ->
                 // If FlaggedApi annotations are being reverted in general then do not output them
                 // at all. This means that if some FlaggedApi annotations with specific flags are
-                // not reverted then the annotations will not be written out to the signature files.
-                // That is expected as those APIs are intended to be released and should look like
-                // any other API.
+                // not reverted then the annotations will not be written out to the signature or
+                // stub files. That is the correct behavior as those APIs are intended to be
+                // released and should look like any other released API and released APIs do not
+                // include FlaggedApi annotations.
                 if (config.revertAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
                     return NO_ANNOTATION_TARGETS
                 } else {
-                    return ANNOTATION_SIGNATURE_ONLY
+                    return ANNOTATION_IN_ALL_STUBS
                 }
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
@@ -501,11 +503,21 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         config.allShowAnnotations.matchesAnnotationName(annotationName)
 
     override fun hasAnyStubPurposesAnnotations(): Boolean {
-        return config.showForStubPurposesAnnotations.isNotEmpty()
+        // Revert annotations are checked because they can behave like
+        // `--show-for-stub-purposes-annotation` if they end up reverting an API that was added in
+        // an extended API. e.g. if a change to item `X` from the public API was reverted then the
+        // previously released version `X'` will need to be written out to the stubs for the system
+        // API, just as if it was annotated with an annotation from
+        // `--show-for-stub-purposes-annotation`.
+        return config.showForStubPurposesAnnotations.isNotEmpty() ||
+            config.revertAnnotations.isNotEmpty()
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        if (config.hideAnnotations.isEmpty()) {
+        // If there are no hide annotations or revert annotations registered then this can never
+        // return true. Revert annotations are checked because they can behave like hide if they end
+        // up reverting a newly added API.
+        if (config.hideAnnotations.isEmpty() && config.revertAnnotations.isEmpty()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
@@ -564,20 +576,26 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If the [revertItem] cannot be found then there is no need to modify the item
             // showability as it is already in the correct state.
             if (revertItem != null) {
+                val forStubsOnly =
+                    if (revertItem.emit) {
+                        // The reverted item is in the API surface currently being generated, not
+                        // one that it extends, so it should always be shown. In that case
+                        // forStubsOnly will have no effect whatever the value so this uses
+                        // `NO_EFFECT` to indicate that.
+                        ShowOrHide.NO_EFFECT
+                    } else {
+                        // The item is not in the API surface being generated, so must be in one
+                        // that it extends so make sure to show it for stubs.
+                        ShowOrHide.SHOW
+                    }
+
                 // Update the item showability to revert to the [revertItem]. This intentionally
                 // does not modify it to use `SHOW` or `HIDE` but keeps it using
                 // `REVERT_UNSTABLE_API` so that it can be propagated down onto overriding methods
                 // and nested members if applicable.
                 itemShowability =
                     itemShowability.copy(
-                        // When reverting to a previous item the item must be in the current API
-                        // surface not one that it extends. If the API surface is a complete API
-                        // (like public) then it does not extend another surface. If the API surface
-                        // is a partial API then so was the previously released API and so the
-                        // reverted item must be part of this surface. In either case it must not
-                        // be treated as part of an extended API so `forStubsOnly` is set to no
-                        // effect.
-                        forStubsOnly = ShowOrHide.NO_EFFECT,
+                        forStubsOnly = forStubsOnly,
                         // Incorporate the item to be reverted into the [Showability].
                         revertItem = revertItem,
                     )
@@ -588,13 +606,20 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     /**
+     * Local cache of the previously released codebases to avoid calling the provider for every
+     * affected item.
+     */
+    private val previouslyReleasedCodebases by
+        lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebasesProvider() }
+
+    /**
      * Find the item to which [item] will be reverted.
      *
      * Searches first the previously released API (if present) and then the previously released
      * removed API (if present).
      */
     private fun findRevertItem(item: Item): Item? {
-        for (oldCodebase in config.previouslyReleasedCodebasesProvider()) {
+        for (oldCodebase in previouslyReleasedCodebases) {
             item.findCorrespondingItemIn(oldCodebase)?.let {
                 return it
             }
@@ -615,7 +640,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 private class LazyAnnotationInfo(
     private val config: Config,
     private val annotationItem: AnnotationItem,
-) : AnnotationInfo(annotationItem.qualifiedName!!) {
+) : AnnotationInfo(annotationItem.qualifiedName) {
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
     override val showability: Showability by
@@ -747,3 +772,13 @@ private class LazyAnnotationInfo(
                 checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
         }
 }
+
+/**
+ * Get the actual item to use, this takes into account whether the item has been reverted.
+ *
+ * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
+ * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
+ * same type.
+ */
+val <reified T : Item> T.actualItem: T
+    inline get() = (showability.revertItem ?: this) as T

@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -24,10 +26,11 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Flag TODO documentation`() {
         check(
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/pkg/Test.java:4: lint: Documentation mentions 'TODO' [Todo]
-                src/android/pkg/Test.java:6: lint: Documentation mentions 'TODO' [Todo]
+                src/android/pkg/Test.java:4: error: Documentation mentions 'TODO' [Todo]
+                src/android/pkg/Test.java:6: error: Documentation mentions 'TODO' [Todo]
                 """,
             sourceFiles =
                 arrayOf(
@@ -69,10 +72,12 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Document Permissions`() {
         check(
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/pkg/PermissionTest.java:14: lint: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
-                src/android/pkg/PermissionTest.java:21: lint: Method 'test1' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
+                src/android/pkg/PermissionTest.java:14: error: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
+                src/android/pkg/PermissionTest.java:21: error: Method 'test1' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation [RequiresPermission]
+                src/android/pkg/PermissionTest.java:41: warning: Method 'conditionalBad' documentation does not explain when the conditional permission 'ACCESS_COARSE_LOCATION' is required. [ConditionalRequiresPermissionNotExplained]
                 """,
             sourceFiles =
                 arrayOf(
@@ -106,6 +111,20 @@ class AndroidApiChecksTest : DriverTest() {
                         @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION)
                         public void test2() {
                         }
+
+                        /**
+                         * Sometimes requires {@link Manifest.permission#ACCESS_COARSE_LOCATION}.
+                         */
+                        @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION, conditional = true)
+                        public void conditionalOk() {
+                        }
+
+                        /**
+                         * Not documenting the conditional permission.
+                         */
+                        @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION, conditional = true)
+                        public void conditionalBad() {
+                        }
                     }
                     """
                     ),
@@ -123,18 +142,21 @@ class AndroidApiChecksTest : DriverTest() {
                     """
                     ),
                     requiresPermissionSource
-                )
+                ),
+            extraArguments =
+                arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
         )
     }
 
     @Test
     fun `Document Intent Actions`() {
         check(
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/pkg/IntentActionTest.java:30: lint: Field 'BAR_FOO_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION) [SdkConstant]
-                src/android/pkg/IntentActionTest.java:19: lint: Field 'FOO_BAR_ERROR_ACTION' is missing @BroadcastBehavior [BroadcastBehavior]
-                src/android/pkg/IntentActionTest.java:19: lint: Field 'FOO_BAR_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION) [SdkConstant]
+                src/android/pkg/IntentActionTest.java:19: error: Field 'FOO_BAR_ERROR_ACTION' is missing @BroadcastBehavior [BroadcastBehavior]
+                src/android/pkg/IntentActionTest.java:19: error: Field 'FOO_BAR_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION) [SdkConstant]
+                src/android/pkg/IntentActionTest.java:30: error: Field 'BAR_FOO_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION) [SdkConstant]
                 """,
             sourceFiles =
                 arrayOf(
@@ -184,9 +206,9 @@ class AndroidApiChecksTest : DriverTest() {
         check(
             expectedIssues =
                 """
+                src/android/pkg/NullMentions.java:9: warning: Field 'field2' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 src/android/pkg/NullMentions.java:18: warning: Parameter 'param1' of 'method3' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 src/android/pkg/NullMentions.java:21: warning: Return value of 'method4' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
-                src/android/pkg/NullMentions.java:9: warning: Field 'field2' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "Nullable"), // Hidden by default
             sourceFiles =

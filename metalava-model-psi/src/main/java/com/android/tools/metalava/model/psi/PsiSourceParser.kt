@@ -18,26 +18,20 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
-import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
-import com.android.tools.metalava.model.source.utils.findPackage
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
@@ -94,7 +88,7 @@ internal class PsiSourceParser(
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-    ): PsiBasedCodebase {
+    ): Codebase {
         return parseAbsoluteSources(
             sourceSet.absoluteCopy().extractRoots(reporter),
             commonSourceSet.absoluteCopy().extractRoots(reporter),
@@ -135,40 +129,44 @@ internal class PsiSourceParser(
         }
 
         val environment = psiEnvironmentManager.createEnvironment(config)
-
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
-        val units = Extractor.createUnitsForFiles(environment.ideaProject, sourceSet.sources)
-        val packageDocs = gatherPackageJavadoc(sourceSet)
+        val assembler =
+            PsiCodebaseAssembler(environment) {
+                PsiBasedCodebase(
+                    location = rootDir,
+                    description = description,
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = it,
+                )
+            }
 
-        val codebase =
-            PsiBasedCodebase(
-                location = rootDir,
-                description = description,
-                annotationManager = annotationManager,
-                reporter = reporter,
-                allowReadingComments = allowReadingComments,
-            )
-        codebase.initializeFromSources(environment, units, packageDocs)
-        return codebase
+        assembler.initializeFromSources(sourceSet)
+        return assembler.codebase
     }
 
     private fun isJdkModular(homePath: File): Boolean {
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
+    override fun loadFromJar(apiJar: File): Codebase {
         val environment = loadUastFromJars(listOf(apiJar))
-        val codebase =
-            PsiBasedCodebase(
-                location = apiJar,
-                description = "Codebase loaded from $apiJar",
-                annotationManager = annotationManager,
-                reporter = reporter,
-                allowReadingComments = allowReadingComments
-            )
-        codebase.initializeFromJar(environment, apiJar, preFiltered)
+        val assembler =
+            PsiCodebaseAssembler(environment) { assembler ->
+                PsiBasedCodebase(
+                    location = apiJar,
+                    description = "Codebase loaded from $apiJar",
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                )
+            }
+        val codebase = assembler.codebase
+        assembler.initializeFromJar(apiJar)
         return codebase
     }
 
@@ -189,14 +187,14 @@ internal class PsiSourceParser(
         classpath: List<File>,
         rootDir: File = sourceRoots.firstOrNull() ?: File("").canonicalFile
     ) {
-        // TODO(jsjeon): should set language version _per_ module (Lint Project)
-        val lintClient = MetalavaCliClient(kotlinLanguageLevel)
+        val lintClient = MetalavaCliClient()
         // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
         // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
         // `referenceDir` is used to adjust `lib` dir accordingly if needed,
         // but we set `classpath` anyway below.
         val lintProject =
             Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
+        lintProject.kotlinLanguageLevel = kotlinLanguageLevel
         lintProject.javaSourceFolders.addAll(sourceRoots)
         lintProject.javaLibraries.addAll(classpath)
         config.addModules(
@@ -296,17 +294,7 @@ internal class PsiSourceParser(
         }
         projectXml.writeText(description)
 
-        // TODO: use Lint's [withKMPEnabled] util when available
-        val languageLevel = LanguageVersion.fromVersionString(DEFAULT_KOTLIN_LANGUAGE_LEVEL)!!
-        val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
-        val kotlinLanguageLevel =
-            LanguageVersionSettingsImpl(
-                languageLevel,
-                apiVersion,
-                emptyMap(),
-                mapOf(LanguageFeature.MultiPlatformProjects to LanguageFeature.State.ENABLED),
-            )
-        val lintClient = MetalavaCliClient(kotlinLanguageLevel)
+        val lintClient = MetalavaCliClient()
         // This will parse the description of Lint's project model and populate the module structure
         // inside the given Lint client. We will use it to set up the project structure that
         // [UastEnvironment] requires, which in turn uses that to set up Kotlin compiler frontend.
@@ -317,9 +305,10 @@ internal class PsiSourceParser(
         //  * UastEnvironment Module simply reuses existing Lint Project model.
         computeMetadata(lintClient, projectXml)
         config.addModules(
-            lintClient.knownProjects.map { module ->
+            lintClient.knownProjects.map { lintProject ->
+                lintProject.kotlinLanguageLevel = kotlinLanguageLevel
                 UastEnvironment.Module(
-                    module,
+                    lintProject,
                     // K2 UAST: building KtSdkModule for JDK
                     jdkHome,
                     includeTests = false,
@@ -336,51 +325,4 @@ internal class PsiSourceParser(
         private const val KLIB = "klib"
         private val SUPPORTED_CLASSPATH_EXT = listOf(AAR, JAR, KLIB)
     }
-}
-
-private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
-    val packageComments = HashMap<String, String>(100)
-    val overviewHtml = HashMap<String, String>(10)
-    val hiddenPackages = HashSet<String>(100)
-    val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
-    for (file in sourceSet.sources) {
-        var javadoc = false
-        val map =
-            when (file.name) {
-                PACKAGE_HTML -> {
-                    javadoc = true
-                    packageComments
-                }
-                OVERVIEW_HTML -> {
-                    overviewHtml
-                }
-                else -> continue
-            }
-        var contents = file.readText(Charsets.UTF_8)
-        if (javadoc) {
-            contents = packageHtmlToJavadoc(contents)
-        }
-
-        // Figure out the package: if there is a java file in the same directory, get the package
-        // name from the java file. Otherwise, guess from the directory path + source roots.
-        // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
-        var pkg =
-            file.parentFile
-                ?.listFiles()
-                ?.filter { it.name.endsWith(SdkConstants.DOT_JAVA) }
-                ?.asSequence()
-                ?.mapNotNull { findPackage(it) }
-                ?.firstOrNull()
-        if (pkg == null) {
-            // Strip the longest prefix source root.
-            val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
-            pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
-        }
-        map[pkg] = contents
-        if (contents.contains("@hide")) {
-            hiddenPackages.add(pkg)
-        }
-    }
-
-    return PackageDocs(packageComments, overviewHtml, hiddenPackages)
 }

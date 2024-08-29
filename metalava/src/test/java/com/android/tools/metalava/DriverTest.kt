@@ -16,9 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
 import com.android.SdkConstants.DOT_TXT
-import com.android.SdkConstants.DOT_XML
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.LoggedProcessOutputHandler
 import com.android.ide.common.process.ProcessException
@@ -32,15 +30,26 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_COMMON_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
+import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.TestEnvironment
+import com.android.tools.metalava.cli.compatibility.ARG_API_COMPAT_ANNOTATION
+import com.android.tools.metalava.cli.compatibility.ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
+import com.android.tools.metalava.cli.compatibility.ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED
+import com.android.tools.metalava.cli.lint.ARG_API_LINT
+import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
+import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
+import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
+import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.PsiModelOptions
@@ -52,14 +61,15 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
 import com.google.common.io.Closeables
@@ -70,7 +80,7 @@ import java.io.FileNotFoundException
 import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.net.URL
+import java.net.URI
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -103,7 +113,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
     @Before
     fun setup() {
-        System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
         Disposer.setDebugMode(true)
     }
 
@@ -368,14 +377,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
     @Suppress("DEPRECATION")
     protected fun check(
+        configFiles: Array<TestFile> = emptyArray(),
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
         @Language("TEXT") api: String? = null,
-        /** The API signature content (corresponds to --api-xml) */
-        @Language("XML") apiXml: String? = null,
-        /** The DEX API (corresponds to --dex-api) */
-        dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
@@ -441,9 +447,8 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
          * In order from narrowest to widest API.
          */
         checkCompatibilityRemovedApiReleasedList: List<String> = emptyList(),
-        /** An optional API signature to use as the base API codebase during compat checks */
-        @Language("TEXT") checkCompatibilityBaseApi: String? = null,
         @Language("TEXT") migrateNullsApi: String? = null,
+        migrateNullsApiList: List<String> = listOfNotNull(migrateNullsApi),
         /** An optional Proguard keep file to generate */
         @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
@@ -452,6 +457,8 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
+        /** API Compatibility important annotations (--api-compat-annotation) */
+        apiCompatAnnotations: Set<String> = emptySet(),
         /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
         suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
@@ -572,7 +579,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             when {
                 expectedFail != null -> expectedFail
                 (releasedApiCheck.required() || releasedRemovedApiCheck.required()) &&
-                    !expectedIssues.isNullOrBlank() -> {
+                    expectedIssues?.contains(": error:") == true -> {
                     "Aborting: Found compatibility problems"
                 }
                 else -> ""
@@ -674,6 +681,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 }
             }
 
+        val configFileArgs =
+            configFiles
+                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(project).path) }
+                .toTypedArray()
+
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
                 val merged = File(project, "merged-annotations.xml")
@@ -730,21 +742,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 } else {
                     val file = File(project, "prev-api-lint.txt")
                     file.writeSignatureText(apiLint)
-                    arrayOf(ARG_API_LINT, file.path)
+                    arrayOf(ARG_API_LINT, ARG_API_LINT_PREVIOUS_API, file.path)
                 }
             } else {
                 emptyArray()
             }
-
-        val checkCompatibilityBaseApiFile =
-            useExistingSignatureFileOrCreateNewFile(
-                project,
-                checkCompatibilityBaseApi,
-                "compatibility-base-api.txt"
-            )
-
-        val migrateNullsApiFile =
-            useExistingSignatureFileOrCreateNewFile(project, migrateNullsApi, "stable-api.txt")
 
         val manifestFileArgs =
             if (manifest != null) {
@@ -756,15 +758,20 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             }
 
         val migrateNullsArguments =
-            if (migrateNullsApiFile != null) {
-                arrayOf(ARG_MIGRATE_NULLNESS, migrateNullsApiFile.path)
-            } else {
-                emptyArray()
-            }
+            migrateNullsApiList.contentOrPathListToArgsArray(
+                project,
+                "stable-api.txt",
+                ARG_MIGRATE_NULLNESS
+            )
 
-        val checkCompatibilityBaseApiArguments =
-            if (checkCompatibilityBaseApiFile != null) {
-                arrayOf(ARG_CHECK_COMPATIBILITY_BASE_API, checkCompatibilityBaseApiFile.path)
+        val apiCompatAnnotationArguments =
+            if (apiCompatAnnotations.isNotEmpty()) {
+                val args = mutableListOf<String>()
+                for (annotation in apiCompatAnnotations) {
+                    args.add(ARG_API_COMPAT_ANNOTATION)
+                    args.add(annotation)
+                }
+                args.toTypedArray()
             } else {
                 emptyArray()
             }
@@ -861,24 +868,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         // Always pass apiArgs and generate API text file in runDriver
         val apiFile: File = newFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
-
-        var apiXmlFile: File? = null
-        val apiXmlArgs =
-            if (apiXml != null) {
-                apiXmlFile = temporaryFolder.newFile("public-api-xml.txt")
-                arrayOf(ARG_XML_API, apiXmlFile.path)
-            } else {
-                emptyArray()
-            }
-
-        var dexApiFile: File? = null
-        val dexApiArgs =
-            if (dexApi != null) {
-                dexApiFile = temporaryFolder.newFile("public-dex.txt")
-                arrayOf(ARG_DEX_API, dexApiFile.path)
-            } else {
-                emptyArray()
-            }
 
         val subtractApiFile: File?
         val subtractApiArgs =
@@ -1041,10 +1030,9 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 androidJar.path,
                 *classpathArgs,
                 *kotlinPathArgs,
+                *configFileArgs,
                 *removedArgs,
                 *apiArgs,
-                *apiXmlArgs,
-                *dexApiArgs,
                 *subtractApiArgs,
                 *stubsArgs,
                 *quiet,
@@ -1054,7 +1042,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *inclusionAnnotationsArgs,
                 *migrateNullsArguments,
                 *releasedApiCheck.arguments(project),
-                *checkCompatibilityBaseApiArguments,
                 *releasedRemovedApiCheck.arguments(project),
                 *proguardKeepArguments,
                 *manifestFileArgs,
@@ -1062,6 +1049,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *baselineCheck.args,
                 *baselineApiLintCheck.args,
                 *baselineCheckCompatibilityReleasedCheck.args,
+                *apiCompatAnnotationArguments,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
@@ -1135,38 +1123,12 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             )
             assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(apiFile, options.annotationManager)
-        }
-
-        if (apiXml != null && apiXmlFile != null) {
-            assertTrue(
-                "${apiXmlFile.path} does not exist even though $ARG_XML_API was used",
-                apiXmlFile.exists()
-            )
-            val actualText = readFile(apiXmlFile)
-            assertEquals(
-                stripComments(apiXml, DOT_XML, stripLineComments = false).trimIndent(),
-                actualText
-            )
-            // Make sure we can read back the files we write
-            parseDocument(apiXmlFile.readText(), false)
+            ApiFile.parseApi(SignatureFile.fromFile(apiFile), options.annotationManager)
         }
 
         baselineCheck.apply()
         baselineApiLintCheck.apply()
         baselineCheckCompatibilityReleasedCheck.apply()
-
-        if (dexApi != null && dexApiFile != null) {
-            assertTrue(
-                "${dexApiFile.path} does not exist even though --dex-api was used",
-                dexApiFile.exists()
-            )
-            val actualText = readFile(dexApiFile)
-            assertEquals(
-                stripComments(dexApi, DOT_TXT, stripLineComments = false).trimIndent(),
-                actualText
-            )
-        }
 
         if (removedApi != null && removedApiFile != null) {
             assertTrue(
@@ -1179,7 +1141,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 expectedFormat = format
             )
             // Make sure we can read back the files we write
-            ApiFile.parseApi(removedApiFile, options.annotationManager)
+            ApiFile.parseApi(SignatureFile.fromFile(removedApiFile), options.annotationManager)
         }
 
         if (proguard != null && proguardFile != null) {
@@ -1338,15 +1300,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
         /** The arguments to pass to Metalava. */
         fun arguments(project: File): Array<out String> {
-            if (fileOrSignatureContentsList.isEmpty()) return emptyArray()
-
-            val paths =
-                fileOrSignatureContentsList.mapNotNull {
-                    useExistingSignatureFileOrCreateNewFile(project, it, newBasename)?.path
-                }
-
-            // For each path in the list generate an option with the path as the value.
-            return paths.flatMap { listOf(optionName, it) }.toTypedArray()
+            return fileOrSignatureContentsList.contentOrPathListToArgsArray(
+                project,
+                newBasename,
+                optionName
+            )
         }
     }
 
@@ -1355,13 +1313,14 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         assertNotNull(output)
         assertTrue(output.exists())
         val url =
-            URL(
-                "jar:" +
-                    SdkUtils.fileToUrlString(output) +
-                    "!/" +
-                    pkg.replace('.', '/') +
-                    "/annotations.xml"
-            )
+            URI(
+                    "jar:" +
+                        SdkUtils.fileToUrlString(output) +
+                        "!/" +
+                        pkg.replace('.', '/') +
+                        "/annotations.xml"
+                )
+                .toURL()
         val stream = url.openStream()
         try {
             val bytes = stream.readBytes()
@@ -1420,11 +1379,59 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 if (maybeFile.isFile) {
                     maybeFile
                 } else {
-                    val file = File(project, newBasename)
+                    val file = findNonExistentFile(project, newBasename)
                     file.writeSignatureText(fileOrFileContents)
                     file
                 }
             }
+
+        /**
+         * Converts the contents of the list, which may be either the name of a file or the contents
+         * of a file into an array of arguments.
+         *
+         * This will use files supplied and create new files from the contents of the file and then
+         * precede each file by the [optionName].
+         *
+         * @param project the project directory for the test.
+         * @param baseName the base name of the files, including extension. Any created files will
+         *   have a unique name based on this name.
+         * @param optionName the name of the option to use in the arguments.
+         */
+        private fun List<String>.contentOrPathListToArgsArray(
+            project: File,
+            baseName: String,
+            optionName: String
+        ): Array<String> {
+            if (isEmpty()) return emptyArray()
+
+            val paths = mapNotNull {
+                useExistingSignatureFileOrCreateNewFile(project, it, baseName)?.path
+            }
+
+            // For each path in the list generate an option with the path as the value.
+            return paths.flatMap { listOf(optionName, it) }.toTypedArray()
+        }
+
+        private fun findNonExistentFile(project: File, basename: String): File {
+            // Split the basename into the name without any extension an optional extension.
+            val index = basename.lastIndexOf('.')
+            val (nameWithoutExtension, optionalExtension) =
+                if (index == -1) {
+                    Pair(basename, "")
+                } else {
+                    Pair(basename.substring(0, index), basename.substring(index))
+                }
+
+            var count = 0
+            do {
+                val name =
+                    if (count == 0) basename else "$nameWithoutExtension-$count$optionalExtension"
+                count += 1
+
+                val file = File(project, name)
+                if (!file.isFile) return file
+            } while (true)
+        }
     }
 }
 
