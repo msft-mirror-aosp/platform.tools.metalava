@@ -28,16 +28,11 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
-import java.util.function.Predicate
 
 sealed class TurbineTypeItem(
     open val codebase: TurbineBasedCodebase,
     override val modifiers: TypeModifiers,
 ) : DefaultTypeItem(codebase) {
-
-    override fun toString(): String {
-        return toTypeString()
-    }
 
     override fun asClass(): TurbineClassItem? {
         if (this is TurbineArrayTypeItem) {
@@ -55,25 +50,6 @@ sealed class TurbineTypeItem(
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem =
         TODO("b/295800205")
 
-    override fun markRecent() = TODO("b/295800205")
-
-    override fun scrubAnnotations() {
-        TODO("b/295800205")
-    }
-
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        context: Item?,
-        filter: Predicate<Item>?,
-    ): String {
-        if (!kotlinStyleNulls) {
-            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
-        }
-
-        TODO("b/295800205")
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
 
@@ -81,6 +57,10 @@ sealed class TurbineTypeItem(
             is TypeItem -> TypeItem.equalsWithoutSpace(toTypeString(), other.toTypeString())
             else -> false
         }
+    }
+
+    override fun hashCode(): Int {
+        return toTypeString().hashCode()
     }
 }
 
