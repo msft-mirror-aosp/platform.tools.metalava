@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -191,53 +191,6 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `Kotlin Reified Methods`() {
-        // TODO: once fix for https://youtrack.jetbrains.com/issue/KT-39209 is available (231),
-        //  FE1.0 UAST will have implicit nullability too.
-        //  Put this back to ApiFileTest, before `Kotlin Reified Methods 2`
-        val n = if (isK2) " @Nullable" else ""
-        check(
-            format = FileFormat.V2,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                    )
-                ),
-            api =
-                """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method$n public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Annotation on parameters of data class synthetic copy`() {
         // https://youtrack.jetbrains.com/issue/KT-57003
         check(
@@ -394,6 +347,40 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k2", action = EXCLUDE)
+    @Test
+    fun `internal setter with delegation`() {
+        // https://youtrack.jetbrains.com/issue/KT-70458
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Test {
+                          var prop = "zzz"
+                            internal set
+                          var lazyProp by lazy { setOf("zzz") }
+                            internal set
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public java.util.Set<java.lang.String> getLazyProp();
+                    method public String getProp();
+                    property public final java.util.Set<java.lang.String> lazyProp;
+                    property public final String prop;
+                  }
+                }
+                """
+        )
+    }
+
     @Test
     fun `non-last vararg type`() {
         // https://youtrack.jetbrains.com/issue/KT-57547
@@ -469,9 +456,10 @@ abstract class UastTestBase : DriverTest() {
                         fun foo(p: Int) {}
                     """
                     ),
-                    requiresApiSource
+                    requiresApiSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 package test.pkg {
@@ -666,9 +654,11 @@ abstract class UastTestBase : DriverTest() {
                     ctor public PowerMetric.Type.Battery();
                   }
                   public static final class PowerMetric.Type.Energy extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Energy();
                     ctor public PowerMetric.Type.Energy(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> energyCategories);
                   }
                   public static final class PowerMetric.Type.Power extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Power();
                     ctor public PowerMetric.Type.Power(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> powerCategories);
                   }
                 }
@@ -798,6 +788,36 @@ abstract class UastTestBase : DriverTest() {
                   public final class NavGraphBuilderKt {
                     method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
                     method @Deprecated public static Void before(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Upper bound wildcards -- suspend continuation with generic collection`() {
+        val wildcard = if (isK2) "" else "? extends "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        class Test {
+                          suspend fun foo(): Set<String> {
+                            return setOf("blah")
+                          }
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public suspend Object? foo(kotlin.coroutines.Continuation<? super java.util.Set<${wildcard}java.lang.String>>);
                   }
                 }
                 """

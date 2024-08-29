@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
@@ -42,8 +41,8 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
-import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -51,9 +50,11 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
+import com.android.tools.metalava.stub.createFilteringVisitorForStubs
 import com.github.ajalt.clikt.core.subcommands
 import com.google.common.base.Stopwatch
 import java.io.File
@@ -62,6 +63,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
+import java.util.function.Predicate
 import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
@@ -127,7 +129,7 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
 
     val reporter = options.reporter
-    val reporterApiLint = options.reporterApiLint
+
     val annotationManager = options.annotationManager
     val modelOptions =
         // If the option was specified on the command line then use [ModelOptions] created from
@@ -159,7 +161,7 @@ internal fun processFlags(
         ActionContext(
             progressTracker = progressTracker,
             reporter = reporter,
-            reporterApiLint = reporterApiLint,
+            reporterApiLint = reporter,
             sourceParser = sourceParser,
         )
 
@@ -182,22 +184,10 @@ internal fun processFlags(
                     )
                 }
             val signatureFileLoader = SignatureFileLoader(annotationManager)
-            val textCodebase =
-                signatureFileLoader.loadFiles(
-                    SignatureFile.fromFiles(sources),
-                    classResolverProvider.classResolver,
-                )
-
-            // If this codebase was loaded in order to generate stubs then they will need some
-            // additional items to be added that were purposely removed from the signature files.
-            if (options.stubsDir != null) {
-                addMissingItemsRequiredForGeneratingStubs(
-                    sourceParser,
-                    textCodebase,
-                    reporterApiLint
-                )
-            }
-            textCodebase
+            signatureFileLoader.loadFiles(
+                SignatureFile.fromFiles(sources),
+                classResolverProvider.classResolver,
+            )
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
@@ -253,7 +243,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporterApiLint)
+        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporter)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -294,67 +284,74 @@ internal fun processFlags(
         )
     }
 
-    // Based on the input flags, generates various output files such
-    // as signature files and/or stubs files
+    // Based on the input flags, generates various output files such as signature files and/or stubs
+    // files
     options.apiFile?.let { apiFile ->
-        val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
+        val fileFormat = options.signatureFileFormat
+        val codebaseFragment =
+            CodebaseFragment(codebase) { delegate ->
+                createFilteringVisitorForSignatures(
+                    delegate = delegate,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.PUBLIC_API,
+                    preFiltered = codebase.preFiltered,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig,
+                )
+            }
 
-        createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
+        createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
             SignatureWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                codebase.preFiltered,
-                fileFormat = options.signatureFileFormat,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig
+                writer = printWriter,
+                fileFormat = fileFormat,
             )
         }
     }
 
     options.removedApiFile?.let { apiFile ->
-        val unfiltered = codebase.original ?: codebase
-
-        val apiType = ApiType.REMOVED
-        val removedEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val removedReference = apiType.getReferenceFilter(options.apiPredicateConfig)
+        val fileFormat = options.signatureFileFormat
+        val codebaseFragment =
+            CodebaseFragment(codebase) { delegate ->
+                createFilteringVisitorForSignatures(
+                    delegate = delegate,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.REMOVED,
+                    preFiltered = false,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig,
+                )
+            }
 
         createReportFile(
             progressTracker,
-            unfiltered,
+            codebaseFragment,
             apiFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
             SignatureWriter(
-                printWriter,
-                removedEmit,
-                removedReference,
-                codebase.original != null,
-                options.includeSignatureFormatVersionRemoved,
-                options.signatureFileFormat,
-                options.showUnannotated,
-                options.apiVisitorConfig,
+                writer = printWriter,
+                emitHeader = options.includeSignatureFormatVersionRemoved,
+                fileFormat = fileFormat,
             )
         }
     }
 
-    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-    val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-    options.dexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-
-        createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, apiFilter, apiReferenceIgnoreShown, options.apiVisitorConfig)
-        }
-    }
-
     options.proguard?.let { proguard ->
+        val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+        val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = FilterPredicate(ApiPredicate())
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
-            ProguardWriter(printWriter, apiEmit, apiReferenceIgnoreShown)
+            ProguardWriter(printWriter).let { proguardWriter ->
+                FilteringApiVisitor(
+                    proguardWriter,
+                    inlineInheritedFields = true,
+                    filterEmit = apiEmit,
+                    filterReference = apiReferenceIgnoreShown,
+                    preFiltered = codebase.preFiltered,
+                    config = options.apiVisitorConfig,
+                )
+            }
         }
     }
 
@@ -367,14 +364,13 @@ internal fun processFlags(
         actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
     }
 
-    val previousApiFile = options.migrateNullsFrom
-    if (previousApiFile != null) {
+    val previouslyReleasedApi = options.migrateNullsFrom
+    if (previouslyReleasedApi != null) {
         val previous =
-            if (previousApiFile.path.endsWith(DOT_JAR)) {
-                actionContext.loadFromJarFile(previousApiFile)
-            } else {
-                signatureFileCache.load(signatureFile = SignatureFile.fromFile(previousApiFile))
-            }
+            previouslyReleasedApi.load(
+                jarLoader = { jarFile -> actionContext.loadFromJarFile(jarFile) },
+                signatureFileLoader = { signatureFiles -> signatureFileCache.load(signatureFiles) }
+            )
 
         // If configured, checks for newly added nullness information compared
         // to the previous stable API and marks the newly annotated elements
@@ -408,26 +404,6 @@ internal fun processFlags(
     progressTracker.progress(
         "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
-}
-
-/**
- * When generating stubs from text signature files some additional items are needed.
- *
- * Those items are:
- * * Constructors - in the signature file a missing constructor means no publicly visible
- *   constructor but the stub classes still need a constructor.
- */
-@Suppress("DEPRECATION")
-private fun addMissingItemsRequiredForGeneratingStubs(
-    sourceParser: SourceParser,
-    codebase: Codebase,
-    reporterApiLint: Reporter,
-) {
-    // Reuse the existing ApiAnalyzer support for adding constructors that is used in
-    // [loadFromSources], to make sure that the constructors are correct when generating stubs
-    // from source files.
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
-    analyzer.addConstructors { _ -> true }
 }
 
 private fun ActionContext.subtractApi(
@@ -506,33 +482,15 @@ private fun ActionContext.checkCompatibility(
             }
         )
 
-    var baseApi: Codebase? = null
-
-    if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-        val baseApiFile = options.baseApiForCompatCheck
-        if (baseApiFile != null) {
-            baseApi = signatureFileCache.load(signatureFile = SignatureFile.fromFile(baseApiFile))
-        }
-    } else if (options.baseApiForCompatCheck != null) {
-        // This option does not make sense with showAnnotation, as the "base" in that case
-        // is the non-annotated APIs.
-        throw MetalavaCliException(
-            "$ARG_CHECK_COMPATIBILITY_BASE_API is not compatible with --showAnnotation."
-        )
-    }
-
-    // Wrap the old Codebase in a [MergedCodebase].
-    val mergedOldCodebases = MergedCodebase(listOf(oldCodebase))
-
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
-        mergedOldCodebases,
+        oldCodebase,
         apiType,
-        baseApi,
-        options.reporterCompatibilityReleased,
+        reporter,
         options.issueConfiguration,
+        options.apiCompatAnnotations,
     )
 }
 
@@ -636,7 +594,6 @@ private fun ActionContext.loadFromSources(
     analyzer.computeApi()
 
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-    val filterEmit = ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
     val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
@@ -671,25 +628,16 @@ private fun ActionContext.loadFromSources(
                 }
             )
 
-        val apiLintReporter = reporterApiLint as DefaultReporter
         ApiLint.check(
             codebase,
             previouslyReleasedApi,
-            apiLintReporter,
+            reporter,
             options.manifest,
             options.apiVisitorConfig,
         )
         progressTracker.progress(
-            "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
+            "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
-    }
-
-    // Compute default constructors (and add missing package private constructors
-    // to make stubs compilable if necessary). Do this after all the checks as
-    // these are not part of the API.
-    if (options.stubsDir != null || options.docStubsDir != null) {
-        progressTracker.progress("Insert missing constructors: ")
-        analyzer.addConstructors(filterEmit)
     }
 
     progressTracker.progress("Performing misc API checks: ")
@@ -768,22 +716,44 @@ private fun createStubFiles(
             }
         }
 
+    val codebaseFragment =
+        CodebaseFragment(codebase) { delegate ->
+            createFilteringVisitorForStubs(
+                delegate = delegate,
+                docStubs = docStubs,
+                preFiltered = codebase.preFiltered,
+                apiVisitorConfig = options.apiVisitorConfig,
+            )
+        }
+
+    // Add additional constructors needed by the stubs.
+    val filterEmit =
+        if (codebaseFragment.codebase.preFiltered) {
+            Predicate { true }
+        } else {
+            val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+            ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
+        }
+    val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
+    stubConstructorManager.addConstructors(filterEmit)
+
     val stubWriter =
         StubWriter(
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
-            preFiltered = codebase.preFiltered,
             docStubs = docStubs,
             reporter = options.reporter,
             config = stubWriterConfig,
+            stubConstructorManager = stubConstructorManager,
         )
-    codebase.accept(stubWriter)
+
+    codebaseFragment.accept(stubWriter)
 
     if (docStubs) {
         // Overview docs? These are generally in the empty package.
         codebase.findPackage("")?.let { empty ->
             val overview = empty.overviewDocumentation
-            if (!overview.isNullOrBlank()) {
+            if (overview != null) {
                 stubWriter.writeDocOverview(empty, overview)
             }
         }
@@ -793,6 +763,26 @@ private fun createStubFiles(
         "$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${
         localTimer.elapsed(SECONDS)} seconds\n"
     )
+}
+
+fun createReportFile(
+    progressTracker: ProgressTracker,
+    codebaseFragment: CodebaseFragment,
+    apiFile: File,
+    description: String?,
+    deleteEmptyFiles: Boolean = false,
+    createVisitorWriter: (PrintWriter) -> DelegatedVisitor,
+) {
+    createReportFile(
+        progressTracker,
+        codebaseFragment.codebase,
+        apiFile,
+        description,
+        deleteEmptyFiles,
+    ) {
+        val delegatedWriter = createVisitorWriter(it)
+        codebaseFragment.createVisitor(delegatedWriter)
+    }
 }
 
 @Suppress("DEPRECATION")

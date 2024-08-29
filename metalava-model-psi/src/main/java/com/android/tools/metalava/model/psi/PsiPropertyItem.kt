@@ -16,56 +16,53 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.toUElement
 
-class PsiPropertyItem
+internal class PsiPropertyItem
 private constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    containingClass: PsiClassItem,
+    modifiers: BaseModifierList,
+    // This needs to be passed in because the documentation may come from the property, or it may
+    // come from the getter method.
+    documentationFactory: ItemDocumentationFactory,
     name: String,
-    modifiers: DefaultModifierList,
-    documentation: String,
-    private val fieldType: PsiTypeItem,
-    override val getter: PsiMethodItem,
-    override val setter: PsiMethodItem?,
-    override val constructorParameter: PsiParameterItem?,
-    override val backingField: PsiFieldItem?
+    containingClass: ClassItem,
+    type: TypeItem,
+    override val getter: MethodItem,
+    override val setter: MethodItem?,
+    override val constructorParameter: ParameterItem?,
+    override val backingField: FieldItem?
 ) :
-    PsiMemberItem(
+    DefaultPropertyItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation(psiMethod),
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiMethod,
-        containingClass = containingClass,
+        documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
+        containingClass = containingClass,
+        type = type,
     ),
-    PropertyItem {
-
-    override fun type(): TypeItem = fieldType
+    PropertyItem,
+    PsiItem {
 
     override fun psi() = psiMethod
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
 
     companion object {
         /**
@@ -89,22 +86,22 @@ private constructor(
          */
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             name: String,
-            type: PsiTypeItem,
+            type: TypeItem,
             getter: PsiMethodItem,
             setter: PsiMethodItem? = null,
             constructorParameter: PsiParameterItem? = null,
             backingField: PsiFieldItem? = null
         ): PsiPropertyItem {
             val psiMethod = getter.psiMethod
-            val documentation =
+            // Get the appropriate element from which to retrieve the documentation.
+            val psiElement =
                 when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor ->
-                        javadoc(sourcePsi.property, codebase.allowReadingComments)
-                    else -> javadoc(sourcePsi ?: psiMethod, codebase.allowReadingComments)
+                    is KtPropertyAccessor -> sourcePsi.property
+                    else -> sourcePsi ?: psiMethod
                 }
-            val modifiers = modifiers(codebase, psiMethod, documentation)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.
@@ -121,7 +118,8 @@ private constructor(
                         } else null
                     }
                 annotations?.forEach { uAnnotation ->
-                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                    val annotationItem =
+                        UAnnotationItem.create(codebase, uAnnotation) ?: return@forEach
                     if (annotationItem !in modifiers.annotations()) {
                         modifiers.addAnnotation(annotationItem)
                     }
@@ -131,11 +129,11 @@ private constructor(
                 PsiPropertyItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = documentation,
                     modifiers = modifiers,
-                    fieldType = type,
+                    documentationFactory = PsiItemDocumentation.factory(psiElement, codebase),
+                    name = name,
+                    containingClass = containingClass,
+                    type = type,
                     getter = getter,
                     setter = setter,
                     constructorParameter = constructorParameter,
