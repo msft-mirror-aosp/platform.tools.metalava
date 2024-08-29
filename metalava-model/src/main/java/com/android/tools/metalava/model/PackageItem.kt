@@ -17,6 +17,13 @@
 package com.android.tools.metalava.model
 
 interface PackageItem : Item {
+    /**
+     * The overview documentation associated with the package; retrieved from an `overview.html`
+     * file.
+     */
+    val overviewDocumentation: String?
+        get() = null
+
     /** The qualified name of this package */
     fun qualifiedName(): String
 
@@ -51,16 +58,6 @@ interface PackageItem : Item {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        for (unit in topLevelClasses()) {
-            unit.acceptTypes(visitor)
-        }
     }
 
     companion object {

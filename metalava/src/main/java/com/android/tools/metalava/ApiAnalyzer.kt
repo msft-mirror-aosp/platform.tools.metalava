@@ -24,7 +24,9 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -37,6 +39,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -111,8 +114,6 @@ class ApiAnalyzer(
             return
         }
 
-        // Apply options for packages that should be hidden
-        hidePackages()
         skipEmitPackages()
         // Suppress kotlin file facade classes with no public api
         hideEmptyKotlinFileFacadeClasses()
@@ -552,14 +553,6 @@ class ApiAnalyzer(
         }
     }
 
-    /** Hide packages explicitly listed in [Options.hidePackages] */
-    private fun hidePackages() {
-        for (pkgName in config.hidePackages) {
-            val pkg = codebase.findPackage(pkgName) ?: continue
-            pkg.hidden = true
-        }
-    }
-
     /** Apply emit filters listed in [Options.skipEmitPackages] */
     private fun skipEmitPackages() {
         for (pkgName in config.skipEmitPackages) {
@@ -622,8 +615,13 @@ class ApiAnalyzer(
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                        pkg.hasShowAnnotation() -> pkg.hidden = false
-                        pkg.hasHideAnnotation() -> pkg.hidden = true
+                        else -> {
+                            val showability = pkg.showability
+                            when {
+                                showability.show() -> pkg.hidden = false
+                                showability.hide() -> pkg.hidden = true
+                            }
+                        }
                     }
                     val containingPackage = pkg.containingPackage()
                     if (containingPackage != null) {
@@ -638,15 +636,16 @@ class ApiAnalyzer(
 
                 override fun visitClass(cls: ClassItem) {
                     val containingClass = cls.containingClass()
-                    if (cls.hasShowAnnotation()) {
+                    val showability = cls.showability
+                    if (showability.show()) {
                         cls.hidden = false
                         // Make containing package non-hidden if it contains a show-annotation
                         // class. Doclava does this in PackageInfo.isHidden().
                         cls.containingPackage().hidden = false
-                        if (cls.containingClass() != null) {
+                        if (containingClass != null) {
                             ensureParentVisible(cls)
                         }
-                    } else if (cls.hasHideAnnotation()) {
+                    } else if (showability.hide()) {
                         cls.hidden = true
                     } else if (containingClass != null) {
                         if (containingClass.hidden) {
@@ -677,17 +676,18 @@ class ApiAnalyzer(
                         if (containingPackage.docOnly && !containingPackage.isDefault) {
                             cls.docOnly = true
                         }
-                        if (containingPackage.removed && !cls.hasShowAnnotation()) {
+                        if (containingPackage.removed && !showability.show()) {
                             cls.removed = true
                         }
                     }
                 }
 
                 override fun visitMethod(method: MethodItem) {
-                    if (method.hasShowAnnotation()) {
+                    val showability = method.showability
+                    if (showability.show()) {
                         method.hidden = false
                         ensureParentVisible(method)
-                    } else if (method.hasHideAnnotation()) {
+                    } else if (showability.hide()) {
                         method.hidden = true
                     } else {
                         val containingClass = method.containingClass()
@@ -712,10 +712,11 @@ class ApiAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    if (field.hasShowAnnotation()) {
+                    val showability = field.showability
+                    if (showability.show()) {
                         field.hidden = false
                         ensureParentVisible(field)
-                    } else if (field.hasHideAnnotation()) {
+                    } else if (showability.hide()) {
                         field.hidden = true
                     } else {
                         val containingClass = field.containingClass()
@@ -1024,49 +1025,22 @@ class ApiAnalyzer(
                     }
                 }
 
+                /** Check that the type doesn't refer to any hidden classes. */
                 private fun checkTypeReferencesHidden(item: Item, type: TypeItem) {
-                    if (type is PrimitiveTypeItem) {
-                        return
-                    }
-
-                    val cls = type.asClass()
-
-                    // Don't flag type parameters like T
-                    if (cls?.isTypeParameter == true) {
-                        return
-                    }
-
-                    // class may be null for things like array types and ellipsis types,
-                    // but iterating through the type argument classes below will find and
-                    // check the component class
-                    if (cls != null && !filterReference.test(cls) && !cls.isFromClassPath()) {
-                        reporter.report(
-                            Issues.HIDDEN_TYPE_PARAMETER,
-                            item,
-                            "${item.toString().capitalize()} references hidden type $type."
-                        )
-                    }
-
-                    type
-                        .typeArgumentClasses()
-                        .filter { it != cls }
-                        .forEach { checkTypeReferencesHidden(item, it) }
-                }
-
-                private fun checkTypeReferencesHidden(item: Item, cls: ClassItem) {
-                    if (!filterReference.test(cls)) {
-                        if (!cls.isFromClassPath()) {
-                            reporter.report(
-                                Issues.HIDDEN_TYPE_PARAMETER,
-                                item,
-                                "${item.toString().capitalize()} references hidden type $cls."
-                            )
+                    type.accept(
+                        object : BaseTypeVisitor() {
+                            override fun visitClassType(classType: ClassTypeItem) {
+                                val cls = classType.asClass() ?: return
+                                if (!filterReference.test(cls) && !cls.isFromClassPath()) {
+                                    reporter.report(
+                                        Issues.HIDDEN_TYPE_PARAMETER,
+                                        item,
+                                        "${item.toString().capitalize()} references hidden type $classType."
+                                    )
+                                }
+                            }
                         }
-                    } else {
-                        cls.typeArgumentClasses()
-                            .filter { it != cls }
-                            .forEach { checkTypeReferencesHidden(item, it) }
-                    }
+                    )
                 }
             }
         )
@@ -1136,9 +1110,11 @@ class ApiAnalyzer(
                         )
                     }
 
-                    var hiddenClass = findHiddenClasses(returnType, stubImportPackages)
-                    if (hiddenClass != null && !hiddenClass.isFromClassPath()) {
-                        if (hiddenClass.qualifiedName() == returnType.asClass()?.qualifiedName()) {
+                    val returnHiddenClasses = findHiddenClasses(returnType, stubImportPackages)
+                    val returnClassName = (returnType as? ClassTypeItem)?.qualifiedName
+                    for (hiddenClass in returnHiddenClasses) {
+                        if (hiddenClass.isFromClassPath()) continue
+                        if (hiddenClass.qualifiedName() == returnClassName) {
                             // Return type is hidden
                             reporter.report(
                                 Issues.UNAVAILABLE_SYMBOL,
@@ -1170,9 +1146,11 @@ class ApiAnalyzer(
                                 )
                             }
 
-                            hiddenClass = findHiddenClasses(t, stubImportPackages)
-                            if (hiddenClass != null && !hiddenClass.isFromClassPath()) {
-                                if (hiddenClass.qualifiedName() == t.asClass()?.qualifiedName()) {
+                            val parameterHiddenClasses = findHiddenClasses(t, stubImportPackages)
+                            val parameterClassName = (t as? ClassTypeItem)?.qualifiedName
+                            for (hiddenClass in parameterHiddenClasses) {
+                                if (hiddenClass.isFromClassPath()) continue
+                                if (hiddenClass.qualifiedName() == parameterClassName) {
                                     // Parameter type is hidden
                                     reporter.report(
                                         Issues.UNAVAILABLE_SYMBOL,
@@ -1277,38 +1255,17 @@ class ApiAnalyzer(
             if (!filter.test(field)) {
                 continue
             }
-            val fieldType = field.type()
-            if (fieldType !is PrimitiveTypeItem) {
-                val typeClass = fieldType.asClass()
-                if (typeClass != null) {
-                    cantStripThis(
-                        typeClass,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        field,
-                        "as field type"
-                    )
-                }
-                for (cls in fieldType.typeArgumentClasses()) {
-                    if (cls == typeClass) {
-                        continue
-                    }
-                    cantStripThis(
-                        cls,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        field,
-                        "as field type argument class"
-                    )
-                }
-            }
+            cantStripThis(
+                field.type(),
+                field,
+                filter,
+                notStrippable,
+                stubImportPackages,
+                "in field type"
+            )
         }
         // cant strip any of the type's generics
-        for (cls in cl.typeArgumentClasses()) {
-            cantStripThis(cls, filter, notStrippable, stubImportPackages, cl, "as type argument")
-        }
+        cantStripThis(cl.typeParameterList(), filter, notStrippable, stubImportPackages, cl)
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
@@ -1380,49 +1337,22 @@ class ApiAnalyzer(
             if (!filter.test(method)) {
                 continue
             }
-            for (typeParameterClass in method.typeArgumentClasses()) {
+            cantStripThis(
+                method.typeParameterList(),
+                filter,
+                notStrippable,
+                stubImportPackages,
+                method
+            )
+            for (parameter in method.parameters()) {
                 cantStripThis(
-                    typeParameterClass,
+                    parameter.type(),
+                    parameter,
                     filter,
                     notStrippable,
                     stubImportPackages,
-                    method,
-                    "as type parameter"
+                    "in parameter type"
                 )
-            }
-            for (parameter in method.parameters()) {
-                for (parameterTypeClass in parameter.type().typeArgumentClasses()) {
-                    cantStripThis(
-                        parameterTypeClass,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        parameter,
-                        "as parameter type"
-                    )
-                    for (tcl in parameter.type().typeArgumentClasses()) {
-                        if (tcl == parameterTypeClass) {
-                            continue
-                        }
-                        if (tcl.isHiddenOrRemoved()) {
-                            reporter.report(
-                                Issues.UNAVAILABLE_SYMBOL,
-                                method,
-                                "Parameter of hidden type ${tcl.fullName()} " +
-                                    "in ${method.containingClass().qualifiedName()}.${method.name()}()"
-                            )
-                        } else {
-                            cantStripThis(
-                                tcl,
-                                filter,
-                                notStrippable,
-                                stubImportPackages,
-                                parameter,
-                                "as type parameter"
-                            )
-                        }
-                    }
-                }
             }
             for (thrown in method.throwsTypes()) {
                 cantStripThis(
@@ -1434,34 +1364,61 @@ class ApiAnalyzer(
                     "as exception"
                 )
             }
-            val returnType = method.returnType()
-            if (returnType !is PrimitiveTypeItem) {
-                val returnTypeClass = returnType.asClass()
-                if (returnTypeClass != null) {
+            cantStripThis(
+                method.returnType(),
+                method,
+                filter,
+                notStrippable,
+                stubImportPackages,
+                "in return type"
+            )
+        }
+    }
+
+    private fun cantStripThis(
+        typeParameterList: TypeParameterList,
+        filter: Predicate<Item>,
+        notStrippable: MutableSet<ClassItem>,
+        stubImportPackages: Set<String>?,
+        context: Item
+    ) {
+        for (typeParameter in typeParameterList.typeParameters()) {
+            for (bound in typeParameter.typeBounds()) {
+                cantStripThis(
+                    bound,
+                    context,
+                    filter,
+                    notStrippable,
+                    stubImportPackages,
+                    "as type parameter"
+                )
+            }
+        }
+    }
+
+    private fun cantStripThis(
+        type: TypeItem,
+        context: Item,
+        filter: Predicate<Item>,
+        notStrippable: MutableSet<ClassItem>,
+        stubImportPackages: Set<String>?,
+        usage: String,
+    ) {
+        type.accept(
+            object : BaseTypeVisitor() {
+                override fun visitClassType(classType: ClassTypeItem) {
+                    val asClass = classType.asClass() ?: return
                     cantStripThis(
-                        returnTypeClass,
+                        asClass,
                         filter,
                         notStrippable,
                         stubImportPackages,
-                        method,
-                        "as return type"
+                        context,
+                        usage
                     )
-                    for (tyItem in returnType.typeArgumentClasses()) {
-                        if (tyItem == returnTypeClass) {
-                            continue
-                        }
-                        cantStripThis(
-                            tyItem,
-                            filter,
-                            notStrippable,
-                            stubImportPackages,
-                            method,
-                            "as return type parameter"
-                        )
-                    }
                 }
             }
-        }
+        )
     }
 
     /**
@@ -1477,30 +1434,27 @@ class ApiAnalyzer(
      *
      * @param ti the type information to examine for references to hidden classes.
      * @param stubImportPackages the possibly null set of imported package names.
-     * @return a reference to a hidden class or null if there are none
+     * @return all references to hidden classes referenced by the type
      */
-    private fun findHiddenClasses(ti: TypeItem?, stubImportPackages: Set<String>?): ClassItem? {
-        ti ?: return null
-        val ci = ti.asClass() ?: return null
-        return findHiddenClasses(ci, stubImportPackages)
-    }
-
-    private fun findHiddenClasses(ci: ClassItem, stubImportPackages: Set<String>?): ClassItem? {
-        if (
-            stubImportPackages != null &&
-                stubImportPackages.contains(ci.containingPackage().qualifiedName())
-        ) {
-            return null
-        }
-        if (ci.isHiddenOrRemoved()) return ci
-        for (tii in ci.toType().typeArgumentClasses()) {
-            // Avoid infinite recursion in the case of Foo<T extends Foo>
-            if (tii != ci) {
-                val hiddenClass = findHiddenClasses(tii, stubImportPackages)
-                if (hiddenClass != null) return hiddenClass
+    private fun findHiddenClasses(ti: TypeItem, stubImportPackages: Set<String>?): Set<ClassItem> {
+        val hiddenClasses = mutableSetOf<ClassItem>()
+        ti.accept(
+            object : BaseTypeVisitor() {
+                override fun visitClassType(classType: ClassTypeItem) {
+                    val asClass = classType.asClass() ?: return
+                    if (
+                        stubImportPackages != null &&
+                            stubImportPackages.contains(asClass.containingPackage().qualifiedName())
+                    ) {
+                        return
+                    }
+                    if (asClass.isHiddenOrRemoved()) {
+                        hiddenClasses.add(asClass)
+                    }
+                }
             }
-        }
-        return null
+        )
+        return hiddenClasses
     }
 }
 
