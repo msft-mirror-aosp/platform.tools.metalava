@@ -18,13 +18,14 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextMethodItem(
@@ -34,10 +35,11 @@ internal open class TextMethodItem(
     modifiers: DefaultModifierList,
     private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
-    position: SourcePositionInfo
-) : TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers), MethodItem {
+    fileLocation: FileLocation,
+) :
+    TextMemberItem(codebase, name, containingClass, fileLocation, modifiers = modifiers),
+    MethodItem {
     init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
         parameters.forEach { it.containingMethod = this }
     }
 
@@ -68,8 +70,8 @@ internal open class TextMethodItem(
             }
         }
 
-        val typeParameters1 = typeParameterList().typeParameters()
-        val typeParameters2 = other.typeParameterList().typeParameters()
+        val typeParameters1 = typeParameterList
+        val typeParameters2 = other.typeParameterList
 
         if (typeParameters1.size != typeParameters2.size) {
             return false
@@ -101,13 +103,8 @@ internal open class TextMethodItem(
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    private var typeParameterList: TypeParameterList = TypeParameterList.NONE
-
-    fun setTypeParameterList(typeParameterList: TypeParameterList) {
-        this.typeParameterList = typeParameterList
-    }
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
+    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
+        internal set
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
@@ -119,7 +116,7 @@ internal open class TextMethodItem(
                 modifiers.duplicate(),
                 returnType.convertType(typeVariableMap),
                 parameters.map { it.duplicate(typeVariableMap) },
-                position
+                fileLocation
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -136,35 +133,21 @@ internal open class TextMethodItem(
 
         duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
-        duplicated.throwsTypes.addAll(throwsTypes)
-        duplicated.throwsClasses = throwsClasses
+        duplicated.throwsTypes = this.throwsTypes
         duplicated.typeParameterList = typeParameterList
 
         return duplicated
     }
 
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
+    private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 
-    private val throwsTypes = mutableListOf<String>()
-    private var throwsClasses: List<ThrowableType>? = null
+    override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
 
-    fun throwsTypeNames(): List<String> {
-        return throwsTypes
-    }
-
-    override fun throwsTypes(): List<ThrowableType> =
-        if (throwsClasses == null) emptyList() else throwsClasses!!
-
-    fun setThrowsList(throwsClasses: List<ThrowableType>) {
-        this.throwsClasses = throwsClasses
+    fun setThrowsTypes(throwsClasses: List<ExceptionTypeItem>) {
+        this.throwsTypes = throwsClasses
     }
 
     override fun parameters(): List<ParameterItem> = parameters
-
-    fun addException(throwsType: String) {
-        throwsTypes += throwsType
-    }
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 
@@ -172,12 +155,6 @@ internal open class TextMethodItem(
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
-
-    fun toSignatureString(): String =
-        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 
     private var annotationDefault = ""
 

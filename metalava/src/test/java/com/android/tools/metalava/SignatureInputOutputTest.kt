@@ -206,7 +206,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(method.parameters()).isEmpty()
 
             assertThat(method.throwsTypes()).hasSize(1)
-            assertThat(method.throwsTypes().single().qualifiedName())
+            assertThat(method.throwsTypes().single().toTypeString())
                 .isEqualTo("java.lang.IllegalStateException")
         }
     }
@@ -535,6 +535,32 @@ class SignatureInputOutputTest : Assertions {
             assertThat(interfaceType.modifiers.annotations().map { it.qualifiedName })
                 .containsExactly("test.pkg.B")
         }
+    }
+
+    @Test
+    fun `Test generic super class with nullable type`() {
+        val api =
+            """
+                package test.pkg {
+                  public interface Foo extends kotlin.collections.List<java.lang.String?> {
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) {}
+    }
+
+    @Test
+    fun `Test generic super interface with nullable type`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo implements kotlin.collections.List<java.lang.String?> {
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) {}
     }
 
     companion object {

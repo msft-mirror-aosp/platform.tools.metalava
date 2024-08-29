@@ -16,9 +16,13 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
@@ -27,39 +31,22 @@ internal class TextTypeParameterItem(
 ) :
     TextItem(
         codebase = codebase,
-        position = SourcePositionInfo.UNKNOWN,
+        fileLocation = FileLocation.UNKNOWN,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
     ),
     TypeParameterItem {
 
-    lateinit var bounds: List<TypeItem>
+    lateinit var bounds: List<BoundsTypeItem>
 
     override fun name(): String {
         return name
     }
 
-    override fun toString() =
-        if (bounds.isEmpty() && !isReified) name
-        else
-            buildString {
-                if (isReified) append("reified ")
-                append(name)
-                if (bounds.isNotEmpty()) {
-                    append(" extends ")
-                    bounds.joinTo(this, " & ")
-                }
-            }
-
-    override fun type(): TextVariableTypeItem {
-        return TextVariableTypeItem(
-            codebase,
-            name,
-            this,
-            TextTypeModifiers.create(codebase, emptyList(), null)
-        )
+    override fun type(): VariableTypeItem {
+        return DefaultVariableTypeItem(DefaultTypeModifiers.create(emptyList()), this)
     }
 
-    override fun typeBounds(): List<TypeItem> = bounds
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun isReified(): Boolean = isReified
 
@@ -82,7 +69,7 @@ internal class TextTypeParameterItem(
          * This extracts the [isReified] and [name] from the [typeParameterString] and creates a
          * [TextTypeParameterItem] with those properties initialized but the [bounds] is not.
          *
-         * This must ONLY be used by [TextTypeParameterList.create] as that will complete the
+         * This must ONLY be used by [ApiFile.createTypeParameterList] as that will complete the
          * initialization of the [bounds] property.
          */
         fun create(

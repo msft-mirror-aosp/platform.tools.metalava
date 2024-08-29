@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -31,7 +32,7 @@ private constructor(
     private val psiMethod: PsiMethod,
     containingClass: PsiClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     private val fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
@@ -68,13 +69,6 @@ private constructor(
         return name.hashCode()
     }
 
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-        fieldType.finishInitialization(this)
-    }
-
     companion object {
         /**
          * Creates a new property item, given a [name], [type] and relationships to other items.
@@ -95,7 +89,7 @@ private constructor(
          * Most properties on classes without a custom getter have a [backingField] to hold their
          * value. This is private except for [JvmField] properties.
          */
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             name: String,
@@ -108,8 +102,9 @@ private constructor(
             val psiMethod = getter.psiMethod
             val documentation =
                 when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor -> javadoc(sourcePsi.property)
-                    else -> javadoc(sourcePsi ?: psiMethod)
+                    is KtPropertyAccessor ->
+                        javadoc(sourcePsi.property, codebase.allowReadingComments)
+                    else -> javadoc(sourcePsi ?: psiMethod, codebase.allowReadingComments)
                 }
             val modifiers = modifiers(codebase, psiMethod, documentation)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
@@ -152,7 +147,6 @@ private constructor(
             setter?.property = property
             constructorParameter?.property = property
             backingField?.property = property
-            property.modifiers.setOwner(property)
             return property
         }
     }

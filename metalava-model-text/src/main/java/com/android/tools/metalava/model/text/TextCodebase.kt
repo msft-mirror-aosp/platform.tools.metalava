@@ -20,12 +20,14 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
@@ -38,72 +40,117 @@ internal class TextCodebase(
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
-    internal val mPackages = HashMap<String, TextPackageItem>(300)
-    internal val mAllClasses = HashMap<String, TextClassItem>(30000)
+    private val packagesByName = HashMap<String, TextPackageItem>(300)
+    private val allClassesByName = HashMap<String, TextClassItem>(30000)
 
-    private val externalClasses = HashMap<String, ClassItem>()
-
-    /**
-     * A set of empty [TextTypeModifiers] owned by, and reused by items within, this [TextCodebase].
-     */
-    internal val emptyTypeModifiers = TextTypeModifiers.create(this, emptyList(), null)
+    private val externalClassesByName = HashMap<String, ClassItem>()
 
     override fun trustedApi(): Boolean = true
 
     override fun getPackages(): PackageList {
-        val list = ArrayList<PackageItem>(mPackages.values)
+        val list = ArrayList<PackageItem>(packagesByName.values)
         list.sortWith(PackageItem.comparator)
         return PackageList(this, list)
     }
 
     override fun size(): Int {
-        return mPackages.size
+        return packagesByName.size
     }
 
     /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
-    fun findClassInCodebase(className: String) = mAllClasses[className]
+    fun findClassInCodebase(className: String) = allClassesByName[className]
 
-    override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
+    override fun findClass(className: String) =
+        allClassesByName[className] ?: externalClassesByName[className]
+
+    override fun resolveClass(className: String) = getOrCreateClass(className)
 
     override fun supportsDocumentation(): Boolean = false
 
     fun addPackage(pInfo: TextPackageItem) {
         // track the set of organized packages in the API
-        mPackages[pInfo.name()] = pInfo
+        packagesByName[pInfo.name()] = pInfo
 
         // accumulate a direct map of all the classes in the API
         for (cl in pInfo.allClasses()) {
-            mAllClasses[cl.qualifiedName()] = cl as TextClassItem
+            allClassesByName[cl.qualifiedName()] = cl as TextClassItem
         }
     }
 
-    fun registerClass(cls: TextClassItem) {
-        mAllClasses[cls.qualifiedName] = cls
+    fun registerClass(classItem: TextClassItem) {
+        val qualifiedName = classItem.qualifiedName
+        val existing = allClassesByName.put(qualifiedName, classItem)
+        if (existing != null) {
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+            )
+        }
+
+        addClass(classItem)
+
+        // A real class exists so a stub will not be created.
+        requiredStubKindForClass.remove(qualifiedName)
+    }
+
+    /**
+     * The [StubKind] required for each class which could not be found, defaults to [StubKind.CLASS]
+     * if not specified.
+     *
+     * Specific types, require a specific type of class, e.g. a type used in an `extends` clause of
+     * a concrete class requires a concrete class, whereas a type used in an `implements` clause of
+     * a concrete class, or an `extends` list of an interface requires an interface.
+     *
+     * Similarly, an annotation must be an annotation type and extends
+     * `java.lang.annotation.Annotation` and a `throws` type that is not a type parameter must be a
+     * concrete class that extends `java.lang.Throwable.`
+     *
+     * This contains information about the type use so that if a stub class is needed a class of the
+     * appropriate structure can be fabricated to avoid spurious issues being reported.
+     */
+    private val requiredStubKindForClass = mutableMapOf<String, StubKind>()
+
+    /**
+     * Register that the class type requires a specific stub kind.
+     *
+     * If a concrete class already exists then this does nothing. Otherwise, this registers the
+     * [StubKind] for the [ClassTypeItem.qualifiedName], making sure that it does not conflict with
+     * any previous requirements.
+     */
+    fun requireStubKindFor(classTypeItem: ClassTypeItem, stubKind: StubKind) {
+        val qualifiedName = classTypeItem.qualifiedName
+
+        // If a real class already exists then a stub will not need to be created.
+        if (allClassesByName[qualifiedName] != null) return
+
+        val existing = requiredStubKindForClass.put(qualifiedName, stubKind)
+        if (existing != null && existing != stubKind) {
+            error(
+                "Mismatching required stub kinds for $qualifiedName, found $existing and $stubKind"
+            )
+        }
     }
 
     /**
      * Gets an existing, or creates a new [ClassItem].
      *
-     * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
-     * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
-     * empty stub class (or interface, if [isInterface] is true).
+     * Tries to find [name] in [allClassesByName]. If not found, then if a [classResolver] is
+     * provided it will invoke that and return the [ClassItem] it returns if any. Otherwise, it will
+     * create an empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
+     * [StubKind.CLASS] if no specific [StubKind] was required.
      *
      * Initializes outer classes and packages for the created class as needed.
      *
      * @param name the name of the class.
-     * @param isInterface true if the class must be an interface, i.e. is referenced from an
-     *   `implements` list (or Kotlin equivalent).
      * @param isOuterClass if `true` then this is searching for an outer class of a class in this
      *   codebase, in which case this must only search classes in this codebase, otherwise it can
      *   search for external classes too.
      */
     fun getOrCreateClass(
         name: String,
-        isInterface: Boolean = false,
         isOuterClass: Boolean = false,
     ): ClassItem {
         // Check this codebase first, if found then return it.
-        mAllClasses[name]?.let { found ->
+        allClassesByName[name]?.let { found ->
             return found
         }
 
@@ -112,7 +159,7 @@ internal class TextCodebase(
         if (!isOuterClass && classResolver != null) {
             // Check to see whether the class has already been retrieved from the resolver. If it
             // has then return it.
-            externalClasses[name]?.let { found ->
+            externalClassesByName[name]?.let { found ->
                 return found
             }
 
@@ -121,13 +168,20 @@ internal class TextCodebase(
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
                 // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClasses[name] = classItem
+                externalClassesByName[name] = classItem
                 return classItem
             }
         }
 
-        val stubClass = TextClassItem.createStubClass(this, name, isInterface)
-        mAllClasses[name] = stubClass
+        // Build a stub class of the required kind.
+        val requiredStubKind = requiredStubKindForClass.remove(name) ?: StubKind.CLASS
+        val stubClass =
+            StubClassBuilder.build(this, name) {
+                // Apply stub kind specific mutations to the stub class being built.
+                requiredStubKind.mutator(this)
+            }
+
+        registerClass(stubClass)
         stubClass.emit = false
 
         val fullName = stubClass.fullName()
@@ -161,7 +215,7 @@ internal class TextCodebase(
                                 this,
                                 pkgPath,
                                 DefaultModifierList(this, DefaultModifierList.PUBLIC),
-                                SourcePositionInfo.UNKNOWN
+                                FileLocation.UNKNOWN
                             )
                         addPackage(newPkg)
                         newPkg.emit = false
@@ -174,7 +228,7 @@ internal class TextCodebase(
     }
 
     override fun findPackage(pkgName: String): TextPackageItem? {
-        return mPackages[pkgName]
+        return packagesByName[pkgName]
     }
 
     override fun createAnnotation(

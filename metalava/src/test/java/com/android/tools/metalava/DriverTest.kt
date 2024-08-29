@@ -42,7 +42,13 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
-import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.psi.PsiModelOptions
+import com.android.tools.metalava.model.source.SourceModelProvider
+import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.utils.DOT_KT
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
@@ -75,11 +81,25 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
 
-abstract class DriverTest : TemporaryFolderOwner {
+@RunWith(DriverTestRunner::class)
+abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, TemporaryFolderOwner {
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
     @get:Rule val errorCollector = ErrorCollector()
+
+    /** The [CodebaseCreatorConfig] under which this test will be run. */
+    final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
+
+    /**
+     * The setting of [PsiModelOptions.useK2Uast]. Is computed lazily as it depends on
+     * [codebaseCreatorConfig] which is set after object initialization.
+     */
+    protected val isK2 by
+        lazy(LazyThreadSafetyMode.NONE) {
+            codebaseCreatorConfig.modelOptions[PsiModelOptions.useK2Uast]
+        }
 
     @Before
     fun setup() {
@@ -103,6 +123,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         args: Array<String>,
         expectedFail: String,
         reporterEnvironment: ReporterEnvironment,
+        testEnvironment: TestEnvironment,
     ): String {
         // Capture the actual input and output from System.out/err and compare it to the output
         // printed through the official writer; they should be the same, otherwise we have stray
@@ -125,6 +146,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     stdout = writer,
                     stderr = writer,
                     reporterEnvironment = reporterEnvironment,
+                    testEnvironment = testEnvironment,
                 )
             val exitCode = run(executionEnvironment, args)
             if (exitCode == 0) {
@@ -447,13 +469,7 @@ abstract class DriverTest : TemporaryFolderOwner {
          * files etc
          */
         importedPackages: List<String> = emptyList(),
-        /**
-         * Packages to skip emitting signatures/stubs for even if public. Typically used for unit
-         * tests referencing to classpath classes that aren't part of the definitions and shouldn't
-         * be part of the test output; e.g. a test may reference java.lang.Enum but we don't want to
-         * start reporting all the public APIs in the java.lang package just because it's indirectly
-         * referenced via the "enum" superclass
-         */
+        /** See [TestEnvironment.skipEmitPackages] */
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
         /** Whether we should include --showAnnotations=android.annotation.SystemApi */
         includeSystemApiAnnotations: Boolean = false,
@@ -509,6 +525,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Language("TEXT") apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
+        /** The common source files to pass to the analyzer */
+        commonSourceFiles: Array<TestFile> = emptyArray(),
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0
     ) {
@@ -523,6 +541,17 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
+
+        // Verify that a test that provided kotlin code is only being run against a provider that
+        // supports kotlin code.
+        val anyKotlin =
+            sourceFiles.any { it.targetPath.endsWith(DOT_KT) } ||
+                commonSourceFiles.any { it.targetPath.endsWith(DOT_KT) }
+        if (anyKotlin && Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
+            error(
+                "Provider ${codebaseCreatorConfig.providerName} does not support Kotlin; please add `@RequiresCapabilities(Capability.KOTLIN)` to the test"
+            )
+        }
 
         val releasedApiCheck =
             CompatibilityCheckRequest.create(
@@ -552,7 +581,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(sourceFiles)
+        val project = createProject(sourceFiles + commonSourceFiles)
 
         val sourcePathDir = File(project, "src")
         if (!sourcePathDir.isDirectory) {
@@ -560,10 +589,23 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
 
         var sourcePath = sourcePathDir.path
+        var commonSourcePath: String? = null
 
         // Make it easy to configure a source path with more than one source root: src and src2
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
+        }
+
+        fun pathUnderProject(path: String): String = File(project, path).path
+
+        if (commonSourceFiles.isNotEmpty()) {
+            // Assume common/source are placed in different folders, e.g., commonMain, androidMain
+            sourcePath =
+                pathUnderProject(sourceFiles.first().targetPath.substringBefore("src") + "src")
+            commonSourcePath =
+                pathUnderProject(
+                    commonSourceFiles.first().targetPath.substringBefore("src") + "src"
+                )
         }
 
         val apiClassResolutionArgs =
@@ -597,9 +639,9 @@ abstract class DriverTest : TemporaryFolderOwner {
                 }
                 arrayOf(apiJar.path)
             } else {
-                sourceFiles
+                (sourceFiles + commonSourceFiles)
                     .asSequence()
-                    .map { File(project, it.targetPath).path }
+                    .map { pathUnderProject(it.targetPath) }
                     .toList()
                     .toTypedArray()
             }
@@ -904,12 +946,6 @@ abstract class DriverTest : TemporaryFolderOwner {
             importedPackageArgs.add(it)
         }
 
-        val skipEmitPackagesArgs = mutableListOf<String>()
-        skipEmitPackages.forEach {
-            skipEmitPackagesArgs.add("--skip-emit-packages")
-            skipEmitPackagesArgs.add(it)
-        }
-
         val kotlinPathArgs = findKotlinStdlibPathArgs(sourceList)
 
         val sdkFilesDir: File?
@@ -1031,10 +1067,8 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *suppressCompatMetaAnnotationArguments,
                 *showForStubPurposesAnnotationArguments,
                 *showUnannotatedArgs,
-                *apiLintArgs,
                 *sdkFilesArgs,
                 *importedPackageArgs.toTypedArray(),
-                *skipEmitPackagesArgs.toTypedArray(),
                 *extractAnnotationsArgs,
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
@@ -1045,6 +1079,22 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
+                // Must always be last as this can consume a following argument, breaking the test.
+                *apiLintArgs,
+            ) +
+                buildList {
+                        if (commonSourcePath != null) {
+                            add(ARG_COMMON_SOURCE_PATH)
+                            add(commonSourcePath)
+                        }
+                    }
+                    .toTypedArray()
+
+        val testEnvironment =
+            TestEnvironment(
+                skipEmitPackages = skipEmitPackages,
+                sourceModelProvider = codebaseCreatorConfig.creator,
+                modelOptions = codebaseCreatorConfig.modelOptions,
             )
 
         val actualOutput =
@@ -1052,6 +1102,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 args = args,
                 expectedFail = actualExpectedFail,
                 reporterEnvironment = reporterEnvironment,
+                testEnvironment = testEnvironment,
             )
 
         if (expectedIssues != null || allReportedIssues.toString() != "") {
@@ -1223,7 +1274,8 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                gatherSources(options.reporter, listOf(stubsDir))
+                SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir))
+                    .sources
                     .asSequence()
                     .map { it.path }
                     .toList()
@@ -1240,7 +1292,8 @@ abstract class DriverTest : TemporaryFolderOwner {
                 )
             }
             val extraAnnotations =
-                gatherSources(options.reporter, listOf(extraAnnotationsDir))
+                SourceSet.createFromSourcePath(options.reporter, listOf(extraAnnotationsDir))
+                    .sources
                     .asSequence()
                     .map { it.path }
                     .toList()
@@ -1295,27 +1348,6 @@ abstract class DriverTest : TemporaryFolderOwner {
             // For each path in the list generate an option with the path as the value.
             return paths.flatMap { listOf(optionName, it) }.toTypedArray()
         }
-    }
-
-    protected fun uastCheck(
-        isK2: Boolean,
-        @Language("TEXT") api: String? = null,
-        format: FileFormat = FileFormat.LATEST,
-        expectedIssues: String? = "",
-        extraArguments: Array<String> = emptyArray(),
-        expectedFail: String? = null,
-        @Language("TEXT") apiLint: String? = null,
-        sourceFiles: Array<TestFile> = emptyArray(),
-    ) {
-        check(
-            api = api,
-            format = format,
-            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 }),
-            expectedIssues = expectedIssues,
-            expectedFail = expectedFail,
-            apiLint = apiLint,
-            sourceFiles = sourceFiles,
-        )
     }
 
     /** Checks that the given zip annotations file contains the given XML package contents */
