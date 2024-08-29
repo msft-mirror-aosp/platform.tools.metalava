@@ -22,17 +22,13 @@ import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiExpressionStatement
-import com.intellij.psi.PsiKeyword
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiMethodCallExpression
-import com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
-class PsiConstructorItem(
+class PsiConstructorItem
+private constructor(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
     containingClass: PsiClassItem,
@@ -70,40 +66,7 @@ class PsiConstructorItem(
 
     override fun isCloned(): Boolean = false
 
-    private var _superMethods: List<MethodItem>? = null
-
-    override fun superMethods(): List<MethodItem> {
-        if (_superMethods == null) {
-            val result = mutableListOf<MethodItem>()
-            psiMethod.findSuperMethods().mapTo(result) { codebase.findMethod(it) }
-
-            if (result.isEmpty() && isConstructor() && containingClass().superClass() != null) {
-                // Try a little harder; psi findSuperMethod doesn't seem to find super constructors
-                // in
-                // some cases, but maybe we can find it by resolving actual super() calls!
-                // TODO: Port to UAST
-                var curr: PsiElement? = psiMethod.body?.firstBodyElement
-                while (curr != null && curr is PsiWhiteSpace) {
-                    curr = curr.nextSibling
-                }
-                if (
-                    curr is PsiExpressionStatement &&
-                        curr.expression is PsiMethodCallExpression &&
-                        curr.expression.firstChild?.lastChild is PsiKeyword &&
-                        curr.expression.firstChild?.lastChild?.text == "super"
-                ) {
-                    val resolved = (curr.expression as PsiMethodCallExpression).resolveMethod()
-                    if (resolved is PsiMethod) {
-                        val superConstructor = codebase.findMethod(resolved)
-                        result.add(superConstructor)
-                    }
-                }
-            }
-            _superMethods = result
-        }
-
-        return _superMethods!!
-    }
+    override fun superMethods(): List<MethodItem> = emptyList()
 
     /**
      * Override to handle providing the location for a synthetic/implicit constructor which has no

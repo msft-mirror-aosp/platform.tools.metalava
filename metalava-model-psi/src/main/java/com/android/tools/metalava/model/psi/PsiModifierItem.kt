@@ -20,14 +20,21 @@ import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
+import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.intellij.psi.PsiAnnotation
+import com.intellij.psi.PsiAnnotationMemberValue
+import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiDocCommentOwner
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
@@ -54,7 +61,8 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
 
-class PsiModifierItem(
+class PsiModifierItem
+internal constructor(
     codebase: Codebase,
     flags: Int = PACKAGE_PRIVATE,
     annotations: MutableList<AnnotationItem>? = null
@@ -85,6 +93,22 @@ class PsiModifierItem(
         }
 
         private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
+            if (element is UMethod) {
+                // NB: we can't use sourcePsi.annotationEntries directly due to
+                // annotation use-site targets. The given `javaPsi` as a light element,
+                // which spans regular functions, property accessors, etc., is already
+                // built with targeted annotations. Even KotlinUMethod is using LC annotations.
+                //
+                // BUT!
+                // ```
+                //   return element.javaPsi.isDeprecated
+                // ```
+                // is redundant, since we already check:
+                // ```
+                //   (element as? PsiDocCommentOwner)?.isDeprecated == true
+                // ```
+                return false
+            }
             return ((element as? UElement)?.sourcePsi as? KtAnnotated)?.annotationEntries?.any {
                 it.shortName?.toString() == "Deprecated"
             }
@@ -246,6 +270,70 @@ class PsiModifierItem(
             return flags
         }
 
+        /**
+         * Returns a list of the targets this annotation is defined to apply to, as qualified names
+         * (e.g. "java.lang.annotation.ElementType.TYPE_USE").
+         *
+         * If the annotation can't be resolved or does not use `@Target`, returns an empty list.
+         */
+        private fun PsiAnnotation.targets(): List<String> {
+            return resolveAnnotationType()
+                ?.annotations
+                ?.firstOrNull { it.hasQualifiedName(JAVA_LANG_ANNOTATION_TARGET) }
+                ?.findAttributeValue("value")
+                ?.targets()
+                ?: emptyList()
+        }
+
+        /**
+         * Returns the element types listed in the annotation value, if the value is a direct
+         * reference or an array of direct references.
+         */
+        private fun PsiAnnotationMemberValue.targets(): List<String> {
+            return when (this) {
+                is PsiReferenceExpression -> listOf(qualifiedName)
+                is PsiArrayInitializerMemberValue ->
+                    initializers.mapNotNull { (it as? PsiReferenceExpression)?.qualifiedName }
+                else -> emptyList()
+            }
+        }
+
+        /**
+         * Annotations which are only `TYPE_USE` should only apply to types, not the owning item of
+         * the type. However, psi incorrectly applies these items to both their types and owning
+         * items.
+         *
+         * If an annotation targets both `TYPE_USE` and other use sites, it should be applied to
+         * both types and owning items of the type if the owning item is one of the targeted use
+         * sites. See https://docs.oracle.com/javase/specs/jls/se11/html/jls-9.html#jls-9.7.4 for
+         * more detail.
+         *
+         * To work around psi incorrectly applying exclusively `TYPE_USE` annotations to non-type
+         * items, this filters all annotations which should apply to types but not the [forOwner]
+         * item.
+         */
+        private fun List<PsiAnnotation>.filterIncorrectTypeUseAnnotations(
+            forOwner: PsiModifierListOwner
+        ): List<PsiAnnotation> {
+            val expectedTarget =
+                when (forOwner) {
+                    is PsiMethod -> "java.lang.annotation.ElementType.METHOD"
+                    is PsiParameter -> "java.lang.annotation.ElementType.PARAMETER"
+                    is PsiField -> "java.lang.annotation.ElementType.FIELD"
+                    else -> return this
+                }
+
+            return filter { annotation ->
+                val applicableTargets = annotation.targets()
+                // If the annotation is not type use, it has been correctly applied to the item.
+                !applicableTargets.contains(JAVA_LANG_TYPE_USE_TARGET) ||
+                    // If the annotation has the item type as a target, it should be applied here.
+                    applicableTargets.contains(expectedTarget) ||
+                    // For now, leave in nullness annotations until they are specially handled.
+                    isNullnessAnnotation(annotation.qualifiedName.orEmpty())
+            }
+        }
+
         private fun create(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner
@@ -262,6 +350,8 @@ class PsiModifierItem(
                     // that.
                     psiAnnotations
                         .distinct()
+                        // Remove any type-use annotations that psi incorrectly applied to the item.
+                        .filterIncorrectTypeUseAnnotations(element)
                         .map {
                             val qualifiedName = it.qualifiedName
                             // Consider also supporting

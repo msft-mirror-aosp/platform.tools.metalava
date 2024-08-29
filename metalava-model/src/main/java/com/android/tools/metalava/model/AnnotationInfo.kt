@@ -46,11 +46,20 @@ open class AnnotationInfo(
         }
 
     /**
-     * Determines whether this annotation affects whether the annotated item is shown or hidden and
-     * if so how.
+     * Determines whether this annotation affects whether the annotated item is shown and if so how
+     * it is shown.
      */
     open val showability: Showability
         get() = Showability.NO_EFFECT
+
+    /**
+     * If true then this annotation will cause annotated items to be hidden from the API.
+     *
+     * This is true if this annotation is explicitly specified as a hide annotation, or is annotated
+     * with a meta hide annotation, see [hideMeta].
+     */
+    open val hide: Boolean
+        get() = false
 
     open val suppressCompatibility: Boolean
         get() = false
@@ -66,36 +75,27 @@ data class Showability(
     /**
      * If true then the annotated item will be shown as part of the API, unless overridden in some
      * way.
-     *
-     * If false then the annotated item will NOT be shown as part of the API, unless overridden in
-     * some way.
-     *
-     * If null then this has no effect on whether an annotated item will be shown or not.
      */
-    private val show: Boolean?,
-
+    private val show: Boolean,
     /**
      * If true then the annotated item will recursively affect enclosed items, unless overridden by
      * a closer annotation.
      */
     private val recursive: Boolean,
-
     /**
      * If true then the annotated item will only be included in stubs of the API, otherwise it can
      * appear in all representations of the API, e.g. signature files.
      */
     private val forStubsOnly: Boolean,
 ) {
-    fun show() = show == true
+    fun show() = show
 
     fun showForStubsOnly() = forStubsOnly
 
-    fun showNonRecursive() = show == true && !recursive
-
-    fun hide() = show == false
+    fun showNonRecursive() = show && !recursive
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */
-        val NO_EFFECT = Showability(show = null, recursive = false, forStubsOnly = false)
+        val NO_EFFECT = Showability(show = false, recursive = false, forStubsOnly = false)
     }
 }

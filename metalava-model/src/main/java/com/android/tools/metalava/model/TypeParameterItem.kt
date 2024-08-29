@@ -16,12 +16,14 @@
 
 package com.android.tools.metalava.model
 
+@MetalavaApi
 interface TypeParameterItem : ClassItem {
     @Deprecated(
         message = "Please use typeBounds() instead.",
         level = DeprecationLevel.ERROR,
         replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
     )
+    @MetalavaApi
     fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
 
     fun typeBounds(): List<TypeItem>
