@@ -24,7 +24,6 @@ import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.nonNullSource
-import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -491,71 +490,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Test equals and hashCode`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MissingEquals.java:4: error: Must override both equals and hashCode; missing one in android.pkg.MissingEquals [EqualsAndHashCode]
-                src/android/pkg/MissingHashCode.java:7: error: Must override both equals and hashCode; missing one in android.pkg.MissingHashCode [EqualsAndHashCode]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-                    public class Ok {
-                        public boolean equals(@Nullable Object other) { return true; }
-                        public int hashCode() { return 0; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class MissingEquals {
-                        public int hashCode() { return 0; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-                    public class MissingHashCode {
-                        public boolean equals(@Nullable Object other) { return true; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class UnrelatedEquals {
-                        @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-                        public static boolean equals(@Nullable Object other) { return true; } // static
-                        public boolean equals(int other) { return false; } // wrong parameter type
-                        public boolean equals(@Nullable Object other, int bar) { return false; } // wrong signature
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Test Parcelable`() {
         check(
             apiLint = "", // enabled
@@ -807,11 +741,13 @@ class ApiLintTest : DriverTest() {
                         public @Nullable ListenableFuture<String> okAsync() { return null; }
                         public void ok2(@Nullable ListenableFuture<String> param) { }
 
-                        public interface BadFuture<T> extends Future<T> {
+                        public interface BadFuture<T> extends AnotherInterface, Future<T> {
                         }
                         public static abstract class BadFutureClass<T> implements Future<T> {
                         }
                         public class BadCompletableFuture<T> extends CompletableFuture<T> {
+                        }
+                        public interface AnotherInterface {
                         }
                     }
                     """
@@ -933,90 +869,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Api methods should not be synchronized in their signature`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/CheckSynchronization.java:12: error: Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable) [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization.java:14: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization.java:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization.java:23: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:5: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:8: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:13: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod3() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:16: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class CheckSynchronization {
-                        public void okMethod1(@Nullable Runnable r) { }
-                        private static final Object LOCK = new Object();
-                        public void okMethod2() {
-                            synchronized(LOCK) {
-                            }
-                        }
-                        public synchronized void errorMethod1(@Nullable Runnable r) { } // ERROR
-                        public void errorMethod2() {
-                            synchronized(this) {
-                            }
-                        }
-                        public void errorMethod2() {
-                            synchronized(CheckSynchronization.class) {
-                            }
-                        }
-                        public void errorMethod3() {
-                            if (true) {
-                                synchronized(CheckSynchronization.class) {
-                                }
-                            }
-                        }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package android.pkg
-
-                    class CheckSynchronization2 {
-                        fun errorMethod1() {
-                            synchronized(this) { println("hello") }
-                        }
-                        fun errorMethod2() {
-                            synchronized(CheckSynchronization2::class.java) { println("hello") }
-                        }
-                        fun errorMethod3() {
-                            @Suppress("ConstantConditionIf")
-                            if (true) {
-                                synchronized(CheckSynchronization2::class.java) { println("hello") }
-                            }
-                        }
-                        fun errorMethod4() = synchronized(this) { println("hello") }
-                        fun errorMethod5() {
-                            synchronized(CheckSynchronization2::class) { println("hello") }
-                        }
-                        fun okMethod() {
-                            val lock = Object()
-                            synchronized(lock) { println("hello") }
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource,
-                    nullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check intent builder names`() {
         check(
             apiLint = "", // enabled
@@ -1115,213 +967,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     )
-                )
-        )
-    }
-
-    @Test
-    fun `Check builders`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/Bad.java:13: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:13: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:14: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorArgument]
-                src/android/pkg/Bad.java:38: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
-                src/android/pkg/Bad.java:41: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:43: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
-                src/android/pkg/Bad.java:45: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:20: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:23: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:26: warning: android.pkg.Bad does not declare a `getPluralWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetter(java.util.Collection<java.lang.String>) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:32: warning: android.pkg.Bad does not declare a getter method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetters(java.util.Collection<java.lang.String>) (expected one of: [getPluralWithoutMatchingGetters(), getPluralWithoutMatchingGetterses()]) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:45: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:57: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:51: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
-                src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
-                src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    public final class TopLevelBuilder {
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    public class Ok {
-
-                        public int getInt();
-                        @NonNull
-                        public List<String> getStrings();
-                        @NonNull
-                        public List<String> getProperties();
-                        @NonNull
-                        public List<String> getRays();
-                        @NonNull
-                        public List<String> getBuses();
-                        @NonNull
-                        public List<String> getTaxes();
-                        @NonNull
-                        public List<String> getMessages();
-                        public boolean isBoolean();
-                        public boolean hasBoolean2();
-                        public boolean shouldBoolean3();
-
-                        public static final class OkBuilder {
-                            public OkBuilder(@NonNull String goodParameter, int goodParameter2) {}
-
-                            @NonNull
-                            public Ok build() { return null; }
-
-                            @NonNull
-                            public OkBuilder setInt(int value) { return this; }
-
-                            @NonNull
-                            public OkBuilder addString(@NonNull String value) { return this; }
-
-                            @NonNull
-                            public OkBuilder addProperty(@NonNull String value) { return this; }
-
-                            @NonNull
-                            public OkBuilder addRay(@NonNull String value) { return this; }
-
-                            @NonNull
-                            public OkBuilder addBus(@NonNull String value) { return this; }
-
-                            @NonNull
-                            public OkBuilder addTax(@NonNull String value) { return this; }
-
-                            @NonNull
-                            public OkBuilder addMessages(@NonNull Collection<String> value) {
-                                return this;
-                            }
-
-                            @NonNull
-                            public OkBuilder clearStrings() { return this; }
-
-                            @NonNull
-                            public OkBuilder setBoolean(boolean v) { return this; }
-
-                            @NonNull
-                            public OkBuilder setHasBoolean2(boolean v) { return this; }
-
-                            @NonNull
-                            public OkBuilder setShouldBoolean3(boolean v) { return this; }
-
-                            @NonNull
-                            public OkBuilder clear() { return this; }
-
-                            @NonNull
-                            public OkBuilder clearAll() { return this; }
-                        }
-
-                        public static final class GenericBuilder<B extends GenericBuilder> {
-                            @NonNull
-                            public B setBoolean(boolean value) { return this; }
-
-                            @NonNull
-                            public Ok build() { return null; }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class SubOk extends Ok {
-
-                        public static final class Builder {
-                            public Builder() {}
-
-                            @NonNull
-                            public SubOk build() { return null; }
-
-                            @NonNull
-                            public Builder setInt(int value) { return this; }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-                    import java.util.Collection;
-
-                    public class Bad {
-
-                        public boolean isBoolean();
-                        public boolean getWithoutMatchingGetter();
-                        public boolean isReturnsNullable();
-
-                        public class BadBuilder {
-                            public BadBuilder(@Nullable String badParameter) {}
-
-                            @NonNull
-                            public Bad build() { return null; }
-
-                            @NonNull
-                            public BadBuilder addWithoutMatchingGetter(@NonNull String value) { return this; }
-
-                            @NonNull
-                            public BadBuilder setWithoutMatchingGetter(boolean v) { return this; }
-
-                            @NonNull
-                            public BadBuilder addPluralWithoutMatchingGetter(
-                                @NonNull Collection<String> value) {
-                                return this;
-                            }
-
-                            @NonNull
-                            public BadBuilder addPluralWithoutMatchingGetters(
-                                @NonNull Collection<String> value) {
-                                return this;
-                            }
-
-                            @NonNull
-                            public BadBuilder withBadSetterStyle(boolean v) { return this; }
-
-                            @Nullable
-                            public BadBuilder setReturnsNullable(boolean v) { return this; }
-
-                            public boolean getOnBuilder() { return true; }
-
-                            public void setNotReturningBuilder(boolean v) { return this; }
-
-                            @NonNull
-                            public BadBuilder () { return this; }
-                        }
-
-                        public static final class NoBuildMethodBuilder {
-                            public NoBuildMethodBuilder() {}
-                        }
-
-                        public static final class BadGenericBuilder<T extends Bad> {
-                            @NonNull
-                            public T setBoolean(boolean value) { return this; }
-
-                            @NonNull
-                            public Bad build() { return null; }
-                        }
-                    }
-                    """
-                    ),
-                    androidxNonNullSource,
-                    androidxNullableSource
                 )
         )
     }
@@ -2853,42 +2498,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check Kotlin operators`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/KotlinOperatorTest.java:6: info: Method can be invoked with an indexing operator from Kotlin: `get` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:7: info: Method can be invoked with an indexing operator from Kotlin: `set` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:8: info: Method can be invoked with function call syntax from Kotlin: `invoke` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:9: info: Method can be invoked as a binary operator from Kotlin: `plus` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:9: error: Only one of `plus` and `plusAssign` methods should be present for Kotlin [UniqueKotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:10: info: Method can be invoked as a compound assignment operator from Kotlin: `plusAssign` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class KotlinOperatorTest {
-                        public int get(int i) { return i + 2; }
-                        public void set(int i, int j, int k) { }
-                        public void invoke(int i, int j, int k) { }
-                        public int plus(@Nullable JavaClass other) { return 0; }
-                        public void plusAssign(@Nullable JavaClass other) { }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Return collections instead of arrays`() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
@@ -3300,71 +2909,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `KotlinOperator check only applies when not using operator modifier`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/A.kt:3: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
-                src/android/pkg/Bar.kt:4: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
-                src/android/pkg/Foo.java:8: info: Method can be invoked as a binary operator from Kotlin: `div` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.pkg;
-
-                        import androidx.annotation.Nullable;
-
-                        public class Foo {
-                            private Foo() { }
-                            @Nullable
-                            public Foo div(int value) { }
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        class Bar {
-                            operator fun div(value: Int): Bar { TODO() }
-                            fun plus(value: Int): Bar { TODO() }
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        class FontFamily(val fonts: List<String>) : List<String> by fonts
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        class B: A() {
-                            override fun get(i: Int): A {
-                                return A()
-                            }
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        open class A {
-                            open fun get(i: Int): A {
-                                return A()
-                            }
-                        }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
@@ -3704,7 +3248,7 @@ class ApiLintTest : DriverTest() {
                         package javax.microedition.khronos.egl;
 
                         public interface EGL10 extends EGL {
-                            EGLDisplay EGL_SUCCESS = new EGLImpl();
+                            int EGL_SUCCESS = 0;
                         }
                     """
                     ),

@@ -24,21 +24,18 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFileItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.intellij.lang.jvm.types.JvmReferenceType
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.SyntheticElement
-import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -101,11 +98,6 @@ internal constructor(
     override fun superClass(): ClassItem? = superClass
 
     override fun superClassType(): TypeItem? = superClassType
-
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
-        this.superClass = superClass
-        this.superClassType = superClassType
-    }
 
     override var stubConstructor: ConstructorItem? = null
     override var artifact: String? = null
@@ -192,7 +184,7 @@ internal constructor(
         private set
 
     override fun toType(): TypeItem {
-        return PsiTypeItem.create(codebase, codebase.getClassType(psiClass))
+        return codebase.getType(codebase.getClassType(psiClass))
     }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
@@ -208,14 +200,10 @@ internal constructor(
         }
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> {
-        return PsiTypeItem.typeParameterClasses(codebase, psiClass.typeParameterList)
-    }
-
     override val isTypeParameter: Boolean
         get() = psiClass is PsiTypeParameter
 
-    override fun getSourceFile(): SourceFileItem? {
+    override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
         }
@@ -232,7 +220,7 @@ internal constructor(
                 null
             }
 
-        return PsiSourceFileItem(codebase, containingFile, uFile)
+        return PsiSourceFile(codebase, containingFile, uFile)
     }
 
     override fun finishInitialization() {
@@ -264,38 +252,37 @@ internal constructor(
     }
 
     private fun initializeSuperClasses() {
-        val extendsListTypes = psiClass.extendsListTypes
-        if (extendsListTypes.isNotEmpty()) {
-            val type = PsiTypeItem.create(codebase, extendsListTypes[0])
-            this.superClassType = type
-            this.superClass = type.asClass()
-        } else {
-            val superType = psiClass.superClassType
-            if (superType is PsiType) {
-                this.superClassType = PsiTypeItem.create(codebase, superType)
+        val isInterface = isInterface()
+
+        // Get the interfaces from the appropriate list.
+        val interfaces =
+            if (isInterface || isAnnotationType()) {
+                // An interface uses "extends <interfaces>", either explicitly for normal interfaces
+                // or implicitly for annotations.
+                psiClass.extendsListTypes
+            } else {
+                // A class uses "extends <interfaces>".
+                psiClass.implementsListTypes
+            }
+
+        // Map them to PsiTypeItems.
+        val interfaceTypes =
+            interfaces.map {
+                val type = codebase.getType(it)
+                // ensure that we initialize classes eagerly too, so that they're registered etc
+                type.asClass()
+                type
+            }
+        setInterfaces(interfaceTypes)
+
+        if (!isInterface) {
+            // Set the super class type for classes
+            val superClassPsiType = psiClass.superClassType as? PsiType
+            superClassPsiType?.let { superType ->
+                this.superClassType = codebase.getType(superType)
                 this.superClass = this.superClassType?.asClass()
             }
         }
-
-        // Add interfaces. If this class is an interface, it can implement both
-        // classes from the extends clause and from the implements clause.
-        val interfaces = psiClass.implementsListTypes
-        setInterfaces(
-            if (interfaces.isEmpty() && extendsListTypes.size <= 1) {
-                emptyList()
-            } else {
-                val result = ArrayList<PsiTypeItem>(interfaces.size + extendsListTypes.size - 1)
-                val create: (PsiClassType) -> PsiTypeItem = {
-                    val type = PsiTypeItem.create(codebase, it)
-                    type.asClass() // ensure that we initialize classes eagerly too such that
-                    // they're registered etc
-                    type
-                }
-                (1 until extendsListTypes.size).mapTo(result) { create(extendsListTypes[it]) }
-                interfaces.mapTo(result) { create(it) }
-                result
-            }
-        )
 
         for (inner in innerClasses) {
             inner.initializeSuperClasses()
@@ -317,39 +304,13 @@ internal constructor(
     }
 
     override fun mapTypeVariables(target: ClassItem): Map<String, String> {
-        val targetPsi = (target as PsiClassItem).psi()
-        val maps =
-            mapTypeVariablesToSuperclass(
-                psiClass,
-                targetPsi,
-                considerSuperClasses = true,
-                considerInterfaces = targetPsi.isInterface
-            )
-                ?: return emptyMap()
-
-        if (maps.isEmpty()) {
-            return emptyMap()
+        // TODO(316922930): Temporarily return an empty map for Kotlin because the previous
+        // implementation didn't work for Kotlin source. AndroidX signature files need to be updated
+        return if (isKotlin()) {
+            emptyMap()
+        } else {
+            super.mapTypeVariables(target)
         }
-
-        if (maps.size == 1) {
-            return maps[0]
-        }
-
-        val first = maps[0]
-        val flattened = mutableMapOf<String, String>()
-        for (key in first.keys) {
-            var variable: String? = key
-            for (map in maps) {
-                val value = map[variable]
-                variable = value
-                if (value == null) {
-                    break
-                } else {
-                    flattened[key] = value
-                }
-            }
-        }
-        return flattened
     }
 
     override fun equals(other: Any?): Boolean {
@@ -392,6 +353,7 @@ internal constructor(
             }
             newMethod.setThrowsTypes(throwsTypes)
         }
+        newMethod.finishInitialization()
 
         return newMethod
     }
@@ -734,114 +696,6 @@ internal constructor(
             }
 
             return false
-        }
-
-        fun mapTypeVariablesToSuperclass(
-            psiClass: PsiClass,
-            targetClass: PsiClass,
-            considerSuperClasses: Boolean = true,
-            considerInterfaces: Boolean = psiClass.isInterface
-        ): MutableList<Map<String, String>>? {
-            // TODO: Prune search if type doesn't have type arguments!
-            if (considerSuperClasses) {
-                val list =
-                    mapTypeVariablesToSuperclass(
-                        psiClass.superClassType,
-                        targetClass,
-                        considerSuperClasses,
-                        considerInterfaces
-                    )
-                if (list != null) {
-                    return list
-                }
-            }
-
-            if (considerInterfaces) {
-                for (interfaceType in psiClass.interfaceTypes) {
-                    val list =
-                        mapTypeVariablesToSuperclass(
-                            interfaceType,
-                            targetClass,
-                            considerSuperClasses,
-                            considerInterfaces
-                        )
-                    if (list != null) {
-                        return list
-                    }
-                }
-            }
-
-            return null
-        }
-
-        private fun mapTypeVariablesToSuperclass(
-            type: JvmReferenceType?,
-            targetClass: PsiClass,
-            considerSuperClasses: Boolean = true,
-            considerInterfaces: Boolean = true
-        ): MutableList<Map<String, String>>? {
-            // TODO: Prune search if type doesn't have type arguments!
-            val superType = type as? PsiClassReferenceType
-            val superClass = superType?.resolve()
-            if (superClass != null) {
-                if (superClass == targetClass) {
-                    val map = mapTypeVariablesToSuperclass(superType)
-                    return if (map != null) {
-                        mutableListOf(map)
-                    } else {
-                        null
-                    }
-                } else {
-                    val list =
-                        mapTypeVariablesToSuperclass(
-                            superClass,
-                            targetClass,
-                            considerSuperClasses,
-                            considerInterfaces
-                        )
-                    if (list != null) {
-                        val map = mapTypeVariablesToSuperclass(superType)
-                        if (map != null) {
-                            list.add(map)
-                        }
-                        return list
-                    }
-                }
-            }
-
-            return null
-        }
-
-        private fun mapTypeVariablesToSuperclass(
-            superType: PsiClassReferenceType?
-        ): Map<String, String>? {
-            superType ?: return null
-
-            val map = mutableMapOf<String, String>()
-            val superClass = superType.resolve()
-            if (superClass != null && superType.hasParameters()) {
-                val superTypeParameters = superClass.typeParameters
-                superType.parameters.forEachIndexed { index, parameter ->
-                    if (parameter is PsiClassReferenceType) {
-                        val parameterClass = parameter.resolve()
-                        if (parameterClass != null) {
-                            val parameterName =
-                                parameterClass.qualifiedName
-                                    ?: parameterClass.name ?: parameter.name
-                            if (index < superTypeParameters.size) {
-                                val superTypeParameter = superTypeParameters[index]
-                                val superTypeName =
-                                    superTypeParameter.qualifiedName ?: superTypeParameter.name
-                                if (superTypeName != null) {
-                                    map[superTypeName] = parameterName
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            return map
         }
     }
 }

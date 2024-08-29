@@ -1191,7 +1191,7 @@ class StubsTest : AbstractStubsTest() {
                         /** My class doc */
                         @file:Suppress("ALL")
                         class Kotlin : test.pkg.Parent() {
-                        open fun Kotlin(open property1: java.lang.String!, open arg2: int): test.pkg.Kotlin! = error("Stub!")
+                        open fun Kotlin(open property1: java.lang.String, open arg2: int): test.pkg.Kotlin = error("Stub!")
                         open fun method(): java.lang.String = error("Stub!")
                         /** My method doc */
                         open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
@@ -1203,7 +1203,7 @@ class StubsTest : AbstractStubsTest() {
                         package test.pkg
                         @file:Suppress("ALL")
                         open class ExtendableClass<T> {
-                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
+                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!> = error("Stub!")
                         }
                     """
                     )
@@ -1652,6 +1652,78 @@ class StubsTest : AbstractStubsTest() {
                     ARG_API_CLASS_RESOLUTION,
                     "api:classpath",
                 ),
+        )
+    }
+
+    @Test
+    fun `Type-use annotations are not included in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                            public @interface TypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
+                            public @interface MethodAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE})
+                            public @interface MethodAndTypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                @MethodAnnotation
+                                @MethodAndTypeAnnotation
+                                public @TypeAnnotation List<@TypeAnnotation String> foo() {}
+                            }
+                        """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            @test.pkg.MethodAndTypeAnnotation
+                            @test.pkg.MethodAnnotation
+                            public java.util.List<java.lang.String> foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            format = FileFormat.V2,
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.pkg.MethodAndTypeAnnotation @test.pkg.MethodAnnotation public java.util.List<java.lang.String> foo();
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE}) public @interface MethodAndTypeAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD) public @interface MethodAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
+                      }
+                    }
+                """
         )
     }
 }

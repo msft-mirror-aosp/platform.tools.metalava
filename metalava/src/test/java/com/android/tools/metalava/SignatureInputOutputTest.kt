@@ -413,7 +413,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(i: int, map: java.util.Map<java.lang.String, java.lang.Object>, arr: String[]): String;
+                    method public foo(i: int, map: java.util.Map<java.lang.String,java.lang.Object>, arr: String[]): String;
                   }
                 }
             """
@@ -456,7 +456,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(_: int, _: java.util.Map<java.lang.String, java.lang.Object>, _: String[]): String;
+                    method public foo(_: int, _: java.util.Map<java.lang.String,java.lang.Object>, _: String[]): String;
                   }
                 }
             """
@@ -490,6 +490,66 @@ class SignatureInputOutputTest {
             assertThat(p2.name()).isEqualTo("_")
             assertThat(p2.publicName()).isNull()
             assertThat((p2.type() as ArrayTypeItem).componentType.isString()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Type use annotations`() {
+        val format = kotlinStyleFormat.copy(includeTypeUseAnnotations = true)
+        val api =
+            """
+                package test.pkg {
+                  public class MyTest {
+                    method public abstract getParameterAnnotations(): java.lang.annotation.@C Annotation? @A [] @B []!;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, format) { codebase ->
+            val method = codebase.findClass("test.pkg.MyTest")!!.methods().single()
+            // Return type has platform nullability
+            assertThat(method.hasNullnessInfo()).isFalse()
+
+            val annotationArrayArray = method.returnType()
+            assertThat(annotationArrayArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat(annotationArrayArray.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("androidx.annotation.A")
+
+            val annotationArray = (annotationArrayArray as ArrayTypeItem).componentType
+            assertThat(annotationArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat(annotationArray.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("androidx.annotation.B")
+
+            val annotation = (annotationArray as ArrayTypeItem).componentType
+            assertThat(annotation).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((annotation as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.lang.annotation.Annotation")
+            assertThat(annotation.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("androidx.annotation.C")
+
+            // TODO (b/300081840): test nullability of types
+        }
+    }
+
+    @Test
+    fun `Type-use annotations in implements and extends section`() {
+        val format = kotlinStyleFormat.copy(includeTypeUseAnnotations = true)
+        val api =
+            """
+                package test.pkg {
+                  public class Foo extends test.pkg.@test.pkg.A Baz implements test.pkg.@test.pkg.B Bar {
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, format) { codebase ->
+            val fooClass = codebase.findClass("test.pkg.Foo")!!
+            val superClassType = fooClass.superClassType()
+            assertThat(superClassType!!.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("test.pkg.A")
+            val interfaceType = fooClass.interfaceTypes().single()
+            assertThat(interfaceType.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("test.pkg.B")
         }
     }
 

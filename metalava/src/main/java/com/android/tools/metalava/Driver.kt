@@ -39,7 +39,6 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.AnnotationTarget
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -138,7 +137,7 @@ internal fun processFlags(
             jdkHome = options.jdkHome,
         )
 
-    val signatureFileCache = SignatureFileCache(annotationManager)
+    val signatureFileCache = options.signatureFileCache
 
     val actionContext =
         ActionContext(
@@ -294,6 +293,7 @@ internal fun processFlags(
                 fileFormat = options.signatureFileFormat,
                 showUnannotated = options.showUnannotated,
                 apiVisitorConfig = options.apiVisitorConfig,
+                updateKotlinNulls = options.updateKotlinNulls
             )
         }
     }
@@ -464,18 +464,6 @@ private fun ActionContext.subtractApi(
         )
 }
 
-fun reallyHideFlaggedSystemApis(codebase: Codebase) {
-    codebase.accept(
-        object : BaseItemVisitor() {
-            override fun visitItem(item: Item) {
-                item.modifiers.findAnnotation(ANDROID_FLAGGED_API) ?: return
-                item.hidden = true
-                item.mutableModifiers().removeAnnotations { it.isShowAnnotation() }
-            }
-        }
-    )
-}
-
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 @Suppress("DEPRECATION")
 private fun ActionContext.checkCompatibility(
@@ -627,10 +615,6 @@ private fun ActionContext.loadFromSources(
     val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
 
-    if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
-        reallyHideFlaggedSystemApis(codebase)
-    }
-
     analyzer.computeApi()
 
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
@@ -666,8 +650,13 @@ private fun ActionContext.loadFromSources(
                 else -> signatureFileCache.load(file = previousApiFile)
             }
         val apiLintReporter = reporterApiLint as DefaultReporter
-        ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
-            .check()
+        ApiLint.check(
+            codebase,
+            previous,
+            apiLintReporter,
+            options.manifest,
+            options.apiVisitorConfig,
+        )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
         )
@@ -808,7 +797,7 @@ private fun createStubFiles(
     if (docStubs) {
         // Overview docs? These are generally in the empty package.
         codebase.findPackage("")?.let { empty ->
-            val overview = codebase.getPackageDocs()?.getOverviewDocumentation(empty)
+            val overview = empty.overviewDocumentation
             if (!overview.isNullOrBlank()) {
                 stubWriter.writeDocOverview(empty, overview)
             }

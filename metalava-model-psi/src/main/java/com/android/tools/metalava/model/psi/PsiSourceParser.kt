@@ -23,7 +23,6 @@ import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceCodebase
@@ -151,9 +150,10 @@ internal class PsiSourceParser(
     }
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
-    fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
+    private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        configureUastEnvironment(config, emptyList(), apiJars)
+        // Use the empty dir otherwise this will end up scanning the current working directory.
+        configureUastEnvironment(config, listOf(psiEnvironmentManager.emptyDir), apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
         environment.analyzeFiles(emptyList()) // Initializes PSI machinery.

@@ -103,9 +103,8 @@ internal class KotlinStubWriter(
             modifiers,
             item,
             target = annotationTarget,
-            skipNullnessAnnotations = true,
-            includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,
+            skipNullnessAnnotations = true,
             removeAbstract = removeAbstract,
             removeFinal = removeFinal,
             addPublic = addPublic,
@@ -180,9 +179,7 @@ internal class KotlinStubWriter(
 
         val typeString =
             type.toTypeString(
-                outerAnnotations = false,
-                innerAnnotations = generateAnnotations,
-                erased = false,
+                annotations = false,
                 kotlinStyleNulls = true,
                 context = item,
                 filter = filterReference
