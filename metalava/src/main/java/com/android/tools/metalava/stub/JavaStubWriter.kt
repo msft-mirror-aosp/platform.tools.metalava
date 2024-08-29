@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import java.io.PrintWriter
@@ -32,11 +32,10 @@ import java.util.function.Predicate
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
@@ -69,11 +68,7 @@ internal class JavaStubWriter(
         // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
         writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
 
-        // Need to filter out abstract from the modifiers list and turn it
-        // into a concrete method to make the stub compile
-        val removeAbstract = cls.modifiers.isAbstract() && (cls.isEnum() || cls.isAnnotationType())
-
-        appendModifiers(cls, removeAbstract)
+        appendModifiers(cls)
 
         when {
             cls.isAnnotationType() -> writer.print("@interface")
@@ -102,18 +97,10 @@ internal class JavaStubWriter(
                     }
                     appendDocumentation(field, writer, config)
 
-                    // Can't just appendModifiers(field, true, true): enum constants
-                    // don't take modifier lists, only annotations
-                    ModifierList.writeAnnotations(
-                        item = field,
-                        target = annotationTarget,
-                        runtimeAnnotationsOnly = !generateAnnotations,
-                        writer = writer,
-                        separateLines = true,
-                        list = field.modifiers,
-                        skipNullnessAnnotations = false,
-                        omitCommonPackages = false
-                    )
+                    // Append the modifier list even though the enum constant does not actually have
+                    // modifiers as that will write the annotations which it does have and ignore
+                    // the modifiers.
+                    appendModifiers(field)
 
                     writer.write(field.name())
                 }
@@ -128,36 +115,7 @@ internal class JavaStubWriter(
         writer.print("}\n\n")
     }
 
-    private fun appendModifiers(
-        item: Item,
-        removeAbstract: Boolean = false,
-        removeFinal: Boolean = false,
-        addPublic: Boolean = false
-    ) {
-        appendModifiers(item, item.modifiers, removeAbstract, removeFinal, addPublic)
-    }
-
-    private fun appendModifiers(
-        item: Item,
-        modifiers: ModifierList,
-        removeAbstract: Boolean,
-        removeFinal: Boolean = false,
-        addPublic: Boolean = false
-    ) {
-        val separateLines = item is ClassItem || item is MethodItem
-
-        ModifierList.write(
-            writer,
-            modifiers,
-            item,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-            removeAbstract = removeAbstract,
-            removeFinal = removeFinal,
-            addPublic = addPublic,
-            separateLines = separateLines
-        )
-    }
+    private fun appendModifiers(item: Item) = modifierListWriter.write(item)
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
@@ -216,7 +174,7 @@ internal class JavaStubWriter(
     private fun writeConstructor(constructor: MethodItem, superConstructor: MethodItem?) {
         writer.println()
         appendDocumentation(constructor, writer, config)
-        appendModifiers(constructor, false)
+        appendModifiers(constructor)
         generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
         writer.print(constructor.containingClass().simpleName())
 
@@ -280,7 +238,7 @@ internal class JavaStubWriter(
                                     constructor
                                         .containingClass()
                                         .mapTypeVariables(it.containingClass())
-                                val cast = map[type.toTypeString(context = it)] ?: typeString
+                                val cast = map[type.asTypeParameter]?.toTypeString() ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)
@@ -290,7 +248,7 @@ internal class JavaStubWriter(
                         writer.write("null")
                     } else {
                         // Add cast for things like shorts and bytes
-                        val typeString = type.toTypeString(context = it)
+                        val typeString = type.toTypeString()
                         if (
                             typeString != "boolean" && typeString != "int" && typeString != "long"
                         ) {
@@ -325,9 +283,6 @@ internal class JavaStubWriter(
     }
 
     private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
-        val modifiers = method.modifiers
-        val isEnum = containingClass.isEnum()
-        val isAnnotation = containingClass.isAnnotationType()
 
         if (method.isEnumSyntheticMethod()) {
             // Skip the values() and valueOf(String) methods in enums: these are added by
@@ -339,11 +294,7 @@ internal class JavaStubWriter(
         writer.println()
         appendDocumentation(method, writer, config)
 
-        // Need to filter out abstract from the modifiers list and turn it
-        // into a concrete method to make the stub compile
-        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
-
-        appendModifiers(method, modifiers, removeAbstract, false)
+        appendModifiers(method)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
@@ -354,7 +305,7 @@ internal class JavaStubWriter(
         generateParameterList(method)
         generateThrowsList(method)
 
-        if (isAnnotation) {
+        if (containingClass.isAnnotationType()) {
             val default = method.defaultValue()
             if (default.isNotEmpty()) {
                 writer.print(" default ")
@@ -362,16 +313,12 @@ internal class JavaStubWriter(
             }
         }
 
-        if (
-            modifiers.isAbstract() && !removeAbstract && !isEnum ||
-                isAnnotation ||
-                modifiers.isNative()
-        ) {
-            writer.println(";")
-        } else {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")
+        } else {
+            writer.println(";")
         }
     }
 
@@ -384,7 +331,7 @@ internal class JavaStubWriter(
         writer.println()
 
         appendDocumentation(field, writer, config)
-        appendModifiers(field, removeAbstract = false, removeFinal = false)
+        appendModifiers(field)
         writer.print(field.type().toTypeString(annotations = false, filter = filterReference))
         writer.print(' ')
         writer.print(field.name())
@@ -417,7 +364,7 @@ internal class JavaStubWriter(
             if (i > 0) {
                 writer.print(", ")
             }
-            appendModifiers(parameter, false)
+            appendModifiers(parameter)
             writer.print(
                 parameter.type().toTypeString(annotations = false, filter = filterReference)
             )
@@ -438,7 +385,7 @@ internal class JavaStubWriter(
             }
         if (throws.any()) {
             writer.print(" throws ")
-            throws.sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ThrowableType.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     writer.print(", ")
                 }

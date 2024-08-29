@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeParameterItem
 import java.util.function.Predicate
 
 /**
@@ -82,8 +83,14 @@ class ApiPredicate(
     )
 
     override fun test(member: Item): Boolean {
+        // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
+        // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
+        if (member !is ClassItem && !member.emit) {
+            return false
+        }
+
         // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
-        if (member is ClassItem && member.isTypeParameter) {
+        if (member is TypeParameterItem) {
             return true
         }
 
