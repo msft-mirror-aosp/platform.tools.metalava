@@ -329,6 +329,9 @@ class ApiAnalyzer(
             }
 
             cls.addMethod(method)
+
+            // Make sure that the same method is not added from multiple super classes.
+            existingMethods.add(method)
         }
     }
 
