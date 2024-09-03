@@ -268,7 +268,7 @@ class ApiFileTest : DriverTest() {
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
                     method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
                     method public void method1(int myInt = 42, Integer? myInt2 = null, int myByte = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int myInt, int myInt2 = (2 * myInt) * some.other.pkg.Constants.Misc.SIZE);
+                    method public void method2(int myInt, int myInt2 = (2*myInt) * some.other.pkg.Constants.Misc.SIZE);
                     method public void method3(String str, int myInt, int myInt2 = double(myInt) + str.length);
                     field public static final test.pkg.Foo.Companion Companion;
                   }
@@ -429,6 +429,50 @@ class ApiFileTest : DriverTest() {
                     method @Nullable public String method();
                     method @Nullable public String method2(boolean value, @Nullable Boolean value);
                     method public int method3(@Nullable Integer value, int value2);
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Kotlin Reified Methods`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Context {
+                        @SuppressWarnings("unchecked")
+                        public final <T> T getSystemService(Class<T> serviceClass) {
+                            return null;
+                        }
+                    }
+                    """
+                    ),
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
+                    inline fun Context.systemService2() = getSystemService(String::class.java)
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Context {
+                    ctor public Context();
+                    method public final <T> T getSystemService(Class<T>);
+                  }
+                  public final class TestKt {
+                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
+                    method public static inline String systemService2(@NonNull test.pkg.Context);
                   }
                 }
                 """
