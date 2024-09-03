@@ -181,9 +181,31 @@ internal class TurbineCodebaseInitialiser(
      * hierarchies using the binder's output
      */
     fun initialize(sourceSet: SourceSet) {
-        val sources = sourceSet.sources
-        val sourceFiles = getSourceFiles(sources)
+        // Get the units from the source files provided on the command line.
+        val commandLineSources = sourceSet.sources
+        val sourceFiles = getSourceFiles(commandLineSources.asSequence())
         val units = sourceFiles.map { Parser.parse(it) }
+
+        // Get the sequence of all files that can be found on the source path which are not
+        // explicitly listed on the command line.
+        val scannedFiles = scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
+        val sourcePathFiles = getSourceFiles(scannedFiles)
+
+        // Get the set of qualified class names provided on the command line. If a `.java` file
+        // contains multiple java classes then it just used the main class name.
+        val commandLineClasses = units.mapNotNull { unit -> unit.mainClassQualifiedName }.toSet()
+
+        // Get the units for the extra source files found on the source path.
+        val extraUnits =
+            sourcePathFiles
+                .map { Parser.parse(it) }
+                // Ignore any files that contain duplicates of a class that was specified on the
+                // command line. This is needed when merging annotations from other java files as
+                // there may be duplicate definitions of the class on the source path.
+                .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
+
+        // Combine all the units together.
+        val allUnits = ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
 
         // Bind the units
         try {
@@ -202,7 +224,7 @@ internal class TurbineCodebaseInitialiser(
             bindingResult =
                 Binder.bind(
                     log,
-                    ImmutableList.copyOf(units),
+                    allUnits,
                     ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
                     procInfo,
                     ClassPathBinder.bindClasspath(listOf()),
@@ -212,9 +234,11 @@ internal class TurbineCodebaseInitialiser(
         } catch (e: Throwable) {
             throw e
         }
-        val sourceClassMap = bindingResult.units()
+        // Get the SourceTypeBoundClass for all units that have been bound together.
+        val allSourceClassMap = bindingResult.units()
+
         // Maps class symbols to their source-based definitions
-        val sourceEnv = SimpleEnv(sourceClassMap)
+        val sourceEnv = SimpleEnv(allSourceClassMap)
 
         // Maps class symbols to their classpath-based definitions
         val classPathEnv = bindingResult.classPathEnv()
@@ -232,11 +256,13 @@ internal class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        // Split units into package-info.java units and normal class units.
-        val (packageInfoUnits, classUnits) = units.partition { it.isPackageInfo() }
+        // Split all the units into package-info.java units and normal class units.
+        val (packageInfoUnits, classUnits) = allUnits.partition { it.isPackageInfo() }
 
-        val (packageInfoClasses, sourceClasses) =
-            separatePackageInfoClassesFromRealClasses(sourceClassMap)
+        // Split the map from ClassSymbol to SourceTypeBoundClass into separate package-info and
+        // normal classes.
+        val (packageInfoClasses, allSourceClasses) =
+            separatePackageInfoClassesFromRealClasses(allSourceClassMap)
 
         val packageInfoList =
             combinePackageInfoClassesAndUnits(packageInfoClasses, packageInfoUnits)
@@ -271,8 +297,53 @@ internal class TurbineCodebaseInitialiser(
             unit.decls().forEach { decl -> classSourceMap[decl] = unit }
         }
 
+        // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
+        // the command line as only those classes can contribute directly to the API.
+        val commandLineSourceClasses =
+            allSourceClasses.filter { (_, typeBoundClass) ->
+                val unit = classSourceMap[typeBoundClass.decl()]
+                unit !in extraUnits
+            }
+
         createAllPackages(packageDocs)
-        createAllClasses(sourceClasses)
+        createAllClasses(commandLineSourceClasses)
+    }
+
+    /**
+     * Get the qualified class name of the main class in a unit.
+     *
+     * If a `.java` file contains multiple java classes then the main class is the first one which
+     * is assumed to be the public class.
+     */
+    private val CompUnit.mainClassQualifiedName: String?
+        get() {
+            val pkgName = getPackageName(this)
+            return decls().firstOrNull()?.let { decl -> "$pkgName.${decl.name()}" }
+        }
+
+    private fun scanSourcePath(sourcePath: List<File>, existingSources: Set<File>): Sequence<File> {
+        val visited = mutableSetOf<String>()
+        return sourcePath
+            .asSequence()
+            .flatMap { sourceRoot ->
+                sourceRoot
+                    .walkTopDown()
+                    // The following prevents repeatedly re-entering the same directory if there is
+                    // a cycle in the files, e.g. a symlink from a subdirectory back up to an
+                    // ancestor directory.
+                    .onEnter { dir ->
+                        // Use the canonical path as each file in a cycle can be represented by an
+                        // infinite number of paths and using them would make the visited check
+                        // useless.
+                        val canonical = dir.canonicalPath
+                        return@onEnter if (canonical in visited) false
+                        else {
+                            visited += canonical
+                            true
+                        }
+                    }
+            }
+            .filter { it !in existingSources }
     }
 
     /**
@@ -1207,8 +1278,10 @@ internal class TurbineCodebaseInitialiser(
     internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }
 
-private fun getSourceFiles(sources: List<File>): List<SourceFile> {
+/** Create a [SourceFile] for every `.java` file in [sources]. */
+private fun getSourceFiles(sources: Sequence<File>): List<SourceFile> {
     return sources
         .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
         .map { SourceFile(it.path, it.readText()) }
+        .toList()
 }
