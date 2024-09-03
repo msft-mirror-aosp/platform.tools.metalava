@@ -418,7 +418,8 @@ internal class TurbineCodebaseInitialiser(
         return null
     }
 
-    private fun createModifiers(flag: Int, annotations: List<AnnotationItem>): MutableModifierList {
+    private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
+        val annotations = createAnnotations(annoInfos)
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
@@ -530,12 +531,11 @@ internal class TurbineCodebaseInitialiser(
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
-        val annotations = createAnnotations(cls.annotations())
         val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
                 cls.access(),
-                annotations,
+                cls.annotations(),
             )
         val (typeParameters, classTypeItemFactory) =
             createTypeParameters(
@@ -806,7 +806,7 @@ internal class TurbineCodebaseInitialiser(
      * the same [TypeParameterList] can be resolved.
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
-        val modifiers = createModifiers(0, createAnnotations(param.annotations()))
+        val modifiers = createModifiers(0, param.annotations())
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -849,20 +849,19 @@ internal class TurbineCodebaseInitialiser(
         typeItemFactory: TurbineTypeItemFactory,
     ) {
         for (field in fields) {
-            val annotations = createAnnotations(field.annotations())
             val flags = field.access()
             val decl = field.decl()
             val fieldModifierItem =
                 createModifiers(
                     flags,
-                    annotations,
+                    field.annotations(),
                 )
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
             val fieldValue = createInitialValue(field)
             val type =
                 typeItemFactory.getFieldType(
                     underlyingType = field.type(),
-                    itemAnnotations = annotations,
+                    itemAnnotations = fieldModifierItem.annotations(),
                     isEnumConstant = isEnumConstant,
                     isFinal = fieldModifierItem.isFinal(),
                     isInitialValueNonNull = {
@@ -898,12 +897,11 @@ internal class TurbineCodebaseInitialiser(
             // Ignore constructors.
             if (method.sym().name() == "<init>") continue
 
-            val annotations = createAnnotations(method.annotations())
             val decl: MethDecl? = method.decl()
             val methodModifierItem =
                 createModifiers(
                     method.access(),
-                    annotations,
+                    method.annotations(),
                 )
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
@@ -973,13 +971,12 @@ internal class TurbineCodebaseInitialiser(
         // of the implicit parameters.
         val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
         return parameters.mapIndexed { idx, parameter ->
-            val annotations = createAnnotations(parameter.annotations())
             val parameterModifierItem =
-                createModifiers(parameter.access(), annotations).toImmutable()
+                createModifiers(parameter.access(), parameter.annotations()).toImmutable()
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
-                    itemAnnotations = annotations,
+                    itemAnnotations = parameterModifierItem.annotations(),
                     fingerprint = fingerprint,
                     parameterIndex = idx,
                     isVarArg = parameterModifierItem.isVarArg(),
@@ -1021,12 +1018,11 @@ internal class TurbineCodebaseInitialiser(
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
 
-            val annotations = createAnnotations(constructor.annotations())
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
                 createModifiers(
                     constructor.access(),
-                    annotations,
+                    constructor.annotations(),
                 )
             val (typeParams, constructorTypeItemFactory) =
                 createTypeParameters(
