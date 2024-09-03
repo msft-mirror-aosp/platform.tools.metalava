@@ -276,6 +276,13 @@ internal class TurbineCodebaseInitialiser(
     }
 
     /**
+     * Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find it
+     * then look in the class path. It is guaranteed to be found in one of those places as otherwise
+     * there would be no `ClassSymbol`.
+     */
+    private fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)!!
+
+    /**
      * Separate `package-info.java` synthetic classes from real classes.
      *
      * Turbine treats a `package-info.java` file as if it created a class called `package-info`.
@@ -497,21 +504,18 @@ internal class TurbineCodebaseInitialiser(
     }
 
     private fun createClass(
-        sym: ClassSymbol,
+        classSymbol: ClassSymbol,
         containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ): ClassItem {
-        // Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find
-        // it then look in the class path. It is guaranteed to be found in one of those places as
-        // otherwise there would be no `ClassSymbol`.
-        val cls = envClassMap.get(sym)!!
+        val cls = typeBoundClassForSymbol(classSymbol)
         val decl = (cls as? SourceTypeBoundClass)?.decl()
 
         val isTopClass = cls.owner() == null
         val isFromClassPath = !(cls is SourceTypeBoundClass)
 
         // Get the package item
-        val pkgName = sym.packageName().replace('/', '.')
+        val pkgName = classSymbol.packageName().replace('/', '.')
         val pkgItem = codebase.findOrCreatePackage(pkgName)
 
         // Create the sourcefile
@@ -530,7 +534,7 @@ internal class TurbineCodebaseInitialiser(
             }
 
         // Create class
-        val qualifiedName = getQualifiedName(sym.binaryName())
+        val qualifiedName = getQualifiedName(classSymbol.binaryName())
         val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
