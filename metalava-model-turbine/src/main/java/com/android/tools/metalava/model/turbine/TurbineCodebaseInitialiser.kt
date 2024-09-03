@@ -38,6 +38,21 @@ import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocume
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
+import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
+import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
+import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
+import com.android.tools.metalava.model.ModifierFlags.Companion.PUBLIC
+import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
+import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
+import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
+import com.android.tools.metalava.model.ModifierFlags.Companion.SYNCHRONIZED
+import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
+import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
+import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
@@ -45,6 +60,7 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -402,6 +418,83 @@ internal class TurbineCodebaseInitialiser(
         return null
     }
 
+    private fun createModifiers(flag: Int, annotations: List<AnnotationItem>): MutableModifierList {
+        val modifierItem =
+            when (flag) {
+                0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
+                    createMutableModifiers(
+                        visibility = VisibilityLevel.PACKAGE_PRIVATE,
+                        annotations = annotations,
+                    )
+                }
+                else -> {
+                    createMutableModifiers(computeFlag(flag), annotations)
+                }
+            }
+        modifierItem.setDeprecated(isDeprecated(annotations))
+        return modifierItem
+    }
+
+    /**
+     * Given flag value corresponding to Turbine modifiers compute the equivalent flag in Metalava.
+     */
+    private fun computeFlag(flag: Int): Int {
+        // If no visibility flag is provided, result remains 0, implying a 'package-private' default
+        // state.
+        var result = 0
+
+        if (flag and TurbineFlag.ACC_STATIC != 0) {
+            result = result or STATIC
+        }
+        if (flag and TurbineFlag.ACC_ABSTRACT != 0) {
+            result = result or ABSTRACT
+        }
+        if (flag and TurbineFlag.ACC_FINAL != 0) {
+            result = result or FINAL
+        }
+        if (flag and TurbineFlag.ACC_NATIVE != 0) {
+            result = result or NATIVE
+        }
+        if (flag and TurbineFlag.ACC_SYNCHRONIZED != 0) {
+            result = result or SYNCHRONIZED
+        }
+        if (flag and TurbineFlag.ACC_STRICT != 0) {
+            result = result or STRICT_FP
+        }
+        if (flag and TurbineFlag.ACC_TRANSIENT != 0) {
+            result = result or TRANSIENT
+        }
+        if (flag and TurbineFlag.ACC_VOLATILE != 0) {
+            result = result or VOLATILE
+        }
+        if (flag and TurbineFlag.ACC_DEFAULT != 0) {
+            result = result or DEFAULT
+        }
+        if (flag and TurbineFlag.ACC_SEALED != 0) {
+            result = result or SEALED
+        }
+        if (flag and TurbineFlag.ACC_VARARGS != 0) {
+            result = result or VARARG
+        }
+
+        // Visibility Modifiers
+        if (flag and TurbineFlag.ACC_PUBLIC != 0) {
+            result = result or PUBLIC
+        }
+        if (flag and TurbineFlag.ACC_PRIVATE != 0) {
+            result = result or PRIVATE
+        }
+        if (flag and TurbineFlag.ACC_PROTECTED != 0) {
+            result = result or PROTECTED
+        }
+
+        return result
+    }
+
+    private fun isDeprecated(annotations: List<AnnotationItem>?): Boolean {
+        return annotations?.any { it.qualifiedName == "java.lang.Deprecated" } ?: false
+    }
+
     private fun createClass(
         sym: ClassSymbol,
         containingClassItem: DefaultClassItem?,
@@ -440,7 +533,7 @@ internal class TurbineCodebaseInitialiser(
         val annotations = createAnnotations(cls.annotations())
         val documentation = javadoc(decl)
         val modifierItem =
-            TurbineModifierItem.create(
+            createModifiers(
                 cls.access(),
                 annotations,
             )
@@ -713,7 +806,7 @@ internal class TurbineCodebaseInitialiser(
      * the same [TypeParameterList] can be resolved.
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
-        val modifiers = TurbineModifierItem.create(0, createAnnotations(param.annotations()))
+        val modifiers = createModifiers(0, createAnnotations(param.annotations()))
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -760,7 +853,7 @@ internal class TurbineCodebaseInitialiser(
             val flags = field.access()
             val decl = field.decl()
             val fieldModifierItem =
-                TurbineModifierItem.create(
+                createModifiers(
                     flags,
                     annotations,
                 )
@@ -808,7 +901,7 @@ internal class TurbineCodebaseInitialiser(
             val annotations = createAnnotations(method.annotations())
             val decl: MethDecl? = method.decl()
             val methodModifierItem =
-                TurbineModifierItem.create(
+                createModifiers(
                     method.access(),
                     annotations,
                 )
@@ -882,7 +975,7 @@ internal class TurbineCodebaseInitialiser(
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
             val parameterModifierItem =
-                TurbineModifierItem.create(parameter.access(), annotations).toImmutable()
+                createModifiers(parameter.access(), annotations).toImmutable()
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
@@ -931,7 +1024,7 @@ internal class TurbineCodebaseInitialiser(
             val annotations = createAnnotations(constructor.annotations())
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
-                TurbineModifierItem.create(
+                createModifiers(
                     constructor.access(),
                     annotations,
                 )
