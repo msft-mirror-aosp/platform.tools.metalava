@@ -492,7 +492,7 @@ class AnnotationsMergerTest : DriverTest() {
                 import libcore.util.Nullable;
 
                 public class PublicClass {
-                    @NonNull public @NonNull String publicMethod(@Nullable Object object) {return "";}
+                    @NonNull public String publicMethod(@Nullable Object object) {return "";}
                 }
                 """,
             api =
