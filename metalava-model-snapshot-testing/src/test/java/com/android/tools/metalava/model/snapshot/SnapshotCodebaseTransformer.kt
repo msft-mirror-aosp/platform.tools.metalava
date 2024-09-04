@@ -17,12 +17,16 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 
 /** A [CodebaseTransformer] that will return a snapshot of the supplied [Codebase]. */
 // @AutoService(CodebaseTransformer.class)
 class SnapshotCodebaseTransformer : CodebaseTransformer {
     override fun transform(codebase: Codebase): Codebase {
-        return CodebaseSnapshotTaker.takeSnapshot(codebase)
+        val fragment =
+            CodebaseFragment(codebase, ::NonEmittableDelegatingVisitor)
+                .snapshotIncludingRevertedItems()
+        return fragment.codebase
     }
 }
