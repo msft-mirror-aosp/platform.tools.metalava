@@ -16,6 +16,11 @@
 
 package com.android.tools.metalava.model
 
+import java.util.regex.Pattern
+
+/** A factory that will create an [ItemDocumentation] for a specific [Item]. */
+typealias ItemDocumentationFactory = (Item) -> ItemDocumentation
+
 /**
  * The documentation associated with an [Item].
  *
@@ -33,11 +38,40 @@ interface ItemDocumentation : CharSequence {
         text.subSequence(startIndex, endIndex)
 
     /**
+     * True if the documentation contains one of the following tags that indicates that it should
+     * not be part of an API, unless overridden by a show annotation:
+     * * `@hide`
+     * * `@pending`
+     * * `@suppress`
+     */
+    val isHidden: Boolean
+
+    /**
+     * True if the documentation contains `@doconly` which indicates that it should only be included
+     * in stubs that are generated for documentation purposes.
+     */
+    val isDocOnly: Boolean
+
+    /**
+     * True if the documentation contains `@removed` which indicates that the [Item] must not be
+     * included in stubs or the main signature file but will be included in the `removed` signature
+     * file as it is still considered part of the API available at runtime and so cannot be removed
+     * altogether.
+     */
+    val isRemoved: Boolean
+
+    /**
      * Return a duplicate of this instance.
      *
      * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
      */
-    fun duplicate(): ItemDocumentation
+    fun duplicate(item: Item): ItemDocumentation
+
+    /**
+     * Like [duplicate] except that it returns an instance of [ItemDocumentation] suitable for use
+     * in the snapshot.
+     */
+    fun snapshot(item: Item): ItemDocumentation = text.toItemDocumentation()
 
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
@@ -58,6 +92,23 @@ interface ItemDocumentation : CharSequence {
      */
     fun findTagDocumentation(tag: String, value: String? = null): String?
 
+    /** Returns the main documentation for the method (the documentation before any tags). */
+    fun findMainDocumentation(): String
+
+    /**
+     * Returns the [text], but with fully qualified links (except for the same package, and when
+     * turning a relative reference into a fully qualified reference, use the javadoc syntax for
+     * continuing to display the relative text, e.g. instead of {@link java.util.List}, use {@link
+     * java.util.List List}.
+     */
+    fun fullyQualifiedDocumentation(): String = fullyQualifiedDocumentation(text)
+
+    /** Expands the given documentation comment in the current name context */
+    fun fullyQualifiedDocumentation(documentation: String): String = documentation
+
+    /** Remove the `@deprecated` section, if any. */
+    fun removeDeprecatedSection()
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -67,7 +118,20 @@ interface ItemDocumentation : CharSequence {
          */
         val NONE: ItemDocumentation = EmptyItemDocumentation()
 
-        /** Wrap a [String] in an [ItemDocumentation]. */
+        /**
+         * A special [ItemDocumentationFactory] that returns [NONE] which contains no documentation.
+         *
+         * Used where there is no documentation possible, e.g. text model, type parameters,
+         * parameters.
+         */
+        val NONE_FACTORY: ItemDocumentationFactory = { NONE }
+
+        /** Wrap a [String] in an [ItemDocumentationFactory]. */
+        fun String.toItemDocumentationFactory(): ItemDocumentationFactory = {
+            toItemDocumentation()
+        }
+
+        /** Wrap a [String] in an [ItemDocumentation] instance. */
         fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
     }
 
@@ -76,14 +140,30 @@ interface ItemDocumentation : CharSequence {
         override val text
             get() = ""
 
+        override val isHidden
+            get() = false
+
+        override val isDocOnly
+            get() = false
+
+        override val isRemoved
+            get() = false
+
         // This is ok to share as it is immutable.
-        override fun duplicate() = this
+        override fun duplicate(item: Item) = this
+
+        // This is ok to use in a snapshot as it is immutable and model independent.
+        override fun snapshot(item: Item) = this
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 
         override fun appendDocumentation(comment: String, tagSection: String?) {
             error("cannot modify documentation on an item that does not support documentation")
         }
+
+        override fun findMainDocumentation() = ""
+
+        override fun removeDeprecatedSection() {}
     }
 }
 
@@ -97,6 +177,20 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
      * of this to optimize how it is accessed, e.g. initialize it lazily.
      */
     abstract override var text: String
+
+    override val isHidden
+        get() =
+            text.contains('@') &&
+                (text.contains("@hide") ||
+                    text.contains("@pending") ||
+                    // KDoc:
+                    text.contains("@suppress"))
+
+    override val isDocOnly
+        get() = text.contains("@doconly")
+
+    override val isRemoved
+        get() = text.contains("@removed")
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
@@ -203,14 +297,76 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
             indent +
             " */"
     }
+
+    override fun removeDeprecatedSection() {
+        text = removeDeprecatedSection(text)
+    }
 }
 
 /** A default [ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
 
-    override fun duplicate() = DefaultItemDocumentation(text)
+    override fun duplicate(item: Item) = DefaultItemDocumentation(text)
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
         TODO("Not yet implemented")
+    }
+
+    override fun findMainDocumentation(): String {
+        TODO("Not yet implemented")
+    }
+}
+
+/** Regular expression to match the start of a doc comment. */
+private const val DOC_COMMENT_START_RE = """\Q/**\E"""
+
+/**
+ * Regular expression to match the end of a block comment. If the block comment is at the start of a
+ * line, preceded by some white space then it includes all that white space.
+ */
+private const val BLOCK_COMMENT_END_RE = """(?m:^\s*)?\Q*/\E"""
+
+/**
+ * Regular expression to match the start of a line Javadoc tag, i.e. a Javadoc tag at the beginning
+ * of a line. Optionally, includes the preceding white space and a `*` forming a left hand border.
+ */
+private const val START_OF_LINE_TAG_RE = """(?m:^\s*)\Q*\E\s*@"""
+
+/**
+ * A [Pattern[] for matching an `@deprecated` tag and its associated text. If the tag is at the
+ * start of the line then it includes everything from the start of the line. It includes everything
+ * up to the end of the comment (apart from the line for the end of the comment) or the start of the
+ * next line tag.
+ */
+private val deprecatedTagPattern =
+    """((?m:^\s*\*\s*)?@deprecated\b(?m:\s*.*?))($START_OF_LINE_TAG_RE|$BLOCK_COMMENT_END_RE)"""
+        .toPattern(Pattern.DOTALL)
+
+/** A [Pattern] that matches a blank, i.e. white space only, doc comment. */
+private val blankDocCommentPattern = """$DOC_COMMENT_START_RE\s*$BLOCK_COMMENT_END_RE""".toPattern()
+
+/** Remove the `@deprecated` section, if any, from [docs]. */
+fun removeDeprecatedSection(docs: String): String {
+    // Find the `@deprecated` tag.
+    val deprecatedTagMatcher = deprecatedTagPattern.matcher(docs)
+    if (!deprecatedTagMatcher.find()) {
+        // Nothing to do as the documentation does not include @deprecated.
+        return docs
+    }
+
+    // Remove the @deprecated tag and associated text.
+    val withoutDeprecated =
+        // The part before the `@deprecated` tag.
+        docs.substring(0, deprecatedTagMatcher.start(1)) +
+            // The part after the `@deprecated` tag.
+            docs.substring(deprecatedTagMatcher.end(1))
+
+    // Check to see if the resulting document comment is empty and if it is then discard it all
+    // together.
+    val emptyDocCommentMatcher = blankDocCommentPattern.matcher(withoutDeprecated)
+    return if (emptyDocCommentMatcher.matches()) {
+        ""
+    } else {
+        withoutDeprecated
     }
 }

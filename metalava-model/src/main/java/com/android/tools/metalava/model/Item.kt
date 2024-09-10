@@ -41,19 +41,33 @@ interface Item : Reportable {
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
      * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
+     *
+     * @see variantSelectors
      */
     val originallyHidden: Boolean
 
     /**
      * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
      * containing class/pkg)
+     *
+     * @see variantSelectors
      */
-    var hidden: Boolean
+    val hidden: Boolean
+
+    /**
+     * Tracks the properties that determine whether this [Item] will be selected for each API
+     * variant.
+     *
+     * @see originallyHidden
+     * @see hidden
+     * @see removed
+     */
+    val variantSelectors: ApiVariantSelectors
 
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
 
-    fun parent(): Item?
+    fun parent(): SelectableItem?
 
     /**
      * Recursive check to see if this item or any of its parents (containing class, containing
@@ -75,8 +89,10 @@ interface Item : Reportable {
     /**
      * Whether this element has been removed with @removed/@Remove (or after propagation, in some
      * containing class)
+     *
+     * @see variantSelectors
      */
-    var removed: Boolean
+    val removed: Boolean
 
     /** True if this item has been marked deprecated. */
     val originallyDeprecated: Boolean
@@ -87,31 +103,28 @@ interface Item : Reportable {
      */
     val effectivelyDeprecated: Boolean
 
-    /** True if this element is only intended for documentation */
-    var docOnly: Boolean
-
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
 
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
 
-    /** Get a mutable version of modifiers for this item */
-    fun mutableModifiers(): MutableModifierList
+    /**
+     * Mutate the [modifiers] list.
+     *
+     * Provides a [MutableModifierList] of the [modifiers] that can be modified by [mutator]. Once
+     * the mutator exits the [modifiers] will be updated. The [MutableModifierList] must not be
+     * accessed from outside [mutator].
+     */
+    fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
      * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
-     * references to classes.
+     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
+     * qualified references to classes.
      */
     val documentation: ItemDocumentation
-
-    /**
-     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
-     * provided value (e.g. parameter name).
-     */
-    fun findTagDocumentation(tag: String, value: String? = null): String?
 
     /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
@@ -140,28 +153,53 @@ interface Item : Reportable {
     val isPackagePrivate: Boolean
     val isPrivate: Boolean
 
-    // make sure these are implemented so we can place in maps:
+    /** Calls [equalsToItem]. */
     override fun equals(other: Any?): Boolean
 
+    /** Calls [hashCodeForItem]. */
     override fun hashCode(): Int
 
     /** Calls [toStringForItem]. */
     override fun toString(): String
 
+    /**
+     * Whether this [Item] is equal to [other].
+     *
+     * This is implemented instead of [equals] because interfaces are not allowed to implement
+     * [equals]. Implementations of this will implement [equals] by calling this.
+     */
+    fun equalsToItem(other: Any?): Boolean
+
+    /**
+     * Hashcode for this [Item].
+     *
+     * This is implemented instead of [hashCode] because interfaces are not allowed to implement
+     * [hashCode]. Implementations of this will implement [hashCode] by calling this.
+     */
+    fun hashCodeForItem(): Int
+
     /** Provides a string representation of the item, suitable for use while debugging. */
     fun toStringForItem(): String
 
     /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
-     * declared as source
+     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * created from a signature file.
      */
-    fun isFromClassPath(): Boolean = false
+    val itemLanguage: ItemLanguage
 
-    /** Is this element declared in Java (rather than Kotlin) ? */
-    fun isJava(): Boolean = true
+    /**
+     * Is this element declared in Java (rather than Kotlin) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isJava() = itemLanguage.isJava()
 
-    /** Is this element declared in Kotlin (rather than Java) ? */
-    fun isKotlin() = !isJava()
+    /**
+     * Is this element declared in Kotlin (rather than Java) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isKotlin() = itemLanguage.isKotlin()
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
@@ -174,11 +212,22 @@ interface Item : Reportable {
     fun hasShowAnnotation(): Boolean = showability.show()
 
     /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotation(): Boolean =
-        modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
+    fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
 
+    /**
+     * Returns true if this [Item]'s modifier list contains any suppress compatibility
+     * meta-annotations.
+     *
+     * Metalava will suppress compatibility checks for APIs which are within the scope of a
+     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
+     * JARs.
+     *
+     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
+     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
+     * feature sets with unstable APIs.
+     */
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
-        modifiers.hasSuppressCompatibilityMetaAnnotations()
+        codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
     fun sourceFile(): SourceFile? {
         var curr: Item? = this
@@ -194,17 +243,6 @@ interface Item : Reportable {
 
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
-
-    /**
-     * Returns the [documentation], but with fully qualified links (except for the same package, and
-     * when turning a relative reference into a fully qualified reference, use the javadoc syntax
-     * for continuing to display the relative text, e.g. instead of {@link java.util.List}, use
-     * {@link java.util.List List}.
-     */
-    fun fullyQualifiedDocumentation(): String = documentation.text
-
-    /** Expands the given documentation comment in the current name context */
-    fun fullyQualifiedDocumentation(documentation: String): String = documentation
 
     /**
      * Produces a user visible description of this item, including a label such as "class" or
@@ -263,7 +301,7 @@ interface Item : Reportable {
      * @param superMethods if true and this is a [MethodItem] then this method will search for super
      *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
      *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
-     *   the [ParameterItem.containingMethod].
+     *   the [ParameterItem.containingCallable].
      * @param duplicate if true, and this is a [MemberItem] (or [ParameterItem]) then the returned
      *   [Item], if any, will be in the [ClassItem] that corresponds to the [Item.containingClass].
      *   This should be `true` if the returned [Item] is going to be compared to the original [Item]
@@ -301,7 +339,7 @@ interface Item : Reportable {
                 is PackageItem -> describe(item, capitalize = capitalize)
                 is ClassItem -> describe(item, capitalize = capitalize)
                 is FieldItem -> describe(item, capitalize = capitalize)
-                is MethodItem ->
+                is CallableItem ->
                     describe(
                         item,
                         includeParameterNames = false,
@@ -320,7 +358,7 @@ interface Item : Reportable {
         }
 
         fun describe(
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
             includeReturnValue: Boolean = false,
@@ -337,7 +375,7 @@ interface Item : Reportable {
                 builder.append(item.returnType().toSimpleType())
                 builder.append(' ')
             }
-            appendMethodSignature(builder, item, includeParameterNames, includeParameterTypes)
+            appendCallableSignature(builder, item, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
@@ -352,14 +390,14 @@ interface Item : Reportable {
             builder.append(' ')
             builder.append(item.name())
             builder.append(" in ")
-            val method = item.containingMethod()
-            appendMethodSignature(builder, method, includeParameterNames, includeParameterTypes)
+            val callable = item.containingCallable()
+            appendCallableSignature(builder, callable, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
-        private fun appendMethodSignature(
+        private fun appendCallableSignature(
             builder: StringBuilder,
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean,
             includeParameterTypes: Boolean
         ) {
@@ -407,7 +445,8 @@ interface Item : Reportable {
         }
 
         private fun describe(item: PackageItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Package" else "package"} ${item.qualifiedName()}"
+            val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+            return "${if (capitalize) "Package" else "package"} $suffix"
         }
     }
 }
@@ -415,23 +454,45 @@ interface Item : Reportable {
 /** Base [Item] implementation that is common to all models. */
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
-    final override val modifiers: DefaultModifierList,
-    final override val documentation: ItemDocumentation,
+    final override val itemLanguage: ItemLanguage,
+    modifiers: BaseModifierList,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
 
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
+
+    /**
+     * The immutable [modifiers].
+     *
+     * The supplied `modifiers` parameter could be either [MutableModifierList] or [ModifierList]
+     * but this requires a [ModifierList] so get one using [BaseModifierList.toImmutable].
+     *
+     * The [ModifierList] that this references is immutable but the [mutateModifiers] method can be
+     * used to change the [ModifierList] to which this refers.
+     */
+    final override var modifiers: ModifierList = modifiers.toImmutable()
+        private set
+
     init {
-        @Suppress("LeakingThis")
-        modifiers.owner = this
+        if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
+            mutateModifiers { setDeprecated(true) }
+        }
     }
 
     /**
      * Create a [ApiVariantSelectors] appropriate for this [Item].
      *
-     * The leaking of `this` is safe as the implementations do not do access anything that has not
-     * been initialized.
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
      */
-    private val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 
     /**
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
@@ -441,25 +502,15 @@ abstract class AbstractItem(
         get() = variantSelectors.originallyHidden
 
     /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    final override var hidden
+    final override val hidden
         get() = variantSelectors.hidden
-        set(value) {
-            variantSelectors.hidden = value
-        }
-
-    /** Manually delegate to [ApiVariantSelectors.docOnly] as property delegates are expensive. */
-    final override var docOnly: Boolean
-        get() = variantSelectors.docOnly
-        set(value) {
-            variantSelectors.docOnly = value
-        }
 
     /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
-    final override var removed: Boolean
+    final override val removed: Boolean
         get() = variantSelectors.removed
-        set(value) {
-            variantSelectors.removed = value
-        }
+
+    final override val showability: Showability
+        get() = variantSelectors.showability
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -468,7 +519,11 @@ abstract class AbstractItem(
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
 
-    final override fun mutableModifiers(): MutableModifierList = modifiers
+    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+        val mutable = modifiers.toMutable()
+        mutable.mutator()
+        modifiers = mutable.toImmutable()
+    }
 
     final override val isPublic: Boolean
         get() = modifiers.isPublic()
@@ -485,14 +540,12 @@ abstract class AbstractItem(
     final override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
-    final override var emit = true
+    final override var emit =
+        // Do not emit expect declarations in APIs.
+        !modifiers.isExpect()
 
     companion object {
         private var nextRank = AtomicInteger()
-    }
-
-    final override val showability: Showability by lazy {
-        codebase.annotationManager.getShowabilityForItem(this)
     }
 
     final override fun suppressedIssues(): Set<String> {
@@ -519,9 +572,6 @@ abstract class AbstractItem(
         }
     }
 
-    final override fun findTagDocumentation(tag: String, value: String?): String? =
-        documentation.findTagDocumentation(tag, value)
-
     final override fun appendDocumentation(comment: String, tagSection: String?) {
         if (comment.isBlank()) {
             return
@@ -535,7 +585,7 @@ abstract class AbstractItem(
             // For parameters, the documentation goes into the surrounding method's documentation!
             // Find the right parameter location!
             val parameterName = name()
-            val target = containingMethod()
+            val target = containingCallable()
             target.appendDocumentation(comment, parameterName)
             return
         }
@@ -543,33 +593,9 @@ abstract class AbstractItem(
         documentation.appendDocumentation(comment, tagSection)
     }
 
+    final override fun equals(other: Any?) = equalsToItem(other)
+
+    final override fun hashCode() = hashCodeForItem()
+
     final override fun toString() = toStringForItem()
-}
-
-/**
- * Base class that is common to models that do not incorporate their underlying model, if any, into
- * their [Item] implementations.
- */
-abstract class DefaultItem(
-    final override val codebase: DefaultCodebase,
-    fileLocation: FileLocation,
-    private val itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
-) :
-    AbstractItem(
-        fileLocation,
-        modifiers,
-        documentation,
-        variantSelectorsFactory,
-    ) {
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
 }

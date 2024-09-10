@@ -17,22 +17,22 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class DefaultPropertyItem(
-    codebase: DefaultCodebase,
+open class DefaultPropertyItem(
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    apiVariantSelectorsFactory: ApiVariantSelectorsFactory,
-    modifiers: DefaultModifierList,
+    documentationFactory: ItemDocumentationFactory,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
+    modifiers: BaseModifierList,
     name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
@@ -42,29 +42,16 @@ internal class DefaultPropertyItem(
         fileLocation,
         itemLanguage,
         modifiers,
-        ItemDocumentation.NONE,
-        apiVariantSelectorsFactory,
+        documentationFactory,
+        variantSelectorsFactory,
         name,
         containingClass,
     ),
     PropertyItem {
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FieldItem) return false
+    final override fun type(): TypeItem = type
 
-        if (name() != other.name()) {
-            return false
-        }
-
-        return containingClass() == other.containingClass()
-    }
-
-    override fun hashCode(): Int = name().hashCode()
-
-    override fun type(): TypeItem = type
-
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 }

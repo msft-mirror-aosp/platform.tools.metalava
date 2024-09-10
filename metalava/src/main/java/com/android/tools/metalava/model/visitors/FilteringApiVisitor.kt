@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -44,12 +44,14 @@ import java.util.function.Predicate
  * is to provide enough functionality for use when writing a representation of the item, e.g. for
  * signatures, stubs, etc. That means that there may be some methods that are not use by those
  * writers which will allow access to unfiltered `Item`s.
+ *
+ * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
+ * property.
  */
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
-    preserveClassNesting: Boolean = false,
     inlineInheritedFields: Boolean = true,
-    methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+    callableComparator: Comparator<CallableItem> = CallableItem.comparator,
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
@@ -76,22 +78,14 @@ class FilteringApiVisitor(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
+    private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
-    /**
-     * If true then this will visit the [ClassItem.stubConstructor] if it would not otherwise be
-     * visited. See [dispatchStubsConstructorIfAvailable].
-     */
-    private val visitStubsConstructorIfNeeded: Boolean = false,
     config: Config,
 ) :
     ApiVisitor(
-        // The setting of this is irrelevant as that is done in the visitConstructor(...) and
-        // afterVisitConstructor(...) methods and FilteringApiVisitor overrides them. Set it to
-        // false anyway as that is the behavior that this provides.
-        visitConstructorsAsMethods = false,
-        preserveClassNesting = preserveClassNesting,
+        preserveClassNesting = delegate.requiresClassNesting,
         inlineInheritedFields = inlineInheritedFields,
-        methodComparator = methodComparator,
+        callableComparator = callableComparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
@@ -138,28 +132,6 @@ class FilteringApiVisitor(
         // Create a new FilteringClassItem for the current class and visit it before its contents.
         currentClassItem = FilteringClassItem(delegate = cls)
         delegate.visitClass(currentClassItem!!)
-
-        if (visitStubsConstructorIfNeeded) {
-            dispatchStubsConstructorIfAvailable(cls)
-        }
-    }
-
-    /**
-     * Stubs that have no accessible constructor may still need to generate one and that constructor
-     * is available from [ClassItem.stubConstructor].
-     *
-     * However, sometimes that constructor is ignored by this because it is not accessible either,
-     * e.g. it might be package private. In that case this will pass it to
-     * [BaseItemVisitor.visitConstructor] directly.
-     */
-    private fun dispatchStubsConstructorIfAvailable(cls: ClassItem) {
-        val clsStubConstructor = cls.stubConstructor
-        val constructors = cls.filteredConstructors(filterEmit)
-        // If the default stub constructor is not publicly visible then it won't be output during
-        // the normal visiting so visit it specially to ensure that it is output.
-        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            visitConstructor(clsStubConstructor)
-        }
     }
 
     override fun afterVisitClass(cls: ClassItem) {
@@ -216,7 +188,7 @@ class FilteringApiVisitor(
         override fun superClass() = superClassType()?.asClass()
 
         override fun superClassType() =
-            if (preFiltered) delegate.superClassType()
+            if (!filterSuperClassType || preFiltered) delegate.superClassType()
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
 
         override fun interfaceTypes(): List<ClassTypeItem> {
@@ -293,21 +265,21 @@ class FilteringApiVisitor(
     }
 
     /** Get the [MethodItem.returnType] and apply the [typeAnnotationFilter] to it. */
-    fun filteredReturnType(methodItem: MethodItem) =
-        methodItem.returnType().transform(typeAnnotationFilter)
+    fun filteredReturnType(callableItem: CallableItem) =
+        callableItem.returnType().transform(typeAnnotationFilter)
 
     /** Get the [MethodItem.parameters] and wrap each one in a [FilteringParameterItem]. */
-    fun filteredParameters(methodItem: MethodItem): List<ParameterItem> =
-        methodItem.parameters().map { FilteringParameterItem(it) }
+    fun filteredParameters(callableItem: CallableItem): List<ParameterItem> =
+        callableItem.parameters().map { FilteringParameterItem(it) }
 
     /**
      * Get the [MethodItem.filteredThrowsTypes] and apply [typeAnnotationFilter] to each
      * [ExceptionTypeItem] in the list.
      */
-    private fun filteredThrowsTypes(methodItem: MethodItem) =
-        if (preFiltered) methodItem.throwsTypes()
+    private fun filteredThrowsTypes(callableItem: CallableItem) =
+        if (preFiltered) callableItem.throwsTypes()
         else
-            methodItem.filteredThrowsTypes(filterReference).map {
+            callableItem.filteredThrowsTypes(filterReference).map {
                 it.transform(typeAnnotationFilter)
             }
 
@@ -320,13 +292,7 @@ class FilteringApiVisitor(
 
         override fun containingClass() = FilteringClassItem(delegate.containingClass())
 
-        override var superConstructor: ConstructorItem?
-            get() = delegate.superConstructor?.let { FilteringConstructorItem(it) }
-            set(_) {
-                error("cannot set value")
-            }
-
-        override fun returnType() = filteredReturnType(delegate)
+        override fun returnType() = filteredReturnType(delegate) as ClassTypeItem
 
         override fun parameters() = filteredParameters(delegate)
 

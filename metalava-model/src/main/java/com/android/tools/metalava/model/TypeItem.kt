@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.TypeItem.Companion.equals
 import java.util.Objects
 import java.util.function.Predicate
 
@@ -961,6 +960,12 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
+
+    /**
+     * Check to see whether this type is a functional type, i.e. references a function interface,
+     * which is an interface with at most one abstract method.
+     */
+    fun isFunctionalType(): Boolean = error("unsupported")
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and

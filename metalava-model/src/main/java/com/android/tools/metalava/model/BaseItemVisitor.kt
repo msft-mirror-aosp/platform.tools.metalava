@@ -18,12 +18,6 @@ package com.android.tools.metalava.model
 
 open class BaseItemVisitor(
     /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
-     */
-    val visitConstructorsAsMethods: Boolean = true,
-    /**
      * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
      * afterwards. Defaults to false.
@@ -88,23 +82,33 @@ open class BaseItemVisitor(
         afterVisitItem(field)
     }
 
+    override fun visit(constructor: ConstructorItem) {
+        visitMethodOrConstructor(constructor) { visitConstructor(it) }
+    }
+
     override fun visit(method: MethodItem) {
-        if (skip(method)) {
+        visitMethodOrConstructor(method) { visitMethod(it) }
+    }
+
+    private inline fun <T : CallableItem> visitMethodOrConstructor(
+        callable: T,
+        dispatch: (T) -> Unit
+    ) {
+        if (skip(callable)) {
             return
         }
 
-        visitItem(method)
-        if (method.isConstructor()) {
-            visitConstructor(method as ConstructorItem)
-        } else {
-            visitMethod(method)
-        }
+        visitItem(callable)
+        visitCallable(callable)
 
-        for (parameter in method.parameters()) {
+        // Call the specific visitX method for the CallableItem subclass.
+        dispatch(callable)
+
+        for (parameter in callable.parameters()) {
             parameter.accept(this)
         }
 
-        afterVisitItem(method)
+        afterVisitItem(callable)
     }
 
     /**
@@ -118,7 +122,19 @@ open class BaseItemVisitor(
     protected fun packageClassesAsSequence(pkg: PackageItem) =
         if (preserveClassNesting) pkg.topLevelClasses().asSequence() else pkg.allClasses()
 
+    override fun visit(codebase: Codebase) {
+        visitCodebase(codebase)
+        codebase.getPackages().packages.forEach { it.accept(this) }
+        afterVisitCodebase(codebase)
+    }
+
     override fun visit(pkg: PackageItem) {
+        // Ignore any packages whose `emit` property is `false`. That is basically any package that
+        // does not contain at least one class that could be emitted as part of the API.
+        if (!pkg.emit) {
+            return
+        }
+
         if (skip(pkg)) {
             return
         }
@@ -132,12 +148,6 @@ open class BaseItemVisitor(
 
         afterVisitPackage(pkg)
         afterVisitItem(pkg)
-    }
-
-    override fun visit(packageList: PackageList) {
-        visitCodebase(packageList.codebase)
-        packageList.packages.forEach { it.accept(this) }
-        afterVisitCodebase(packageList.codebase)
     }
 
     override fun visit(parameter: ParameterItem) {
@@ -174,15 +184,13 @@ open class BaseItemVisitor(
 
     open fun visitClass(cls: ClassItem) {}
 
-    open fun visitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            visitMethod(constructor)
-        }
-    }
+    open fun visitCallable(callable: CallableItem) {}
 
-    open fun visitField(field: FieldItem) {}
+    open fun visitConstructor(constructor: ConstructorItem) {}
 
     open fun visitMethod(method: MethodItem) {}
+
+    open fun visitField(field: FieldItem) {}
 
     open fun visitParameter(parameter: ParameterItem) {}
 
