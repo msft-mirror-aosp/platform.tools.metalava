@@ -449,7 +449,11 @@ internal class TurbineCodebaseInitialiser(
                 continue
             }
 
-            val classItem = createTopLevelClassAndContents(classSymbol)
+            val classItem =
+                createTopLevelClassAndContents(
+                    classSymbol = classSymbol,
+                    origin = ClassOrigin.COMMAND_LINE,
+                )
             codebase.addTopLevelClassFromSource(classItem)
         }
     }
@@ -463,9 +467,17 @@ internal class TurbineCodebaseInitialiser(
      * All the classes are registered by name and so can be found by
      * [createClassFromUnderlyingModel].
      */
-    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol): ClassItem {
+    private fun createTopLevelClassAndContents(
+        classSymbol: ClassSymbol,
+        origin: ClassOrigin,
+    ): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
-        return createClass(classSymbol, null, globalTypeItemFactory)
+        return createClass(
+            classSymbol = classSymbol,
+            containingClassItem = null,
+            enclosingClassTypeItemFactory = globalTypeItemFactory,
+            origin = origin,
+        )
     }
 
     /** Tries to create a class from a Turbine class with [qualifiedName]. */
@@ -483,8 +495,19 @@ internal class TurbineCodebaseInitialiser(
             val topClassName = getQualifiedName(topClassSym.binaryName())
             codebase.findClass(topClassName)
                 ?: let {
+                    // Get the origin of the class.
+                    val typeBoundClass = typeBoundClassForSymbol(topClassSym)
+                    val origin =
+                        when (typeBoundClass) {
+                            is SourceTypeBoundClass -> ClassOrigin.SOURCE_PATH
+                            else -> ClassOrigin.CLASS_PATH
+                        }
+
                     // Create and register the top level class and its nested classes.
-                    createTopLevelClassAndContents(topClassSym)
+                    createTopLevelClassAndContents(
+                        classSymbol = topClassSym,
+                        origin = origin,
+                    )
 
                     // Now try and find the actual class that was requested by name. If it exists it
                     // should have been created in the previous call.
@@ -578,12 +601,12 @@ internal class TurbineCodebaseInitialiser(
         classSymbol: ClassSymbol,
         containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
+        origin: ClassOrigin,
     ): ClassItem {
         val cls = typeBoundClassForSymbol(classSymbol)
         val decl = (cls as? SourceTypeBoundClass)?.decl()
 
         val isTopClass = cls.owner() == null
-        val isFromClassPath = !(cls is SourceTypeBoundClass)
 
         // Get the package item
         val pkgName = classSymbol.packageName().replace('/', '.')
@@ -591,10 +614,8 @@ internal class TurbineCodebaseInitialiser(
 
         // Create the sourcefile
         val sourceFile =
-            if (isTopClass && !isFromClassPath) {
-                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
-                    createTurbineSourceFile(it)
-                }
+            if (isTopClass && cls is SourceTypeBoundClass) {
+                classSourceMap[cls.decl()]?.let { createTurbineSourceFile(it) }
             } else null
         val fileLocation =
             when {
@@ -637,7 +658,6 @@ internal class TurbineCodebaseInitialiser(
         // Set interface types
         val interfaceTypes = cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
-        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
@@ -662,11 +682,6 @@ internal class TurbineCodebaseInitialiser(
 
         // Create constructors
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
-
-        // Do not emit to signature file if it is from classpath
-        if (isFromClassPath) {
-            classItem.emit = false
-        }
 
         // Create InnerClasses.
         val children = cls.children()
@@ -913,7 +928,12 @@ internal class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
+            createClass(
+                classSymbol = nestedClassSymbol,
+                containingClassItem = classItem,
+                enclosingClassTypeItemFactory = enclosingClassTypeItemFactory,
+                origin = classItem.origin,
+            )
         }
     }
 
