@@ -452,6 +452,7 @@ internal class TurbineCodebaseInitialiser(
             val classItem =
                 createTopLevelClassAndContents(
                     classSymbol = classSymbol,
+                    sourceBoundClass,
                     origin = ClassOrigin.COMMAND_LINE,
                 )
             codebase.addTopLevelClassFromSource(classItem)
@@ -469,11 +470,13 @@ internal class TurbineCodebaseInitialiser(
      */
     private fun createTopLevelClassAndContents(
         classSymbol: ClassSymbol,
+        typeBoundClass: TypeBoundClass = typeBoundClassForSymbol(classSymbol),
         origin: ClassOrigin,
     ): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
         return createClass(
             classSymbol = classSymbol,
+            typeBoundClass = typeBoundClass,
             containingClassItem = null,
             enclosingClassTypeItemFactory = globalTypeItemFactory,
             origin = origin,
@@ -506,6 +509,7 @@ internal class TurbineCodebaseInitialiser(
                     // Create and register the top level class and its nested classes.
                     createTopLevelClassAndContents(
                         classSymbol = topClassSym,
+                        typeBoundClass = typeBoundClass,
                         origin = origin,
                     )
 
@@ -599,11 +603,11 @@ internal class TurbineCodebaseInitialiser(
 
     private fun createClass(
         classSymbol: ClassSymbol,
+        typeBoundClass: TypeBoundClass = typeBoundClassForSymbol(classSymbol),
         containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         origin: ClassOrigin,
     ): ClassItem {
-        val typeBoundClass = typeBoundClassForSymbol(classSymbol)
         val decl = (typeBoundClass as? SourceTypeBoundClass)?.decl()
 
         val isTopClass = typeBoundClass.owner() == null
