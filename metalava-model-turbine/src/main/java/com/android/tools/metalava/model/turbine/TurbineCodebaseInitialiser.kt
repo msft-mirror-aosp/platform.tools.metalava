@@ -603,10 +603,10 @@ internal class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         origin: ClassOrigin,
     ): ClassItem {
-        val cls = typeBoundClassForSymbol(classSymbol)
-        val decl = (cls as? SourceTypeBoundClass)?.decl()
+        val typeBoundClass = typeBoundClassForSymbol(classSymbol)
+        val decl = (typeBoundClass as? SourceTypeBoundClass)?.decl()
 
-        val isTopClass = cls.owner() == null
+        val isTopClass = typeBoundClass.owner() == null
 
         // Get the package item
         val pkgName = classSymbol.packageName().replace('/', '.')
@@ -614,8 +614,8 @@ internal class TurbineCodebaseInitialiser(
 
         // Create the sourcefile
         val sourceFile =
-            if (isTopClass && cls is SourceTypeBoundClass) {
-                classSourceMap[cls.decl()]?.let { createTurbineSourceFile(it) }
+            if (isTopClass && typeBoundClass is SourceTypeBoundClass) {
+                classSourceMap[typeBoundClass.decl()]?.let { createTurbineSourceFile(it) }
             } else null
         val fileLocation =
             when {
@@ -630,16 +630,16 @@ internal class TurbineCodebaseInitialiser(
         val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
-                cls.access(),
-                cls.annotations(),
+                typeBoundClass.access(),
+                typeBoundClass.annotations(),
             )
         val (typeParameters, classTypeItemFactory) =
             createTypeParameters(
-                cls.typeParameterTypes(),
+                typeBoundClass.typeParameterTypes(),
                 enclosingClassTypeItemFactory,
                 "class $qualifiedName",
             )
-        val classKind = getClassKind(cls.kind())
+        val classKind = getClassKind(typeBoundClass.kind())
 
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
@@ -652,11 +652,12 @@ internal class TurbineCodebaseInitialiser(
         // Setup the SuperClass
         val superClassType =
             if (classKind != ClassKind.INTERFACE) {
-                cls.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+                typeBoundClass.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
             } else null
 
         // Set interface types
-        val interfaceTypes = cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
+        val interfaceTypes =
+            typeBoundClass.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
         val classItem =
             itemFactory.createClassItem(
@@ -675,16 +676,16 @@ internal class TurbineCodebaseInitialiser(
             )
 
         // Create fields
-        createFields(classItem, cls.fields(), classTypeItemFactory)
+        createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
 
         // Create methods
-        createMethods(classItem, cls.methods(), classTypeItemFactory)
+        createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
 
         // Create constructors
-        createConstructors(classItem, cls.methods(), classTypeItemFactory)
+        createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
 
         // Create InnerClasses.
-        val children = cls.children()
+        val children = typeBoundClass.children()
         createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)
 
         return classItem
