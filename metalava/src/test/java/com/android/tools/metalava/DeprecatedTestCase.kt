@@ -184,10 +184,7 @@ class DeprecatedTestCase : DriverTest() {
     }
 
     @Test
-    fun `Test deprecated is not written out for field inherited into deprecated class from hidden class`() {
-        // This shows that inherited fields are treated differently to fields that are not inherited
-        // when the class is deprecated.
-        // TODO(b/366411703): Clean up this inconsistent behavior.
+    fun `Test deprecated is written out for field inherited into deprecated class from hidden class`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -219,7 +216,7 @@ class DeprecatedTestCase : DriverTest() {
                     package test.pkg {
                       @Deprecated public class Foo {
                         field @Deprecated public static final int CONSTANT = 1; // 0x1
-                        field public static final int INHERITED = 0; // 0x0
+                        field @Deprecated public static final int INHERITED = 0; // 0x0
                       }
                     }
                 """,
@@ -235,7 +232,7 @@ class DeprecatedTestCase : DriverTest() {
                             @Deprecated
                             Foo() { throw new RuntimeException("Stub!"); }
                             @Deprecated public static final int CONSTANT = 1; // 0x1
-                            public static final int INHERITED = 0; // 0x0
+                            @Deprecated public static final int INHERITED = 0; // 0x0
                             }
                         """
                     )
