@@ -1295,8 +1295,7 @@ class CommonClassItemTest : BaseModelTest() {
                 kotlin(
                     """
                         package test.pkg
-                        /** @hide */
-                        open class HiddenClass {
+                        internal open class HiddenClass {
                             fun foo() {}
                         }
                     """
