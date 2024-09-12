@@ -60,9 +60,12 @@ interface Assertions {
 
     /** Get the constructor from the [ClassItem], failing if it does not exist. */
     fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
-        val methodItem = findMethod(simpleName(), parameters)
-        assertNotNull(methodItem, message = "Expected ${simpleName()}($parameters) to be defined")
-        return assertIs(methodItem)
+        val constructorItem = findConstructor(parameters)
+        assertNotNull(
+            constructorItem,
+            message = "Expected ${simpleName()}($parameters) to be defined"
+        )
+        return assertIs(constructorItem)
     }
 
     /** Get the property from the [ClassItem], failing if it does not exist. */
@@ -141,7 +144,7 @@ interface Assertions {
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */
     fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
+        return modifiers.annotations.map { it.qualifiedName }
     }
 
     /** Get the list of fully qualified annotation names associated with the [Item]. */

@@ -19,6 +19,8 @@ package com.android.tools.metalava
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
@@ -301,19 +303,54 @@ class DefaultReporterTest : DriverTest() {
             checkFileMethod(Severity.WARNING_ERROR_WHEN_NEW)
             checkFileMethod(Severity.WARNING)
             checkFileMethod(Severity.HIDDEN)
+
+            // Write any saved reports.
+            reporter.writeSavedReports()
         }
 
         assertEquals(
             """
-                error: reportable/maximum=error [MissingNullability]
-                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
-                warning: reportable/maximum=warning [MissingNullability]
-                error: file/maximum=error [MissingNullability]
-                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
                 warning: file/maximum=warning [MissingNullability]
+                warning: reportable/maximum=warning [MissingNullability]
+                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
+                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
+                error: file/maximum=error [MissingNullability]
+                error: reportable/maximum=error [MissingNullability]
             """
                 .trimIndent(),
             stringWriter.toString().trimEnd()
+        )
+    }
+
+    @Test
+    fun `test suppressed writer`() {
+        val nullReportable: Reportable? = null
+        val suppressedFile = temporaryFolder.newFile("suppressed.txt")
+        suppressedFile.printWriter().use { reportEvenIfSuppressedWriter ->
+            val reporter =
+                DefaultReporter(
+                    environment = DefaultReporterEnvironment(),
+                    issueConfiguration = IssueConfiguration(),
+                    config =
+                        DefaultReporter.Config(
+                            reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
+                        ),
+                )
+
+            reporter.report(
+                Issues.HIDDEN_SUPERCLASS,
+                nullReportable,
+                "HIDDEN_SUPERCLASS",
+            )
+
+            // Write any saved reports.
+            reporter.writeSavedReports()
+        }
+
+        assertEquals(
+            "warning: HIDDEN_SUPERCLASS [HiddenSuperclass]",
+            suppressedFile.readText().trimEnd(),
+            message = "suppressed file"
         )
     }
 }

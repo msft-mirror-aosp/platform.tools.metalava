@@ -24,13 +24,16 @@ import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -38,6 +41,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -55,29 +59,30 @@ class CompatibilityCheck(
     private val apiType: ApiType,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
+    private val apiCompatAnnotations: Set<String>,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
 
-    private fun containingMethod(item: Item): MethodItem? {
+    private fun possibleContainingMethod(item: Item): MethodItem? {
         if (item is MethodItem) {
             return item
         }
         if (item is ParameterItem) {
-            return item.containingMethod()
+            return item.possibleContainingMethod()
         }
         return null
     }
 
     private fun compareItemNullability(old: Item, new: Item) {
-        val oldMethod = containingMethod(old)
-        val newMethod = containingMethod(new)
+        val oldMethod = possibleContainingMethod(old)
+        val newMethod = possibleContainingMethod(new)
 
         if (oldMethod != null && newMethod != null) {
             if (
                 oldMethod.containingClass().qualifiedName() !=
                     newMethod.containingClass().qualifiedName() ||
-                    ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))
+                    (oldMethod.inheritedFromAncestor != newMethod.inheritedFromAncestor)
             ) {
                 // If the old method and new method are defined on different classes, then it's
                 // possible that the old method was previously overridden and we omitted it.
@@ -87,17 +92,45 @@ class CompatibilityCheck(
             }
         }
 
-        compareTypeNullability(old.type(), new.type(), new)
+        // In a final method, you can change a parameter from nonnull to nullable.
+        // This will also allow a constructor parameter to be changed from nonnull to nullable if
+        // the class is not extensible.
+        // TODO: Allow the parameter of any constructor to be switched from nonnull to nullable as
+        //  they can never be overridden.
+        val allowNonNullToNullable =
+            new is ParameterItem && !new.containingCallable().canBeExternallyOverridden()
+        // In a final method, you can change a method return from nullable to nonnull
+        val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
+
+        old.type()
+            ?.accept(
+                object : MultipleTypeVisitor() {
+                    override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                        val newType = other.singleOrNull() ?: return
+                        compareTypeNullability(
+                            type,
+                            newType,
+                            new,
+                            allowNonNullToNullable,
+                            allowNullableToNonNull,
+                        )
+                    }
+                },
+                listOfNotNull(new.type())
+            )
     }
 
-    private fun compareTypeNullability(old: TypeItem?, new: TypeItem?, context: Item) {
-        old ?: return
-        new ?: return
-
+    private fun compareTypeNullability(
+        old: TypeItem,
+        new: TypeItem,
+        context: Item,
+        allowNonNullToNullable: Boolean,
+        allowNullableToNonNull: Boolean,
+    ) {
         // Should not remove nullness information
         // Can't change information incompatibly
-        val oldNullability = old.modifiers.nullability()
-        val newNullability = new.modifiers.nullability()
+        val oldNullability = old.modifiers.nullability
+        val newNullability = new.modifiers.nullability
         if (
             (oldNullability == TypeNullability.NONNULL ||
                 oldNullability == TypeNullability.NULLABLE) &&
@@ -109,12 +142,6 @@ class CompatibilityCheck(
                 "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
             )
         } else if (oldNullability != newNullability) {
-            // In a final method, you can change a parameter from nonnull to nullable
-            val allowNonNullToNullable =
-                context is ParameterItem && !context.containingMethod().canBeExternallyOverridden()
-            // In a final method, you can change a method return from nullable to nonnull
-            val allowNullableToNonNull =
-                context is MethodItem && !context.canBeExternallyOverridden()
             if (
                 (oldNullability == TypeNullability.NULLABLE &&
                     newNullability == TypeNullability.NONNULL &&
@@ -171,6 +198,25 @@ class CompatibilityCheck(
             )
         }
 
+        apiCompatAnnotations.forEach { annotation ->
+            val isOldAnnotated = oldModifiers.isAnnotatedWith(annotation)
+            val newAnnotation = newModifiers.findAnnotation(annotation)
+            if (isOldAnnotated && newAnnotation == null) {
+                report(
+                    Issues.REMOVED_ANNOTATION,
+                    new,
+                    "Cannot remove @$annotation annotation from ${describe(old)}: Incompatible change",
+                )
+            } else if (!isOldAnnotated && newAnnotation != null) {
+                report(
+                    Issues.ADDED_ANNOTATION,
+                    new,
+                    "Cannot add @$annotation annotation to ${describe(old)}: Incompatible change",
+                    newAnnotation.fileLocation,
+                )
+            }
+        }
+
         compareItemNullability(old, new)
     }
 
@@ -188,7 +234,7 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}"
                 )
             }
         }
@@ -310,7 +356,7 @@ class CompatibilityCheck(
 
             if (oldModifiers.isStatic() != newModifiers.isStatic()) {
                 val hasPublicConstructor = old.constructors().any { it.isPublic }
-                if (!old.isInnerClass() || hasPublicConstructor) {
+                if (!old.isNestedClass() || hasPublicConstructor) {
                     report(
                         Issues.CHANGED_STATIC,
                         new,
@@ -432,6 +478,11 @@ class CompatibilityCheck(
             }
             else -> return old == new
         }
+    }
+
+    override fun compare(old: ConstructorItem, new: ConstructorItem) {
+        // Treat ConstructorItem as MethodItem
+        compare(old as MethodItem, new as MethodItem)
     }
 
     override fun compare(old: MethodItem, new: MethodItem) {
@@ -839,12 +890,23 @@ class CompatibilityCheck(
         handleAdded(error, new)
     }
 
-    override fun added(new: MethodItem) {
-        // *Overriding* methods from super classes that are outside the
-        // API is OK (e.g. overriding toString() from java.lang.Object)
-        val superMethods = new.superMethods()
-        for (superMethod in superMethods) {
-            if (superMethod.isFromClassPath()) {
+    override fun added(new: CallableItem) {
+        if (new is MethodItem) {
+            // *Overriding* methods from super classes that are outside the
+            // API is OK (e.g. overriding toString() from java.lang.Object)
+            val superMethods = new.superMethods()
+            for (superMethod in superMethods) {
+                if (superMethod.isFromClassPath()) {
+                    return
+                }
+            }
+
+            // In most cases it is not permitted to add a new method to an interface, even with a
+            // default implementation because it could create ambiguity if client code implements
+            // two interfaces that each now define methods with the same signature.
+            // Annotation types cannot implement other interfaces, however, so it is permitted to
+            // add new default methods to annotation types.
+            if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
                 return
             }
         }
@@ -854,21 +916,10 @@ class CompatibilityCheck(
         // an abstract method, because method's abstractness affects how users use it.
         // See if there's a member from inherited class
         val inherited =
-            if (new.isConstructor()) {
-                null
-            } else {
+            if (new is MethodItem && !new.isConstructor()) {
                 new.containingClass()
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
-            }
-
-        // In most cases it is not permitted to add a new method to an interface, even with a
-        // default implementation because it could could create ambiguity if client code implements
-        // two interfaces that each now define methods with the same signature.
-        // Annotation types cannot implement other interfaces, however, so it is permitted to add
-        // add new default methods to annotation types.
-        if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
-            return
-        }
+            } else null
 
         // It is ok to add a new abstract method to a class that has no public constructors
         if (
@@ -927,26 +978,45 @@ class CompatibilityCheck(
         handleRemoved(error, old)
     }
 
-    override fun removed(old: MethodItem, from: ClassItem?) {
+    override fun removed(old: CallableItem, from: ClassItem?) {
         // See if there's a member from inherited class
         val inherited =
-            if (old.isConstructor()) {
-                null
-            } else {
+            if (old is MethodItem && !old.isConstructor()) {
                 // This can also return self, specially handled below
-                from?.findMethod(
-                    old,
-                    includeSuperClasses = true,
-                    includeInterfaces = from.isInterface()
-                )
-            }
-        if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
+                from
+                    ?.findMethod(
+                        old,
+                        includeSuperClasses = true,
+                        includeInterfaces = from.isInterface()
+                    )
+                    ?.let {
+                        // If it was inherited but should still be treated as if it was removed then
+                        // pretend that it was not inherited.
+                        if (it.treatAsRemoved(old)) null else it
+                    }
+            } else null
+
+        if (inherited == null) {
             val error =
                 if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
                 else Issues.REMOVED_METHOD
             handleRemoved(error, old)
         }
     }
+
+    /**
+     * Check the [Item] to see whether it should be treated as if it was removed.
+     *
+     * If an [Item] is an unstable API that will be reverted then it will not be treated as if it
+     * was removed. That is because reverting it will replace it with the old item against which it
+     * is being compared in this compatibility check. So, while this specific item will not appear
+     * in the API the old item will and so it has not been removed.
+     *
+     * Otherwise, an [Item] will be treated as it was removed it if it is hidden/removed or the
+     * [possibleMatch] does not match.
+     */
+    private fun Item.treatAsRemoved(possibleMatch: MethodItem) =
+        !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
     override fun removed(old: FieldItem, from: ClassItem?) {
         val inherited =
@@ -967,6 +1037,7 @@ class CompatibilityCheck(
         issue: Issue,
         item: Item,
         message: String,
+        location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
         if (item.isCompatibilitySuppressed()) {
@@ -975,7 +1046,7 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, maximumSeverity = maximumSeverity)) {
+        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
@@ -989,11 +1060,11 @@ class CompatibilityCheck(
         @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
-            oldCodebases: MergedCodebase,
+            oldCodebase: Codebase,
             apiType: ApiType,
-            baseApi: Codebase?,
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
+            apiCompatAnnotations: Set<String>,
         ) {
             val filter =
                 apiType
@@ -1008,17 +1079,18 @@ class CompatibilityCheck(
                     apiType,
                     reporter,
                     issueConfiguration,
+                    apiCompatAnnotations,
                 )
 
             val oldFullCodebase =
                 if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-                    baseApi?.let { MergedCodebase(oldCodebases.children + baseApi) } ?: oldCodebases
+                    MergedCodebase(listOf(oldCodebase))
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
                     // first parameter is master, so we don't change values of oldCodeBase
-                    MergedCodebase(oldCodebases.children + newCodebase)
+                    MergedCodebase(listOf(oldCodebase, newCodebase))
                 }
-            val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
+            val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
             CodebaseComparator(
                     apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
@@ -1027,7 +1099,7 @@ class CompatibilityCheck(
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebases.children.last().location}"
+                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
                 throw MetalavaCliException(exitCode = -1, stderr = message)
