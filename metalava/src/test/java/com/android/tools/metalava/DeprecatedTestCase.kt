@@ -50,11 +50,144 @@ class DeprecatedTestCase : DriverTest() {
                       }
                     }
                 """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Foo {
+                            @Deprecated
+                            public Foo(int p1, @Deprecated int p2) { throw new RuntimeException("Stub!"); }
+                            @Deprecated
+                            public void method(int p1, @Deprecated int p2) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
         )
     }
 
     @Test
-    fun `Test deprecated not written out for field inherited from hidden class`() {
+    fun `Test deprecated is not written out for field inherited from deprecated hidden class`() {
+        // Makes sure that deprecated status is not copied when the inherited field is only
+        // deprecated implicitly because it is contained with a class that is deprecated.
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /** @deprecated */
+                            @Deprecated
+                            interface Constants {
+                                int INHERITED = 0;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo implements Constants {
+                                private Foo() {}
+                                public static final int CONSTANT = 1;
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        field public static final int CONSTANT = 1; // 0x1
+                        field public static final int INHERITED = 0; // 0x0
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            public static final int CONSTANT = 1; // 0x1
+                            public static final int INHERITED = 0; // 0x0
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test deprecated is written out for deprecated field inherited from hidden class`() {
+        // Makes sure that deprecated status is copied when the inherited field is explicitly
+        // deprecated.
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            interface Constants {
+                                /** @deprecated */
+                                @Deprecated
+                                int INHERITED = 0;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo implements Constants {
+                                private Foo() {}
+                                public static final int CONSTANT = 1;
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        field public static final int CONSTANT = 1; // 0x1
+                        field @Deprecated public static final int INHERITED = 0; // 0x0
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            public static final int CONSTANT = 1; // 0x1
+                            /** @deprecated */
+                            @Deprecated public static final int INHERITED = 0; // 0x0
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test deprecated is not written out for field inherited into deprecated class from hidden class`() {
+        // This shows that inherited fields are treated differently to fields that are not inherited
+        // when the class is deprecated.
+        // TODO(b/366411703): Clean up this inconsistent behavior.
         check(
             sourceFiles =
                 arrayOf(
@@ -90,6 +223,23 @@ class DeprecatedTestCase : DriverTest() {
                       }
                     }
                 """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Foo {
+                            @Deprecated
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            @Deprecated public static final int CONSTANT = 1; // 0x1
+                            public static final int INHERITED = 0; // 0x0
+                            }
+                        """
+                    )
+                ),
         )
     }
 
@@ -143,6 +293,7 @@ class DeprecatedTestCase : DriverTest() {
             api = """
                     // Signature format: 5.0
                 """,
+            stubPaths = emptyArray(),
         )
     }
 }
