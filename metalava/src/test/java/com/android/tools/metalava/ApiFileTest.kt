@@ -268,7 +268,7 @@ class ApiFileTest : DriverTest() {
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
                     method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
                     method public void method1(int myInt = 42, Integer? myInt2 = null, int myByte = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int myInt, int myInt2 = (2 * myInt) * some.other.pkg.Constants.Misc.SIZE);
+                    method public void method2(int myInt, int myInt2 = (2*myInt) * some.other.pkg.Constants.Misc.SIZE);
                     method public void method3(String str, int myInt, int myInt2 = double(myInt) + str.length);
                     field public static final test.pkg.Foo.Companion Companion;
                   }
@@ -429,6 +429,50 @@ class ApiFileTest : DriverTest() {
                     method @Nullable public String method();
                     method @Nullable public String method2(boolean value, @Nullable Boolean value);
                     method public int method3(@Nullable Integer value, int value2);
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Kotlin Reified Methods`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Context {
+                        @SuppressWarnings("unchecked")
+                        public final <T> T getSystemService(Class<T> serviceClass) {
+                            return null;
+                        }
+                    }
+                    """
+                    ),
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
+                    inline fun Context.systemService2() = getSystemService(String::class.java)
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Context {
+                    ctor public Context();
+                    method public final <T> T getSystemService(Class<T>);
+                  }
+                  public final class TestKt {
+                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
+                    method public static inline String systemService2(@NonNull test.pkg.Context);
                   }
                 }
                 """
@@ -1816,102 +1860,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Annotation retention`() {
-        // For annotations where the java.lang.annotation classes themselves are not
-        // part of the source tree, ensure that we compute the right retention (runtime, meaning
-        // it should show up in the stubs file.).
-        check(
-            format = FileFormat.V3,
-            extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    public @interface Foo {
-                        String value();
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.annotation;
-                    import static java.lang.annotation.ElementType.*;
-                    import java.lang.annotation.*;
-                    @Target({TYPE, FIELD, METHOD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE})
-                    @Retention(RetentionPolicy.CLASS)
-                    @SuppressWarnings("ALL")
-                    public @interface SuppressLint {
-                        String[] value();
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    @DslMarker
-                    annotation class ImplicitRuntimeRetention
-
-                    @Retention(AnnotationRetention.RUNTIME)
-                    annotation class ExplicitRuntimeRetention {
-                    }
-                    """
-                            .trimIndent()
-                    )
-                ),
-            api =
-                """
-            // Signature format: 3.0
-            package android.annotation {
-              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
-                method public abstract String[] value();
-              }
-            }
-            package test.pkg {
-              @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.RUNTIME) public @interface ExplicitRuntimeRetention {
-              }
-              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
-                method public abstract String value();
-              }
-              @kotlin.DslMarker public @interface ImplicitRuntimeRetention {
-              }
-            }
-            """
-                    .trimIndent(),
-            stubFiles =
-                arrayOf(
-                    // For annotations where the java.lang.annotation classes themselves are not
-                    // part of the source tree, ensure that we compute the right retention (runtime,
-                    // meaning
-                    // it should show up in the stubs file.).
-                    java(
-                        """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
-                    public @interface Foo {
-                    public java.lang.String value();
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.annotation;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
-                    @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE})
-                    public @interface SuppressLint {
-                    public java.lang.String[] value();
-                    }
-                    """
-                    )
-                )
         )
     }
 
@@ -4683,6 +4631,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
+                    ctor public Foo();
                     ctor public Foo(optional String a, optional String b);
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
                     method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
@@ -4943,6 +4892,9 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
 
+                        // When all args are optional, the compiler generates a no-arg constructor
+                        // even when @JvmOverloads is not used:
+                        // https://kotlinlang.org/docs/java-to-kotlin-interop.html#overloads-generation
                         class AllOptionalNoJvmOverloads(
                             private val foo: Int = 0,
                             private val bar: Int = 0
@@ -4973,6 +4925,7 @@ class ApiFileTest : DriverTest() {
                     ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class AllOptionalNoJvmOverloads {
+                    ctor public AllOptionalNoJvmOverloads();
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {

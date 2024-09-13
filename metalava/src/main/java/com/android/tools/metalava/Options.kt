@@ -42,6 +42,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -54,6 +55,7 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriterConfig
@@ -195,6 +197,8 @@ const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
+const val ARG_CONFIG_FILE = "--config-file"
+
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
     private val sourceOptions: SourceOptions = SourceOptions(),
@@ -315,6 +319,20 @@ class Options(
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
+
+    val configFiles by
+        option(
+                ARG_CONFIG_FILE,
+                help =
+                    """
+                        A configuration file that can be consumed by Metalava. This can be specified
+                        multiple times in which case later config files will override/merge with
+                        earlier ones.
+                    """,
+                metavar = "<file>",
+            )
+            .existingFile()
+            .multiple(required = false)
 
     val apiClassResolution by
         enumOption(
@@ -463,7 +481,6 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            apiVisitorConfig = apiVisitorConfig,
             kotlinStubs = kotlinStubs,
             includeDocumentationInStubs = includeDocumentationInStubs,
         )
@@ -637,15 +654,9 @@ class Options(
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
-    /** [Reporter] for general use. */
+    /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     lateinit var reporter: Reporter
-
-    /**
-     * [Reporter] for "api-lint".
-     *
-     * Initialized in [parse].
-     */
-    lateinit var reporterApiLint: Reporter
+        private set
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
@@ -653,7 +664,7 @@ class Options(
      *
      * Initialized in [parse].
      */
-    lateinit var reporterCompatibilityReleased: Reporter
+    private lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -959,25 +970,38 @@ class Options(
 
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
-        reporter =
+        val reporterUnknown =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = baseline,
                 errorMessage = null,
             )
 
-        reporterApiLint =
+        val reporterApiLint =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
             )
 
-        reporterCompatibilityReleased =
+        // [Reporter] for "check-compatibility:*:released".
+        // i.e.
+        //      [ARG_CHECK_COMPATIBILITY_API_RELEASED] and
+        //      [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED].
+        val reporterCompatibilityReleased =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
+            )
+
+        // A Reporter that will redirect issues to the appropriate reporter based on the issue's
+        // Category.
+        reporter =
+            CategoryRedirectingReporter(
+                defaultReporter = reporterUnknown,
+                apiLintReporter = reporterApiLint,
+                compatibilityReporter = reporterCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
@@ -987,17 +1011,18 @@ class Options(
             listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
 
         // Reporters are non-null.
-        // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
-                    issueReportingOptions.bootstrapReporter,
-                    reporter,
-                    reporterApiLint,
-                    reporterCompatibilityReleased,
-                )
-                .map { it as DefaultReporter }
+                issueReportingOptions.bootstrapReporter,
+                reporterUnknown,
+                reporterApiLint,
+                reporterCompatibilityReleased,
+            )
 
         updateClassPath()
+
+        // Make sure that any config files are processed.
+        ConfigParser.parse(reporter, configFiles)
     }
 
     /**

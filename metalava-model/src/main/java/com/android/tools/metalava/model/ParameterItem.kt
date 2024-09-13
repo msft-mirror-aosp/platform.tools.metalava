@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultValue
+
 @MetalavaApi
-interface ParameterItem : Item {
+interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 
@@ -35,14 +37,10 @@ interface ParameterItem : Item {
             ?.getOrNull(parameterIndex)
 
     /** The containing callable. */
-    fun containingCallable(): CallableItem = containingMethod()
+    fun containingCallable(): CallableItem
 
     /** The possible containing method, returns null if this is a constructor parameter. */
-    fun possibleContainingMethod(): MethodItem? =
-        containingCallable().let { if (it.isConstructor()) null else it as MethodItem }
-
-    /** The containing method */
-    fun containingMethod(): MethodItem
+    fun possibleContainingMethod(): MethodItem? = containingCallable().let { it as? MethodItem }
 
     /** Index of this parameter in the parameter list (0-based) */
     val parameterIndex: Int
@@ -84,39 +82,58 @@ interface ParameterItem : Item {
      * The default value is the source string literal representation of the value, e.g. strings
      * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
      */
-    fun defaultValue(): String?
+    fun defaultValueAsString(): String?
+
+    /** The default value of this [ParameterItem]. */
+    val defaultValue: DefaultValue
 
     /** Whether this is a varargs parameter */
-    fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?
         get() = null
 
-    override fun parent(): MethodItem? = containingMethod()
+    override fun parent(): CallableItem? = containingCallable()
 
     override val effectivelyDeprecated: Boolean
-        get() = originallyDeprecated || containingMethod().effectivelyDeprecated
+        get() = originallyDeprecated || containingCallable().effectivelyDeprecated
 
     override fun baselineElementId() =
-        containingMethod().baselineElementId() + " parameter #" + parameterIndex
+        containingCallable().baselineElementId() + " parameter #" + parameterIndex
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
     /**
-     * Create a duplicate of this for [containingMethod].
+     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
+     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
+     * syntax.
+     *
+     * Specifically this will attempt to handle the follow cases:
+     * - Java SAM interface = true
+     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
+     * - Kotlin fun interface = true
+     * - Kotlin lambda = true
+     * - Any other type = false
+     */
+    fun isSamCompatibleOrKotlinLambda(): Boolean =
+        // TODO(b/354889186): Implement correctly
+        false
+
+    /**
+     * Create a duplicate of this for [containingCallable].
      *
      * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
      * [TypeItem.convertType].
      *
-     * This is called from within the constructor of the [containingMethod] so must only access its
-     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
-     * property as this is called during its initialization.
+     * This is called from within the constructor of the [containingCallable] so must only access
+     * its `name` and its reference. In particularly it must not access its
+     * [CallableItem.parameters] property as this is called during its initialization.
      */
     fun duplicate(
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,
     ): ParameterItem
 
@@ -125,7 +142,7 @@ interface ParameterItem : Item {
         if (other !is ParameterItem) return false
 
         return parameterIndex == other.parameterIndex &&
-            containingMethod() == other.containingMethod()
+            containingCallable() == other.containingCallable()
     }
 
     override fun hashCodeForItem(): Int {
@@ -134,9 +151,9 @@ interface ParameterItem : Item {
 
     override fun toStringForItem() = "parameter ${name()}"
 
-    override fun containingClass(): ClassItem = containingMethod().containingClass()
+    override fun containingClass(): ClassItem = containingCallable().containingClass()
 
-    override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
+    override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
 
     // TODO: modifier list
 }

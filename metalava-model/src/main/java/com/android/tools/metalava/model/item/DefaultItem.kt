@@ -18,7 +18,8 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.reporter.FileLocation
@@ -28,25 +29,17 @@ import com.android.tools.metalava.reporter.FileLocation
  * their [Item] implementations.
  */
 abstract class DefaultItem(
-    final override val codebase: DefaultCodebase,
+    override val codebase: Codebase,
     fileLocation: FileLocation,
-    internal val itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    itemLanguage: ItemLanguage,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) :
     AbstractItem(
         fileLocation,
+        itemLanguage,
         modifiers,
         documentationFactory,
         variantSelectorsFactory,
-    ) {
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
-}
+    ) {}

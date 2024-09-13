@@ -41,6 +41,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** Types of exceptions that this callable can throw */
     fun throwsTypes(): List<ExceptionTypeItem>
 
+    /** The body of this, may not be available. */
+    val body: CallableBody
+
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
@@ -104,12 +107,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         return "${if (isConstructor()) "constructor" else "method"} ${
             containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
     }
-
-    /**
-     * Finds uncaught exceptions actually thrown inside this callable (as opposed to ones declared
-     * in the signature)
-     */
-    fun findThrownExceptions(): Set<ClassItem> = codebase.unsupported()
 
     /**
      * Returns true if overloads of this callable should be checked separately when checking the
@@ -306,4 +303,27 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 compareCallables(o1, o2, true)
             }
     }
+}
+
+/**
+ * Get the JVM-like descriptor of this [CallableItem] for just parameters (not return type) and
+ * using dots ('.') instead of slash (`/`) and dollar sign (`$`) characters.
+ *
+ * Due to legacy reasons it will return `null` for the constructor of an inner class.
+ */
+fun CallableItem.getCallableParameterDescriptorUsingDots(): String? {
+    return if (
+        isConstructor() &&
+            containingClass().isNestedClass() &&
+            !containingClass().modifiers.isStatic()
+    )
+        null
+    else
+        buildString {
+            append("(")
+            for (parameter in parameters()) {
+                append(parameter.type().internalName().replace('/', '.').replace('$', '.'))
+            }
+            append(")")
+        }
 }

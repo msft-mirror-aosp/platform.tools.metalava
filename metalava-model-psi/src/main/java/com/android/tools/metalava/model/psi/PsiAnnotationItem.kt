@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -45,7 +45,7 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 
-class PsiAnnotationItem
+internal class PsiAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
@@ -66,9 +66,7 @@ private constructor(
         return sb.toString()
     }
 
-    override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName)
-    }
+    override fun snapshot(targetCodebase: Codebase) = this
 
     override fun isNonNull(): Boolean {
         if (psiAnnotation is KtLightNullabilityAnnotation<*> && originalName == "") {
@@ -79,7 +77,7 @@ private constructor(
     }
 
     override val targets: Set<AnnotationTarget> by lazy {
-        codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
+        codebase.annotationManager.computeTargets(this, codebase::resolveClass)
     }
 
     companion object {
@@ -331,7 +329,7 @@ private fun createValue(
     }
 }
 
-class PsiAnnotationSingleAttributeValue(
+internal class PsiAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: PsiAnnotationMemberValue
 ) : DefaultAnnotationSingleAttributeValue({ psiValue.text }, { getValue(psiValue) }) {
@@ -362,7 +360,7 @@ class PsiAnnotationSingleAttributeValue(
             when (val resolved = psiValue.resolve()) {
                 is PsiField -> return codebase.findField(resolved)
                 is PsiClass -> return codebase.findOrCreateClass(resolved)
-                is PsiMethod -> return codebase.findMethod(resolved)
+                is PsiMethod -> return codebase.findCallableByPsiMethod(resolved)
             }
         }
         return null

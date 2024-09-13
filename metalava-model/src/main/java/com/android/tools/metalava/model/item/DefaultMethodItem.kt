@@ -17,45 +17,35 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.computeSuperMethods
-import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
-/**
- * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
- *
- * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
- * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
- * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
- * [MethodItem.parameters] as that will not yet have been initialized when this is called.
- */
-typealias ParameterItemsFactory = (MethodItem) -> List<ParameterItem>
-
 open class DefaultMethodItem(
-    codebase: DefaultCodebase,
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
-    override val typeParameterList: TypeParameterList,
-    private var returnType: TypeItem,
+    typeParameterList: TypeParameterList,
+    returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
-    private val throwsTypes: List<ExceptionTypeItem>,
+    throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
     private val annotationDefault: String = "",
 ) :
-    DefaultMemberItem(
+    DefaultCallableItem(
         codebase,
         fileLocation,
         itemLanguage,
@@ -64,31 +54,15 @@ open class DefaultMethodItem(
         variantSelectorsFactory,
         name,
         containingClass,
+        typeParameterList,
+        returnType,
+        parameterItemsFactory,
+        throwsTypes,
+        callableBodyFactory,
     ),
     MethodItem {
 
-    /**
-     * Create the [ParameterItem] list during initialization of this method to allow them to contain
-     * an immutable reference to this object.
-     *
-     * The leaking of `this` to `parameterItemsFactory` is ok as implementations follow the rules
-     * explained in the documentation of [ParameterItemsFactory].
-     */
-    @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
-
-    override fun isConstructor(): Boolean = false
-
-    override fun returnType(): TypeItem = returnType
-
-    override fun setType(type: TypeItem) {
-        returnType = type
-    }
-
-    override var inheritedFrom: ClassItem? = null
-
-    override fun parameters(): List<ParameterItem> = parameters
-
-    override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
+    final override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -108,52 +82,159 @@ open class DefaultMethodItem(
      * that name and parameter list types match. Parameter names, Return types and Throws list types
      * are not matched
      */
-    override fun superMethods(): List<MethodItem> {
-        if (!::superMethodList.isInitialized) {
-            superMethodList = computeSuperMethods()
+    final override fun superMethods(): List<MethodItem> {
+        return if (containingClass().frozen) {
+            if (!::superMethodList.isInitialized) {
+                superMethodList = computeSuperMethods()
+            }
+            superMethodList
+        } else {
+            computeSuperMethods()
         }
-        return superMethodList
     }
 
     @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
+    final override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
-        val duplicated =
-            DefaultMethodItem(
+
+        return DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
-                modifiers = modifiers.duplicate(),
+                modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
                 returnType = returnType.convertType(typeVariableMap),
-                parameterItemsFactory = { methodItem ->
+                parameterItemsFactory = { containingCallable ->
                     // Duplicate the parameters
-                    parameters.map { it.duplicate(methodItem, typeVariableMap) }
+                    parameters.map { it.duplicate(containingCallable, typeVariableMap) }
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,
+                callableBodyFactory = body::duplicate,
             )
-        duplicated.inheritedFrom = containingClass()
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass()
 
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
+                duplicated.updateCopiedMethodState()
+            }
+    }
+
+    /**
+     * Compute the super methods of this method.
+     *
+     * A super method is a method from a super class or super interface that is directly overridden
+     * by this method.
+     */
+    private fun computeSuperMethods(): List<MethodItem> {
+        // Methods that are not overrideable will have no super methods.
+        if (!isOverrideable()) {
+            return emptyList()
         }
 
-        duplicated.updateCopiedMethodState()
+        // TODO(b/321216636): Remove this awful hack.
+        // For some reason `psiMethod.findSuperMethods()` would return an empty list for this
+        // specific method. That is incorrect as it clearly overrides a method in `DrawScope` in the
+        // same package. However, it is unclear what makes this method distinct from any other
+        // method including overloaded methods in the same class that also override methods
+        // in`DrawScope`. Returning a correct non-empty list for that method results in the method
+        // being removed from an API signature file even though the super method is abstract and
+        // this is concrete. That is because AndroidX does not yet set
+        // `add-additional-overrides=yes`. When it does then this hack can be removed.
+        if (
+            containingClass().qualifiedName() ==
+                "androidx.compose.ui.graphics.drawscope.CanvasDrawScope" &&
+                name() == "drawImage" &&
+                toString() ==
+                    "method androidx.compose.ui.graphics.drawscope.CanvasDrawScope.drawImage(androidx.compose.ui.graphics.ImageBitmap, long, long, long, long, float, androidx.compose.ui.graphics.drawscope.DrawStyle, androidx.compose.ui.graphics.ColorFilter, int)"
+        ) {
+            return emptyList()
+        }
 
-        return duplicated
+        // Ideally, the search for super methods would start from this method's ClassItem.
+        // Unfortunately, due to legacy reasons for methods that were inherited from another
+        // ClassItem it is necessary to start the search from the original ClassItem. That is
+        // because the psi model's implementation behaved this way and the code that is built of top
+        // of superMethods, like the code to determine if overriding methods should be elided from
+        // the API signature file relied on that behavior.
+        val startingClass = inheritedFrom ?: containingClass()
+        return buildSet { appendSuperMethods(this, startingClass) }.toList()
+    }
+
+    /**
+     * Append the super methods of this method from the [cls] hierarchy to the [methods] set.
+     *
+     * @param methods the mutable, order preserving set of super [MethodItem].
+     * @param cls the [ClassItem] whose super class and implemented interfaces will be searched for
+     *   matching methods.
+     */
+    private fun appendSuperMethods(methods: MutableSet<MethodItem>, cls: ClassItem) {
+        // Method from SuperClass or its ancestors
+        cls.superClass()?.let { superClass ->
+            // Search for a matching method in the super class.
+            val superMethod = superClass.findMethod(this)
+            if (superMethod == null) {
+                // No matching method was found so continue searching in the super class.
+                appendSuperMethods(methods, superClass)
+            } else {
+                // Matching does not check modifiers match so make sure that the matched method is
+                // overrideable.
+                if (superMethod.isOverrideable()) {
+                    methods.add(superMethod)
+                }
+            }
+        }
+
+        // Methods implemented from direct interfaces or its ancestors
+        appendSuperMethodsFromInterfaces(methods, cls)
+    }
+
+    /**
+     * Append the super methods of this method from the interface hierarchy of [cls] to the
+     * [methods] set.
+     *
+     * @param methods the mutable, order preserving set of super [MethodItem].
+     * @param cls the [ClassItem] whose implemented interfaces will be searched for matching
+     *   methods.
+     */
+    private fun appendSuperMethodsFromInterfaces(methods: MutableSet<MethodItem>, cls: ClassItem) {
+        for (itf in cls.interfaceTypes()) {
+            val itfClass = itf.asClass() ?: continue
+
+            // Find the method in the interface.
+            itfClass.findMethod(this)?.let { superMethod ->
+                // A matching method was found so add it to the super methods if it is overrideable.
+                if (superMethod.isOverrideable()) {
+                    methods.add(superMethod)
+                }
+            }
+            // A method could not be found in this interface so search its interfaces.
+            ?: appendSuperMethodsFromInterfaces(methods, itfClass)
+        }
+    }
+
+    /**
+     * Update the state of a [MethodItem] that has been copied from one [ClassItem] to another.
+     *
+     * This will update the [MethodItem] on which it is called to ensure that it is consistent with
+     * the [ClassItem] to which it now belongs. Called from the implementations of
+     * [MethodItem.duplicate].
+     */
+    protected fun updateCopiedMethodState() {
+        if (modifiers.isDefault() && !containingClass().isInterface()) {
+            mutateModifiers { setDefault(false) }
+        }
     }
 }
+
+/**
+ * Check to see if the method is overrideable.
+ *
+ * Private and static methods cannot be overridden.
+ */
+private fun MethodItem.isOverrideable(): Boolean = !modifiers.isPrivate() && !modifiers.isStatic()

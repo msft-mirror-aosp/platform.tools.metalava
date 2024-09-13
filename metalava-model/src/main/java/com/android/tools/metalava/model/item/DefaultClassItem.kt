@@ -18,37 +18,42 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MutableCodebase
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.computeAllInterfaces
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
-    codebase: DefaultCodebase,
+    codebase: MutableCodebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val source: SourceFile?,
     final override val classKind: ClassKind,
     private val containingClass: ClassItem?,
+    private val containingPackage: PackageItem,
     private val qualifiedName: String,
-    private val simpleName: String,
-    private val fullName: String,
     final override val typeParameterList: TypeParameterList,
+    final override val origin: ClassOrigin,
+    private var superClassType: ClassTypeItem?,
+    private var interfaceTypes: List<ClassTypeItem>,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -60,16 +65,41 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
-    final override fun getSourceFile() = source
+    private val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
 
-    private lateinit var containingPackage: PackageItem
+    private val fullName: String
 
-    fun setContainingPackage(containingPackage: PackageItem) {
-        this.containingPackage = containingPackage
+    init {
+        // Register the class first. Leaking `this` is ok as it only uses its qualified name and
+        // fileLocation, both of which have been initialized. If registration succeeded then wire
+        // the class into the containing package/containing class. If it failed, because it is a
+        // duplicate, then do nothing.
+        if (codebase.registerClass(@Suppress("LeakingThis") this)) {
+            // Only emit classes that were specified on the command line.
+            emit = emit && origin == ClassOrigin.COMMAND_LINE
+
+            // If this class is emittable then make sure its package is too.
+            if (emit) {
+                containingPackage.emit = true
+            }
+
+            if (containingClass == null) {
+                (containingPackage as DefaultPackageItem).addTopClass(this)
+                fullName = simpleName
+            } else {
+                (containingClass as DefaultClassItem).addNestedClass(this)
+                fullName = "${containingClass.fullName()}.$simpleName"
+            }
+        } else {
+            // The fullName needs to be initialized to something so initializing it to something
+            // invalid will ensure it is not accidentally used.
+            fullName = "duplicate class"
+        }
     }
 
-    final override fun containingPackage(): PackageItem =
-        containingClass()?.containingPackage() ?: containingPackage
+    override fun getSourceFile() = source
+
+    final override fun containingPackage(): PackageItem = containingPackage
 
     final override fun containingClass() = containingClass
 
@@ -86,31 +116,47 @@ open class DefaultClassItem(
 
     final override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
-            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
+            cachedType = createClassTypeItemForThis()
         }
         return cachedType
     }
 
-    /**
-     * The optional, mutable super class [ClassTypeItem].
-     *
-     * This could be a constructor val apart from the fact that Text needs to mutate the super class
-     * type of an existing class when merging classes that are defined in multiple API surfaces.
-     */
-    private var superClassType: ClassTypeItem? = null
+    protected open fun createClassTypeItemForThis() =
+        DefaultResolvedClassTypeItem.createForClass(this)
+
+    final override var frozen = false
+        private set
+
+    override fun freeze() {
+        if (frozen) return
+        frozen = true
+        superClass()?.freeze()
+        for (interfaceType in interfaceTypes) {
+            interfaceType.asClass()?.freeze()
+        }
+    }
+
+    private fun ensureNotFrozen() {
+        if (frozen) error("Cannot modify frozen $this")
+    }
+
+    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+        ensureNotFrozen()
+        super.mutateModifiers(mutator)
+    }
 
     final override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Set the super class [ClassTypeItem]. */
     fun setSuperClassType(superClassType: ClassTypeItem?) {
+        ensureNotFrozen()
         this.superClassType = superClassType
     }
-
-    private var interfaceTypes = emptyList<ClassTypeItem>()
 
     final override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     final override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
+        ensureNotFrozen()
         this.interfaceTypes = interfaceTypes
     }
 
@@ -125,6 +171,23 @@ open class DefaultClassItem(
         return cacheAllInterfaces!!.asSequence()
     }
 
+    /** Compute the value for [ClassItem.allInterfaces]. */
+    private fun computeAllInterfaces() = buildList {
+        // Add self as interface if applicable
+        if (isInterface()) {
+            add(this@DefaultClassItem)
+        }
+
+        // Add all the interfaces of super class
+        superClass()?.let { superClass -> superClass.allInterfaces().forEach { add(it) } }
+
+        // Add all the interfaces of direct interfaces
+        interfaceTypes().forEach { interfaceType ->
+            val itf = interfaceType.asClass()
+            itf?.allInterfaces()?.forEach { add(it) }
+        }
+    }
+
     /** The mutable list of [ConstructorItem] that backs [constructors]. */
     private val mutableConstructors = mutableListOf<ConstructorItem>()
 
@@ -132,6 +195,7 @@ open class DefaultClassItem(
 
     /** Add a constructor to this class. */
     fun addConstructor(constructor: ConstructorItem) {
+        ensureNotFrozen()
         mutableConstructors += constructor
 
         // Keep track of whether any implicit constructors were added.
@@ -140,19 +204,18 @@ open class DefaultClassItem(
         }
     }
 
-    final override var stubConstructor: ConstructorItem? = null
-
     /** Tracks whether the class has an implicit default constructor. */
     private var hasImplicitDefaultConstructor = false
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    final override fun createDefaultConstructor(): ConstructorItem {
+    override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
             itemLanguage = itemLanguage,
             variantSelectorsFactory = variantSelectors::duplicate,
             containingClass = this,
+            visibility = visibility,
         )
     }
 
@@ -162,7 +225,8 @@ open class DefaultClassItem(
     final override fun methods(): List<MethodItem> = mutableMethods
 
     /** Add a method to this class. */
-    override fun addMethod(method: MethodItem) {
+    final override fun addMethod(method: MethodItem) {
+        ensureNotFrozen()
         mutableMethods += method
     }
 
@@ -171,6 +235,7 @@ open class DefaultClassItem(
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem) {
+        ensureNotFrozen()
         val iterator = mutableMethods.listIterator()
         while (iterator.hasNext()) {
             val existing = iterator.next()
@@ -187,6 +252,7 @@ open class DefaultClassItem(
 
     /** Add a field to this class. */
     fun addField(field: FieldItem) {
+        ensureNotFrozen()
         mutableFields += field
     }
 
@@ -199,6 +265,7 @@ open class DefaultClassItem(
 
     /** Add a property to this class. */
     fun addProperty(property: PropertyItem) {
+        ensureNotFrozen()
         mutableProperties += property
     }
 
@@ -208,7 +275,8 @@ open class DefaultClassItem(
     final override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
     /** Add a nested class to this class. */
-    fun addNestedClass(classItem: ClassItem) {
+    private fun addNestedClass(classItem: ClassItem) {
+        ensureNotFrozen()
         mutableNestedClasses.add(classItem)
     }
 

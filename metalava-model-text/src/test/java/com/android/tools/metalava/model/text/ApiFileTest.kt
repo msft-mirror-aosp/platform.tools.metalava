@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -103,7 +104,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val throwableSuperClass = throwable.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, throwableSuperClass)
 
@@ -138,7 +139,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val errorSuperClass = error.superClassType()?.asClass()
 
             // Now get the throwable class.
-            val throwable = codebase.assertClass("java.lang.Throwable")
+            val throwable = codebase.assertClass("java.lang.Throwable", expectedEmit = false)
 
             assertSame(throwable, errorSuperClass)
 
@@ -197,7 +198,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // is checked below.
             exceptionType.erasedClass
 
-            val unknownExceptionClass = codebase.assertClass("other.UnknownException")
+            val unknownExceptionClass =
+                codebase.assertClass("other.UnknownException", expectedEmit = false)
             // Make sure the stub UnknownException is initialized correctly.
             assertSame(throwable, unknownExceptionClass.superClass())
 
@@ -297,7 +299,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     /** Dump the package structure of [codebase] to a string for easy comparison. */
     private fun dumpPackageStructure(codebase: Codebase) = buildString {
-        codebase.getPackages().packages.map { packageItem ->
+        for (packageItem in codebase.getPackages().packages) {
+            // Ignore packages that will not be emitted.
+            if (!packageItem.emit) continue
             append("${packageItem.qualifiedName().let {if (it == "") "<root>" else it}}\n")
             for (classItem in packageItem.allClasses()) {
                 append("    ${classItem.qualifiedName()}\n")
@@ -312,7 +316,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             assertEquals(
                 """
-                    <root>
                     test.pkg
                         test.pkg.Outer
                         test.pkg.Outer.Middle
@@ -446,7 +449,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Resolve the class. Even though it does not exist, the text model will fabricate an
             // instance.
             val unknownInterfaceClass =
-                codebase.assertResolvedClass("test.pkg.Foo").interfaceTypes().single().asClass()
+                codebase.assertClass("test.pkg.Foo").interfaceTypes().single().asClass()
             assertNotNull(unknownInterfaceClass)
 
             // Make sure that the fabricated instance is of the correct structure.
@@ -525,7 +528,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
             files.map { file ->
                 SignatureFile(file, forCurrentApiSurface = file.name == "current.txt")
             }
-        val codebase = ApiFile.parseApi(signatureFiles)
+
+        val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
+        val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)
 
         val current = buildList {
             codebase.accept(
@@ -541,7 +546,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         assertEquals(
             """
-                package <root>
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
@@ -562,9 +566,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase =
-                    ApiFile.parseApi("other.txt", "// Signature format: 2.0") as TextCodebase
-                val delegate = codebase.getOrCreateClass(name)
+                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val delegate = codebase.resolveClass(name)!!
                 return TestClassItem(delegate)
             }
         }
