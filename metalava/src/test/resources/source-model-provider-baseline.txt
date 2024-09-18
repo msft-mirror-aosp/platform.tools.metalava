@@ -1,5 +1,4 @@
 com.android.tools.metalava.AndroidApiChecksTest
-  Document Permissions ignore when permission is subset of a word[turbine]
   Document Permissions[turbine]
 
 com.android.tools.metalava.AnnotationsMergerTest

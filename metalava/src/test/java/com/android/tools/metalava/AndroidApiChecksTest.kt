@@ -194,13 +194,6 @@ class AndroidApiChecksTest : DriverTest() {
                 ),
             extraArguments =
                 arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
-            expectedFail = DefaultLintErrorMessage,
-            // TODO(b/367787970): Stop reporting issues when permission is just a subset of a word.
-            expectedIssues =
-                """
-                    src/android/pkg/PermissionTest.java:12: error: Method 'test0' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation [RequiresPermission]
-                    src/android/pkg/PermissionTest.java:20: error: Method 'test0' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation [RequiresPermission]
-                """,
         )
     }
 
