@@ -96,7 +96,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
      * will not be initialized correctly.
      */
     override val requiresClassNesting: Boolean
-        get() = true
+        get() = false
 
     override fun visitCodebase(codebase: Codebase) {
         this.originalCodebase = codebase
