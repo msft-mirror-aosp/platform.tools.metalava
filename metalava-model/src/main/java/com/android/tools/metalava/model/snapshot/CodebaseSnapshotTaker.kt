@@ -106,12 +106,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     /** Take a snapshot of this [ModifierList] for [snapshotCodebase]. */
     private fun ModifierList.snapshot() = snapshot(snapshotCodebase)
 
-    /** General [TypeItem] specific snapshot. */
-    private fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
-
-    /** [ClassTypeItem] specific snapshot. */
-    private fun ClassTypeItem.snapshot() = typeItemFactory.getGeneralType(this) as ClassTypeItem
-
     /**
      * Snapshots need to preserve class nesting when visiting otherwise [ClassItem.containingClass]
      * will not be initialized correctly.
@@ -285,54 +279,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         typeItemFactoryStack.pop()
     }
 
-    /** Push this [SnapshotTypeItemFactory] in scope before executing [body] and pop afterwards. */
-    private inline fun <T> SnapshotTypeItemFactory.inScope(body: () -> T): T {
-        typeItemFactoryStack.push(this)
-        val result = body()
-        typeItemFactoryStack.pop()
-        return result
-    }
-
-    /** Return a factory that will create a snapshot of this list of [ParameterItem]s. */
-    private fun List<ParameterItem>.snapshot(
-        containingCallable: CallableItem,
-        currentCallable: CallableItem
-    ): List<ParameterItem> {
-        return map { parameterItem ->
-            // Retrieve the public name immediately to remove any dependencies on this in the
-            // lambda passed to publicNameProvider.
-            val publicName = parameterItem.publicName()
-
-            // The parameter being snapshot may be from a previously released API, which may not
-            // track parameter names and so may have to auto-generate them. This code tries to avoid
-            // using the auto-generated names if possible. If the `publicName()` of the parameter
-            // being snapshot is not `null` then get its `name()` as that will either be set to the
-            // public name or another developer supplied name. Either way it will not be
-            // auto-generated. However, if its `publicName()` is `null` then its `name()` will be
-            // auto-generated so try and avoid that is possible. Instead, use the name of the
-            // corresponding parameter from `currentCallable` as that is more likely to have a
-            // developer supplied name, although it will be the same as `parameterItem` if
-            // `currentCallable` is not being reverted.
-            val name =
-                if (publicName != null) parameterItem.name()
-                else {
-                    val namedParameter = currentCallable.parameters()[parameterItem.parameterIndex]
-                    namedParameter.name()
-                }
-
-            itemFactory.createParameterItem(
-                fileLocation = parameterItem.fileLocation,
-                itemLanguage = parameterItem.itemLanguage,
-                modifiers = parameterItem.modifiers.snapshot(),
-                name = name,
-                publicNameProvider = { publicName },
-                containingCallable = containingCallable,
-                parameterIndex = parameterItem.parameterIndex,
-                type = parameterItem.type().snapshot(),
-                defaultValueFactory = parameterItem.defaultValue::snapshot,
-            )
-        }
-    }
+    /** Execute [body] within [SnapshotTypeItemFactoryContext]. */
+    private inline fun <T> SnapshotTypeItemFactory.inScope(
+        body: SnapshotTypeItemFactoryContext.() -> T
+    ) = SnapshotTypeItemFactoryContext(this).body()
 
     override fun visitConstructor(constructor: ConstructorItem) {
         val constructorToSnapshot = constructor.actualItemToSnapshot
@@ -485,6 +435,60 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
             // Return the constructed snapshot.
             return taker.snapshotCodebase
+        }
+    }
+
+    /** Encapsulates state and methods needed to take a snapshot of [TypeItem]s. */
+    internal inner class SnapshotTypeItemFactoryContext(
+        val typeItemFactory: SnapshotTypeItemFactory
+    ) {
+        /** General [TypeItem] specific snapshot. */
+        internal fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
+
+        /** [ClassTypeItem] specific snapshot. */
+        internal fun ClassTypeItem.snapshot() =
+            typeItemFactory.getGeneralType(this) as ClassTypeItem
+
+        /** Create a snapshot of this list of [ParameterItem]s. */
+        internal fun List<ParameterItem>.snapshot(
+            containingCallable: CallableItem,
+            currentCallable: CallableItem
+        ): List<ParameterItem> {
+            return map { parameterItem ->
+                // Retrieve the public name immediately to remove any dependencies on this in the
+                // lambda passed to publicNameProvider.
+                val publicName = parameterItem.publicName()
+
+                // The parameter being snapshot may be from a previously released API, which may not
+                // track parameter names and so may have to auto-generate them. This code tries to
+                // avoid using the auto-generated names if possible. If the `publicName()` of the
+                // parameter being snapshot is not `null` then get its `name()` as that will either
+                // be set to the public name or another developer supplied name. Either way it will
+                // not be auto-generated. However, if its `publicName()` is `null` then its `name()`
+                // will be auto-generated so try and avoid that is possible. Instead, use the name
+                // of the corresponding parameter from `currentCallable` as that is more likely to
+                // have a developer supplied name, although it will be the same as `parameterItem`
+                // if `currentCallable` is not being reverted.
+                val name =
+                    if (publicName != null) parameterItem.name()
+                    else {
+                        val namedParameter =
+                            currentCallable.parameters()[parameterItem.parameterIndex]
+                        namedParameter.name()
+                    }
+
+                itemFactory.createParameterItem(
+                    fileLocation = parameterItem.fileLocation,
+                    itemLanguage = parameterItem.itemLanguage,
+                    modifiers = parameterItem.modifiers.snapshot(),
+                    name = name,
+                    publicNameProvider = { publicName },
+                    containingCallable = containingCallable,
+                    parameterIndex = parameterItem.parameterIndex,
+                    type = parameterItem.type().snapshot(),
+                    defaultValueFactory = parameterItem.defaultValue::snapshot,
+                )
+            }
         }
     }
 }
