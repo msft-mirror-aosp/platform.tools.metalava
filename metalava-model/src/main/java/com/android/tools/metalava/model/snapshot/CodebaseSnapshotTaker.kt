@@ -43,7 +43,6 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
@@ -103,12 +102,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     /** Get the current [SnapshotTypeItemFactory], i.e. the closest enclosing one. */
     private val typeItemFactory
         get() = typeItemFactoryStack.last()
-
-    /**
-     * The current [PackageItem], set in [visitPackage], cleared in [afterVisitPackage], relies on
-     * the [PackageItem]s being visited as a flat list, not a package hierarchy.
-     */
-    private var currentPackage: DefaultPackageItem? = null
 
     /**
      * The current [ClassItem], that forms a stack through the [ClassItem.containingClass].
@@ -171,7 +164,14 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             )
             .let { PackageDocs(mapOf(it.qualifiedName to it)) }
 
-    override fun visitPackage(pkg: PackageItem) {
+    /** Get the [PackageItem] corresponding to this [PackageItem] in the snapshot codebase. */
+    private fun PackageItem.getSnapshotPackage(): PackageItem {
+        // Check to see if the package already exists to avoid unnecessarily creating PackageDocs.
+        val packageName = qualifiedName()
+        snapshotCodebase.findPackage(packageName)?.let {
+            return it
+        }
+
         // Get a PackageDocs that contains a PackageDoc that contains information extracted from the
         // PackageItem being visited. This is needed to ensure that the findOrCreatePackage(...)
         // call below will use the correct information when creating the package. As only a single
@@ -179,14 +179,8 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // created a containing package that package would not have a PackageDocs and might be
         // incorrect. However, that should not be a problem as the packages are visited in order
         // such that a containing package is visited before any contained packages.
-        val packageDocs = packageDocsForPackageItem(pkg)
-        val packageName = pkg.qualifiedName()
-        val newPackage = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
-        currentPackage = newPackage
-    }
-
-    override fun afterVisitPackage(pkg: PackageItem) {
-        currentPackage = null
+        val packageDocs = packageDocsForPackageItem(this)
+        return snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
     }
 
     /**
@@ -251,6 +245,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
+        // Get the snapshot of the containing package.
+        val containingPackage = cls.containingPackage().getSnapshotPackage()
+
         // Create a TypeParameterList and SnapshotTypeItemFactory for the class.
         val (typeParameterList, classTypeItemFactory) =
             classToSnapshot.typeParameterList.snapshot("class ${classToSnapshot.qualifiedName()}")
@@ -267,7 +264,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             classToSnapshot.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
 
         val containingClass = currentClass
-        val containingPackage = currentPackage!!
         val newClass =
             itemFactory.createClassItem(
                 fileLocation = classToSnapshot.fileLocation,
@@ -461,13 +457,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         // Take a snapshot of the class, that should add a new class to the snapshot codebase.
         val visitor = NonFilteringDelegatingVisitor(this)
-        val originalPackage = originalClass.containingPackage()
 
         // Set up the state for taking a snapshot of a class.
         typeItemFactoryStack.push(globalTypeItemFactory)
-        visitPackage(originalPackage)
         originalClass.accept(visitor)
-        afterVisitPackage(originalPackage)
         typeItemFactoryStack.pop()
 
         // Find the newly added class.
