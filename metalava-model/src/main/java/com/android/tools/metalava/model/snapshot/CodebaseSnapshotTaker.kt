@@ -229,10 +229,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // Snapshot the super class type, if any.
         val snapshotSuperClassType =
             classToSnapshot.superClassType()?.let { superClassType ->
-                typeItemFactory.getSuperClassType(superClassType)
+                classTypeItemFactory.getSuperClassType(superClassType)
             }
         val snapshotInterfaceTypes =
-            classToSnapshot.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
+            classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
         // Create the class and register it in the codebase.
         itemFactory.createClassItem(
