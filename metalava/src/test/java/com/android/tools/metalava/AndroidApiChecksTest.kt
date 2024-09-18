@@ -149,6 +149,62 @@ class AndroidApiChecksTest : DriverTest() {
     }
 
     @Test
+    fun `Document Permissions ignore when permission is subset of a word`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android;
+
+                            public abstract class Manifest {
+                                public static final class permission {
+                                    public static final String PERMISSION = "android.permission.PERMISSION";
+                                }
+                            }
+                        """
+                    ),
+                    requiresPermissionSource,
+                    java(
+                        """
+                            package android.pkg;
+
+                            import android.Manifest;
+                            import android.annotation.RequiresPermission;
+
+                            public class PermissionTest {
+                                /**
+                                 * While this contains the name of the permission it is not actually
+                                 * referring to the permission ARG_PERMISSION.
+                                 */
+                                @RequiresPermission(Manifest.permission.PERMISSION)
+                                public void test0() {
+                                }
+
+                                /**
+                                 * While this contains the name of the permission it is not actually
+                                 * referring to the permission PERMISSION_ARG.
+                                 */
+                                @RequiresPermission(Manifest.permission.PERMISSION)
+                                public void test0() {
+                                }
+                            }
+                        """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
+            expectedFail = DefaultLintErrorMessage,
+            // TODO(b/367787970): Stop reporting issues when permission is just a subset of a word.
+            expectedIssues =
+                """
+                    src/android/pkg/PermissionTest.java:12: error: Method 'test0' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation [RequiresPermission]
+                    src/android/pkg/PermissionTest.java:20: error: Method 'test0' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation [RequiresPermission]
+                """,
+        )
+    }
+
+    @Test
     fun `Document Intent Actions`() {
         check(
             expectedFail = DefaultLintErrorMessage,
