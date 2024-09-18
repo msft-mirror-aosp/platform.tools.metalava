@@ -286,10 +286,11 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     }
 
     /** Push this [SnapshotTypeItemFactory] in scope before executing [body] and pop afterwards. */
-    private inline fun SnapshotTypeItemFactory.inScope(body: () -> Unit) {
+    private inline fun <T> SnapshotTypeItemFactory.inScope(body: () -> T): T {
         typeItemFactoryStack.push(this)
-        body()
+        val result = body()
         typeItemFactoryStack.pop()
+        return result
     }
 
     /** Return a factory that will create a snapshot of this list of [ParameterItem]s. */
@@ -342,10 +343,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         val (typeParameterList, constructorTypeItemFactory) =
             constructorToSnapshot.typeParameterList.snapshot(constructorToSnapshot.describe())
 
-        // Resolve any type parameters used in the constructor's parameter items within the scope of
-        // the constructor's SnapshotTypeItemFactory.
-        constructorTypeItemFactory.inScope {
-            val newConstructor =
+        val newConstructor =
+            // Resolve any type parameters used in the constructor's return type and parameter items
+            // within the scope of the constructor's SnapshotTypeItemFactory.
+            constructorTypeItemFactory.inScope {
                 itemFactory.createConstructorItem(
                     fileLocation = constructorToSnapshot.fileLocation,
                     itemLanguage = constructorToSnapshot.itemLanguage,
@@ -366,9 +367,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
                 )
+            }
 
-            containingClass.addConstructor(newConstructor)
-        }
+        containingClass.addConstructor(newConstructor)
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -380,10 +381,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         val (typeParameterList, methodTypeItemFactory) =
             methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
 
-        // Resolve any type parameters used in the method's parameter items within the scope of
-        // the method's SnapshotTypeItemFactory.
-        methodTypeItemFactory.inScope {
-            val newMethod =
+        val newMethod =
+            // Resolve any type parameters used in the method's return type and parameter items
+            // within the scope of the method's SnapshotTypeItemFactory.
+            methodTypeItemFactory.inScope {
                 itemFactory.createMethodItem(
                     fileLocation = methodToSnapshot.fileLocation,
                     itemLanguage = methodToSnapshot.itemLanguage,
@@ -401,9 +402,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     callableBodyFactory = methodToSnapshot.body::snapshot,
                     annotationDefault = methodToSnapshot.defaultValue(),
                 )
+            }
 
-            containingClass.addMethod(newMethod)
-        }
+        containingClass.addMethod(newMethod)
     }
 
     override fun visitField(field: FieldItem) {
