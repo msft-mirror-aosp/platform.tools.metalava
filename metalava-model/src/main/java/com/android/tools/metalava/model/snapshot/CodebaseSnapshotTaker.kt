@@ -103,13 +103,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     private val typeItemFactory
         get() = typeItemFactoryStack.last()
 
-    /**
-     * The current [ClassItem], that forms a stack through the [ClassItem.containingClass].
-     *
-     * Set (pushed on the stack) in [visitClass]. Reset (popped off the stack) in [afterVisitClass].
-     */
-    private var currentClass: DefaultClassItem? = null
-
     /** Take a snapshot of this [ModifierList] for [snapshotCodebase]. */
     private fun ModifierList.snapshot() = snapshot(snapshotCodebase)
 
@@ -242,11 +235,18 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }
     }
 
+    /** Get the [ClassItem] corresponding to this [ClassItem] in the [snapshotCodebase]. */
+    private fun ClassItem.getSnapshotClass(): DefaultClassItem =
+        snapshotCodebase.resolveClass(qualifiedName()) as DefaultClassItem
+
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
         // Get the snapshot of the containing package.
         val containingPackage = cls.containingPackage().getSnapshotPackage()
+
+        // Get the snapshot of the containing class, if any.
+        val containingClass = cls.containingClass()?.getSnapshotClass()
 
         // Create a TypeParameterList and SnapshotTypeItemFactory for the class.
         val (typeParameterList, classTypeItemFactory) =
@@ -263,29 +263,25 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         val snapshotInterfaceTypes =
             classToSnapshot.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
 
-        val containingClass = currentClass
-        val newClass =
-            itemFactory.createClassItem(
-                fileLocation = classToSnapshot.fileLocation,
-                itemLanguage = classToSnapshot.itemLanguage,
-                modifiers = classToSnapshot.modifiers.snapshot(),
-                documentationFactory = snapshotDocumentation(classToSnapshot, cls),
-                source = cls.sourceFile(),
-                classKind = classToSnapshot.classKind,
-                containingClass = containingClass,
-                containingPackage = containingPackage,
-                qualifiedName = classToSnapshot.qualifiedName(),
-                typeParameterList = typeParameterList,
-                origin = classToSnapshot.origin,
-                superClassType = snapshotSuperClassType,
-                interfaceTypes = snapshotInterfaceTypes,
-            )
-
-        currentClass = newClass
+        // Create the class and register it in the codebase.
+        itemFactory.createClassItem(
+            fileLocation = classToSnapshot.fileLocation,
+            itemLanguage = classToSnapshot.itemLanguage,
+            modifiers = classToSnapshot.modifiers.snapshot(),
+            documentationFactory = snapshotDocumentation(classToSnapshot, cls),
+            source = cls.sourceFile(),
+            classKind = classToSnapshot.classKind,
+            containingClass = containingClass,
+            containingPackage = containingPackage,
+            qualifiedName = classToSnapshot.qualifiedName(),
+            typeParameterList = typeParameterList,
+            origin = classToSnapshot.origin,
+            superClassType = snapshotSuperClassType,
+            interfaceTypes = snapshotInterfaceTypes,
+        )
     }
 
     override fun afterVisitClass(cls: ClassItem) {
-        currentClass = currentClass?.containingClass() as? DefaultClassItem
         typeItemFactoryStack.pop()
     }
 
@@ -340,6 +336,8 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     override fun visitConstructor(constructor: ConstructorItem) {
         val constructorToSnapshot = constructor.actualItemToSnapshot
 
+        val containingClass = constructor.containingClass().getSnapshotClass()
+
         // Create a TypeParameterList and SnapshotTypeItemFactory for the constructor.
         val (typeParameterList, constructorTypeItemFactory) =
             constructorToSnapshot.typeParameterList.snapshot(constructorToSnapshot.describe())
@@ -347,7 +345,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // Resolve any type parameters used in the constructor's parameter items within the scope of
         // the constructor's SnapshotTypeItemFactory.
         constructorTypeItemFactory.inScope {
-            val containingClass = currentClass!!
             val newConstructor =
                 itemFactory.createConstructorItem(
                     fileLocation = constructorToSnapshot.fileLocation,
@@ -377,6 +374,8 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     override fun visitMethod(method: MethodItem) {
         val methodToSnapshot = method.actualItemToSnapshot
 
+        val containingClass = method.containingClass().getSnapshotClass()
+
         // Create a TypeParameterList and SnapshotTypeItemFactory for the method.
         val (typeParameterList, methodTypeItemFactory) =
             methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
@@ -384,7 +383,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // Resolve any type parameters used in the method's parameter items within the scope of
         // the method's SnapshotTypeItemFactory.
         methodTypeItemFactory.inScope {
-            val containingClass = currentClass!!
             val newMethod =
                 itemFactory.createMethodItem(
                     fileLocation = methodToSnapshot.fileLocation,
@@ -411,7 +409,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     override fun visitField(field: FieldItem) {
         val fieldToSnapshot = field.actualItemToSnapshot
 
-        val containingClass = currentClass!!
+        val containingClass = field.containingClass().getSnapshotClass()
         val newField =
             itemFactory.createFieldItem(
                 fileLocation = fieldToSnapshot.fileLocation,
@@ -431,7 +429,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     override fun visitProperty(property: PropertyItem) {
         val propertyToSnapshot = property.actualItemToSnapshot
 
-        val containingClass = currentClass!!
+        val containingClass = property.containingClass().getSnapshotClass()
         val newProperty =
             itemFactory.createPropertyItem(
                 fileLocation = propertyToSnapshot.fileLocation,
@@ -446,11 +444,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         containingClass.addProperty(newProperty)
     }
 
-    /**
-     * Take a snapshot of [qualifiedName].
-     *
-     * TODO(b/353737744): Handle resolving nested classes.
-     */
+    /** Take a snapshot of [qualifiedName]. */
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
         // Resolve the class in the original codebase, if possible.
         val originalClass = originalCodebase.resolveClass(qualifiedName) ?: return null
