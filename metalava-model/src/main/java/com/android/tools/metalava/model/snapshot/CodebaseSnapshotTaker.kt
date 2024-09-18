@@ -412,17 +412,21 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         val containingClass = field.containingClass().getSnapshotClass()
         val newField =
-            itemFactory.createFieldItem(
-                fileLocation = fieldToSnapshot.fileLocation,
-                itemLanguage = fieldToSnapshot.itemLanguage,
-                modifiers = fieldToSnapshot.modifiers.snapshot(),
-                documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
-                name = fieldToSnapshot.name(),
-                containingClass = containingClass,
-                type = fieldToSnapshot.type().snapshot(),
-                isEnumConstant = fieldToSnapshot.isEnumConstant(),
-                fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
-            )
+            // Resolve any type parameters used in the field's type within the scope of the
+            // containing class's SnapshotTypeItemFactory.
+            typeItemFactory.inScope {
+                itemFactory.createFieldItem(
+                    fileLocation = fieldToSnapshot.fileLocation,
+                    itemLanguage = fieldToSnapshot.itemLanguage,
+                    modifiers = fieldToSnapshot.modifiers.snapshot(),
+                    documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
+                    name = fieldToSnapshot.name(),
+                    containingClass = containingClass,
+                    type = fieldToSnapshot.type().snapshot(),
+                    isEnumConstant = fieldToSnapshot.isEnumConstant(),
+                    fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
+                )
+            }
 
         containingClass.addField(newField)
     }
@@ -432,15 +436,19 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         val containingClass = property.containingClass().getSnapshotClass()
         val newProperty =
-            itemFactory.createPropertyItem(
-                fileLocation = propertyToSnapshot.fileLocation,
-                itemLanguage = propertyToSnapshot.itemLanguage,
-                modifiers = propertyToSnapshot.modifiers.snapshot(),
-                documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
-                name = propertyToSnapshot.name(),
-                containingClass = containingClass,
-                type = propertyToSnapshot.type().snapshot(),
-            )
+            // Resolve any type parameters used in the property's type within the scope of the
+            // containing class's SnapshotTypeItemFactory.
+            typeItemFactory.inScope {
+                itemFactory.createPropertyItem(
+                    fileLocation = propertyToSnapshot.fileLocation,
+                    itemLanguage = propertyToSnapshot.itemLanguage,
+                    modifiers = propertyToSnapshot.modifiers.snapshot(),
+                    documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
+                    name = propertyToSnapshot.name(),
+                    containingClass = containingClass,
+                    type = propertyToSnapshot.type().snapshot(),
+                )
+            }
 
         containingClass.addProperty(newProperty)
     }
