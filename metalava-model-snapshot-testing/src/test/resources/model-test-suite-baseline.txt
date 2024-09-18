@@ -59,6 +59,9 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k1]
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
+  Test resolve nested class sets correct containing class[psi,java,k1]
+  Test resolve nested class sets correct containing class[psi,java,k2]
+  Test resolve nested class sets correct containing class[turbine]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
