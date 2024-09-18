@@ -70,12 +70,12 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
      *
      * Initialized in [visitCodebase].
      */
-    private lateinit var codebase: DefaultCodebase
+    private lateinit var snapshotCodebase: DefaultCodebase
 
     override val itemFactory: DefaultItemFactory by
         lazy(LazyThreadSafetyMode.NONE) {
             DefaultItemFactory(
-                codebase,
+                snapshotCodebase,
                 // Snapshots currently only support java.
                 defaultItemLanguage = ItemLanguage.JAVA,
                 // Snapshots have already been separated by API surface variants, so they can use
@@ -92,7 +92,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     private lateinit var originalCodebase: Codebase
 
     private val globalTypeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { SnapshotTypeItemFactory(codebase) }
+        lazy(LazyThreadSafetyMode.NONE) { SnapshotTypeItemFactory(snapshotCodebase) }
 
     /**
      * Stack of [SnapshotTypeItemFactory] that contain information about the [TypeParameterItem]s
@@ -117,8 +117,8 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
      */
     private var currentClass: DefaultClassItem? = null
 
-    /** Take a snapshot of this [ModifierList] for [codebase]. */
-    private fun ModifierList.snapshot() = snapshot(codebase)
+    /** Take a snapshot of this [ModifierList] for [snapshotCodebase]. */
+    private fun ModifierList.snapshot() = snapshot(snapshotCodebase)
 
     /** General [TypeItem] specific snapshot. */
     private fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
@@ -148,7 +148,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 assembler = this,
             )
 
-        this.codebase = newCodebase
+        this.snapshotCodebase = newCodebase
         typeItemFactoryStack.push(globalTypeItemFactory)
     }
 
@@ -181,7 +181,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // such that a containing package is visited before any contained packages.
         val packageDocs = packageDocsForPackageItem(pkg)
         val packageName = pkg.qualifiedName()
-        val newPackage = codebase.findOrCreatePackage(packageName, packageDocs)
+        val newPackage = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
         currentPackage = newPackage
     }
 
@@ -203,7 +203,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 this,
                 { typeParameterItem ->
                     DefaultTypeParameterItem(
-                        codebase = codebase,
+                        codebase = snapshotCodebase,
                         itemLanguage = typeParameterItem.itemLanguage,
                         modifiers = typeParameterItem.modifiers.snapshot(),
                         name = typeParameterItem.name(),
@@ -471,7 +471,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         typeItemFactoryStack.pop()
 
         // Find the newly added class.
-        return codebase.findClass(originalClass.qualifiedName())!!
+        return snapshotCodebase.findClass(originalClass.qualifiedName())!!
     }
 
     companion object {
@@ -488,7 +488,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             codebase.accept(visitor)
 
             // Return the constructed snapshot.
-            return taker.codebase
+            return taker.snapshotCodebase
         }
     }
 }
