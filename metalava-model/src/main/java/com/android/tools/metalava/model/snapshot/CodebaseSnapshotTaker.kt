@@ -171,33 +171,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     }
 
     /**
-     * Create a snapshot of this [TypeParameterList] and an associated [SnapshotTypeItemFactory].
-     *
-     * @param description the description to use when failing to resolve a type parameter by name.
-     */
-    private fun TypeParameterList.snapshot(description: String) =
-        if (this == TypeParameterList.NONE) TypeParameterListAndFactory(this, typeItemFactory)
-        else
-            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-                typeItemFactory,
-                description,
-                this,
-                { typeParameterItem ->
-                    DefaultTypeParameterItem(
-                        codebase = snapshotCodebase,
-                        itemLanguage = typeParameterItem.itemLanguage,
-                        modifiers = typeParameterItem.modifiers.snapshot(),
-                        name = typeParameterItem.name(),
-                        isReified = typeParameterItem.isReified()
-                    )
-                },
-                // Create, set and return the [BoundsTypeItem] list.
-                { typeItemFactory, typeParameterItem ->
-                    typeParameterItem.typeBounds().map { typeItemFactory.getBoundsType(it) }
-                },
-            )
-
-    /**
      * Take a snapshot of the documentation.
      *
      * If necessary revert the documentation change that accompanied a deprecation change.
@@ -244,7 +217,11 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         // Create a TypeParameterList and SnapshotTypeItemFactory for the class.
         val (typeParameterList, classTypeItemFactory) =
-            classToSnapshot.typeParameterList.snapshot("class ${classToSnapshot.qualifiedName()}")
+            typeItemFactory.inScope {
+                classToSnapshot.typeParameterList.snapshot(
+                    "class ${classToSnapshot.qualifiedName()}"
+                )
+            }
 
         // Push on the stack before resolving any types just in case they refer to a type parameter.
         typeItemFactoryStack.push(classTypeItemFactory)
@@ -291,7 +268,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         // Create a TypeParameterList and SnapshotTypeItemFactory for the constructor.
         val (typeParameterList, constructorTypeItemFactory) =
-            constructorToSnapshot.typeParameterList.snapshot(constructorToSnapshot.describe())
+            typeItemFactory.inScope {
+                constructorToSnapshot.typeParameterList.snapshot(constructorToSnapshot.describe())
+            }
 
         val newConstructor =
             // Resolve any type parameters used in the constructor's return type and parameter items
@@ -329,7 +308,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         // Create a TypeParameterList and SnapshotTypeItemFactory for the method.
         val (typeParameterList, methodTypeItemFactory) =
-            methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
+            typeItemFactory.inScope {
+                methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
+            }
 
         val newMethod =
             // Resolve any type parameters used in the method's return type and parameter items
@@ -442,6 +423,34 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     internal inner class SnapshotTypeItemFactoryContext(
         val typeItemFactory: SnapshotTypeItemFactory
     ) {
+        /**
+         * Create a snapshot of this [TypeParameterList] and an associated
+         * [SnapshotTypeItemFactory].
+         *
+         * @param description the description to use when failing to resolve a type parameter by
+         *   name.
+         */
+        internal fun TypeParameterList.snapshot(description: String) =
+            if (this == TypeParameterList.NONE) TypeParameterListAndFactory(this, typeItemFactory)
+            else
+                DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+                    typeItemFactory,
+                    description,
+                    this,
+                    { typeParameterItem ->
+                        DefaultTypeParameterItem(
+                            codebase = snapshotCodebase,
+                            itemLanguage = typeParameterItem.itemLanguage,
+                            modifiers = typeParameterItem.modifiers.snapshot(),
+                            name = typeParameterItem.name(),
+                            isReified = typeParameterItem.isReified()
+                        )
+                    },
+                    // Create, set and return the [BoundsTypeItem] list.
+                    { typeItemFactory, typeParameterItem ->
+                        typeParameterItem.typeBounds().map { typeItemFactory.getBoundsType(it) }
+                    },
+                )
         /** General [TypeItem] specific snapshot. */
         internal fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
 
