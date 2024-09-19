@@ -366,8 +366,15 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         originalClass.accept(referenceVisitor)
 
         // Find the newly added class.
-        return snapshotCodebase.findClass(originalClass.qualifiedName())
-            ?: error("Could not snapshot class $qualifiedName")
+        val classItem =
+            snapshotCodebase.findClass(originalClass.qualifiedName())
+                ?: error("Could not snapshot class $qualifiedName")
+
+        // Any class that is created only when resolving references is by definition not part of the
+        // codebase and so will not be emitted.
+        classItem.emit = false
+
+        return classItem
     }
 
     companion object {
