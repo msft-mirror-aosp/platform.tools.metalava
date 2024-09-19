@@ -81,9 +81,12 @@ enum class ShowOrHide(private val show: Boolean?) {
      * come after [SHOW].
      */
     REVERT_UNSTABLE_API(show = null) {
-        /** If the [revertItem] is not null then reverting will still show this item. */
+        /**
+         * If the [revertItem] is not null and `emit = true`, i.e. is for the API surface currently
+         * being generated, then reverting will still show this item.
+         */
         override fun show(revertItem: Item?): Boolean {
-            return revertItem != null
+            return revertItem != null && revertItem.emit
         }
 
         /** If the [revertItem] is null then reverting will hide this item. */
@@ -181,6 +184,13 @@ data class Showability(
      * items will be part of an API surface that the API being generated extends.
      */
     fun showForStubsOnly() = forStubsOnly.show(revertItem)
+
+    /**
+     * Check whether the annotations on this item affect nested `Item`s.
+     *
+     * Returns `true` if they do, `false` if they do not affect nested `Item`s.
+     */
+    fun showRecursive() = recursive.show(revertItem) || forStubsOnly.show(revertItem)
 
     /**
      * Check whether the annotations on this item only affect the current `Item`.

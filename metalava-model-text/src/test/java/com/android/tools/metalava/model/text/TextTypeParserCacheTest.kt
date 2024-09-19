@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -32,7 +33,7 @@ import org.junit.Test
 class TextTypeParserCacheTest : BaseTextCodebaseTest() {
 
     private data class Context(
-        val codebase: TextCodebase,
+        val codebase: Codebase,
         val parser: TextTypeParser,
         val emptyScope: TypeParameterScope,
         val nonEmptyScope: TypeParameterScope,
@@ -50,16 +51,15 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val textCodebase = codebase as TextCodebase
             val parser =
                 TextTypeParser(
-                    textCodebase,
+                    codebase,
                     kotlinStyleNulls = false,
                 )
             val nonEmptyScope = TypeParameterScope.from(codebase.assertClass("test.pkg.Generic"))
             val context =
                 Context(
-                    textCodebase,
+                    codebase,
                     parser,
                     TypeParameterScope.empty,
                     nonEmptyScope,
@@ -73,16 +73,16 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         val androidTxtFiles =
             listOf("public", "system", "module-lib").map { surface -> getAndroidTxt(34, surface) }
         ApiFile.parseApi(
-            androidTxtFiles,
+            SignatureFile.fromFiles(androidTxtFiles),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 7315,
-                            typeCacheRequests = 190871,
+                            typeCacheRequests = 190875,
                             typeCacheSkip = 0,
-                            typeCacheHit = 179508,
-                            typeCacheSize = 11363,
+                            typeCacheHit = 179355,
+                            typeCacheSize = 11520,
                         )
                     )
             }
@@ -99,12 +99,12 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         }
 
         ApiFile.parseApi(
-            listOf(testFile),
+            listOf(SignatureFile.fromFile(testFile)),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
                         ApiFile.Stats(
-                            totalClasses = 328,
+                            totalClasses = 306,
                             typeCacheRequests = 7245,
                             typeCacheSkip = 0,
                             typeCacheHit = 6532,

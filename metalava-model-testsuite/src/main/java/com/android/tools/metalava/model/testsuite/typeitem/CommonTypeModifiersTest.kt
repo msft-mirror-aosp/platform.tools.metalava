@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
@@ -613,7 +614,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val bar = interfaces[0]
             assertThat(bar.qualifiedName).isEqualTo("test.pkg.Bar")
-            val annotations = bar.modifiers.annotations()
+            val annotations = bar.modifiers.annotations
             assertThat(annotations).hasSize(1)
             assertThat(annotations.single().qualifiedName).isEqualTo("test.pkg.A")
 
@@ -774,8 +775,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             // Check the modifiers contain one annotation, `@test.pkg.A(a=1, b=2, c=3)`
             val testModifiers = { modifiers: TypeModifiers ->
-                assertThat(modifiers.annotations()).hasSize(1)
-                val annotation = modifiers.annotations().single()
+                assertThat(modifiers.annotations).hasSize(1)
+                val annotation = modifiers.annotations.single()
                 assertThat(annotation.qualifiedName).isEqualTo("test.pkg.A")
                 val attributes = annotation.attributes
                 assertThat(attributes.toString()).isEqualTo("[a=1, b=2, c=3]")
@@ -814,41 +815,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 assertThat(string.isString()).isTrue()
                 testModifiers(string.modifiers)
             }
-        }
-    }
-
-    @Test
-    fun `Test adding and removing annotations`() {
-        // Not supported for text codebases due to caching
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Target;
-                    public class Foo {
-                        public @A @B String foo() {}
-                    }
-                    @Target(ElementType.TYPE_USE)
-                    public @interface A {}
-                    @Target(ElementType.TYPE_USE)
-                    public @interface B {}
-                """
-                    .trimIndent()
-            ),
-        ) {
-            val stringType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
-            assertThat(stringType.annotationNames()).containsExactly("test.pkg.A", "test.pkg.B")
-
-            // Remove annotation
-            val annotationA = stringType.modifiers.annotations().first()
-            assertThat(annotationA.qualifiedName).isEqualTo("test.pkg.A")
-            stringType.modifiers.removeAnnotation(annotationA)
-            assertThat(stringType.annotationNames()).containsExactly("test.pkg.B")
-
-            // Add annotation
-            stringType.modifiers.addAnnotation(annotationA)
-            assertThat(stringType.annotationNames()).containsExactly("test.pkg.B", "test.pkg.A")
         }
     }
 
@@ -970,7 +936,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // Platform nullability isn't possible from Kotlin
             if (inputFormat != InputFormat.KOTLIN) {
                 val platformString = fooClass.assertMethod("platformString", "").returnType()
-                assertThat(platformString.modifiers.nullability()).isEqualTo(PLATFORM)
+                assertThat(platformString.modifiers.nullability).isEqualTo(PLATFORM)
             }
 
             val nullableString = fooClass.assertMethod("nullableString", "").returnType()
@@ -1589,19 +1555,19 @@ class CommonTypeModifiersTest : BaseModelTest() {
             stringType.assertHasNullableNullability(annotations)
 
             // Set to platform
-            stringType.modifiers.setNullability(PLATFORM)
-            stringType.assertHasPlatformNullability()
+            val platformStringType = stringType.substitute(PLATFORM)
+            platformStringType.assertHasPlatformNullability()
             // The annotation was not removed
             if (annotations) {
-                assertThat(stringType.annotationNames().single()).endsWith("Nullable")
+                assertThat(platformStringType.annotationNames().single()).endsWith("Nullable")
             }
 
             // Set to non-null
-            stringType.modifiers.setNullability(NONNULL)
-            assertThat(stringType.modifiers.nullability()).isEqualTo(NONNULL)
+            val nonNullStringType = stringType.substitute(NONNULL)
+            assertThat(nonNullStringType.modifiers.nullability).isEqualTo(NONNULL)
             // The nullable annotation was not removed, a nonnull annotation was not added
             if (annotations) {
-                assertThat(stringType.annotationNames().single()).endsWith("Nullable")
+                assertThat(nonNullStringType.annotationNames().single()).endsWith("Nullable")
             }
         }
 
@@ -1825,7 +1791,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public @interface Foo {
-                        String[] value();
+                        String[] values();
                     }
                 """
                     .trimIndent()
@@ -1834,7 +1800,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg
                     annotation class Foo {
-                        fun value(): Array<String>
+                        fun values(): Array<String>
                     }
                 """
                     .trimIndent()
@@ -1847,7 +1813,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     // - kotlin-style-nulls=no
                     package test.pkg {
                       public @interface Foo {
-                        method public value(): String[]
+                        method public values(): String[];
                       }
                     }
                 """
@@ -2251,6 +2217,81 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // The super interface types must be non-null.
             val superInterfaceType = fooClass.interfaceTypes().single()
             superInterfaceType.assertHasNonNullNullability(expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of class type parameter from constructor`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<F> {
+                        public class Bar<B> {}
+                    }
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<F> {
+                        inner class Bar<B>
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<F> {
+                        ctor public Foo();
+                      }
+                      public class Foo.Bar<B> {
+                        ctor public Foo.Bar();
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo").constructors().single().returnType()
+            foo.assertHasNonNullNullability()
+            val f = foo.arguments.single()
+            f.assertHasUndefinedNullability()
+
+            val bar = codebase.assertClass("test.pkg.Foo.Bar").constructors().single().returnType()
+            bar.assertHasNonNullNullability()
+            val b = bar.arguments.single()
+            b.assertHasUndefinedNullability()
+            val outerFoo = bar.outerClassType!!
+            outerFoo.assertHasNonNullNullability()
+            val outerF = outerFoo.arguments.single()
+            outerF.assertHasUndefinedNullability()
+        }
+    }
+
+    @Test
+    fun `Test nullness of unbounded kotlin wildcard`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun foo(): List<*>
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
+            val wildcardType = (fooMethod.returnType() as ClassTypeItem).arguments.single()
+
+            wildcardType.assertHasUndefinedNullability()
+            wildcardType.assertWildcardItem {
+                extendsBound.assertNotNullTypeItem { assertHasNullableNullability() }
+            }
         }
     }
 }

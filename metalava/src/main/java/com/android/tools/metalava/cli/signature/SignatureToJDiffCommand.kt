@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -57,8 +58,10 @@ class SignatureToJDiffCommand :
         option(
                 help =
                     """
-                        Determines whether duplicate inherited methods should be stripped from the
-                        output or not.
+                        Determines whether types that are not defined within the input signature
+                        file should be stripped from the output or not. This does not include
+                        super class types, i.e. the `extends` attribute in the generated JDiff file.
+                        Historically, they have not been filtered.
                     """
                         .trimIndent()
             )
@@ -134,7 +137,7 @@ class SignatureToJDiffCommand :
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(apiFile)
+        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
 
         val apiVisitorConfig = ApiVisitor.Config()
         val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
@@ -149,7 +152,7 @@ class SignatureToJDiffCommand :
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(baseFile)
+                val baseApi = signatureFileLoader.load(SignatureFile.fromFile(baseFile))
                 computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
             } else {
                 signatureApi
@@ -159,14 +162,17 @@ class SignatureToJDiffCommand :
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
         createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
             JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName,
-                showUnannotated = false,
-                ApiVisitor.Config(),
-            )
+                    writer = printWriter,
+                    apiName = apiName,
+                )
+                .createFilteringVisitor(
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = signatureApi.preFiltered && !strip,
+                    showUnannotated = false,
+                    // Historically, the super class type has not been filtered.
+                    filterSuperClassType = false,
+                )
         }
     }
 }
@@ -196,9 +202,11 @@ private fun computeDelta(
     apiVisitorConfig: ApiVisitor.Config,
 ): Codebase {
     // Compute just the delta
-    return TextCodebaseBuilder.build(baseFile, signatureApi.annotationManager) {
-        description = "Delta between $baseApi and $signatureApi"
-
+    return TextCodebaseBuilder.build(
+        location = baseFile,
+        description = "Delta between $baseApi and $signatureApi",
+        annotationManager = signatureApi.annotationManager,
+    ) {
         CodebaseComparator(apiVisitorConfig = apiVisitorConfig)
             .compare(
                 object : ComparisonVisitor() {

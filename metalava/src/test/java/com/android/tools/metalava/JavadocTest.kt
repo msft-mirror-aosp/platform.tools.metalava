@@ -17,8 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
-import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -29,6 +30,8 @@ class JavadocTest : DriverTest() {
     private fun checkStubs(
         @Language("JAVA") source: String,
         warnings: String? = "",
+        expectedFail: String? = null,
+        apiLint: String? = null,
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
@@ -40,8 +43,10 @@ class JavadocTest : DriverTest() {
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
             stubFiles = arrayOf(java(source)),
+            expectedFail = expectedFail,
             expectedIssues = warnings,
             checkCompilation = true,
+            apiLint = apiLint,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
@@ -189,6 +194,18 @@ class JavadocTest : DriverTest() {
         checkStubs(
             extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
             docStubs = false,
+            // Enable API lint to make sure that some issues will be reported.
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            // These warnings prove that lint is enabled and will report MutableBareField and
+            // MissingNullability, issues that would be reported on test.hidden.Hidden if it was not
+            // hidden by the package-info.java.
+            warnings =
+                """
+                    src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
+                    src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -233,7 +250,7 @@ class JavadocTest : DriverTest() {
                     public class OtherClass {
                         public static final int FOCUS_INPUT = 1;
                         public static final int FOCUS_ACCESSIBILITY = 2;
-                        public int foo;
+                        public String foo;
                         public void bar(int baz, boolean bar);
                     }
                     """
@@ -246,9 +263,25 @@ class JavadocTest : DriverTest() {
                     public class LocalClass {
                     }
                     """
+                    ),
+                    // Make sure that hiding a package by using `@hide` in the Javadoc of a
+                    // package-info.java file still works when allowReadingComments = false.
+                    java(
+                        """
+                            /** @hide */
+                            package test.hidden;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.hidden;
+
+                            public class Hidden {
+                                public String bareMutableFieldMissingNullability;
+                            }
+                        """,
                     )
                 ),
-            warnings = "",
             source =
                 """
                     package test.pkg1;
@@ -680,13 +713,13 @@ class JavadocTest : DriverTest() {
                 public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
                 /**
-                 * Called if the task was canceled before it was completed.  Gives the class a chance
-                 * to clean up post-cancellation and to properly dispose of the result.
+                 * Sends the result of the load to the registered listener. Should only be called by subclasses.
                  *
-                 * @param data The value that was returned by {@link #loadInBackground}, or null
-                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
+                 * Must be called from the process's main thread.
+                 *
+                 * @param data the result of the load
                  */
-                public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
+                public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
                 /**
                  * Called on a worker thread to perform the actual load and to return
                  * the result of the load operation.
@@ -709,13 +742,13 @@ class JavadocTest : DriverTest() {
                  */
                 public abstract java.lang.Object loadInBackground();
                 /**
-                 * Sends the result of the load to the registered listener. Should only be called by subclasses.
+                 * Called if the task was canceled before it was completed.  Gives the class a chance
+                 * to clean up post-cancellation and to properly dispose of the result.
                  *
-                 * Must be called from the process's main thread.
-                 *
-                 * @param data the result of the load
+                 * @param data The value that was returned by {@link #loadInBackground}, or null
+                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
                  */
-                public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
+                public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
                 }
                 """
         )
