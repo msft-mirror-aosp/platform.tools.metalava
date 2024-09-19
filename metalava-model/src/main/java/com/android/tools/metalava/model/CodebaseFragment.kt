@@ -27,7 +27,8 @@ import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
  *   The [ItemVisitor] is used to determine which parts of [codebase] are considered to be defined
  *   within and emitted from this fragment.
  */
-class CodebaseFragment(
+class CodebaseFragment
+private constructor(
     val codebase: Codebase,
     private val factory: (DelegatedVisitor) -> ItemVisitor,
 ) {
@@ -60,5 +61,19 @@ class CodebaseFragment(
     fun accept(delegate: DelegatedVisitor) {
         val visitor = createVisitor(delegate)
         codebase.accept(visitor)
+    }
+
+    companion object {
+        /**
+         * Create a [CodebaseFragment] from an existing [Codebase].
+         *
+         * @param factory a factory for creating an [ItemVisitor] that delegates to a
+         *   [DelegatedVisitor]. The [ItemVisitor] is used to determine which parts of [codebase]
+         *   are considered to be defined within and emitted from this fragment.
+         */
+        fun create(
+            codebase: Codebase,
+            factory: (DelegatedVisitor) -> ItemVisitor,
+        ) = CodebaseFragment(codebase, factory)
     }
 }

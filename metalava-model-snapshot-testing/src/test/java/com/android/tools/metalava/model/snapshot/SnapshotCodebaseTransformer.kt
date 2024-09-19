@@ -25,7 +25,7 @@ import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 class SnapshotCodebaseTransformer : CodebaseTransformer {
     override fun transform(codebase: Codebase): Codebase {
         val fragment =
-            CodebaseFragment(
+            CodebaseFragment.create(
                     codebase,
                     // Emit only those Items from the original which have `emit=true`.
                     ::EmittableDelegatingVisitor,
