@@ -69,6 +69,10 @@ class TextCodebaseBuilder private constructor(private val assembler: TextCodebas
     fun addClass(cls: ClassItem) {
         val pkg = getOrAddPackage(cls.containingPackage().qualifiedName())
         pkg.addTopClass(cls)
+        // If this class is emittable then make sure its package is too.
+        if (cls.emit) {
+            pkg.emit = true
+        }
     }
 
     fun addConstructor(ctor: ConstructorItem) {
