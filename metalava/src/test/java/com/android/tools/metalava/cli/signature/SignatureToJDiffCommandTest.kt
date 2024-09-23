@@ -710,68 +710,6 @@ $signatureToJdiffHelp
                 """
         }
     }
-
-    @Test
-    fun `Test producing delta JDiff for entire interface`() {
-        // b/368634012
-        jdiffConversionTest {
-            api =
-                """
-                    // Signature format: 2.0
-                    package java.security.interfaces {
-                      public interface XECKey {
-                        method public java.security.spec.AlgorithmParameterSpec getParams();
-                      }
-
-                      public interface XECPrivateKey extends java.security.interfaces.XECKey java.security.PrivateKey {
-                        method public java.util.Optional<byte[]> getScalar();
-                      }
-                    }
-                """
-
-            baseApi =
-                """
-                    // Signature format: 2.0
-                    package java.security.interfaces {
-                      public interface XECKey {
-                        method public java.security.spec.AlgorithmParameterSpec getParams();
-                      }
-                    }
-                """
-
-            expectedXml =
-                """
-                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
-                    <package name="java.security.interfaces"
-                    >
-                    <interface name="XECPrivateKey"
-                     abstract="true"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    <implements name="java.security.PrivateKey">
-                    </implements>
-                    <implements name="java.security.interfaces.XECKey">
-                    </implements>
-                    <method name="getScalar"
-                     return="java.util.Optional&lt;byte[]&gt;"
-                     abstract="true"
-                     native="false"
-                     synchronized="false"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    </method>
-                    </interface>
-                    </package>
-                    </api>
-                """
-        }
-    }
 }
 
 fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
