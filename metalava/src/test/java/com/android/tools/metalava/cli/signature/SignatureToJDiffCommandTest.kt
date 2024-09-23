@@ -739,9 +739,30 @@ $signatureToJdiffHelp
                 """
 
             expectedXml =
-                // TODO(b/368634012): This should not be empty.
                 """
                     <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="New"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="bar"
+                     return="void"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
                     </api>
                 """
         }
@@ -775,9 +796,30 @@ $signatureToJdiffHelp
                 """
 
             expectedXml =
-                // TODO(b/368634012): This should not be empty.
                 """
                     <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="Existing.New"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="bar"
+                     return="void"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
                     </api>
                 """
         }
