@@ -710,6 +710,78 @@ $signatureToJdiffHelp
                 """
         }
     }
+
+    @Test
+    fun `Test for adding new interface`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+
+                      public interface New {
+                        method public void bar();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+                    }
+                """
+
+            expectedXml =
+                // TODO(b/368634012): This should not be empty.
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test for adding new nested interface`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+
+                      public interface Existing.New {
+                        method public void bar();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+                    }
+                """
+
+            expectedXml =
+                // TODO(b/368634012): This should not be empty.
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    </api>
+                """
+        }
+    }
 }
 
 fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
