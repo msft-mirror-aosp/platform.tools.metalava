@@ -22,6 +22,10 @@ import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 /**
  * Encapsulates [codebase] to visit and a [factory] that if given a [DelegatedVisitor] will return
  * an [ItemVisitor] that can be used to visit some fragment of the [codebase].
+ *
+ * @param factory a factory for creating an [ItemVisitor] that delegates to a [DelegatedVisitor].
+ *   The [ItemVisitor] is used to determine which parts of [codebase] are considered to be defined
+ *   within and emitted from this fragment.
  */
 class CodebaseFragment(
     val codebase: Codebase,
@@ -33,9 +37,22 @@ class CodebaseFragment(
      */
     fun createVisitor(delegate: DelegatedVisitor) = factory(delegate)
 
-    /** Take a snapshot of this [CodebaseFragment] and return a new [CodebaseFragment]. */
-    fun snapshotIncludingRevertedItems(): CodebaseFragment {
-        val snapshot = CodebaseSnapshotTaker.takeSnapshot(codebase, factory)
+    /**
+     * Take a snapshot of this [CodebaseFragment] and return a new [CodebaseFragment].
+     *
+     * @param referenceVisitorFactory a factory for creating an [ItemVisitor] that delegates to a
+     *   [DelegatedVisitor]. The [ItemVisitor] is used to determine which parts of [codebase] will
+     *   be referenced from within but not emitted from the snapshot.
+     */
+    fun snapshotIncludingRevertedItems(
+        referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
+    ): CodebaseFragment {
+        val snapshot =
+            CodebaseSnapshotTaker.takeSnapshot(
+                codebase,
+                definitionVisitorFactory = factory,
+                referenceVisitorFactory = referenceVisitorFactory
+            )
         return CodebaseFragment(snapshot, ::EmittableDelegatingVisitor)
     }
 
