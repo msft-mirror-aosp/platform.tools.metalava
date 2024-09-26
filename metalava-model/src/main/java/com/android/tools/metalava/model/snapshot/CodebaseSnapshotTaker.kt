@@ -365,7 +365,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         /** Take a snapshot of [codebase]. */
         fun takeSnapshot(
             codebase: Codebase,
-            visitorFactory: (DelegatedVisitor) -> ItemVisitor = ::NonEmittableDelegatingVisitor,
+            visitorFactory: (DelegatedVisitor) -> ItemVisitor = ::EmittableDelegatingVisitor,
         ): Codebase {
             // Create a snapshot taker that will construct the snapshot.
             val taker = CodebaseSnapshotTaker()
