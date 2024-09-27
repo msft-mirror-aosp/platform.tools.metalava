@@ -17,7 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
-import com.android.tools.metalava.ANDROID_FLAGGED_API
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.KotlinInteropChecks
 import com.android.tools.metalava.lint.ResourceType.AAPT
@@ -51,6 +50,7 @@ import com.android.tools.metalava.lint.ResourceType.STYLE_ITEM
 import com.android.tools.metalava.lint.ResourceType.TRANSITION
 import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem

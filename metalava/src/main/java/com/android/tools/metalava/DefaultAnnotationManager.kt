@@ -22,6 +22,11 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_NONNULL
+import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
@@ -41,6 +46,8 @@ import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.RECENTLY_NONNULL
+import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
