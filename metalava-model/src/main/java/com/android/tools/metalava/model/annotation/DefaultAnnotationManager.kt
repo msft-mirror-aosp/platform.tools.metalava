@@ -337,10 +337,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         else ANNOTATION_EXTERNAL_ONLY
 
     /** The applicable targets for this annotation */
-    override fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget> {
+    override fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> {
         val qualifiedName = annotation.qualifiedName
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
@@ -481,7 +478,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
         // See if the annotation is pointing to an annotation class that is part of the API; if
         // not, skip it.
-        val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
+        val cls = annotation.resolve() ?: return NO_ANNOTATION_TARGETS
         if (!config.apiPredicate.test(cls)) {
             if (config.typedefMode != TypedefMode.NONE) {
                 if (cls.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)) {
