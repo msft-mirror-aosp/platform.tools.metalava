@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
@@ -182,6 +183,7 @@ abstract class BaseModelTest() :
                         mainSourceDir = mainSourceDir,
                         additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
+                        annotationManager = noOpAnnotationManager,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
                     val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
