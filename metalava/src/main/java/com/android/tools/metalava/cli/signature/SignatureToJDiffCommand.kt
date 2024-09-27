@@ -19,7 +19,6 @@ package com.android.tools.metalava.cli.signature
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.DefaultAnnotationManager
 import com.android.tools.metalava.JDiffXmlWriter
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
@@ -35,6 +34,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder

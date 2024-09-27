@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.annotation
 
-import com.android.tools.metalava.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -52,6 +51,7 @@ import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
