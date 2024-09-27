@@ -39,6 +39,7 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[psi,java,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation targets - on source path[turbine]
   annotation toSource() with char values[text]
   annotation toSource() with class values[text]
   annotation toSource() with compound expression values[text]
