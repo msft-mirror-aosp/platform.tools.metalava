@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
@@ -151,6 +152,12 @@ abstract class BaseModelTest() :
         }
     }
 
+    /** Additional properties that affect the behavior of the test. */
+    data class TestFixture(
+        /** The [AnnotationManager] to use when creating a [Codebase]. */
+        val annotationManager: AnnotationManager = noOpAnnotationManager,
+    )
+
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
      * [Codebase].
@@ -160,7 +167,8 @@ abstract class BaseModelTest() :
      */
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
-        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
+        commonSourcesByInputFormat: Map<InputFormat, InputSet>,
+        testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
@@ -183,7 +191,7 @@ abstract class BaseModelTest() :
                         mainSourceDir = mainSourceDir,
                         additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
-                        annotationManager = noOpAnnotationManager,
+                        annotationManager = testFixture.annotationManager,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
                     val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
@@ -215,11 +223,13 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
             commonSources = testFilesToInputSets(commonSources),
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -233,11 +243,13 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = sources,
             commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -251,11 +263,13 @@ abstract class BaseModelTest() :
     private fun runCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
+        testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -270,12 +284,14 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
             commonSourcesByInputFormat =
                 testFilesToInputSets(commonSources).associateBy { it.inputFormat },
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -289,11 +305,13 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = sources,
             commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -307,11 +325,13 @@ abstract class BaseModelTest() :
     private fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet>,
+        testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
+            testFixture = testFixture,
             test = test,
         )
     }
