@@ -587,6 +587,7 @@ private fun ActionContext.loadFromSources(
             commonSourceSet,
             "Codebase loaded from source folders",
             classPath = options.classpath,
+            apiPackages = options.apiPackages,
         )
 
     progressTracker.progress("Analyzing API: ")

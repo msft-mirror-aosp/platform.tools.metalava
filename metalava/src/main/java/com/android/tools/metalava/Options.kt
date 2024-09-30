@@ -361,7 +361,7 @@ class Options(
     var showUnannotated = false
 
     /** Packages to include in the API (if null, include all) */
-    private val apiPackages: PackageFilter? by sourceOptions::apiPackages
+    val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
     /**
      * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
