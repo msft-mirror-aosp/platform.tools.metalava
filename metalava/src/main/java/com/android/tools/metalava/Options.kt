@@ -360,17 +360,17 @@ class Options(
      */
     var showUnannotated = false
 
-    /** Packages to include (if null, include all) */
-    private val stubPackages: PackageFilter? by sourceOptions::apiPackages
+    /** Packages to include in the API (if null, include all) */
+    private val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
     /**
      * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
-     * [Item]s that do not match the [stubPackages] filter. If no [stubPackages] filter is provided
+     * [Item]s that do not match the [apiPackages] filter. If no [apiPackages] filter is provided
      * then this will be `null`.
      */
     private val reportableFilter: Predicate<Reportable>? by
         lazy(LazyThreadSafetyMode.NONE) {
-            stubPackages?.let { packageFilter ->
+            apiPackages?.let { packageFilter ->
                 Predicate { reportable ->
                     // If we are only emitting some packages (--stub-packages), don't report
                     // issues from other packages
@@ -445,7 +445,7 @@ class Options(
     /** The configuration options for the [ApiVisitor] class. */
     val apiVisitorConfig by lazy {
         ApiVisitor.Config(
-            packageFilter = stubPackages,
+            packageFilter = apiPackages,
             apiPredicateConfig = apiPredicateConfig,
         )
     }
