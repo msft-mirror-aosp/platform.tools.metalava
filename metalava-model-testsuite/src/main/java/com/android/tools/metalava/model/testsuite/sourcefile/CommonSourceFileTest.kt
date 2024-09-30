@@ -146,11 +146,6 @@ class CommonSourceFileTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Foo")
             val sourceFile = classItem.sourceFile()!!
 
-            // Resolve the java.util.List class before getting the imports but do not resolve the
-            // java.util.Set class. This will show the behavior of the getImports(...) methods are
-            // affected by whether the class has been resolved or not.
-            codebase.assertResolvedClass("java.util.List")
-
             // Get the imports before resolving java.util.Set to see how the getImports(...) methods
             // behave with unresolved classes.
             val allImports = sourceFile.getImports()
@@ -159,10 +154,15 @@ class CommonSourceFileTest : BaseModelTest() {
             val listClassItem = codebase.assertResolvedClass("java.util.List")
             val listClassImport = Import(listClassItem)
 
+            val setClassItem = codebase.assertResolvedClass("java.util.Set")
+            val setClassImport = Import(setClassItem)
+
             // Makes sure that classes from the classpath are included in the imports.
-            // TODO(b/370463331): java.util.Set is missing from the imports because it was not
-            //  resolved before calling getImports(...).
-            assertEquals(setOf(listClassImport), allImports, message = "unfiltered imports")
+            assertEquals(
+                setOf(listClassImport, setClassImport),
+                allImports,
+                message = "unfiltered imports"
+            )
         }
     }
 
