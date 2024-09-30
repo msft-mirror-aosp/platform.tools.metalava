@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.PackageItem
 import java.io.File
 import java.util.function.Predicate
 

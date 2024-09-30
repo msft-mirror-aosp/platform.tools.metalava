@@ -17,7 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
-import com.android.tools.metalava.PackageFilter
+import com.android.tools.metalava.model.PackageFilter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
