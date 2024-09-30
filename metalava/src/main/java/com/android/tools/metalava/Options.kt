@@ -187,7 +187,6 @@ const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -359,7 +358,7 @@ class Options(
     var showUnannotated = false
 
     /** Packages to include (if null, include all) */
-    private var stubPackages: PackageFilter? = null
+    private val stubPackages: PackageFilter? by sourceOptions::apiPackages
 
     /**
      * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
@@ -802,17 +801,6 @@ class Options(
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_STUB_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    val filter =
-                        stubPackages
-                            ?: run {
-                                val newFilter = PackageFilter()
-                                stubPackages = newFilter
-                                newFilter
-                            }
-                    filter.addPackages(packages)
-                }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
@@ -1281,12 +1269,6 @@ object OptionsHelp {
                 "Use the given API level",
                 "$ARG_JDK_HOME <dir>",
                 "If set, add the Java APIs from the given JDK to the classpath",
-                "$ARG_STUB_PACKAGES <package-list>",
-                "List of packages (separated by ${File.pathSeparator}) which will " +
-                    "be used to filter out irrelevant code. If specified, only code in these packages will be " +
-                    "included in signature files, stubs, etc. (This is not limited to just the stubs; the name " +
-                    "is historical.) You can also use \".*\" at the end to match subpackages, so `foo.*` will " +
-                    "match both `foo` and `foo.bar`.",
                 "$ARG_SUBTRACT_API <api file>",
                 "Subtracts the API in the given signature or jar file from the " +
                     "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +

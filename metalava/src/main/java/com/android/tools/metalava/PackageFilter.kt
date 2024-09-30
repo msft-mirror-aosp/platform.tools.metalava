@@ -46,7 +46,7 @@ class PackageFilter {
         return false
     }
 
-    fun addPackages(path: String) {
+    internal fun addPackages(path: String) {
         for (arg in path.split(File.pathSeparatorChar)) {
             val treatAsPositiveMatch = !arg.startsWith("-")
             val pkg = arg.removePrefix("-").removePrefix("+")
