@@ -445,7 +445,6 @@ class Options(
     /** The configuration options for the [ApiVisitor] class. */
     val apiVisitorConfig by lazy {
         ApiVisitor.Config(
-            packageFilter = apiPackages,
             apiPredicateConfig = apiPredicateConfig,
         )
     }

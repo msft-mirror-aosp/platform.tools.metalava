@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import java.util.function.Predicate
@@ -58,18 +57,14 @@ open class ApiVisitor(
     val showUnannotated: Boolean = true,
 
     /** Configuration that may come from the command line. */
-    config: Config,
+    @Suppress("UNUSED_PARAMETER") config: Config,
 ) : BaseItemVisitor(preserveClassNesting) {
-
-    private val packageFilter: PackageFilter? = config.packageFilter
 
     /**
      * Contains configuration for [ApiVisitor] that can, or at least could, come from command line
      * options.
      */
     data class Config(
-        val packageFilter: PackageFilter? = null,
-
         /** Configuration for any [ApiPredicate] instances this needs to create. */
         val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
     )
@@ -181,9 +176,6 @@ open class ApiVisitor(
     /** @return Whether this class is generally one that we want to recurse into */
     open fun include(cls: ClassItem): Boolean {
         if (skip(cls)) {
-            return false
-        }
-        if (packageFilter != null && !packageFilter.matches(cls.containingPackage())) {
             return false
         }
 
