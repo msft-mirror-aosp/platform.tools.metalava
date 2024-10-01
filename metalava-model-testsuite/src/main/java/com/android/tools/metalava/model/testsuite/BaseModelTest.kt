@@ -21,7 +21,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
@@ -155,7 +155,7 @@ abstract class BaseModelTest() :
     /** Additional properties that affect the behavior of the test. */
     data class TestFixture(
         /** The [AnnotationManager] to use when creating a [Codebase]. */
-        val annotationManager: AnnotationManager = noOpAnnotationManager,
+        val annotationManager: AnnotationManager = DefaultAnnotationManager(),
     )
 
     /**
