@@ -81,7 +81,6 @@ class SignatureToDexCommand :
                         filterEmit = apiEmit,
                         filterReference = apiReference,
                         preFiltered = signatureApi.preFiltered,
-                        config = apiVisitorConfig,
                     )
                 }
         }

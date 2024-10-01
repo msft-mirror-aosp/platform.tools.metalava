@@ -290,7 +290,6 @@ fun createFilteringVisitorForStubs(
         filterEmit = filterEmit,
         filterReference = filterReference,
         preFiltered = preFiltered,
-        config = apiVisitorConfig,
     )
 }
 

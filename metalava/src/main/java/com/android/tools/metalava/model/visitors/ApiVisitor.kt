@@ -55,9 +55,6 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     val showUnannotated: Boolean = true,
-
-    /** Configuration that may come from the command line. */
-    @Suppress("UNUSED_PARAMETER") config: Config,
 ) : BaseItemVisitor(preserveClassNesting) {
 
     /**
@@ -123,7 +120,6 @@ open class ApiVisitor(
                     ignoreRemoved = remove,
                     config = config.apiPredicateConfig.copy(ignoreShown = true),
                 ),
-        config = config,
     )
 
     /**

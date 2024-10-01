@@ -207,7 +207,7 @@ private fun computeDelta(
         description = "Delta between $baseApi and $signatureApi",
         annotationManager = signatureApi.annotationManager,
     ) {
-        CodebaseComparator(apiVisitorConfig = apiVisitorConfig)
+        CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
                     override fun added(new: PackageItem) {

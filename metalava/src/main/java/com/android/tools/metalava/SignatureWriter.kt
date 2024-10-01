@@ -395,6 +395,5 @@ fun createFilteringVisitorForSignatures(
         filterReference = filterReference,
         preFiltered = preFiltered,
         showUnannotated = showUnannotated,
-        config = apiVisitorConfig,
     )
 }

@@ -352,7 +352,6 @@ internal fun processFlags(
                     filterEmit = apiEmit,
                     filterReference = apiReferenceIgnoreShown,
                     preFiltered = codebase.preFiltered,
-                    config = options.apiVisitorConfig,
                 )
             }
         }
@@ -427,9 +426,7 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator(
-            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-        )
+    CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
                 override fun compare(old: ClassItem, new: ClassItem) {
