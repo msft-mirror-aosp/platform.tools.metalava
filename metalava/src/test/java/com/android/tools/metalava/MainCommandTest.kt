@@ -18,9 +18,12 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.common.COMMON_BASELINE_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
 import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
+import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
@@ -46,6 +49,9 @@ Usage: metalava main [options] [flags]...
   The default sub-command that is run if no sub-command is specified.
 
 Options:
+  --config-file <file>                       A configuration file that can be consumed by Metalava. This can be
+                                             specified multiple times in which case later config files will
+                                             override/merge with earlier ones.
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
                                              files. Any classes that cannot be found will be treated as empty.",
@@ -59,6 +65,8 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
+  --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
+                                             annotated APIs as under migration.
   --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
                                              not yet released SDK extensions.
   --typedefs-in-signatures [none|ref|inline]
@@ -72,7 +80,17 @@ Options:
                                              inline - will include the constants themselves into each usage site
   -h, --help                                 Show this message and exit
 
+$SOURCE_OPTIONS_HELP
+
 $ISSUE_REPORTING_OPTIONS_HELP
+
+$COMMON_BASELINE_OPTIONS_HELP
+
+$GENERAL_REPORTING_OPTIONS_HELP
+
+$API_SELECTION_OPTIONS_HELP
+
+$API_LINT_OPTIONS_HELP
 
 $COMPATIBILITY_CHECK_OPTIONS_HELP
 
@@ -100,16 +118,11 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---source-path <paths>
-                                             One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy).
---common-source-path <paths>
-                                             One or more directories (separated by `:`) containing common source files
-                                             (within a package hierarchy) where platform-agnostic `expect` declarations
-                                             as well as common business logic are defined.
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
+--project <xmlfile>
+                                             Project description written in XML according to Lint's project model.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -134,22 +147,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---input-api-jar <file>
-                                             A .jar file to read APIs from directly
---hide-package <package>
-                                             Remove the given packages from the API even if they have not been marked
-                                             with @hide
---show-annotation <annotation class>
-                                             Unhide any hidden elements that are also annotated with the given
-                                             annotation
---show-single-annotation <annotation>
-                                             Like --show-annotation, but does not apply to members; these must also be
-                                             explicitly annotated
---show-for-stub-purposes-annotation <annotation class>
-                                             Like --show-annotation, but elements annotated with it are assumed to be
-                                             "implicitly" included in the API surface, and they'll be included in
-                                             certain kinds of output such as stubs, but not in others, such as the
-                                             signature file and API lint
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
 --show-unannotated
@@ -164,12 +161,6 @@ API sources:
                                              Use the given API level
 --jdk-home <dir>
                                              If set, add the Java APIs from the given JDK to the classpath
---stub-packages <package-list>
-                                             List of packages (separated by :) which will be used to filter out
-                                             irrelevant code. If specified, only code in these packages will be included
-                                             in signature files, stubs, etc. (This is not limited to just the stubs; the
-                                             name is historical.) You can also use ".*" at the end to match subpackages,
-                                             so `foo.*` will match both `foo` and `foo.bar`.
 --subtract-api <api file>
                                              Subtracts the API in the given signature or jar file from the current API
                                              being emitted via --api, --stubs, --doc-stubs, etc. Note that the
@@ -182,8 +173,6 @@ API sources:
 
 
 Extracting Signature Files:
---dex-api <file>
-                                             Generate a DEX signature descriptor file listing the APIs
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
@@ -216,53 +205,6 @@ Generating Stubs:
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
                                              Documentation stubs (--doc-stubs) are not affected.)
-
-
-Diffs and Checks:
---api-lint [api file]
-                                             Check API for Android API best practices. If a signature file is provided,
-                                             only the APIs that are new since the API will be checked.
---migrate-nullness <api file>
-                                             Compare nullness information with the previous stable API and mark newly
-                                             annotated APIs as under migration.
---warnings-as-errors
-                                             Promote all warnings to errors
---lints-as-errors
-                                             Promote all API lint warnings to errors
---report-even-if-suppressed <file>
-                                             Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide' or '--hide-category')
---baseline <file>
-                                             Filter out any errors already reported in the given baseline file, or
-                                             create if it does not already exist
---update-baseline [file]
-                                             Rewrite the existing baseline file with the current set of warnings. If
-                                             some warnings have been fixed, this will delete them from the baseline
-                                             files. If a file is provided, the updated baseline is written to the given
-                                             file; otherwise the original source baseline file is updated.
---baseline:api-lint <file> --update-baseline:api-lint [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API lint issues performed by --api-lint.
---baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API compatibility issues performed by
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
---pass-baseline-updates
-                                             Normally, encountering error will fail the build, even when updating
-                                             baselines. This flag allows you to tell metalava to continue without
-                                             errors, such that all the baselines in the source tree can be updated in
-                                             one go.
---delete-empty-baselines
-                                             Whether to delete baseline files if they are updated and there is nothing
-                                             to include.
---error-message:api-lint <message>
-                                             If set, metalava shows it when errors are detected in --api-lint.
-
-
-JDiff:
---api-xml <file>
-                                             Like --api, but emits the API in the JDiff XML format instead
 
 
 Extracting Annotations:

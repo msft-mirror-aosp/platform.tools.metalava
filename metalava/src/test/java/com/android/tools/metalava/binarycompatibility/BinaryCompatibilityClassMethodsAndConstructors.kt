@@ -30,7 +30,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void baz(Int);
                   }
                 }
@@ -38,7 +38,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -56,7 +56,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar();
                   }
                 }
@@ -64,7 +64,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -82,7 +82,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Float);
                   }
                 }
@@ -90,7 +90,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -104,11 +104,12 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             expectedIssues =
                 """
                 load-api.txt:4: error: Method test.pkg.Foo.bar has changed return type from void to java.lang.Int [ChangedType]
+                load-api.txt:4: error: Attempted to remove nullability from java.lang.Int (was NONNULL) in method test.pkg.Foo.bar(Int) [InvalidNullConversion]
             """,
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public Int bar(Int);
                   }
                 }
@@ -116,7 +117,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -134,7 +135,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int) throws java.lang.Throwable;
                   }
                 }
@@ -142,7 +143,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -160,7 +161,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -168,7 +169,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int) throws java.lang.Throwable;
                   }
                 }
@@ -182,7 +183,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int) throws java.lang.Exception, java.lang.Throwable;
                   }
                 }
@@ -190,7 +191,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int) throws java.lang.Throwable, java.lang.Exception;
                   }
                 }
@@ -211,7 +212,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar(Int);
                   }
                 }
@@ -219,7 +220,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -233,7 +234,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -241,7 +242,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar(Int);
                   }
                 }
@@ -281,7 +282,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  abstract class Foo {
+                  public abstract class Foo {
                     method abstract public void bar(Int);
                   }
                 }
@@ -289,7 +290,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  abstract class Foo {
+                  public abstract class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -307,7 +308,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -315,7 +316,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method final public void bar(Int);
                   }
                 }
@@ -355,7 +356,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     ctor public Foo();
                     method final public void bar(Int);
                   }
@@ -364,7 +365,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     ctor public Foo();
                     method public void bar(Int);
                   }
@@ -383,7 +384,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -391,7 +392,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method static public void bar(Int);
                   }
                 }
@@ -409,7 +410,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method static public void bar(Int);
                   }
                 }
@@ -417,7 +418,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -431,7 +432,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method native public void bar(Int);
                   }
                 }
@@ -439,7 +440,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -453,7 +454,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -461,7 +462,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method native public void bar(Int);
                   }
                 }
@@ -475,7 +476,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -483,7 +484,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method synchronized public void bar(Int);
                   }
                 }
@@ -497,7 +498,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method synchronized public void bar(Int);
                   }
                 }
@@ -505,7 +506,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -521,14 +522,14 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T, K> void bar();
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar();
                   }
                 }
@@ -540,14 +541,14 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(Int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
@@ -559,14 +560,14 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(Int);
                   }
                 }
@@ -578,14 +579,14 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T, K> void bar(Int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <K, T> void bar(Int);
                   }
                 }
@@ -597,14 +598,14 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(Int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <K> void bar(Int);
                   }
                 }
@@ -616,14 +617,14 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T extends Foo> void bar(Int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(Int);
                   }
                 }
@@ -638,7 +639,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                    class Foo {
+                    public class Foo {
                         method public <T> void bar(T...);
                     }
                 }
@@ -646,7 +647,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                    class Foo {
+                    public class Foo {
                         method public <T> void bar(T[]);
                     }
                 }
@@ -664,7 +665,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                    class Foo {
+                    public class Foo {
                         method public <T> void bar(T[]);
                     }
                 }
@@ -672,7 +673,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                    class Foo {
+                    public class Foo {
                         method public <T> void bar(T...);
                     }
                 }

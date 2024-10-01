@@ -21,13 +21,13 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 
 /**
- * Base class for text test classes that parse signature files to create a [TextCodebase] that can
- * then be introspected.
+ * Base class for text test classes that parse signature files to create a [Codebase] that can then
+ * be introspected.
  */
 abstract class BaseTextCodebaseTest : BaseModelTest() {
 
     /** Run a single signature test with a set of signature files. */
-    fun runSignatureTest(vararg sources: TestFile, test: CodebaseContext<Codebase>.() -> Unit) {
+    fun runSignatureTest(vararg sources: TestFile, test: CodebaseContext.() -> Unit) {
         runCodebaseTest(inputSet(*sources), test = test)
     }
 }
