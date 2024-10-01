@@ -611,7 +611,8 @@ class AnnotationsMerger(
                         if (!found && reflectionFields != null) {
                             val filterEmit =
                                 ApiVisitor(
-                                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                                        apiPredicateConfig =
+                                            @Suppress("DEPRECATION") options.apiPredicateConfig,
                                     )
                                     .filterEmit
 

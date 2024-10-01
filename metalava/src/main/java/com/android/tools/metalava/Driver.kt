@@ -299,7 +299,7 @@ internal fun processFlags(
                     apiType = ApiType.PUBLIC_API,
                     preFiltered = codebase.preFiltered,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
 
@@ -321,7 +321,7 @@ internal fun processFlags(
                     apiType = ApiType.REMOVED,
                     preFiltered = false,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
 
@@ -638,7 +638,7 @@ private fun ActionContext.loadFromSources(
             previouslyReleasedApi,
             reporter,
             options.manifest,
-            options.apiVisitorConfig,
+            options.apiPredicateConfig,
         )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
@@ -727,7 +727,7 @@ private fun createStubFiles(
                 delegate = delegate,
                 docStubs = docStubs,
                 preFiltered = codebase.preFiltered,
-                apiVisitorConfig = options.apiVisitorConfig,
+                apiPredicateConfig = options.apiPredicateConfig,
             )
         }
 

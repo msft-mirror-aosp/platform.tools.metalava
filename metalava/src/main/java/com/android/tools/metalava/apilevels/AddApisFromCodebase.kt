@@ -45,7 +45,7 @@ fun addApisFromCodebase(
                 preserveClassNesting = false,
                 filterEmit = providedFilterEmit,
                 filterReference = providedFilterReference,
-                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
             ) {
 
             var currentClass: ApiClass? = null

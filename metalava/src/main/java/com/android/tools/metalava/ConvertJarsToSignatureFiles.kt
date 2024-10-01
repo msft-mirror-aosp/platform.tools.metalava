@@ -85,7 +85,7 @@ class ConvertJarsToSignatureFiles(
                 jarCodebase.accept(
                     object :
                         ApiVisitor(
-                            config = ApiVisitor.Config(),
+                            apiPredicateConfig = ApiPredicate.Config(),
                         ) {
                         override fun visitItem(item: Item) {
                             unmarkRecent(item)
@@ -150,7 +150,7 @@ class ConvertJarsToSignatureFiles(
                     apiType = ApiType.PUBLIC_API,
                     preFiltered = jarCodebase.preFiltered,
                     showUnannotated = false,
-                    apiVisitorConfig = ApiVisitor.Config()
+                    apiPredicateConfig = ApiPredicate.Config()
                 )
             }
 

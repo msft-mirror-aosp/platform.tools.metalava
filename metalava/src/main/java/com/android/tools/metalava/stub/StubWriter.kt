@@ -271,12 +271,12 @@ fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
     docStubs: Boolean,
     preFiltered: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
             includeDocOnly = docStubs,
-            config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = FilterPredicate(filterReference)
     return FilteringApiVisitor(

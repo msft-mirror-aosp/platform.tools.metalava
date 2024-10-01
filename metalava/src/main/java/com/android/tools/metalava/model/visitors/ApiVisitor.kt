@@ -57,15 +57,6 @@ open class ApiVisitor(
     val showUnannotated: Boolean = true,
 ) : BaseItemVisitor(preserveClassNesting) {
 
-    /**
-     * Contains configuration for [ApiVisitor] that can, or at least could, come from command line
-     * options.
-     */
-    data class Config(
-        /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
-    )
-
     constructor(
         /**
          * Whether nested classes should be visited "inside" a class; when this property is true,
@@ -104,7 +95,7 @@ open class ApiVisitor(
         includeApisForStubPurposes: Boolean = true,
 
         /** Configuration that may come from the command line. */
-        config: Config,
+        apiPredicateConfig: ApiPredicate.Config
     ) : this(
         preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = true,
@@ -113,12 +104,12 @@ open class ApiVisitor(
                 ?: ApiPredicate(
                     matchRemoved = remove,
                     includeApisForStubPurposes = includeApisForStubPurposes,
-                    config = config.apiPredicateConfig.copy(ignoreShown = ignoreShown),
+                    config = apiPredicateConfig.copy(ignoreShown = ignoreShown),
                 ),
         filterReference = filterReference
                 ?: ApiPredicate(
                     ignoreRemoved = remove,
-                    config = config.apiPredicateConfig.copy(ignoreShown = true),
+                    config = apiPredicateConfig.copy(ignoreShown = true),
                 ),
     )
 
