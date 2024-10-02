@@ -38,9 +38,6 @@ interface AnnotationManager {
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
     ): String?
 
-    /** Get the applicable targets for the annotation */
-    fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget>
-
     /** Returns true if [annotationName] is the name of one of the show annotations. */
     fun isShowAnnotationName(annotationName: String): Boolean = false
 
@@ -161,9 +158,6 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         return qualifiedName
     }
 
-    override fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> =
-        ANNOTATION_IN_ALL_STUBS
-
     override val typedefMode: TypedefMode = TypedefMode.NONE
 }
 
@@ -177,6 +171,9 @@ internal class NoOpAnnotationInfo(
     /** The fully qualified and normalized name of the annotation class. */
     val qualifiedName: String,
 ) : AnnotationInfo {
+
+    override val targets
+        get() = ANNOTATION_IN_ALL_STUBS
 
     override val typeNullability = computeTypeNullability(qualifiedName)
 

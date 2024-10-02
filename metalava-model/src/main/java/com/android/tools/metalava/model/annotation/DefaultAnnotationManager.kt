@@ -142,7 +142,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return LazyAnnotationInfo(config, annotationItem)
+        return LazyAnnotationInfo(this, config, annotationItem)
     }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
@@ -337,8 +337,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          ANNOTATION_EXTERNAL
         else ANNOTATION_EXTERNAL_ONLY
 
-    /** The applicable targets for this annotation */
-    override fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> {
+    /**
+     * The applicable targets for the [annotation].
+     *
+     * Care must be taken to ensure that this only accesses [AnnotationItem.qualifiedName] and
+     * [AnnotationItem.resolve]. In particular, it must NOT access the attributes. That is because
+     * the result must be identical for all [AnnotationItem] instances of an annotation class.
+     */
+    internal fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> {
         val qualifiedName = annotation.qualifiedName
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
@@ -643,11 +649,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
  * The properties are initialized lazily to avoid doing more work than necessary.
  */
 private class LazyAnnotationInfo(
+    private val annotationManager: DefaultAnnotationManager,
     private val config: Config,
     private val annotationItem: AnnotationItem,
 ) : AnnotationInfo {
 
     private val qualifiedName = annotationItem.qualifiedName
+
+    override val targets by
+        lazy(LazyThreadSafetyMode.NONE) { annotationManager.computeTargets(annotationItem) }
 
     override val typeNullability = computeTypeNullability(qualifiedName)
 

@@ -25,6 +25,9 @@ package com.android.tools.metalava.model
  */
 interface AnnotationInfo {
 
+    /** The applicable targets for this annotation */
+    val targets: Set<AnnotationTarget>
+
     /**
      * Determines whether the annotation is nullability related.
      *
