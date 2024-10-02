@@ -52,6 +52,7 @@ import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
+import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
@@ -644,10 +645,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 private class LazyAnnotationInfo(
     private val config: Config,
     private val annotationItem: AnnotationItem,
-) : AnnotationInfo(annotationItem.qualifiedName) {
+) : AnnotationInfo {
+
+    private val qualifiedName = annotationItem.qualifiedName
+
+    override val typeNullability = computeTypeNullability(qualifiedName)
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showability: Showability by
+    override val showability by
         lazy(LazyThreadSafetyMode.NONE) {
             // The showAnnotations filter includes all the annotation patterns that are matched by
             // the first two filters plus 0 or more additional patterns. Excluding the patterns that
@@ -732,11 +737,10 @@ private class LazyAnnotationInfo(
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
-    private val annotationClass: ClassItem? by
-        lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+    private val annotationClass by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
 
     /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
-    private var isCheckingResolvedAnnotationClass: Boolean = false
+    private var isCheckingResolvedAnnotationClass = false
 
     /**
      * Check to see whether the resolved annotation class matches the supplied predicate.
@@ -769,7 +773,7 @@ private class LazyAnnotationInfo(
      *
      * This is true if this annotation is
      */
-    override val suppressCompatibility: Boolean by
+    override val suppressCompatibility by
         lazy(LazyThreadSafetyMode.NONE) {
             qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
                 config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||

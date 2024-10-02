@@ -129,7 +129,7 @@ abstract class BaseAnnotationManager : AnnotationManager {
      * Note: it is safe to use `annotationItem.qualifiedName!!` as [AnnotationItem.qualifiedName] is
      * guaranteed not to be `null` when this method is called.
      */
-    protected abstract fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo
+    internal abstract fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo
 }
 
 /**
@@ -150,7 +150,7 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
     }
 
     override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return AnnotationInfo(annotationItem.qualifiedName)
+        return NoOpAnnotationInfo(annotationItem.qualifiedName)
     }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
@@ -165,6 +165,26 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         ANNOTATION_IN_ALL_STUBS
 
     override val typedefMode: TypedefMode = TypedefMode.NONE
+}
+
+/**
+ * [AnnotationInfo] implementation used by [NoOpAnnotationManager].
+ *
+ * This class just sets the properties that can be determined simply by looking at the
+ * [qualifiedName]. Any other properties are set to the default, usually `false`.
+ */
+internal class NoOpAnnotationInfo(
+    /** The fully qualified and normalized name of the annotation class. */
+    val qualifiedName: String,
+) : AnnotationInfo {
+
+    override val typeNullability = computeTypeNullability(qualifiedName)
+
+    override val showability
+        get() = Showability.NO_EFFECT
+
+    override val suppressCompatibility
+        get() = false
 }
 
 val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()

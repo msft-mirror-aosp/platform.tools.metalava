@@ -401,7 +401,7 @@ protected constructor(
     final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)
 
     /** Information that metalava has gathered about this annotation item. */
-    val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
+    internal val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
 
     override val typeNullability: TypeNullability?
         get() = info.typeNullability
