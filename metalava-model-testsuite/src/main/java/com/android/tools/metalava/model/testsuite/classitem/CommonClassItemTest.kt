@@ -771,6 +771,48 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test class is not treated as deprecated by @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            // TODO(b/368021325): This should not be deprecated.
+            barClass.assertExplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is treated as deprecated if @deprecated comes after @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     * @deprecated Really deprecated
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertExplicitlyDeprecated()
+        }
+    }
+
+    @Test
     fun `Test deprecated class by annotation`() {
         runCodebaseTest(
             signature(
