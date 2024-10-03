@@ -469,8 +469,8 @@ abstract class AbstractItem(
         private set
 
     init {
-        if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
-            mutateModifiers { setDeprecated(true) }
+        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
+            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
 

@@ -786,8 +786,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            // TODO(b/368021325): This should not be deprecated.
-            barClass.assertExplicitlyDeprecated()
+            barClass.assertNotDeprecated()
         }
     }
 
