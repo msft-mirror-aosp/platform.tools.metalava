@@ -470,20 +470,8 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         return true
     }
 
-    fun sourceFile(): SourceFile? {
-        var curr: Item? = this
-        while (curr != null) {
-            if (curr is ClassItem && curr.isTopLevelClass()) {
-                return curr.getSourceFile()
-            }
-            curr = curr.parent()
-        }
-
-        return null
-    }
-
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFile?
+    fun sourceFile(): SourceFile?
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention
