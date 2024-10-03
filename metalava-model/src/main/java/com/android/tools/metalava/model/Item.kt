@@ -229,18 +229,6 @@ interface Item : Reportable {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
-    fun sourceFile(): SourceFile? {
-        var curr: Item? = this
-        while (curr != null) {
-            if (curr is ClassItem && curr.isTopLevelClass()) {
-                return curr.getSourceFile()
-            }
-            curr = curr.parent()
-        }
-
-        return null
-    }
-
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
 
