@@ -758,6 +758,7 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     /**
+                     * @noinspection DeprecatedIsStillUsed
                      * @deprecated
                      */
                     public class Bar {}
@@ -765,8 +766,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -786,6 +786,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
+                    /** @noinspection DeprecatedIsStillUsed */
                     @Deprecated
                     public class Bar {}
                 """
@@ -800,8 +801,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -833,8 +833,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.originallyDeprecated)
-            assertEquals(false, barClass.effectivelyDeprecated)
+            barClass.assertNotDeprecated()
         }
     }
 
