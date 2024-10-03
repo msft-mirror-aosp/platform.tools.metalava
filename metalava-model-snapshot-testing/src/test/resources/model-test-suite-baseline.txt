@@ -58,8 +58,6 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest
-  Documentation fully qualified[psi,java,k1,doc comment with link - java]
-  Documentation fully qualified[psi,java,k2,doc comment with link - java]
   Documentation fully qualified[turbine,doc comment with link - java]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest

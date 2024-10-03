@@ -68,7 +68,11 @@ internal class PsiItemDocumentation(
         return _text
     }
 
-    override fun duplicate(item: Item) = PsiItemDocumentation(item as PsiItem, psi, extraDocs)
+    override fun duplicate(item: Item) =
+        if (item is PsiItem) PsiItemDocumentation(item, psi, extraDocs)
+        else text.toItemDocumentationFactory()(item)
+
+    override fun snapshot(item: Item) = this
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {
