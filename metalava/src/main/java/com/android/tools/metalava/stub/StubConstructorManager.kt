@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -200,6 +201,9 @@ class StubConstructorManager(codebase: Codebase) {
          * 1. Fewest throwables as they have to be propagated down to constructors that delegate to
          *    it.
          * 2. Fewest parameters to reduce the size of the `super(...)` call.
+         * 3. Shortest erased parameter types as that should reduce the size of the `super(...)`
+         *    call.
+         * 4. Total ordering defined by [CallableItem.comparator] to ensure consistent behavior.
          *
          * Returns less than zero if the first [ConstructorItem] passed to `compare(c1, c2)` is the
          * best option, more if the second [ConstructorItem] is the best option and zero if they are
@@ -208,6 +212,10 @@ class StubConstructorManager(codebase: Codebase) {
         private val bestStubConstructorComparator: Comparator<ConstructorItem> =
             Comparator.comparingInt<ConstructorItem?>({ it.throwsTypes().size })
                 .thenComparingInt({ it.parameters().size })
+                .thenComparingInt({
+                    it.parameters().sumOf { it.type().toErasedTypeString().length }
+                })
+                .thenComparing(CallableItem.comparator)
     }
 
     /**
@@ -215,7 +223,7 @@ class StubConstructorManager(codebase: Codebase) {
      *
      * Selects the first [ConstructorItem] in [constructors] which compares less to or equal to all
      * the other [ConstructorItem]s in the list when compared using [bestStubConstructorComparator].
-     * That defines a partial order so the result is dependent on the order of [constructors].
+     * That defines a total order so the result is independent of the order of [constructors].
      */
     private fun pickBest(constructors: List<ConstructorItem>): ConstructorItem {
         // Try to pick the best constructor to which derived stub classes can delegate.
