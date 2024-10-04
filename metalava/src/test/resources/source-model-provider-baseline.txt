@@ -212,6 +212,14 @@ com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]
   Rewrite unknown nullability annotations as doc stubs[turbine]
 
+com.android.tools.metalava.stub.StubsConstructorSelectionTest
+  Stub constructor selection[psi,k1,same number of parameters and same type length - backward]
+  Stub constructor selection[psi,k1,same number of parameters different types - forward]
+  Stub constructor selection[psi,k2,same number of parameters and same type length - backward]
+  Stub constructor selection[psi,k2,same number of parameters different types - forward]
+  Stub constructor selection[turbine,same number of parameters and same type length - backward]
+  Stub constructor selection[turbine,same number of parameters different types - forward]
+
 com.android.tools.metalava.stub.StubsConstructorTest
   Arguments to super constructors with showAnnotations[turbine]
   Arguments to super constructors[turbine]
