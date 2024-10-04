@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface MemberItem : Item {
+interface MemberItem : ClassContentItem, SelectableItem {
     /**
      * The name of this method/field. Constructors have the same name as their containing class'
      * simple name
@@ -27,18 +27,18 @@ interface MemberItem : Item {
     fun internalName(): String = name()
 
     /** The containing class */
-    @MetalavaApi fun containingClass(): ClassItem
+    @MetalavaApi override fun containingClass(): ClassItem
 
-    override fun containingClass(strict: Boolean): ClassItem = containingClass()
-
-    override fun containingPackage(strict: Boolean): PackageItem =
-        containingClass().containingPackage(false)
+    override fun containingPackage(): PackageItem = containingClass().containingPackage()
 
     override fun parent(): ClassItem? = containingClass()
 
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingClass().effectivelyDeprecated
+
     /**
-     * Returns true if this member is effectively final: it's either final itself, or implied to be
-     * final because its containing class is final
+     * Returns true if this member is effectively final based on modifiers: it's either final
+     * itself, or implied to be final because its containing class is final or sealed.
      */
     fun isEffectivelyFinal(): Boolean {
         return modifiers.isFinal() ||
@@ -46,18 +46,11 @@ interface MemberItem : Item {
             containingClass().modifiers.isSealed()
     }
 
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // Annotation type members cannot be null
-        if (containingClass().isAnnotationType()) {
-            return false
-        }
-
-        return null
+    /**
+     * Returns whether the item can be overridden outside the API surface, which is true is it is
+     * not final and its containing class can be extended.
+     */
+    fun canBeExternallyOverridden(): Boolean {
+        return !modifiers.isFinal() && containingClass().isExtensible()
     }
 }

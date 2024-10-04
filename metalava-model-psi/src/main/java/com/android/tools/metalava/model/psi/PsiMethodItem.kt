@@ -16,168 +16,74 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultMethodItem
+import com.android.tools.metalava.model.item.ParameterItemsFactory
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
+import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.util.PsiTypesUtil
-import java.io.StringWriter
-import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
-import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UThrowExpression
-import org.jetbrains.uast.UTryExpression
-import org.jetbrains.uast.getParentOfType
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
+import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
-import org.jetbrains.uast.visitor.AbstractUastVisitor
 
-open class PsiMethodItem(
+internal class PsiMethodItem(
     override val codebase: PsiBasedCodebase,
-    val psiMethod: PsiMethod,
-    private val containingClass: ClassItem,
-    private val name: String,
-    modifiers: PsiModifierItem,
-    documentation: String,
-    private val returnType: PsiTypeItem,
-    private val parameters: List<PsiParameterItem>
+    override val psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
+    // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
+    // TextClassItem.
+    containingClass: ClassItem,
+    name: String,
+    modifiers: BaseModifierList,
+    documentationFactory: ItemDocumentationFactory,
+    returnType: TypeItem,
+    parameterItemsFactory: ParameterItemsFactory,
+    typeParameterList: TypeParameterList,
+    throwsTypes: List<ExceptionTypeItem>,
 ) :
-    PsiItem(
+    DefaultMethodItem(
         codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiMethod
+        documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
+        returnType = returnType,
+        parameterItemsFactory = parameterItemsFactory,
+        throwsTypes = throwsTypes,
+        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
     ),
-    MethodItem {
-
-    init {
-        for (parameter in parameters) {
-            @Suppress("LeakingThis")
-            parameter.containingMethod = this
-        }
-    }
-
-    /**
-     * If this item was created by filtering down a different codebase, this temporarily points to
-     * the original item during construction. This is used to let us initialize for example throws
-     * lists later, when all classes in the codebase have been initialized.
-     */
-    internal var source: PsiMethodItem? = null
-
-    override var inheritedMethod: Boolean = false
-    override var inheritedFrom: ClassItem? = null
+    PsiCallableItem {
 
     override var property: PsiPropertyItem? = null
-
-    @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
-
-    override fun name(): String = name
-
-    override fun containingClass(): ClassItem = containingClass
-
-    override fun equals(other: Any?): Boolean {
-        // TODO: Allow mix and matching with other MethodItems?
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as PsiMethodItem
-
-        if (psiMethod != other.psiMethod) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return psiMethod.hashCode()
-    }
-
-    override fun findMainDocumentation(): String {
-        if (documentation == "") return documentation
-        val comment = codebase.getComment(documentation)
-        val end = findFirstTag(comment)?.textRange?.startOffset ?: documentation.length
-        return comment.text.substring(0, end)
-    }
-
-    override fun isConstructor(): Boolean = false
-
-    override fun isImplicitConstructor(): Boolean = false
-
-    override fun returnType(): TypeItem = returnType
-
-    override fun parameters(): List<PsiParameterItem> = parameters
-
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
-
-    override fun psi(): PsiMethod = psiMethod
-
-    private var superMethods: List<MethodItem>? = null
-
-    override fun superMethods(): List<MethodItem> {
-        if (superMethods == null) {
-            val result = mutableListOf<MethodItem>()
-            psiMethod.findSuperMethods().mapTo(result) { codebase.findMethod(it) }
-            superMethods = result
-        }
-
-        return superMethods!!
-    }
-
-    override fun typeParameterList(): TypeParameterList {
-        if (psiMethod.hasTypeParameters()) {
-            return PsiTypeParameterList(
-                codebase,
-                psiMethod.typeParameterList ?: return TypeParameterList.NONE
-            )
-        } else {
-            return TypeParameterList.NONE
-        }
-    }
-
-    override fun typeArgumentClasses(): List<ClassItem> {
-        return PsiTypeItem.typeParameterClasses(codebase, psiMethod.typeParameterList)
-    }
-
-    //    private var throwsTypes: List<ClassItem>? = null
-    private lateinit var throwsTypes: List<ClassItem>
-
-    internal fun setThrowsTypes(throwsTypes: List<ClassItem>) {
-        this.throwsTypes = throwsTypes
-    }
-
-    override fun throwsTypes(): List<ClassItem> = throwsTypes
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
-    }
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
             val ktParameters =
                 ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
                     ?: return false
-            return ktParameters.size < parameters.size
+            return ktParameters.size < parameters().size
         }
 
         return false
@@ -189,65 +95,6 @@ open class PsiMethodItem(
                 psiMethod.sourcePsi is KtPropertyAccessor ||
                 psiMethod.sourcePsi is KtParameter &&
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
-    }
-
-    override fun findThrownExceptions(): Set<ClassItem> {
-        val method = psiMethod as? UMethod ?: return emptySet()
-        if (!isKotlin()) {
-            return emptySet()
-        }
-
-        val exceptions = mutableSetOf<ClassItem>()
-
-        method.accept(
-            object : AbstractUastVisitor() {
-                override fun visitThrowExpression(node: UThrowExpression): Boolean {
-                    val type = node.thrownExpression.getExpressionType()
-                    if (type != null) {
-                        val exceptionClass = codebase.getType(type).asClass()
-                        if (exceptionClass != null && !isCaught(exceptionClass, node)) {
-                            exceptions.add(exceptionClass)
-                        }
-                    }
-                    return super.visitThrowExpression(node)
-                }
-
-                private fun isCaught(exceptionClass: ClassItem, node: UThrowExpression): Boolean {
-                    var current: UElement = node
-                    while (true) {
-                        val tryExpression =
-                            current.getParentOfType<UTryExpression>(
-                                UTryExpression::class.java,
-                                true,
-                                UMethod::class.java
-                            )
-                                ?: return false
-
-                        for (catchClause in tryExpression.catchClauses) {
-                            for (type in catchClause.types) {
-                                val qualifiedName = type.canonicalText
-                                if (exceptionClass.extends(qualifiedName)) {
-                                    return true
-                                }
-                            }
-                        }
-
-                        current = tryExpression
-                    }
-                }
-            }
-        )
-
-        return exceptions
-    }
-
-    internal fun areAllParametersOptional(): Boolean {
-        for (param in parameters) {
-            if (!param.hasDefaultValue()) {
-                return false
-            }
-        }
-        return true
     }
 
     override fun defaultValue(): String {
@@ -264,25 +111,40 @@ open class PsiMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        val duplicated = create(codebase, targetContainingClass, psiMethod)
+        // If duplicating within the same codebase type then map the type variables, otherwise do
+        // not. That is because this can end up substituting a `TypeItem` implementation of one
+        // type in place of a `PsiTypeItem` which can cause casting issues, e.g. in
+        // `PsiParameterItem` which expects its type as `PsiTypeItem`. Falling back to not mapping
+        // will not cause any significant issues as that is what was done before.
+        // TODO(b/324196754): Fix this. It is not clear if this causes problems outside tests, it
+        //  does not seem to break Android build.
+        val typeVariableMap =
+            if (codebase.javaClass === targetContainingClass.codebase.javaClass)
+                targetContainingClass.mapTypeVariables(containingClass())
+            else emptyMap()
 
-        duplicated.inheritedFrom = containingClass
+        return PsiMethodItem(
+                codebase,
+                psiMethod,
+                fileLocation,
+                targetContainingClass,
+                name(),
+                modifiers,
+                documentation::duplicate,
+                returnType.convertType(typeVariableMap),
+                { methodItem ->
+                    parameters().map {
+                        (it as PsiParameterItem).duplicate(methodItem, typeVariableMap)
+                    }
+                },
+                typeParameterList,
+                throwsTypes(),
+            )
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass()
 
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-        if (targetContainingClass.deprecated) {
-            duplicated.deprecated = true
-        }
-        duplicated.throwsTypes = throwsTypes
-        return duplicated
+                duplicated.updateCopiedMethodState()
+            }
     }
 
     /* Call corresponding PSI utility method -- if I can find it!
@@ -296,100 +158,25 @@ open class PsiMethodItem(
     }
     */
 
-    /**
-     * Converts the method to a stub that can be converted back to a PsiMethod.
-     *
-     * Note: This must not be used for emitting stub jars. For that, see
-     * [com.android.tools.metalava.stub.StubWriter].
-     *
-     * @param replacementMap a map that specifies replacement types for formal type parameters.
-     */
-    @Language("JAVA")
-    internal fun toStubForCloning(replacementMap: Map<String, String> = emptyMap()): String {
-        val method = this
-        // There are type variables; we have to recreate the method signature
-        val sb = StringBuilder(100)
-
-        val modifierString = StringWriter()
-        ModifierList.write(
-            modifierString,
-            method.modifiers,
-            method,
-            target = AnnotationTarget.INTERNAL,
-            removeAbstract = false,
-            removeFinal = false,
-        )
-        sb.append(modifierString.toString())
-
-        val typeParameters = typeParameterList().toString()
-        if (typeParameters.isNotEmpty()) {
-            sb.append(' ')
-            sb.append(TypeItem.convertTypeString(typeParameters, replacementMap))
-        }
-
-        val returnType = method.returnType()
-        sb.append(returnType.convertTypeString(replacementMap))
-
-        sb.append(' ')
-        sb.append(method.name())
-
-        sb.append("(")
-        method.parameters().asSequence().forEachIndexed { i, parameter ->
-            if (i > 0) {
-                sb.append(", ")
-            }
-
-            val parameterModifierString = StringWriter()
-            ModifierList.write(
-                parameterModifierString,
-                parameter.modifiers,
-                parameter,
-                target = AnnotationTarget.INTERNAL
-            )
-            sb.append(parameterModifierString.toString())
-            sb.append(parameter.type().convertTypeString(replacementMap))
-            sb.append(' ')
-            sb.append(parameter.name())
-        }
-        sb.append(")")
-
-        val throws = method.throwsTypes().asSequence().sortedWith(ClassItem.fullNameComparator)
-        if (throws.any()) {
-            sb.append(" throws ")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
-                if (i > 0) {
-                    sb.append(", ")
-                }
-                // No need to replace variables; we can't have type arguments for exceptions
-                sb.append(type.qualifiedName())
-            }
-        }
-
-        sb.append(" { return ")
-        val defaultValue = PsiTypesUtil.getDefaultValueOfType(method.psiMethod.returnType)
-        sb.append(defaultValue)
-        sb.append("; }")
-
-        return sb.toString()
-    }
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        throwsTypes = throwsTypes(codebase, psiMethod)
-    }
-
     companion object {
+        /**
+         * Create a [PsiMethodItem].
+         *
+         * The [containingClass] is not necessarily a [PsiClassItem] as this is used to implement
+         * [MethodItem.duplicate] as well as create [PsiMethodItem] from the underlying Psi source
+         * model.
+         */
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
             // UAST workaround: @JvmName for UMethod with fake LC PSI
             // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
             val name =
-                if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
+                if (psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) {
                     psiMethod.sourcePsi
                         ?.annotationEntries
                         ?.find { annoEntry ->
@@ -409,99 +196,66 @@ open class PsiMethodItem(
                 } else {
                     psiMethod.name
                 }
-            val commentText = javadoc(psiMethod)
-            val modifiers = modifiers(codebase, psiMethod, commentText)
-            val parameters = parameterList(codebase, psiMethod)
-            val psiReturnType = psiMethod.returnType
-            val returnType = codebase.getType(psiReturnType!!)
-            val method =
-                PsiMethodItem(
-                    codebase = codebase,
-                    psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = commentText,
-                    modifiers = modifiers,
-                    returnType = returnType,
-                    parameters = parameters
-                )
-            method.modifiers.setOwner(method)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
+
+            if (containingClass.classKind == ClassKind.INTERFACE) {
+                // All interface methods are implicitly public (except in Java 1.9, where they can
+                // be private.
+                if (!modifiers.isPrivate()) {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+                }
+            }
+
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
                 // The containing class is final, so it is implied that every method is final as
                 // well.
                 // No need to apply 'final' to each method. (We do it here rather than just in the
                 // signature emit code since we want to make sure that the signature comparison
                 // methods with super methods also consider this method non-final.)
-                if (!containingClass.isEnum() && !method.isEnumSyntheticMethod()) {
-                    // Unless this is a non-synthetic enum member
-                    // See: https://youtrack.jetbrains.com/issue/KT-57567
-                    modifiers.setFinal(false)
-                }
+                modifiers.setFinal(false)
             }
 
-            return method
-        }
+            // Create the TypeParameterList for this before wrapping any of the other types used by
+            // it as they may reference a type parameter in the list.
+            val (typeParameterList, methodTypeItemFactory) =
+                PsiTypeParameterList.create(
+                    codebase,
+                    enclosingClassTypeItemFactory,
+                    "method $name",
+                    psiMethod
+                )
+            val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
+            val isAnnotationElement = containingClass.isAnnotationType() && !modifiers.isStatic()
+            val returnType =
+                methodTypeItemFactory.getMethodReturnType(
+                    underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
+                    itemAnnotations = modifiers.annotations(),
+                    fingerprint = fingerprint,
+                    isAnnotationElement = isAnnotationElement,
+                )
 
-        internal fun create(
-            codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
-            original: PsiMethodItem
-        ): PsiMethodItem {
             val method =
                 PsiMethodItem(
                     codebase = codebase,
-                    psiMethod = original.psiMethod,
+                    psiMethod = psiMethod,
                     containingClass = containingClass,
-                    name = original.name(),
-                    documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    returnType = PsiTypeItem.create(codebase, original.returnType),
-                    parameters = PsiParameterItem.create(codebase, original.parameters())
+                    name = name,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
+                    modifiers = modifiers,
+                    returnType = returnType,
+                    parameterItemsFactory = { containingCallable ->
+                        parameterList(
+                            codebase,
+                            psiMethod,
+                            containingCallable as PsiCallableItem,
+                            methodTypeItemFactory,
+                        )
+                    },
+                    typeParameterList = typeParameterList,
+                    throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                 )
-            method.modifiers.setOwner(method)
-            method.source = original
-            method.inheritedMethod = original.inheritedMethod
 
             return method
         }
-
-        internal fun parameterList(
-            codebase: PsiBasedCodebase,
-            psiMethod: PsiMethod
-        ): List<PsiParameterItem> {
-            return if (psiMethod is UMethod) {
-                psiMethod.uastParameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index)
-                }
-            } else {
-                psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
-                    PsiParameterItem.create(codebase, parameter, index)
-                }
-            }
-        }
-
-        private fun throwsTypes(codebase: PsiBasedCodebase, psiMethod: PsiMethod): List<ClassItem> {
-            val interfaces = psiMethod.throwsList.referencedTypes
-            if (interfaces.isEmpty()) {
-                return emptyList()
-            }
-
-            val result = ArrayList<ClassItem>(interfaces.size)
-            for (cls in interfaces) {
-                result.add(codebase.findClass(cls) ?: continue)
-            }
-
-            // We're sorting the names here even though outputs typically do their own sorting,
-            // since for example the MethodItem.sameSignature check wants to do an
-            // element-by-element
-            // comparison to see if the signature matches, and that should match overrides even if
-            // they specify their elements in different orders.
-            result.sortWith(ClassItem.fullNameComparator)
-            return result
-        }
     }
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${
-    containingClass.qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 }

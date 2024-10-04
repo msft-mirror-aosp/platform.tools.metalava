@@ -186,7 +186,6 @@ Arguments:
             }
         """
 
-    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another`() {
         checkMergeSignatures(
@@ -196,7 +195,6 @@ Arguments:
         )
     }
 
-    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another, in reverse order`() {
         // Exactly the same as the previous test, but read them in the reverse order
@@ -357,6 +355,40 @@ Arguments:
     }
 
     @Test
+    fun `Test can merge API signature files with duplicate class and different annotations`() {
+        val source1 =
+            """
+                package Test.pkg {
+                  @SomeAnnotation public final class Class1 {
+                    method public void method1();
+                  }
+                }
+            """
+
+        val source2 =
+            """
+                package Test.pkg {
+                  @SomeAnnotation @AnotherAnnotation public final class Class1 {
+                    method public void method2();
+                  }
+                }
+            """
+
+        // Note that the annotations are sorted in alphabetical order, thus the order differ from
+        // that in source2
+        val expected =
+            """
+                package Test.pkg {
+                  @AnotherAnnotation @SomeAnnotation public final class Class1 {
+                    method public void method1();
+                    method public void method2();
+                  }
+                }
+            """
+        checkMergeSignatures(source1, source2, expectedOutput = expected)
+    }
+
+    @Test
     fun `Test can merge API signature files with different file formats`() {
         val source1 =
             """
@@ -367,7 +399,8 @@ Arguments:
 
         val source2 =
             """
-                // Signature format: 3.0
+                // Signature format: 5.0
+                // - kotlin-style-nulls=no
                 package Test.pkg {
                 }
             """

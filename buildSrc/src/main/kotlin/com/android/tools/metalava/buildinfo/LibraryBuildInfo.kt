@@ -48,6 +48,7 @@ abstract class CreateLibraryBuildInfoTask : DefaultTask() {
     @get:Input abstract val projectZipPath: Property<String>
     @get:Input abstract val projectDirectoryRelativeToRootProject: Property<String>
     @get:Input abstract val dependencyList: ListProperty<LibraryBuildInfoFile.Dependency>
+    @get:Input abstract val target: Property<String>
 
     @get:OutputFile abstract val outputFile: Property<File>
 
@@ -62,6 +63,7 @@ abstract class CreateLibraryBuildInfoTask : DefaultTask() {
         info.sha = sha.get()
         info.projectZipPath = projectZipPath.get()
         info.dependencies = dependencyList.get()
+        info.target = target.get()
         info.checks = arrayListOf()
         val gson = GsonBuilder().setPrettyPrinting().create()
         val serializedInfo: String = gson.toJson(info)
@@ -93,7 +95,10 @@ internal fun configureBuildInfoTask(
             }
         )
         // Only set sha when in CI to keep local builds faster
-        it.sha.set(project.provider { if (inCI) getGitSha(project.projectDir) else "" })
+        it.sha.set(project.provider { if (inCI) project.providers.exec {
+            it.workingDir = project.projectDir
+            it.commandLine("git", "rev-parse", "--verify", "HEAD")
+        }.standardOutput.asText.get().trim() else "" })
         it.dependencyList.set(dependencies.map { it.asBuildInfoDependencies() })
         it.projectZipPath.set(archiveTaskProvider.flatMap { task -> task.archiveFileName })
         it.outputFile.set(
@@ -104,28 +109,9 @@ internal fun configureBuildInfoTask(
                 )
             }
         )
+        // This should always be "metalava" unless the target changes
+        it.target.set("metalava")
     }
-}
-
-fun getGitSha(directory: File): String {
-    val process =
-        ProcessBuilder("git", "rev-parse", "--verify", "HEAD")
-            .directory(directory)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
-    // Read output, waiting for process to finish, as needed
-    val stdout = process.inputStream.bufferedReader().readText()
-    val stderr = process.errorStream.bufferedReader().readText()
-    val message = stdout + stderr
-    // wait potentially a little bit longer in case Git was waiting for us to
-    // read its response before it exited
-    process.waitFor(10, TimeUnit.SECONDS)
-    if (stderr != "") {
-        throw GradleException("Unable to call git. Response was: $message")
-    }
-    check(process.exitValue() == 0) { "Nonzero exit value running git command." }
-    return stdout.trim()
 }
 
 fun List<Dependency>.asBuildInfoDependencies() =
@@ -156,6 +142,7 @@ fun List<Dependency>.asBuildInfoDependencies() =
  *   the same version
  * @property dependencies a list of dependencies on other androidx libraries
  * @property checks arraylist of [Check]s that is used by Jetpad
+ * @property target the target for metalava, used by Jetpad
  */
 class LibraryBuildInfoFile {
     var groupId: String? = null
@@ -167,6 +154,7 @@ class LibraryBuildInfoFile {
     var groupIdRequiresSameVersion: Boolean? = null
     var dependencies: List<Dependency> = arrayListOf()
     var checks: ArrayList<Check> = arrayListOf()
+    var target: String? = null
 
     /** @property isTipOfTree boolean that specifies whether the dependency is tip-of-tree */
     class Dependency : Serializable {

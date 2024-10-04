@@ -38,12 +38,6 @@ interface AnnotationManager {
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
     ): String?
 
-    /** Get the applicable targets for the annotation */
-    fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget>
-
     /** Returns true if [annotationName] is the name of one of the show annotations. */
     fun isShowAnnotationName(annotationName: String): Boolean = false
 
@@ -88,12 +82,6 @@ interface AnnotationManager {
     val typedefMode: TypedefMode
 }
 
-/**
- * The default empty [AnnotationInfo] used when a more applicable one cannot be created, e.g. when
- * the [AnnotationItem.qualifiedName] is `null`.
- */
-private val noInfoAvailable = AnnotationInfo(qualifiedName = "")
-
 /** Base class for [AnnotationManager] instances. */
 abstract class BaseAnnotationManager : AnnotationManager {
 
@@ -104,7 +92,6 @@ abstract class BaseAnnotationManager : AnnotationManager {
     private val annotationKeyToInfo = mutableMapOf<String, AnnotationInfo>()
 
     override fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo {
-        annotation.qualifiedName ?: return noInfoAvailable
         val key = getKeyForAnnotationItem(annotation)
         val existing = annotationKeyToInfo[key]
         if (existing != null) {
@@ -139,7 +126,7 @@ abstract class BaseAnnotationManager : AnnotationManager {
      * Note: it is safe to use `annotationItem.qualifiedName!!` as [AnnotationItem.qualifiedName] is
      * guaranteed not to be `null` when this method is called.
      */
-    protected abstract fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo
+    internal abstract fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo
 }
 
 /**
@@ -156,11 +143,11 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
         // else.
-        return annotationItem.qualifiedName!!
+        return annotationItem.qualifiedName
     }
 
     override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return AnnotationInfo(annotationItem.qualifiedName!!)
+        return NoOpAnnotationInfo(annotationItem.qualifiedName)
     }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
@@ -171,12 +158,30 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         return qualifiedName
     }
 
-    override fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget> = ANNOTATION_IN_ALL_STUBS
-
     override val typedefMode: TypedefMode = TypedefMode.NONE
+}
+
+/**
+ * [AnnotationInfo] implementation used by [NoOpAnnotationManager].
+ *
+ * This class just sets the properties that can be determined simply by looking at the
+ * [qualifiedName]. Any other properties are set to the default, usually `false`.
+ */
+internal class NoOpAnnotationInfo(
+    /** The fully qualified and normalized name of the annotation class. */
+    val qualifiedName: String,
+) : AnnotationInfo {
+
+    override val targets
+        get() = ANNOTATION_IN_ALL_STUBS
+
+    override val typeNullability = computeTypeNullability(qualifiedName)
+
+    override val showability
+        get() = Showability.NO_EFFECT
+
+    override val suppressCompatibility
+        get() = false
 }
 
 val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()

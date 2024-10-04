@@ -16,71 +16,53 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.intellij.psi.PsiClass
+import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UClass
 import org.jetbrains.uast.toUElement
 
-class PsiPropertyItem
+internal class PsiPropertyItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
-    private val name: String,
-    modifiers: PsiModifierItem,
-    documentation: String,
-    private val fieldType: PsiTypeItem,
-    override val getter: PsiMethodItem,
-    override val setter: PsiMethodItem?,
-    override val constructorParameter: PsiParameterItem?,
-    override val backingField: PsiFieldItem?
+    modifiers: BaseModifierList,
+    // This needs to be passed in because the documentation may come from the property, or it may
+    // come from the getter method.
+    documentationFactory: ItemDocumentationFactory,
+    name: String,
+    containingClass: ClassItem,
+    type: TypeItem,
+    override val getter: MethodItem,
+    override val setter: MethodItem?,
+    override val constructorParameter: ParameterItem?,
+    override val backingField: FieldItem?
 ) :
-    PsiItem(
+    DefaultPropertyItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation(psiMethod),
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiMethod
+        documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        name = name,
+        containingClass = containingClass,
+        type = type,
     ),
-    PropertyItem {
+    PropertyItem,
+    PsiItem {
 
-    override fun type(): TypeItem = fieldType
-
-    override fun name(): String = name
-
-    override fun containingClass(): PsiClassItem = containingClass
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = containingClass().psi()
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
+    override fun psi() = psiMethod
 
     companion object {
         /**
@@ -102,23 +84,24 @@ private constructor(
          * Most properties on classes without a custom getter have a [backingField] to hold their
          * value. This is private except for [JvmField] properties.
          */
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             name: String,
-            type: PsiTypeItem,
+            type: TypeItem,
             getter: PsiMethodItem,
             setter: PsiMethodItem? = null,
             constructorParameter: PsiParameterItem? = null,
             backingField: PsiFieldItem? = null
         ): PsiPropertyItem {
             val psiMethod = getter.psiMethod
-            val documentation =
+            // Get the appropriate element from which to retrieve the documentation.
+            val psiElement =
                 when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor -> javadoc(sourcePsi.property)
-                    else -> javadoc(sourcePsi ?: psiMethod)
+                    is KtPropertyAccessor -> sourcePsi.property
+                    else -> sourcePsi ?: psiMethod
                 }
-            val modifiers = modifiers(codebase, psiMethod, documentation)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.
@@ -135,7 +118,8 @@ private constructor(
                         } else null
                     }
                 annotations?.forEach { uAnnotation ->
-                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                    val annotationItem =
+                        UAnnotationItem.create(codebase, uAnnotation) ?: return@forEach
                     if (annotationItem !in modifiers.annotations()) {
                         modifiers.addAnnotation(annotationItem)
                     }
@@ -145,11 +129,11 @@ private constructor(
                 PsiPropertyItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = documentation,
                     modifiers = modifiers,
-                    fieldType = type,
+                    documentationFactory = PsiItemDocumentation.factory(psiElement, codebase),
+                    name = name,
+                    containingClass = containingClass,
+                    type = type,
                     getter = getter,
                     setter = setter,
                     constructorParameter = constructorParameter,
@@ -159,7 +143,6 @@ private constructor(
             setter?.property = property
             constructorParameter?.property = property
             backingField?.property = property
-            property.modifiers.setOwner(property)
             return property
         }
     }

@@ -16,17 +16,37 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.internalName
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
+import java.util.function.Predicate
 
-/** Visits the API codebase and inserts into the [Api] the classes, methods and fields */
-fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternalNames: Boolean) {
+/**
+ * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
+ * [providedFilterEmit] and [providedFilterReference] are non-null, they are used to determine which
+ * [Item]s should be added to the [api]. Otherwise, the [ApiVisitor] default filters are used.
+ */
+fun addApisFromCodebase(
+    api: Api,
+    apiLevel: Int,
+    codebase: Codebase,
+    useInternalNames: Boolean,
+    providedFilterEmit: Predicate<Item>? = null,
+    providedFilterReference: Predicate<Item>? = null
+) {
     codebase.accept(
-        object : ApiVisitor(visitConstructorsAsMethods = true, nestInnerClasses = false) {
+        object :
+            ApiVisitor(
+                preserveClassNesting = false,
+                filterEmit = providedFilterEmit,
+                filterReference = providedFilterReference,
+                apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+            ) {
 
             var currentClass: ApiClass? = null
 
@@ -34,8 +54,15 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 currentClass = null
             }
 
+            /**
+             * Get the value of [Item.originallyDeprecated] from the [Item.actualItemToSnapshot],
+             * i.e. the item that would actually be written out.
+             */
+            private val Item.actualDeprecated
+                get() = actualItemToSnapshot.effectivelyDeprecated
+
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.deprecated)
+                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
@@ -129,19 +156,18 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 }
             }
 
-            override fun visitMethod(method: MethodItem) {
-                if (method.isPrivate || method.isPackagePrivate) {
+            override fun visitCallable(callable: CallableItem) {
+                if (callable.isPrivate || callable.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(method.nameInApi(), apiLevel, method.deprecated)
+                currentClass?.addMethod(callable.nameInApi(), apiLevel, callable.actualDeprecated)
             }
 
             override fun visitField(field: FieldItem) {
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-
-                currentClass?.addField(field.nameInApi(), apiLevel, field.deprecated)
+                currentClass?.addField(field.nameInApi(), apiLevel, field.actualDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */
@@ -154,7 +180,7 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
             }
 
             /** The name of the method in this [Api], based on [useInternalNames] */
-            fun MethodItem.nameInApi(): String {
+            fun CallableItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName() +
                         // Use "V" instead of the type of the constructor for backwards
@@ -163,7 +189,7 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                         internalDesc(voidConstructorTypes = true)
                 } else {
                     val paramString = parameters().joinToString(",") { it.type().toTypeString() }
-                    name() + typeParameterList() + "(" + paramString + ")"
+                    name() + typeParameterList + "(" + paramString + ")"
                 }
             }
 
@@ -200,22 +226,22 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
 }
 
 /**
- * Like [MethodItem.internalName] but is the desc-portion of the internal signature, e.g. for the
+ * Like [CallableItem.internalName] but is the desc-portion of the internal signature, e.g. for the
  * method "void create(int x, int y)" the internal name of the constructor is "create" and the desc
  * is "(II)V"
  */
-fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
+fun CallableItem.internalDesc(voidConstructorTypes: Boolean = false): String {
     val sb = StringBuilder()
     sb.append("(")
 
-    // Non-static inner classes get an implicit constructor parameter for the
+    // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
     // outer type
     if (
         isConstructor() &&
             containingClass().containingClass() != null &&
             !containingClass().modifiers.isStatic()
     ) {
-        sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
+        sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
     }
 
     for (parameter in parameters()) {

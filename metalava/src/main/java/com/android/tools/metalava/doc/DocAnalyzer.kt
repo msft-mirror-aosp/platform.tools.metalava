@@ -20,17 +20,18 @@ import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
-import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
-import com.android.tools.metalava.isUnderTest
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -39,17 +40,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.getAttributeValue
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.PsiFieldItem
-import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiMethod
 import java.io.File
 import java.nio.file.Files
 import java.util.regex.Pattern
@@ -74,10 +70,13 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
  *   (It works around this by replacing the space with &nbsp;.)
  */
 class DocAnalyzer(
+    private val executionEnvironment: ExecutionEnvironment,
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
 ) {
+
+    private val apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig
 
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
@@ -107,7 +106,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -136,9 +135,7 @@ class DocAnalyzer(
                     for (annotation in annotations) {
                         val name = annotation.qualifiedName
                         if (
-                            name != null &&
-                                name.endsWith("Thread") &&
-                                name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
+                            name.endsWith("Thread") && name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
                         ) {
                             if (result == null) {
                                 result = mutableListOf()
@@ -178,7 +175,7 @@ class DocAnalyzer(
                     visitedClasses: MutableSet<String> = mutableSetOf()
                 ) {
                     val name = annotation.qualifiedName
-                    if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
+                    if (name.startsWith(JAVA_LANG_PREFIX)) {
                         // Ignore java.lang.Retention etc.
                         return
                     }
@@ -215,12 +212,12 @@ class DocAnalyzer(
 
                     // TODO: Resource type annotations
 
-                    // Handle inner annotations
+                    // Handle nested annotations
                     annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
                                 "Unbounded recursion, processing annotation ${annotation.toSource()} " +
-                                    "in $item in ${item.sourceFile()} "
+                                    "in $item at ${annotation.fileLocation} "
                             )
                         } else if (nested.qualifiedName !in visitedClasses) {
                             handleAnnotation(nested, item, depth + 1, visitedClasses)
@@ -249,21 +246,23 @@ class DocAnalyzer(
                         // don't include the docs (since it may conflict with more specific
                         // conditions
                         // outlined in the docs).
+                        val documentation = item.documentation
                         val doc =
                             when (item) {
                                 is ParameterItem -> {
                                     item
-                                        .containingMethod()
+                                        .containingCallable()
+                                        .documentation
                                         .findTagDocumentation("param", item.name())
                                         ?: ""
                                 }
-                                is MethodItem -> {
+                                is CallableItem -> {
                                     // Don't inspect param docs (and other tags) for this purpose.
-                                    item.findMainDocumentation() +
-                                        (item.findTagDocumentation("return") ?: "")
+                                    documentation.findMainDocumentation() +
+                                        (documentation.findTagDocumentation("return") ?: "")
                                 }
                                 else -> {
-                                    item.documentation
+                                    documentation
                                 }
                             }
                         if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
@@ -275,7 +274,7 @@ class DocAnalyzer(
                         is FieldItem -> {
                             addDoc(annotation, "memberDoc", item)
                         }
-                        is MethodItem -> {
+                        is CallableItem -> {
                             addDoc(annotation, "memberDoc", item)
                             addDoc(annotation, "returnDoc", item)
                         }
@@ -595,7 +594,7 @@ class DocAnalyzer(
         doc ?: return
 
         when (item) {
-            is ParameterItem -> item.containingMethod().appendDocumentation(doc, item.name())
+            is ParameterItem -> item.containingCallable().appendDocumentation(doc, item.name())
             is MethodItem ->
                 // Document as part of return annotation, not member doc
                 item.appendDocumentation(doc, if (returnValue) "@return" else null)
@@ -604,40 +603,41 @@ class DocAnalyzer(
     }
 
     private fun addDoc(annotation: AnnotationItem, tag: String, item: Item) {
-        // TODO: Cache: we shouldn't have to keep looking this up over and over
-        // for example for the nullable/non-nullable annotation classes that
-        // are used everywhere!
+        // Resolve the annotation class, returning immediately if it could not be found.
         val cls = annotation.resolve() ?: return
 
-        val documentation = cls.findTagDocumentation(tag)
-        if (documentation != null) {
-            assert(documentation.startsWith("@$tag")) { documentation }
-            // TODO: Insert it in the right place (@return or @param)
-            val section =
-                when {
-                    documentation.startsWith("@returnDoc") -> "@return"
-                    documentation.startsWith("@paramDoc") -> "@param"
-                    documentation.startsWith("@memberDoc") -> null
-                    else -> null
-                }
+        // Documentation of the annotation class that is to be copied into the item where the
+        // annotation is used.
+        val annotationDocumentation = cls.documentation
 
-            val insert =
-                stripLeadingAsterisks(stripMetaTags(documentation.substring(tag.length + 2)))
-            val qualified =
-                if (containsLinkTags(insert)) {
-                    val original = "/** $insert */"
-                    val qualified = cls.fullyQualifiedDocumentation(original)
-                    if (original != qualified) {
-                        qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
-                    } else {
-                        insert
-                    }
+        // Get the text for the supplied tag as that is what needs to be copied into the use site.
+        // If there is no such text then return immediately.
+        val taggedText = annotationDocumentation.findTagDocumentation(tag) ?: return
+
+        assert(taggedText.startsWith("@$tag")) { taggedText }
+        val section =
+            when {
+                taggedText.startsWith("@returnDoc") -> "@return"
+                taggedText.startsWith("@paramDoc") -> "@param"
+                taggedText.startsWith("@memberDoc") -> null
+                else -> null
+            }
+
+        val insert = stripLeadingAsterisks(stripMetaTags(taggedText.substring(tag.length + 2)))
+        val qualified =
+            if (containsLinkTags(insert)) {
+                val original = "/** $insert */"
+                val qualified = annotationDocumentation.fullyQualifiedDocumentation(original)
+                if (original != qualified) {
+                    qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
                 } else {
                     insert
                 }
+            } else {
+                insert
+            }
 
-            item.appendDocumentation(qualified, section) // 2: @ and space after tag
-        }
+        item.appendDocumentation(qualified, section) // 2: @ and space after tag
     }
 
     private fun stripLeadingAsterisks(s: String): String {
@@ -676,46 +676,51 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
                 override fun visitItem(item: Item) {
-                    var doc = item.documentation
-                    if (doc.isBlank()) {
-                        return
-                    }
-
-                    // Work around javadoc cutting off the summary line after the first ". ".
-                    val firstDot = doc.indexOf(".")
-                    if (firstDot > 0 && doc.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
-                        doc = doc.substring(0, firstDot) + ".g.&nbsp;" + doc.substring(firstDot + 4)
-                        item.documentation = doc
-                    }
+                    item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
             }
         )
     }
 
     fun applyApiLevels(applyApiLevelsXml: File) {
-        val apiLookup = getApiLookup(applyApiLevelsXml)
+        val apiLookup =
+            getApiLookup(
+                xmlFile = applyApiLevelsXml,
+                underTest = executionEnvironment.isUnderTest(),
+            )
         val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(applyApiLevelsXml)
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
         codebase.accept(
-            object : ApiVisitor(visitConstructorsAsMethods = true) {
-                override fun visitMethod(method: MethodItem) {
-                    val psiMethod = (method as PsiMethodItem).psi()
-                    if (psiMethod.containingClass == null) {
+            object :
+                ApiVisitor(
+                    apiPredicateConfig = apiPredicateConfig,
+                ) {
+
+                override fun visitCallable(callable: CallableItem) {
+                    // Do not add API information to implicit constructor. It is not clear exactly
+                    // why this is needed but without it some existing tests break.
+                    // TODO(b/302290849): Investigate this further.
+                    if (callable is ConstructorItem && callable.isImplicitConstructor()) {
                         return
                     }
-                    addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
-                    elementToSdkExtSinceMap[
-                            "${psiMethod.containingClass!!.qualifiedName}#${psiMethod.name}"]
-                        ?.let { addApiExtensionsDocumentation(it, method) }
-                    addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(psiMethod), method)
+                    addApiLevelDocumentation(apiLookup.getCallableVersion(callable), callable)
+                    val methodName = callable.name()
+                    val key = "${callable.containingClass().qualifiedName()}#$methodName"
+                    elementToSdkExtSinceMap[key]?.let {
+                        addApiExtensionsDocumentation(it, callable)
+                    }
+                    addDeprecatedDocumentation(
+                        apiLookup.getCallableDeprecatedIn(callable),
+                        callable
+                    )
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val psiClass = (cls as PsiClassItem).psi()
-                    val since = apiLookup.getClassVersion(psiClass)
+                    val qualifiedName = cls.qualifiedName()
+                    val since = apiLookup.getClassVersion(cls)
                     if (since != -1) {
                         addApiLevelDocumentation(since, cls)
 
@@ -724,29 +729,25 @@ class DocAnalyzer(
                         val pkg = cls.containingPackage()
                         pkgApi[pkg] = min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
                     }
-                    elementToSdkExtSinceMap["${psiClass.qualifiedName}"]?.let {
+                    elementToSdkExtSinceMap[qualifiedName]?.let {
                         addApiExtensionsDocumentation(it, cls)
                     }
-                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(psiClass), cls)
+                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(cls), cls)
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val psiField = (field as PsiFieldItem).psi()
-                    addApiLevelDocumentation(apiLookup.getFieldVersion(psiField), field)
+                    addApiLevelDocumentation(apiLookup.getFieldVersion(field), field)
                     elementToSdkExtSinceMap[
-                            "${psiField.containingClass!!.qualifiedName}#${psiField.name}"]
+                            "${field.containingClass().qualifiedName()}#${field.name()}"]
                         ?.let { addApiExtensionsDocumentation(it, field) }
-                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(psiField), field)
+                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(field), field)
                 }
             }
         )
 
-        val packageDocs = codebase.getPackageDocs()
-        if (packageDocs != null) {
-            for ((pkg, api) in pkgApi.entries) {
-                val code = api ?: 1
-                addApiLevelDocumentation(code, pkg)
-            }
+        for ((pkg, api) in pkgApi.entries) {
+            val code = api ?: 1
+            addApiLevelDocumentation(code, pkg)
         }
     }
 
@@ -860,51 +861,49 @@ fun ApiConstraint.minApiLevel(): Int {
         ?: -1
 }
 
-fun ApiLookup.getClassVersion(cls: PsiClass): Int {
-    val owner = cls.qualifiedName ?: return -1
+fun ApiLookup.getClassVersion(cls: ClassItem): Int {
+    val owner = cls.qualifiedName()
     return getClassVersions(owner).minApiLevel()
 }
 
-val defaultEvaluator = DefaultJavaEvaluator(null, null)
-
-fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
-    val containingClass = method.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    val desc =
-        defaultEvaluator.getMethodDescription(method, includeName = false, includeReturn = false)
-    return getMethodVersions(owner, if (method.isConstructor) "<init>" else method.name, desc)
-        .minApiLevel()
+fun ApiLookup.getCallableVersion(method: CallableItem): Int {
+    val containingClass = method.containingClass()
+    val owner = containingClass.qualifiedName()
+    val desc = method.getCallableParameterDescriptorUsingDots()
+    // Metalava uses the class name as the name of the constructor but the ApiLookup uses <init>.
+    val name = if (method.isConstructor()) "<init>" else method.name()
+    return getMethodVersions(owner, name, desc).minApiLevel()
 }
 
-fun ApiLookup.getFieldVersion(field: PsiField): Int {
-    val containingClass = field.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    return getFieldVersions(owner, field.name).minApiLevel()
+fun ApiLookup.getFieldVersion(field: FieldItem): Int {
+    val containingClass = field.containingClass()
+    val owner = containingClass.qualifiedName()
+    return getFieldVersions(owner, field.name()).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getClassDeprecatedIn(cls: PsiClass): Int {
-    val owner = cls.qualifiedName ?: return -1
-    return getClassDeprecatedIn(owner)
+fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): Int {
+    val owner = cls.qualifiedName()
+    return getClassDeprecatedInVersions(owner).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getMethodDeprecatedIn(method: PsiMethod): Int {
-    val containingClass = method.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    val desc =
-        defaultEvaluator.getMethodDescription(method, includeName = false, includeReturn = false)
-    return getMethodDeprecatedIn(owner, method.name, desc)
+fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): Int {
+    val containingClass = callable.containingClass()
+    val owner = containingClass.qualifiedName()
+    val desc = callable.getCallableParameterDescriptorUsingDots() ?: return -1
+    return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getFieldDeprecatedIn(field: PsiField): Int {
-    val containingClass = field.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    return getFieldDeprecatedIn(owner, field.name)
+fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): Int {
+    val containingClass = field.containingClass()
+    val owner = containingClass.qualifiedName()
+    return getFieldDeprecatedInVersions(owner, field.name()).minApiLevel()
 }
 
-fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
+fun getApiLookup(
+    xmlFile: File,
+    cacheDir: File? = null,
+    underTest: Boolean = true,
+): ApiLookup {
     val client =
         object : LintCliClient(PROGRAM_NAME) {
             override fun getCacheDir(name: String?, create: Boolean): File? {
@@ -912,7 +911,7 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
                     return cacheDir
                 }
 
-                if (create && isUnderTest()) {
+                if (create && underTest) {
                     // Pick unique directory during unit tests
                     return Files.createTempDirectory(PROGRAM_NAME).toFile()
                 }
@@ -949,7 +948,7 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
     val prev = System.getProperty(xmlPathProperty)
     try {
         System.setProperty(xmlPathProperty, xmlFile.path)
-        return ApiLookup.get(client) ?: error("ApiLookup creation failed")
+        return ApiLookup.get(client, null) ?: error("ApiLookup creation failed")
     } finally {
         if (prev != null) {
             System.setProperty(xmlPathProperty, xmlFile.path)
@@ -1035,7 +1034,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     // Nomenclature differences:
                     //   - constructors are named "<init>()V" in api-versions.xml, but
                     //     "ClassName()V" in PsiItems
-                    //   - inner classes are named "Outer#Inner" in api-versions.xml, but
+                    //   - nested classes are named "Outer#Inner" in api-versions.xml, but
                     //     "Outer.Inner" in PsiItems
                     when (qualifiedName) {
                         "class" -> {

@@ -140,11 +140,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
@@ -152,7 +152,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
-                    Child4() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
@@ -224,11 +224,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
@@ -236,7 +236,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
-                    Child4() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
@@ -351,13 +351,6 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubsSourceList =
-                """
-                TESTROOT/stubs/test/pkg/MyClass1.java
-                TESTROOT/stubs/test/pkg/MyClass2.java
-                TESTROOT/stubs/test/pkg/MySubClass1.java
-                TESTROOT/stubs/test/pkg/MySubClass2.java
-            """
         )
     }
 
@@ -642,7 +635,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ClipDrawable extends test.pkg.Constructors2.DrawableWrapper {
-                    public ClipDrawable(test.pkg.Constructors2.Drawable drawable, int gravity, int orientation) { super(null); throw new RuntimeException("Stub!"); }
+                    public ClipDrawable(test.pkg.Constructors2.Drawable drawable, int gravity, int orientation) { super((test.pkg.Constructors2.Drawable)null); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Drawable {
@@ -666,11 +659,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TestSuite implements test.pkg.Constructors2.Test {
                     public TestSuite() { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.Class<?> theClass) { throw new RuntimeException("Stub!"); }
                     public TestSuite(java.lang.Class<? extends test.pkg.Constructors2.TestCase> theClass, java.lang.String name) { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.String name) { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.Class<?>... classes) { throw new RuntimeException("Stub!"); }
                     public TestSuite(java.lang.Class<? extends test.pkg.Constructors2.TestCase>[] classes, java.lang.String name) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.Class<?> theClass) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.Class<?>... classes) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.String name) { throw new RuntimeException("Stub!"); }
                     }
                     }
                     """
@@ -732,7 +725,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class PropertyChangeListenerProxy extends test.pkg.PickConstructors2.EventListenerProxy<test.pkg.PickConstructors2.PropertyChangeListener> implements test.pkg.PickConstructors2.PropertyChangeListener {
-                    public PropertyChangeListenerProxy(java.lang.String propertyName, test.pkg.PickConstructors2.PropertyChangeListener listener) { super(null); throw new RuntimeException("Stub!"); }
+                    public PropertyChangeListenerProxy(java.lang.String propertyName, test.pkg.PickConstructors2.PropertyChangeListener listener) { super((test.pkg.PickConstructors2.PropertyChangeListener)null); throw new RuntimeException("Stub!"); }
                     }
                     }
                     """
@@ -805,6 +798,125 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public class BasicPoolEntryRef extends test.pkg.WeakRef<test.pkg.BasicPoolEntry> {
                     @Deprecated
                     public BasicPoolEntryRef(test.pkg.BasicPoolEntry entry) { super((test.pkg.BasicPoolEntry)null); throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Use unspecified type argument in constructor cast`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    public class Foo extends Bar {
+                        public Foo(Integer i) {
+                            super(i);
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Bar<T extends Number> {
+                        public Bar(T foo) {
+                        }
+                        // need to have more than one constructor to trigger casts in stubs
+                        public Bar(T foo, int size) {
+                        }
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Bar<T extends java.lang.Number> {
+                    ctor public Bar(T);
+                    ctor public Bar(T, int);
+                  }
+                  public class Foo extends test.pkg.Bar {
+                    ctor public Foo(Integer);
+                  }
+                }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        public Foo(java.lang.Integer i) { super((java.lang.Number)null); throw new RuntimeException("Stub!"); }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Varargs constructor parameter requiring cast`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Child extends Parent {
+                        public Child(int... ints) {
+                            super(ints);
+                        }
+                        public Child(String... strings) {
+                            super(strings);
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Parent {
+                        public Parent(int... ints) {
+                        }
+                        public Parent(String... strings) {
+                        }
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Child extends test.pkg.Parent {
+                    ctor public Child(int...);
+                    ctor public Child(java.lang.String...);
+                  }
+                  public class Parent {
+                    ctor public Parent(int...);
+                    ctor public Parent(java.lang.String...);
+                  }
+                }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Child extends test.pkg.Parent {
+                    public Child(int... ints) { super((int[])null); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String... strings) { super((int[])null); throw new RuntimeException("Stub!"); }
                     }
                     """
                     )

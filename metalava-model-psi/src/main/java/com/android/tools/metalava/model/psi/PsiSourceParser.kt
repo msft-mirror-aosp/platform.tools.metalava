@@ -18,33 +18,28 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.lint.annotations.Extractor
-import com.android.tools.lint.checks.infrastructure.ClassName
+import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.PackageDocs
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
-import java.nio.file.Files
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 
-val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
+internal val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
 
-// TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
-// LanguageVersionSettingsImpl.DEFAULT
-val defaultKotlinLanguageLevel = kotlinLanguageVersionSettings(DEFAULT_KOTLIN_LANGUAGE_LEVEL)
+internal val defaultKotlinLanguageLevel = LanguageVersionSettingsImpl.DEFAULT
 
 fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
     val languageLevel =
@@ -69,12 +64,19 @@ internal class PsiSourceParser(
     private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
     private val useK2Uast: Boolean = false,
+    private val allowReadingComments: Boolean,
     private val jdkHome: File? = null,
+    private val projectDescription: File? = null,
 ) : SourceParser {
 
     override fun getClassResolver(classPath: List<File>): ClassResolver {
         val uastEnvironment = loadUastFromJars(classPath)
-        return PsiBasedClassResolver(uastEnvironment, annotationManager, reporter)
+        return PsiBasedClassResolver(
+            uastEnvironment,
+            annotationManager,
+            reporter,
+            allowReadingComments
+        )
     }
 
     /**
@@ -84,49 +86,126 @@ internal class PsiSourceParser(
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
     override fun parseSources(
-        sources: List<File>,
+        sourceSet: SourceSet,
+        commonSourceSet: SourceSet,
         description: String,
-        sourcePath: List<File>,
         classPath: List<File>,
-    ): PsiBasedCodebase {
-        val absoluteSources = sources.map { it.absoluteFile }
-
-        val absoluteSourceRoots =
-            sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
-
-        // Add in source roots implied by the source files
-        extractRoots(reporter, absoluteSources, absoluteSourceRoots)
-
-        val absoluteClasspath = classPath.map { it.absoluteFile }
-
+        apiPackages: PackageFilter?,
+    ): Codebase {
         return parseAbsoluteSources(
-            absoluteSources,
+            sourceSet.absoluteCopy().extractRoots(reporter),
+            commonSourceSet.absoluteCopy().extractRoots(reporter),
             description,
-            absoluteSourceRoots,
-            absoluteClasspath,
+            classPath.map { it.absoluteFile },
+            apiPackages,
         )
     }
 
     /** Returns a codebase initialized from the given set of absolute files. */
     private fun parseAbsoluteSources(
-        sources: List<File>,
+        sourceSet: SourceSet,
+        commonSourceSet: SourceSet,
         description: String,
-        sourceRoots: List<File>,
         classpath: List<File>,
+        apiPackages: PackageFilter?,
     ): PsiBasedCodebase {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
-        val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
+        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
-        // TODO(jsjeon): should set language version _per_ module (Lint Project)
-        val lintClient = MetalavaCliClient(kotlinLanguageLevel)
+        when {
+            projectDescription != null -> {
+                configureUastEnvironmentFromProjectDescription(config, projectDescription)
+            }
+            commonSourceSet.sources.isNotEmpty() -> {
+                configureUastEnvironmentForKMP(
+                    config,
+                    sourceSet.sources,
+                    commonSourceSet.sources,
+                    classpath,
+                    rootDir
+                )
+            }
+            else -> {
+                configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
+            }
+        }
+        // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
+        jdkHome?.let {
+            if (isJdkModular(it)) {
+                config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
+                config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
+            }
+        }
+
+        val environment = psiEnvironmentManager.createEnvironment(config)
+        val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
+        environment.analyzeFiles(kotlinFiles)
+
+        val assembler =
+            PsiCodebaseAssembler(environment) {
+                PsiBasedCodebase(
+                    location = rootDir,
+                    description = description,
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = it,
+                )
+            }
+
+        assembler.initializeFromSources(sourceSet, apiPackages)
+        return assembler.codebase
+    }
+
+    private fun isJdkModular(homePath: File): Boolean {
+        return File(homePath, "jmods").isDirectory
+    }
+
+    override fun loadFromJar(apiJar: File): Codebase {
+        val environment = loadUastFromJars(listOf(apiJar))
+        val assembler =
+            PsiCodebaseAssembler(environment) { assembler ->
+                PsiBasedCodebase(
+                    location = apiJar,
+                    description = "Codebase loaded from $apiJar",
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                )
+            }
+        val codebase = assembler.codebase
+        assembler.initializeFromJar(apiJar)
+        return codebase
+    }
+
+    /** Initializes a UAST environment using the [apiJars] as classpath roots. */
+    private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
+        val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
+        // Use the empty dir otherwise this will end up scanning the current working directory.
+        configureUastEnvironment(config, listOf(psiEnvironmentManager.emptyDir), apiJars)
+
+        val environment = psiEnvironmentManager.createEnvironment(config)
+        environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
+        return environment
+    }
+
+    private fun configureUastEnvironment(
+        config: UastEnvironment.Configuration,
+        sourceRoots: List<File>,
+        classpath: List<File>,
+        rootDir: File = sourceRoots.firstOrNull() ?: File("").canonicalFile
+    ) {
+        val lintClient = MetalavaCliClient()
         // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
         // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
         // `referenceDir` is used to adjust `lib` dir accordingly if needed,
         // but we set `classpath` anyway below.
         val lintProject =
             Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
+        lintProject.kotlinLanguageLevel = kotlinLanguageLevel
         lintProject.javaSourceFolders.addAll(sourceRoots)
         lintProject.javaLibraries.addAll(classpath)
         config.addModules(
@@ -141,204 +220,131 @@ internal class PsiSourceParser(
                 )
             ),
         )
-        // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
-        jdkHome?.let {
-            if (isJdkModular(it)) {
-                config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
-                config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
+    }
+
+    private fun configureUastEnvironmentForKMP(
+        config: UastEnvironment.Configuration,
+        sourceFiles: List<File>,
+        commonSourceFiles: List<File>,
+        classpath: List<File>,
+        rootDir: File,
+    ) {
+        // TODO(b/322111050): consider providing a nice DSL at Lint level
+        val projectXml = File.createTempFile("project", ".xml")
+        projectXml.deleteOnExit()
+
+        fun describeSources(sources: List<File>) = buildString {
+            for (source in sources) {
+                if (!source.isFile) continue
+                appendLine("    <src file=\"${source.absolutePath}\" />")
             }
         }
 
-        val environment = psiEnvironmentManager.createEnvironment(config)
-
-        val kotlinFiles = sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-        environment.analyzeFiles(kotlinFiles)
-
-        val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
-        val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
-
-        val codebase = PsiBasedCodebase(rootDir, description, annotationManager, reporter)
-        codebase.initialize(environment, units, packageDocs)
-        return codebase
-    }
-
-    private fun isJdkModular(homePath: File): Boolean {
-        return File(homePath, "jmods").isDirectory
-    }
-
-    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
-        val environment = loadUastFromJars(listOf(apiJar))
-        val codebase =
-            PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
-        codebase.initialize(environment, apiJar, preFiltered)
-        return codebase
-    }
-
-    /** Initializes a UAST environment using the [apiJars] as classpath roots. */
-    fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
-        val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        @Suppress("DEPRECATION") config.addClasspathRoots(apiJars)
-
-        val environment = psiEnvironmentManager.createEnvironment(config)
-        environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
-        return environment
-    }
-}
-
-private fun gatherPackageJavadoc(sources: List<File>, sourceRoots: List<File>): PackageDocs {
-    val packageComments = HashMap<String, String>(100)
-    val overviewHtml = HashMap<String, String>(10)
-    val hiddenPackages = HashSet<String>(100)
-    val sortedSourceRoots = sourceRoots.sortedBy { -it.name.length }
-    for (file in sources) {
-        var javadoc = false
-        val map =
-            when (file.name) {
-                PACKAGE_HTML -> {
-                    javadoc = true
-                    packageComments
+        fun describeClasspath() = buildString {
+            for (dep in classpath) {
+                // TODO: what other kinds of dependencies?
+                if (dep.extension !in SUPPORTED_CLASSPATH_EXT) continue
+                if (dep.extension == "klib") {
+                    appendLine("    <klib file=\"${dep.absolutePath}\" />")
+                } else {
+                    appendLine("    <classpath ${dep.extension}=\"${dep.absolutePath}\" />")
                 }
-                OVERVIEW_HTML -> {
-                    overviewHtml
-                }
-                else -> continue
-            }
-        var contents = file.readText(Charsets.UTF_8)
-        if (javadoc) {
-            contents = packageHtmlToJavadoc(contents)
-        }
-
-        // Figure out the package: if there is a java file in the same directory, get the package
-        // name from the java file. Otherwise, guess from the directory path + source roots.
-        // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
-        var pkg =
-            file.parentFile
-                ?.listFiles()
-                ?.filter { it.name.endsWith(SdkConstants.DOT_JAVA) }
-                ?.asSequence()
-                ?.mapNotNull { findPackage(it) }
-                ?.firstOrNull()
-        if (pkg == null) {
-            // Strip the longest prefix source root.
-            val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
-            pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
-        }
-        map[pkg] = contents
-        if (contents.contains("@hide")) {
-            hiddenPackages.add(pkg)
-        }
-    }
-
-    return PackageDocs(packageComments, overviewHtml, hiddenPackages)
-}
-
-const val PACKAGE_HTML = "package.html"
-const val OVERVIEW_HTML = "overview.html"
-
-private fun skippableDirectory(file: File): Boolean =
-    file.path.endsWith(".git") && file.name == ".git"
-
-private fun addSourceFiles(reporter: Reporter, list: MutableList<File>, file: File) {
-    if (file.isDirectory) {
-        if (skippableDirectory(file)) {
-            return
-        }
-        if (Files.isSymbolicLink(file.toPath())) {
-            reporter.report(
-                Issues.IGNORING_SYMLINK,
-                file,
-                "Ignoring symlink during source file discovery directory traversal"
-            )
-            return
-        }
-        val files = file.listFiles()
-        if (files != null) {
-            for (child in files) {
-                addSourceFiles(reporter, list, child)
             }
         }
-    } else if (file.isFile) {
-        when {
-            file.name.endsWith(SdkConstants.DOT_JAVA) ||
-                file.name.endsWith(SdkConstants.DOT_KT) ||
-                file.name.equals(PACKAGE_HTML) ||
-                file.name.equals(OVERVIEW_HTML) -> list.add(file)
+
+        // We're about to build the description of Lint's project model.
+        // Alas, no proper documentation is available. Please refer to examples at upstream Lint:
+        // https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:lint/libs/lint-tests/src/test/java/com/android/tools/lint/ProjectInitializerTest.kt
+        //
+        // An ideal project structure would look like:
+        //
+        // <project>
+        //   <root dir="frameworks/support/compose/ui/ui"/>
+        //   <module name="commonMain" android="false">
+        //     <src file="src/commonMain/.../file1.kt" /> <!-- and so on -->
+        //     <klib file="lib/if/any.klib" />
+        //     <classpath jar="/path/to/kotlin/coroutinesCore.jar" />
+        //     ...
+        //   </module>
+        //   <module name="jvmMain" android="false">
+        //     <dep module="commonMain" kind="dependsOn" />
+        //     <src file="src/jvmMain/.../file1.kt" /> <!-- and so on -->
+        //     ...
+        //   </module>
+        //   <module name="androidMain" android="true">
+        //     <dep module="jvmMain" kind="dependsOn" />
+        //     <src file="src/androidMain/.../file1.kt" /> <!-- and so on -->
+        //     ...
+        //   </module>
+        //   ...
+        // </project>
+        //
+        // That is, there are common modules where `expect` declarations and common business logic
+        // reside, along with binary dependencies of several formats, including klib and jar.
+        // Then, platform-specific modules "depend" on common modules, and have their own source set
+        // and binary dependencies.
+        //
+        // For now, with --common-source-path, common source files are isolated, but the project
+        // structure is not fully conveyed. Therefore, we will reuse the same binary dependencies
+        // for all modules (which only(?) cause performance degradation on binary resolution).
+        val description = buildString {
+            appendLine("""<?xml version="1.0" encoding="utf-8"?>""")
+            appendLine("<project>")
+            appendLine("  <root dir=\"${rootDir.absolutePath}\" />")
+            appendLine("  <module name=\"commonMain\" android=\"false\" >")
+            append(describeSources(commonSourceFiles))
+            append(describeClasspath())
+            appendLine("  </module>")
+            appendLine("  <module name=\"app\" >")
+            appendLine("    <dep module=\"commonMain\" kind=\"dependsOn\" />")
+            // NB: While K2 requires separate common / platform-specific source roots, K1 still
+            // needs to receive all source roots at once. Thus, existing usages (e.g., androidx)
+            // often pass all source files, according to compiler configuration.
+            // To make a correct module structure, we need to filter out common source files here.
+            // TODO: once fully switching to K2 and androidx usage is adjusted, we won't need this.
+            append(describeSources(sourceFiles - commonSourceFiles))
+            append(describeClasspath())
+            appendLine("  </module>")
+            appendLine("</project>")
         }
-    }
-}
+        projectXml.writeText(description)
 
-fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<File> {
-    val sources = mutableListOf<File>()
-    for (file in sourcePath) {
-        if (file.path.isBlank()) {
-            // --source-path "" means don't search source path; use "." for pwd
-            continue
-        }
-        addSourceFiles(reporter, sources, file.absoluteFile)
-    }
-    return sources.sortedWith(compareBy { it.name })
-}
-
-fun extractRoots(
-    reporter: Reporter,
-    sources: List<File>,
-    sourceRoots: MutableList<File> = mutableListOf()
-): List<File> {
-    // Cache for each directory since computing root for a source file is
-    // expensive
-    val dirToRootCache = mutableMapOf<String, File>()
-    for (file in sources) {
-        val parent = file.parentFile ?: continue
-        val found = dirToRootCache[parent.path]
-        if (found != null) {
-            continue
-        }
-
-        val root = findRoot(reporter, file) ?: continue
-        dirToRootCache[parent.path] = root
-
-        if (!sourceRoots.contains(root)) {
-            sourceRoots.add(root)
-        }
-    }
-
-    return sourceRoots
-}
-
-/**
- * If given a full path to a Java or Kotlin source file, produces the path to the source root if
- * possible.
- */
-private fun findRoot(reporter: Reporter, file: File): File? {
-    val path = file.path
-    if (path.endsWith(SdkConstants.DOT_JAVA) || path.endsWith(SdkConstants.DOT_KT)) {
-        val pkg = findPackage(file) ?: return null
-        val parent = file.parentFile ?: return null
-        val endIndex = parent.path.length - pkg.length
-        val before = path[endIndex - 1]
-        if (before == '/' || before == '\\') {
-            return File(path.substring(0, endIndex))
-        } else {
-            reporter.report(
-                Issues.IO_ERROR,
-                file,
-                "Unable to determine the package name. " +
-                    "This usually means that a source file was where the directory does not seem to match the package " +
-                    "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
-            )
-        }
+        configureUastEnvironmentFromProjectDescription(config, projectXml)
     }
 
-    return null
-}
+    private fun configureUastEnvironmentFromProjectDescription(
+        config: UastEnvironment.Configuration,
+        projectDescription: File,
+    ) {
+        val lintClient = MetalavaCliClient()
+        // This will parse the description of Lint's project model and populate the module structure
+        // inside the given Lint client. We will use it to set up the project structure that
+        // [UastEnvironment] requires, which in turn uses that to set up Kotlin compiler frontend.
+        // The overall flow looks like:
+        //   project.xml -> Lint Project model -> UastEnvironment Module -> Kotlin compiler FE / AA
+        // There are a couple of limitations that force use fall into this long steps:
+        //  * Lint Project creation is not exposed at all. Only project.xml parsing is available.
+        //  * UastEnvironment Module simply reuses existing Lint Project model.
+        computeMetadata(lintClient, projectDescription)
+        config.addModules(
+            lintClient.knownProjects.map { lintProject ->
+                lintProject.kotlinLanguageLevel = kotlinLanguageLevel
+                UastEnvironment.Module(
+                    lintProject,
+                    // K2 UAST: building KtSdkModule for JDK
+                    jdkHome,
+                    includeTests = false,
+                    includeTestFixtureSources = false,
+                    isUnitTest = false
+                )
+            }
+        )
+    }
 
-/** Finds the package of the given Java/Kotlin source file, if possible */
-fun findPackage(file: File): String? {
-    val source = file.readText(Charsets.UTF_8)
-    return findPackage(source)
-}
-
-/** Finds the package of the given Java/Kotlin source code, if possible */
-fun findPackage(source: String): String? {
-    return ClassName(source).packageName
+    companion object {
+        private const val AAR = "aar"
+        private const val JAR = "jar"
+        private const val KLIB = "klib"
+        private val SUPPORTED_CLASSPATH_EXT = listOf(AAR, JAR, KLIB)
+    }
 }

@@ -16,18 +16,24 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
+import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.kotlin
+import org.junit.Test
 
-// Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.
+/** Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions. */
+@RequiresCapabilities(Capability.KOTLIN)
 abstract class UastTestBase : DriverTest() {
 
-    protected fun `Test RequiresOptIn and OptIn`(isK2: Boolean) {
+    @Test
+    fun `Test RequiresOptIn and OptIn`() {
         // See http://b/248341155 for more details
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -116,10 +122,49 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `renamed via @JvmName`(isK2: Boolean, api: String) {
+    @Test
+    fun `renamed via @JvmName`() {
+        val api =
+            if (isK2) {
+                // NB: getInterpolated -> isInterpolated
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class ColorRamp {
+                        ctor public ColorRamp(int[] colors, boolean interpolated);
+                        method public int[] getColors();
+                        method public int[] getOtherColors();
+                        method public boolean isInitiallyEnabled();
+                        method public boolean isInterpolated();
+                        method public void updateOtherColors(int[]);
+                        property public final int[] colors;
+                        property public final boolean initiallyEnabled;
+                        property public final boolean interpolated;
+                        property public final int[] otherColors;
+                      }
+                    }
+                """
+            } else {
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class ColorRamp {
+                        ctor public ColorRamp(int[] colors, boolean interpolated);
+                        method public int[] getColors();
+                        method public boolean getInterpolated();
+                        method public int[] getOtherColors();
+                        method public boolean isInitiallyEnabled();
+                        method public void updateOtherColors(int[]);
+                        property public final int[] colors;
+                        property public final boolean initiallyEnabled;
+                        property public final boolean interpolated;
+                        property public final int[] otherColors;
+                      }
+                    }
+                """
+            }
         // Regression test from http://b/257444932: @get:JvmName on constructor property
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -145,58 +190,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Kotlin Reified Methods`(isK2: Boolean) {
-        // TODO: once fix for https://youtrack.jetbrains.com/issue/KT-39209 is available (231),
-        //  FE1.0 UAST will have implicit nullability too.
-        //  Put this back to ApiFileTest, before `Kotlin Reified Methods 2`
-        val n = if (isK2) " @Nullable" else ""
-        uastCheck(
-            isK2,
-            format = FileFormat.V2,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                    )
-                ),
-            api =
-                """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method$n public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
-        )
-    }
-
-    protected fun `Annotation on parameters of data class synthetic copy`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57003
-        val typeAnno = if (isK2) "" else "@test.pkg.MyAnnotation "
-        uastCheck(
-            isK2,
+    @Test
+    fun `Annotation on parameters of data class synthetic copy`() {
+        // https://youtrack.jetbrains.com/issue/KT-57003
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -215,7 +212,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
                     method public int component1();
                     method public String component2();
-                    method public test.pkg.Foo copy(${typeAnno}int p1, String p2);
+                    method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
                     method public int getP1();
                     method public String getP2();
                     property public final int p1;
@@ -228,61 +225,12 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `declarations with value class in its signature`(isK2: Boolean) {
+    @Test
+    fun `declarations with value class in its signature`() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
-        // TODO(b/297113621)
-        val alignmentMembersDelegateToCompanion =
-            if (isK2) ""
-            else
-                """
-                    method public int getHorizontal();
-                    method public int getVertical();
-                    property public final int horizontal;
-                    property public final int vertical;"""
-        val alignmentCompanionAccessors =
-            if (isK2) ""
-            else
-                """
-                    method public int getStart();
-                    method public int getTop();"""
-        val alignmentCompanionProperties =
-            if (isK2) ""
-            else
-                """
-                    property public final int Start;
-                    property public final int Top;"""
-        val alignmentHorizontalCompanionMembers =
-            if (isK2) ""
-            else
-                """
-                    method public int getCenterHorizontally();
-                    method public int getEnd();
-                    method public int getStart();
-                    property public final int CenterHorizontally;
-                    property public final int End;
-                    property public final int Start;"""
-        val alignmentVerticalCompanionMembers =
-            if (isK2) ""
-            else
-                """
-                    method public int getBottom();
-                    method public int getCenterVertically();
-                    method public int getTop();
-                    property public final int Bottom;
-                    property public final int CenterVertically;
-                    property public final int Top;"""
-        val userPropertyAndAccessors =
-            if (isK2) ""
-            else
-                """
-                    method public float getP();
-                    method public float getQ();
-                    method public void setQ(float);
-                    property public final float p;
-                    property public final float q;"""
-        uastCheck(
-            isK2,
+        val mod = if (isK2) "" else " final"
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -336,22 +284,42 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment(int horizontal, int vertical);$alignmentMembersDelegateToCompanion
+                    ctor public Alignment(int horizontal, int vertical);
+                    method public int getHorizontal();
+                    method public int getVertical();
+                    property public$mod int horizontal;
+                    property public$mod int vertical;
                     field public static final test.pkg.Alignment.Companion Companion;
                   }
-                  public static final class Alignment.Companion {$alignmentCompanionAccessors
-                    method public test.pkg.Alignment getTopStart();$alignmentCompanionProperties
+                  public static final class Alignment.Companion {
+                    method public int getStart();
+                    method public int getTop();
+                    method public test.pkg.Alignment getTopStart();
+                    property public$mod int Start;
+                    property public$mod int Top;
                     property public final test.pkg.Alignment TopStart;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Horizontal {
                     field public static final test.pkg.Alignment.Horizontal.Companion Companion;
                   }
-                  public static final class Alignment.Horizontal.Companion {$alignmentHorizontalCompanionMembers
+                  public static final class Alignment.Horizontal.Companion {
+                    method public int getCenterHorizontally();
+                    method public int getEnd();
+                    method public int getStart();
+                    property public$mod int CenterHorizontally;
+                    property public$mod int End;
+                    property public$mod int Start;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Vertical {
                     field public static final test.pkg.Alignment.Vertical.Companion Companion;
                   }
-                  public static final class Alignment.Vertical.Companion {$alignmentVerticalCompanionMembers
+                  public static final class Alignment.Vertical.Companion {
+                    method public int getBottom();
+                    method public int getCenterVertically();
+                    method public int getTop();
+                    property public$mod int Bottom;
+                    property public$mod int CenterVertically;
+                    property public$mod int Top;
                   }
                   @kotlin.jvm.JvmInline public final value class AnchorType {
                     field public static final test.pkg.AnchorType.Companion Companion;
@@ -367,17 +335,56 @@ abstract class UastTestBase : DriverTest() {
                   public final class User {
                     ctor public User(float p, float q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
-                    method public float foo();$userPropertyAndAccessors
+                    method public float foo();
+                    method public float getP();
+                    method public float getQ();
+                    method public void setQ(float);
+                    property public$mod float p;
+                    property public$mod float q;
                   }
                 }
         """
         )
     }
 
-    protected fun `non-last vararg type`(isK2: Boolean) {
+    @FilterByProvider("psi", "k2", action = EXCLUDE)
+    @Test
+    fun `internal setter with delegation`() {
+        // https://youtrack.jetbrains.com/issue/KT-70458
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Test {
+                          var prop = "zzz"
+                            internal set
+                          var lazyProp by lazy { setOf("zzz") }
+                            internal set
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public java.util.Set<java.lang.String> getLazyProp();
+                    method public String getProp();
+                    property public final java.util.Set<java.lang.String> lazyProp;
+                    property public final String prop;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `non-last vararg type`() {
         // https://youtrack.jetbrains.com/issue/KT-57547
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -392,17 +399,17 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static void foo(String![] vs, optional boolean b);
+                    method public static void foo(String[] vs, optional boolean b);
                   }
                 }
             """
         )
     }
 
-    protected fun `implements Comparator`(isK2: Boolean) {
+    @Test
+    fun `implements Comparator`() {
         // https://youtrack.jetbrains.com/issue/KT-57548
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -433,10 +440,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `constant in file-level annotation`(isK2: Boolean) {
+    @Test
+    fun `constant in file-level annotation`() {
         // https://youtrack.jetbrains.com/issue/KT-57550
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -449,9 +456,10 @@ abstract class UastTestBase : DriverTest() {
                         fun foo(p: Int) {}
                     """
                     ),
-                    requiresApiSource
+                    requiresApiSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 package test.pkg {
@@ -463,13 +471,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `final modifier in enum members`(isK2: Boolean) {
+    @Test
+    fun `final modifier in enum members`() {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        // TODO(b/287343397): restore Enum.entries output
-        // val e = if (isK2) "test.pkg.Event" else "E!"
-        // val s = if (isK2) "test.pkg.State" else "E!"
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -504,9 +509,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum Event {
-                    method public static final test.pkg.Event? upTo(test.pkg.State state);
-                    method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Event[] values();
+                    method public static test.pkg.Event? upTo(test.pkg.State state);
                     enum_constant public static final test.pkg.Event ON_CREATE;
                     enum_constant public static final test.pkg.Event ON_DESTROY;
                     enum_constant public static final test.pkg.Event ON_START;
@@ -517,10 +520,8 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Event? upTo(test.pkg.State state);
                   }
                   public enum State {
-                    method public final boolean isAtLeast(test.pkg.State state);
-                    method public final boolean isFinished();
-                    method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.State[] values();
+                    method public boolean isAtLeast(test.pkg.State state);
+                    method public boolean isFinished();
                     property public final boolean isFinished;
                     enum_constant public static final test.pkg.State BLOCKED;
                     enum_constant public static final test.pkg.State CANCELLED;
@@ -534,10 +535,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `lateinit var as mutable bare field`(isK2: Boolean) {
+    @Test
+    fun `lateinit var as mutable bare field`() {
         // https://youtrack.jetbrains.com/issue/KT-57569
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -567,14 +568,11 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
+    @Test
+    fun `Upper bound wildcards -- enum members`() {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        // TODO(b/287343397): restore Enum.entries output
-        // val c = if (isK2) "test.pkg.PowerCategory" else "E!"
-        // val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -628,14 +626,10 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum PowerCategory {
-                    method public static test.pkg.PowerCategory valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.PowerCategory[] values();
                     enum_constant public static final test.pkg.PowerCategory CPU;
                     enum_constant public static final test.pkg.PowerCategory MEMORY;
                   }
                   public enum PowerCategoryDisplayLevel {
-                    method public static test.pkg.PowerCategoryDisplayLevel valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.PowerCategoryDisplayLevel[] values();
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel BREAKDOWN;
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel TOTAL;
                   }
@@ -660,9 +654,11 @@ abstract class UastTestBase : DriverTest() {
                     ctor public PowerMetric.Type.Battery();
                   }
                   public static final class PowerMetric.Type.Energy extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Energy();
                     ctor public PowerMetric.Type.Energy(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> energyCategories);
                   }
                   public static final class PowerMetric.Type.Power extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Power();
                     ctor public PowerMetric.Type.Power(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> powerCategories);
                   }
                 }
@@ -670,11 +666,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Upper bound wildcards -- type alias`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61460
-        val upperBound = if (isK2) "? extends " else ""
-        uastCheck(
-            isK2,
+    @Test
+    fun `Upper bound wildcards -- type alias`() {
+        // https://youtrack.jetbrains.com/issue/KT-61460
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -695,19 +690,17 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class PerfettoSdkHandshake {
-                    ctor public PerfettoSdkHandshake(String targetPackage, kotlin.jvm.functions.Function1<? super java.lang.String,? extends java.util.Map<java.lang.String,java.lang.String>> parseJsonMap, kotlin.jvm.functions.Function1<? super java.lang.String,${upperBound}java.lang.String> executeShellCommand);
+                    ctor public PerfettoSdkHandshake(String targetPackage, kotlin.jvm.functions.Function1<? super java.lang.String,? extends java.util.Map<java.lang.String,java.lang.String>> parseJsonMap, kotlin.jvm.functions.Function1<? super java.lang.String,java.lang.String> executeShellCommand);
                   }
                 }
                 """
         )
     }
 
-    protected fun `Upper bound wildcards -- extension function type`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61734
-        val wildcard1 = if (isK2) "? super " else ""
-        val wildcard2 = if (isK2) "? extends " else ""
-        uastCheck(
-            isK2,
+    @Test
+    fun `Upper bound wildcards -- extension function type`() {
+        // https://youtrack.jetbrains.com/issue/KT-61734
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -741,18 +734,100 @@ abstract class UastTestBase : DriverTest() {
                   public interface NavGraphBuilder {
                   }
                   public final class NavGraphBuilderKt {
-                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition>? enterTransition);
+                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
                   }
                 }
                 """
         )
     }
 
-    protected fun `boxed type argument as method return type`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57579 nullity missed...
-        val n = if (isK2) "!" else ""
-        uastCheck(
-            isK2,
+    @Test
+    fun `Upper bound wildcards -- extension function type -- deprecated`() {
+        // https://youtrack.jetbrains.com/issue/KT-61734
+        val wildcard1 = if (isK2) "" else "? super "
+        val wildcard2 = if (isK2) "" else "? extends "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        interface NavGraphBuilder
+
+                        interface AnimatedContentTransitionScope<S>
+
+                        interface NavBackStackEntry
+
+                        interface EnterTransition
+
+                        fun NavGraphBuilder.after(
+                          enterTransition: (@JvmSuppressWildcards
+                              AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
+                        ) = TODO()
+
+                        @Deprecated("no more composable", level = DeprecationLevel.HIDDEN)
+                        fun NavGraphBuilder.before(
+                          enterTransition: (@JvmSuppressWildcards
+                              AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
+                        ) = TODO()
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public interface AnimatedContentTransitionScope<S> {
+                  }
+                  public interface EnterTransition {
+                  }
+                  public interface NavBackStackEntry {
+                  }
+                  public interface NavGraphBuilder {
+                  }
+                  public final class NavGraphBuilderKt {
+                    method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
+                    method @Deprecated public static Void before(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Upper bound wildcards -- suspend continuation with generic collection`() {
+        val wildcard = if (isK2) "" else "? extends "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        class Test {
+                          suspend fun foo(): Set<String> {
+                            return setOf("blah")
+                          }
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public suspend Object? foo(kotlin.coroutines.Continuation<? super java.util.Set<${wildcard}java.lang.String>>);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `boxed type argument as method return type`() {
+        // https://youtrack.jetbrains.com/issue/KT-57579
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -783,18 +858,17 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class StartActivityForResult extends test.pkg.ActivityResultContract<test.pkg.Intent,java.lang.Boolean> {
                     ctor public StartActivityForResult();
-                    method public Boolean$n parseResult(int resultCode, test.pkg.Intent? intent);
+                    method public Boolean parseResult(int resultCode, test.pkg.Intent? intent);
                   }
                 }
             """
         )
     }
 
-    protected fun `setter returns this with type cast`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61459
-        val extends = if (isK2) "" else " extends test.pkg.AbstractAlarm.Builder<Self, Built>"
-        uastCheck(
-            isK2,
+    @Test
+    fun `setter returns this with type cast`() {
+        // https://youtrack.jetbrains.com/issue/KT-61459
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -833,7 +907,7 @@ abstract class UastTestBase : DriverTest() {
                     method public final String getIdentifier();
                     property public final String identifier;
                   }
-                  public abstract static class AbstractAlarm.Builder<Self$extends, Built extends test.pkg.AbstractAlarm<Built, Self>> implements test.pkg.Alarm.Builder<Self> {
+                  public abstract static class AbstractAlarm.Builder<Self extends test.pkg.AbstractAlarm.Builder<Self, Built>, Built extends test.pkg.AbstractAlarm<Built, Self>> implements test.pkg.Alarm.Builder<Self> {
                     ctor public AbstractAlarm.Builder();
                     method public final Built build();
                     method public final Self setIdentifier(String text);
@@ -848,18 +922,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `suspend fun in interface`(isK2: Boolean) {
+    @Test
+    fun `suspend fun in interface`() {
         // https://youtrack.jetbrains.com/issue/KT-61544
-        // TODO(b/297113621)
-        val n = if (isK2) "" else "?"
-        val contByte =
-            if (isK2) ""
-            else ", kotlin.coroutines.Continuation<? super kotlin.Result<? extends byte[]>>"
-        val contUnit =
-            if (isK2) ""
-            else ", kotlin.coroutines.Continuation<? super kotlin.Result<? extends kotlin.Unit>>"
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -881,8 +947,8 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public interface GattClientScope {
                     method public suspend Object? await(kotlin.jvm.functions.Function0<kotlin.Unit> block, kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method public suspend Object$n readCharacteristic(test.pkg.MyInterface p$contByte);
-                    method public suspend Object$n writeCharacteristic(test.pkg.MyInterface p, byte[] value$contUnit);
+                    method public suspend Object? readCharacteristic(test.pkg.MyInterface p, kotlin.coroutines.Continuation<? super kotlin.Result<? extends byte[]>>);
+                    method public suspend Object? writeCharacteristic(test.pkg.MyInterface p, byte[] value, kotlin.coroutines.Continuation<? super kotlin.Result<? extends kotlin.Unit>>);
                   }
                   public interface MyInterface {
                   }
@@ -891,11 +957,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `nullable return type via type alias`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61460
-        val extends = if (isK2) "? extends " else ""
-        uastCheck(
-            isK2,
+    @Test
+    fun `nullable return type via type alias`() {
+        // https://youtrack.jetbrains.com/issue/KT-61460
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -914,19 +979,18 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class PrepareGetCredentialResponse {
-                    method public kotlin.jvm.functions.Function0<${extends}java.lang.Boolean>? getHasAuthResultsDelegate();
-                    property public final kotlin.jvm.functions.Function0<${extends}java.lang.Boolean>? hasAuthResultsDelegate;
+                    method public kotlin.jvm.functions.Function0<java.lang.Boolean>? getHasAuthResultsDelegate();
+                    property public final kotlin.jvm.functions.Function0<java.lang.Boolean>? hasAuthResultsDelegate;
                   }
                 }
             """
         )
     }
 
-    protected fun `IntDef with constant in companion object`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61497
-        val fq = if (isK2) "" else "test.pkg.RemoteAuthClient."
-        uastCheck(
-            isK2,
+    @Test
+    fun `IntDef with constant in companion object`() {
+        // https://youtrack.jetbrains.com/issue/KT-61497
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -973,20 +1037,206 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public static final class RemoteAuthClient.Companion {
                   }
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @test.pkg.MyIntDef({${fq}NO_ERROR, ${fq}ERROR_UNSUPPORTED, ${fq}ERROR_PHONE_UNAVAILABLE}) public static @interface RemoteAuthClient.Companion.ErrorCode {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @test.pkg.MyIntDef({test.pkg.RemoteAuthClient.NO_ERROR, test.pkg.RemoteAuthClient.ERROR_UNSUPPORTED, test.pkg.RemoteAuthClient.ERROR_PHONE_UNAVAILABLE}) public static @interface RemoteAuthClient.Companion.ErrorCode {
                   }
                 }
                 """
         )
     }
 
-    protected fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors`(
-        isK2: Boolean,
-        api: String,
-    ) {
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors`() {
+        val api =
+            if (isK2) {
+                // NB: better tracking non-deprecated accessors (thanks to better use-site handling)
+                """
+                    package test.pkg {
+                      @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                      }
+                      public interface TestInterface {
+                        method @Deprecated public int getPOld_deprecatedOnGetter();
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                        method @Deprecated public int getPOld_deprecatedOnProperty();
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                        method public int getPOld_deprecatedOnSetter();
+                        method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
+                        method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
+                        method public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
+                        method public void setPOld_deprecatedOnGetter(int);
+                        method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                        method public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                        method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                        method @Deprecated public void setPOld_deprecatedOnProperty(int);
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                        method @Deprecated public void setPOld_deprecatedOnSetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                        property @Deprecated public int pOld_deprecatedOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public int pOld_deprecatedOnProperty;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property public abstract int pOld_deprecatedOnSetter;
+                        property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                        property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
+                      }
+                      public final class Test_accessors {
+                        ctor public Test_accessors();
+                        method public String? getPNew_accessors();
+                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
+                        method public String? getPOld_accessors_deprecatedOnProperty();
+                        method public String? getPOld_accessors_deprecatedOnSetter();
+                        method public void setPNew_accessors(String?);
+                        method public void setPOld_accessors_deprecatedOnGetter(String?);
+                        method public void setPOld_accessors_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
+                        property public final String? pNew_accessors;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
+                        property public String? pOld_accessors_deprecatedOnProperty;
+                        property public final String? pOld_accessors_deprecatedOnSetter;
+                      }
+                      public final class Test_getter {
+                        ctor public Test_getter();
+                        method public String? getPNew_getter();
+                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
+                        method public String? getPOld_getter_deprecatedOnProperty();
+                        method public String? getPOld_getter_deprecatedOnSetter();
+                        method public void setPNew_getter(String?);
+                        method public void setPOld_getter_deprecatedOnGetter(String?);
+                        method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
+                        property public final String? pNew_getter;
+                        property @Deprecated public String? pOld_getter_deprecatedOnGetter;
+                        property public String? pOld_getter_deprecatedOnProperty;
+                        property public final String? pOld_getter_deprecatedOnSetter;
+                      }
+                      public final class Test_noAccessor {
+                        ctor public Test_noAccessor();
+                        method public String getPNew_noAccessor();
+                        method @Deprecated public String getPOld_noAccessor_deprecatedOnGetter();
+                        method @Deprecated public String getPOld_noAccessor_deprecatedOnProperty();
+                        method public String getPOld_noAccessor_deprecatedOnSetter();
+                        method public void setPNew_noAccessor(String);
+                        method public void setPOld_noAccessor_deprecatedOnGetter(String);
+                        method @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String);
+                        method @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String);
+                        property public final String pNew_noAccessor;
+                        property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
+                        property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
+                        property public final String pOld_noAccessor_deprecatedOnSetter;
+                      }
+                      public final class Test_setter {
+                        ctor public Test_setter();
+                        method public String? getPNew_setter();
+                        method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
+                        method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
+                        method public String? getPOld_setter_deprecatedOnSetter();
+                        method public void setPNew_setter(String?);
+                        method public void setPOld_setter_deprecatedOnGetter(String?);
+                        method public void setPOld_setter_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
+                        property public final String? pNew_setter;
+                        property @Deprecated public String? pOld_setter_deprecatedOnGetter;
+                        property @Deprecated public String? pOld_setter_deprecatedOnProperty;
+                        property public final String? pOld_setter_deprecatedOnSetter;
+                      }
+                    }
+                """
+            } else {
+                """
+                    package test.pkg {
+                      @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                      }
+                      public interface TestInterface {
+                        method @Deprecated public int getPOld_deprecatedOnGetter();
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                        method @Deprecated public int getPOld_deprecatedOnProperty();
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                        method @Deprecated public void setPOld_deprecatedOnProperty(int);
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                        method @Deprecated public void setPOld_deprecatedOnSetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                        property @Deprecated public int pOld_deprecatedOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public int pOld_deprecatedOnProperty;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                      }
+                      public final class Test_accessors {
+                        ctor public Test_accessors();
+                        method public String? getPNew_accessors();
+                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
+                        method public String? getPOld_accessors_deprecatedOnProperty();
+                        method public void setPNew_accessors(String?);
+                        method public void setPOld_accessors_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
+                        property public final String? pNew_accessors;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
+                        property public String? pOld_accessors_deprecatedOnProperty;
+                      }
+                      public final class Test_getter {
+                        ctor public Test_getter();
+                        method public String? getPNew_getter();
+                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
+                        method public String? getPOld_getter_deprecatedOnProperty();
+                        method public void setPNew_getter(String?);
+                        method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
+                        property public final String? pNew_getter;
+                        property @Deprecated public String? pOld_getter_deprecatedOnGetter;
+                        property public String? pOld_getter_deprecatedOnProperty;
+                      }
+                      public final class Test_noAccessor {
+                        ctor public Test_noAccessor();
+                        method public String getPNew_noAccessor();
+                        method @Deprecated public String getPOld_noAccessor_deprecatedOnGetter();
+                        method @Deprecated public String getPOld_noAccessor_deprecatedOnProperty();
+                        method public void setPNew_noAccessor(String);
+                        method @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String);
+                        method @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String);
+                        property public final String pNew_noAccessor;
+                        property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
+                        property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
+                      }
+                      public final class Test_setter {
+                        ctor public Test_setter();
+                        method public String? getPNew_setter();
+                        method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
+                        method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
+                        method public void setPNew_setter(String?);
+                        method public void setPOld_setter_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
+                        property public final String? pNew_setter;
+                        property @Deprecated public String? pOld_setter_deprecatedOnGetter;
+                        property @Deprecated public String? pOld_setter_deprecatedOnProperty;
+                      }
+                    }
+                """
+            }
         // TODO: https://youtrack.jetbrains.com/issue/KTIJ-27244
-        uastCheck(
-            isK2,
+        check(
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -994,28 +1244,28 @@ abstract class UastTestBase : DriverTest() {
                         package test.pkg
 
                         class Test_noAccessor {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_noAccessor_deprecatedOnProperty: String = "42"
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_noAccessor_deprecatedOnGetter: String = "42"
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_noAccessor_deprecatedOnSetter: String = "42"
 
                             var pNew_noAccessor: String = "42"
                         }
 
                         class Test_getter {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_getter_deprecatedOnProperty: String? = null
                                 get() = field ?: "null?"
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_getter_deprecatedOnGetter: String? = null
                                 get() = field ?: "null?"
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_getter_deprecatedOnSetter: String? = null
                                 get() = field ?: "null?"
 
@@ -1024,7 +1274,7 @@ abstract class UastTestBase : DriverTest() {
                         }
 
                         class Test_setter {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_setter_deprecatedOnProperty: String? = null
                                 set(value) {
                                     if (field == null) {
@@ -1032,7 +1282,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_setter_deprecatedOnGetter: String? = null
                                 set(value) {
                                     if (field == null) {
@@ -1040,7 +1290,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_setter_deprecatedOnSetter: String? = null
                                 set(value) {
                                     if (field == null) {
@@ -1057,7 +1307,7 @@ abstract class UastTestBase : DriverTest() {
                         }
 
                         class Test_accessors {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_accessors_deprecatedOnProperty: String? = null
                                 get() = field ?: "null?"
                                 set(value) {
@@ -1066,7 +1316,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_accessors_deprecatedOnGetter: String? = null
                                 get() = field ?: "null?"
                                 set(value) {
@@ -1075,7 +1325,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_accessors_deprecatedOnSetter: String? = null
                                 get() = field ?: "null?"
                                 set(value) {
@@ -1092,10 +1342,274 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
                         }
+
+                        @Target(
+                          AnnotationTarget.PROPERTY,
+                          AnnotationTarget.PROPERTY_GETTER,
+                          AnnotationTarget.PROPERTY_SETTER
+                        )
+                        annotation class MyAnnotation
+
+                        interface TestInterface {
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty: Int
+
+                            @get:MyAnnotation
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty_myAnnoOnGetter: Int
+
+                            @set:MyAnnotation
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty_myAnnoOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:MyAnnotation
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty_myAnnoOnBoth: Int
+
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter: Int
+
+                            @get:MyAnnotation
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter_myAnnoOnGetter: Int
+
+                            @set:MyAnnotation
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter_myAnnoOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:MyAnnotation
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter_myAnnoOnBoth: Int
+
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter_myAnnoOnGetter: Int
+
+                            @set:MyAnnotation
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter_myAnnoOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:MyAnnotation
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter_myAnnoOnBoth: Int
+                        }
                         """
                     )
                 ),
             api = api,
+        )
+    }
+
+    @Test
+    fun `actual typealias -- without value class`() {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/PointerEvent.kt",
+                """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+            )
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public test.pkg.PointerKeyboardModifiers getKeyboardModifiers();
+                    property public final test.pkg.PointerKeyboardModifiers keyboardModifiers;
+                  }
+                  public final class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `actual typealias -- without common split`() {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    kotlin(
+                        "commonMain/src/test/pkg/PointerEvent.kt",
+                        """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        @kotlin.jvm.JvmInline
+                        value class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public $typeAliasExpanded getKeyboardModifiers();
+                    property public final $typeAliasExpanded keyboardModifiers;
+                  }
+                  @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
+
+    // b/324521456: need to set kotlin-stdlib-common for common module
+    @FilterByProvider("psi", "k2", action = EXCLUDE)
+    @Test
+    fun `actual typealias`() {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/PointerEvent.kt",
+                """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        @kotlin.jvm.JvmInline
+                        value class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+            )
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public int getKeyboardModifiers();
+                    property public final int keyboardModifiers;
+                  }
+                  @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `actual inline`() {
+        // b/336816056
+        val commonSource =
+            kotlin(
+                "commonMain/src/pkg/TestClass.kt",
+                """
+                    package pkg
+                    public expect class TestClass {
+                      public fun test1(a: Int = 0)
+                    }
+                    public expect inline fun TestClass.test2(a: Int = 0)
+                """
+            )
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/pkg/TestClass.kt",
+                        """
+                            package pkg
+                            public actual class TestClass {
+                              public actual fun test1(a: Int) {}
+                            }
+                            public actual inline fun TestClass.test2(a: Int) {
+                            }
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package pkg {
+                  public final class TestClass {
+                    ctor public TestClass();
+                    method public void test1(optional int a);
+                  }
+                  public final class TestClassKt {
+                    method public static inline void test2(pkg.TestClass, optional int a);
+                  }
+                }
+                """
         )
     }
 }

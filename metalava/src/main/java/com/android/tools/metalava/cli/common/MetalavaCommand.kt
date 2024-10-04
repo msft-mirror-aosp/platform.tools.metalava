@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -88,10 +87,6 @@ internal open class MetalavaCommand(
                     { common.terminal },
                     localization,
                 )
-
-            // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
-            // that prefix annotation names with `@`, e.g. `--show-annotation @foo.Show`.
-            expandArgumentFiles = false
         }
 
         // Print the version number if requested.

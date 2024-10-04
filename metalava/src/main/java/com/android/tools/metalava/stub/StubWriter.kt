@@ -14,25 +14,27 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.model.AnnotationTarget
-import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.model.removeDeprecatedSection
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -40,51 +42,23 @@ import java.io.File
 import java.io.FileWriter
 import java.io.IOException
 import java.io.PrintWriter
+import java.io.Writer
 
-class StubWriter(
-    private val codebase: Codebase,
+internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
     private val reporter: Reporter,
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = true,
-        inlineInheritedFields = true,
-        fieldComparator = FieldItem.comparator,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the documentation
-        methodComparator = MethodItem.sourceOrderComparator,
-        filterEmit = FilterPredicate(apiPredicate(docStubs)),
-        filterReference = apiPredicate(docStubs),
-        includeEmptyOuterClasses = true
-    ) {
-    private val annotationTarget =
-        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+    private val config: StubWriterConfig,
+    private val stubConstructorManager: StubConstructorManager,
+) : DelegatedVisitor {
 
-    private val sourceList = StringBuilder(20000)
-
-    /** Writes a source file list of the generated stubs */
-    fun writeSourceList(target: File, root: File?) {
-        target.parentFile?.mkdirs()
-        val contents =
-            if (root != null) {
-                val path = root.path.replace('\\', '/') + "/"
-                sourceList.toString().replace(path, "")
-            } else {
-                sourceList.toString()
-            }
-        target.writeText(contents)
-    }
-
-    private fun startFile(sourceFile: File) {
-        if (sourceList.isNotEmpty()) {
-            sourceList.append(' ')
-        }
-        sourceList.append(sourceFile.path.replace('\\', '/'))
-    }
+    /**
+     * Stubs need to preserve class nesting when visiting otherwise nested classes will not be
+     * nested inside their containing class properly.
+     */
+    override val requiresClassNesting: Boolean
+        get() = true
 
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
@@ -92,13 +66,12 @@ class StubWriter(
         writePackageInfo(pkg)
 
         if (docStubs) {
-            codebase.getPackageDocs()?.let { packageDocs ->
-                packageDocs.getOverviewDocumentation(pkg)?.let { writeDocOverview(pkg, it) }
-            }
+            pkg.overviewDocumentation?.let { writeDocOverview(pkg, it) }
         }
     }
 
-    fun writeDocOverview(pkg: PackageItem, content: String) {
+    fun writeDocOverview(pkg: PackageItem, resourceFile: ResourceFile) {
+        val content = resourceFile.content
         if (content.isBlank()) {
             return
         }
@@ -123,7 +96,8 @@ class StubWriter(
     private fun writePackageInfo(pkg: PackageItem) {
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
-        val writeDocumentation = docStubs && pkg.documentation.isNotBlank()
+        val writeDocumentation =
+            config.includeDocumentationInStubs && pkg.documentation.isNotBlank()
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -133,20 +107,18 @@ class StubWriter(
                     reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
                     return
                 }
-            startFile(sourceFile)
 
-            appendDocumentation(pkg, packageInfoWriter, docStubs)
+            appendDocumentation(pkg, packageInfoWriter, config)
 
             if (annotations.isNotEmpty()) {
-                ModifierList.writeAnnotations(
-                    list = pkg.modifiers,
-                    separateLines = true,
-                    // Some bug in UAST triggers duplicate nullability annotations
-                    // here; make sure the are filtered out
-                    filterDuplicates = true,
-                    target = annotationTarget,
-                    writer = packageInfoWriter
-                )
+                // Write the modifier list even though the package info does not actually have
+                // modifiers as that will write the annotations which it does have and ignore the
+                // modifiers.
+                ModifierListWriter.forStubs(
+                        writer = packageInfoWriter,
+                        docStubs = docStubs,
+                    )
+                    .write(pkg)
             }
             packageInfoWriter.println("package ${pkg.qualifiedName()};")
 
@@ -174,8 +146,8 @@ class StubWriter(
 
         // Kotlin From-text stub generation is not supported.
         // This method will raise an error if
-        // options.kotlinStubs == true and classItem is TextClassItem.
-        return if (options.kotlinStubs && classItem.isKotlin()) {
+        // config.kotlinStubs == true and classItem is TextClassItem.
+        return if (config.kotlinStubs && classItem.isKotlin()) {
             File(packageDir, "${classItem.simpleName()}.kt")
         } else {
             File(packageDir, "${classItem.simpleName()}.java")
@@ -187,12 +159,33 @@ class StubWriter(
      * to this writer, which redirects to the error output. Nothing should be written to the writer
      * at that time.
      */
-    private var errorTextWriter = PrintWriter(options.stderr)
+    private var errorTextWriter =
+        PrintWriter(
+            object : Writer() {
+                override fun close() {
+                    throw IllegalStateException(
+                        "Attempt to close 'textWriter' outside top level class"
+                    )
+                }
+
+                override fun flush() {
+                    throw IllegalStateException(
+                        "Attempt to flush 'textWriter' outside top level class"
+                    )
+                }
+
+                override fun write(cbuf: CharArray, off: Int, len: Int) {
+                    throw IllegalStateException(
+                        "Attempt to write to 'textWriter' outside top level class\n'${String(cbuf, off, len)}'"
+                    )
+                }
+            }
+        )
 
     /** The writer to write the stubs file to */
     private var textWriter: PrintWriter = errorTextWriter
 
-    private var stubWriter: BaseItemVisitor? = null
+    private var stubWriter: DelegatedVisitor? = null
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -205,33 +198,44 @@ class StubWriter(
                     errorTextWriter
                 }
 
-            startFile(sourceFile)
+            val kotlin = config.kotlinStubs && cls.isKotlin()
+            val language = if (kotlin) Language.KOTLIN else Language.JAVA
+
+            val modifierListWriter =
+                ModifierListWriter.forStubs(
+                    writer = textWriter,
+                    docStubs = docStubs,
+                    runtimeAnnotationsOnly = !generateAnnotations,
+                    language = language,
+                )
 
             stubWriter =
-                if (options.kotlinStubs && cls.isKotlin()) {
-                    KotlinStubWriter(
-                        textWriter,
-                        filterEmit,
-                        filterReference,
-                        generateAnnotations,
-                        preFiltered,
-                        docStubs
-                    )
+                if (kotlin) {
+                    error("Generating Kotlin stubs is not supported")
                 } else {
-                    JavaStubWriter(
-                        textWriter,
-                        filterEmit,
-                        filterReference,
-                        generateAnnotations,
-                        preFiltered,
-                        docStubs
-                    )
+                    JavaStubWriter(textWriter, modifierListWriter, config, stubConstructorManager)
                 }
 
             // Copyright statements from the original file?
-            cls.getSourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
         }
         stubWriter?.visitClass(cls)
+
+        dispatchStubsConstructorIfAvailable(cls)
+    }
+
+    /**
+     * Stubs that have no accessible constructor may still need to generate one and that constructor
+     * is available from [StubConstructorManager.optionalSyntheticConstructor].
+     */
+    private fun dispatchStubsConstructorIfAvailable(cls: ClassItem) {
+        // If a special constructor had to be synthesized for the class then it will not be in the
+        // ClassItem's list of constructors that would be visited automatically. So, this will visit
+        // it explicitly to make sure it appears in the stubs.
+        val syntheticConstructor = stubConstructorManager.optionalSyntheticConstructor(cls)
+        if (syntheticConstructor != null) {
+            visitConstructor(syntheticConstructor)
+        }
     }
 
     override fun afterVisitClass(cls: ClassItem) {
@@ -249,40 +253,81 @@ class StubWriter(
         stubWriter?.visitConstructor(constructor)
     }
 
-    override fun afterVisitConstructor(constructor: ConstructorItem) {
-        stubWriter?.afterVisitConstructor(constructor)
-    }
-
     override fun visitMethod(method: MethodItem) {
         stubWriter?.visitMethod(method)
-    }
-
-    override fun afterVisitMethod(method: MethodItem) {
-        stubWriter?.afterVisitMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
     }
-
-    override fun afterVisitField(field: FieldItem) {
-        stubWriter?.afterVisitField(field)
-    }
 }
 
-private fun apiPredicate(docStubs: Boolean) =
-    ApiPredicate(
-        includeDocOnly = docStubs,
-        config = options.apiPredicateConfig.copy(ignoreShown = true)
+/**
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
+ * parameters and in a manner appropriate for writing stubs, e.g. nesting classes. It will delegate
+ * any visitor calls that pass through its filter to this [StubWriter] instance.
+ */
+fun createFilteringVisitorForStubs(
+    delegate: DelegatedVisitor,
+    docStubs: Boolean,
+    preFiltered: Boolean,
+    apiPredicateConfig: ApiPredicate.Config,
+): ItemVisitor {
+    val filterReference =
+        ApiPredicate(
+            includeDocOnly = docStubs,
+            config = apiPredicateConfig.copy(ignoreShown = true),
+        )
+    val filterEmit = FilterPredicate(filterReference)
+    return FilteringApiVisitor(
+        delegate = delegate,
+        inlineInheritedFields = true,
+        // Sort methods in stubs based on their signature. The order of methods in stubs is
+        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
+        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
+        // itself or changes to the order of methods in the sources.
+        callableComparator = CallableItem.comparator,
+        filterEmit = filterEmit,
+        filterReference = filterReference,
+        preFiltered = preFiltered,
     )
+}
 
-internal fun appendDocumentation(item: Item, writer: PrintWriter, docStubs: Boolean) {
-    if (options.includeDocumentationInStubs || docStubs) {
-        val documentation = item.fullyQualifiedDocumentation()
-        if (documentation.isNotBlank()) {
-            val trimmed = trimDocIndent(documentation)
-            writer.println(trimmed)
+internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
+    if (config.includeDocumentationInStubs) {
+        val documentation = item.documentation
+        val text = documentation.fullyQualifiedDocumentation()
+        if (text.isNotBlank()) {
+            val trimmed = trimDocIndent(text)
+            val output = revertDocumentationDeprecationChange(item, trimmed)
+            writer.println(output)
             writer.println()
         }
     }
+}
+
+/**
+ * Revert the documentation change that accompanied a deprecation change.
+ *
+ * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc tag
+ * with text that explains why it is being deprecated and what will replace it. When the deprecation
+ * change is being reverted then this will remove the `@deprecated` tag and its associated text to
+ * avoid warnings when compiling and misleading information being written into the Javadoc.
+ */
+fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
+    val actualItem = currentItem.actualItemToSnapshot
+    // The documentation does not need to be reverted if...
+    if (
+        // the current item is not being reverted
+        currentItem === actualItem
+        // or if the current item and the actual item have the same deprecation setting
+        ||
+            currentItem.effectivelyDeprecated == actualItem.effectivelyDeprecated
+            // or if the actual item is deprecated
+            ||
+            actualItem.effectivelyDeprecated
+    )
+        return docs
+
+    return removeDeprecatedSection(docs)
 }

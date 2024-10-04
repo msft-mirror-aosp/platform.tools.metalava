@@ -16,11 +16,14 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -47,7 +50,9 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             warnings = "",
             api =
@@ -65,8 +70,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
                     // By default metalava rewrites androidx.annotation.Nullable to
                     // android.annotation.Nullable, but the latter does not have target PACKAGE thus
                     // fails to compile. This forces stubs keep the androidx annotation.
@@ -77,7 +80,50 @@ class StubsPackageInfoTest : AbstractStubsTest() {
     }
 
     @Test
-    fun `Test package-info documentation`() {
+    fun `Test package-info documentation in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
+                      /** My package docs */
+                      package test.pkg;
+                      """
+                        )
+                        .indented(),
+                    java("""package test.pkg; public abstract class Class1 { }""")
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract class Class1 {
+                    ctor public Class1();
+                  }
+                }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    /** My package docs */
+                    package test.pkg;
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract class Class1 {
+                    public Class1() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test package-info documentation in doc stubs`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -120,6 +166,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test package-info annotations`() {
         check(
@@ -135,7 +182,9 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         )
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }"""),
-                    restrictToSource
+                    restrictToSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -160,7 +209,56 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `Check writing package info from package html file`() {
+        checkStubs(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    html(
+                        "src/test/pkg/package.html",
+                        """
+                    <HTML>
+                    <BODY>
+                    Summary.
+                    <p>
+                    Body.
+                    </BODY>
+                    </HTML>
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    @SuppressWarnings("all")
+                    public class Test {
+                    }
+                    """
+                    ),
+                ),
+            warnings = "",
+            api =
+                """
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                  }
+                }
+            """,
+            source =
+                @Suppress("DanglingJavadoc")
+                """
+                /**
+                 * Summary.
+                 * <p>
+                 * Body.
+                 */
+                package test.pkg;
+                """,
         )
     }
 }
