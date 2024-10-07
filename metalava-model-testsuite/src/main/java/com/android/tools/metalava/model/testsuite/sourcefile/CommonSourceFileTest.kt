@@ -78,9 +78,9 @@ class CommonSourceFileTest : BaseModelTest() {
                     """
                         package test.pkg1;
 
-                        class Test1 {}
+                        public class Test1 {}
 
-                        class Test2 {}
+                        public class Test2 {}
                     """
                 ),
                 java(
@@ -88,7 +88,7 @@ class CommonSourceFileTest : BaseModelTest() {
                         package test;
 
                         /** @hide */
-                        class Test {
+                        public class Test {
                             class Inner {}
                         }
                     """
@@ -102,7 +102,7 @@ class CommonSourceFileTest : BaseModelTest() {
             val classItem1 = codebase.assertClass("test.Test")
             val innerClassItem = codebase.assertClass("test.Test.Inner")
             val pkgItem = codebase.assertPackage("test.pkg1")
-            val sourceFile = classItem.getSourceFile()!!
+            val sourceFile = classItem.sourceFile()!!
 
             val classImport = Import(classItem1)
             val innerClassImport = Import(innerClassItem)
@@ -132,7 +132,7 @@ class CommonSourceFileTest : BaseModelTest() {
 
                     public class Test {}
 
-                    class Outer {
+                    public class Outer {
                         class Inner {}
                     }
                 """

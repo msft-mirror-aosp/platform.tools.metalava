@@ -80,7 +80,6 @@ class FilteringApiVisitor(
     private val preFiltered: Boolean,
     private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
-    config: Config,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
@@ -89,7 +88,6 @@ class FilteringApiVisitor(
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
-        config = config,
     ),
     ItemVisitor {
 
@@ -183,7 +181,7 @@ class FilteringApiVisitor(
         val delegate: ClassItem,
     ) : ClassItem by delegate {
 
-        override fun getSourceFile() = delegate.getSourceFile()?.let { FilteringSourceFile(it) }
+        override fun sourceFile() = delegate.sourceFile()?.let { FilteringSourceFile(it) }
 
         override fun superClass() = superClassType()?.asClass()
 
@@ -291,12 +289,6 @@ class FilteringApiVisitor(
         ConstructorItem by delegate {
 
         override fun containingClass() = FilteringClassItem(delegate.containingClass())
-
-        override var superConstructor: ConstructorItem?
-            get() = delegate.superConstructor?.let { FilteringConstructorItem(it) }
-            set(_) {
-                error("cannot set value")
-            }
 
         override fun returnType() = filteredReturnType(delegate) as ClassTypeItem
 

@@ -229,18 +229,6 @@ interface Item : Reportable {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
-    fun sourceFile(): SourceFile? {
-        var curr: Item? = this
-        while (curr != null) {
-            if (curr is ClassItem && curr.isTopLevelClass()) {
-                return curr.getSourceFile()
-            }
-            curr = curr.parent()
-        }
-
-        return null
-    }
-
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
 
@@ -481,8 +469,8 @@ abstract class AbstractItem(
         private set
 
     init {
-        if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
-            mutateModifiers { setDeprecated(true) }
+        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
+            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
 
@@ -519,7 +507,7 @@ abstract class AbstractItem(
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
 
-    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+    override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
         val mutable = modifiers.toMutable()
         mutable.mutator()
         modifiers = mutable.toImmutable()

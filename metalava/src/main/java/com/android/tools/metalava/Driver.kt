@@ -41,9 +41,11 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
@@ -153,6 +155,7 @@ internal fun processFlags(
             modelOptions = modelOptions,
             allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
+            projectDescription = options.projectDescription,
         )
 
     val signatureFileCache = options.signatureFileCache
@@ -296,7 +299,7 @@ internal fun processFlags(
                     apiType = ApiType.PUBLIC_API,
                     preFiltered = codebase.preFiltered,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
 
@@ -318,7 +321,7 @@ internal fun processFlags(
                     apiType = ApiType.REMOVED,
                     preFiltered = false,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
 
@@ -349,7 +352,6 @@ internal fun processFlags(
                     filterEmit = apiEmit,
                     filterReference = apiReferenceIgnoreShown,
                     preFiltered = codebase.preFiltered,
-                    config = options.apiVisitorConfig,
                 )
             }
         }
@@ -424,9 +426,7 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator(
-            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-        )
+    CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
                 override fun compare(old: ClassItem, new: ClassItem) {
@@ -584,6 +584,7 @@ private fun ActionContext.loadFromSources(
             commonSourceSet,
             "Codebase loaded from source folders",
             classPath = options.classpath,
+            apiPackages = options.apiPackages,
         )
 
     progressTracker.progress("Analyzing API: ")
@@ -608,6 +609,10 @@ private fun ActionContext.loadFromSources(
         options.validateNullabilityFromList
     )
     options.nullabilityAnnotationsValidator?.report()
+
+    // Prevent the codebase from being mutated.
+    codebase.freezeClasses()
+
     analyzer.handleStripping()
 
     // General API checks for Android APIs
@@ -633,7 +638,7 @@ private fun ActionContext.loadFromSources(
             previouslyReleasedApi,
             reporter,
             options.manifest,
-            options.apiVisitorConfig,
+            options.apiPredicateConfig,
         )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
@@ -716,22 +721,13 @@ private fun createStubFiles(
             }
         }
 
-    val stubWriter =
-        StubWriter(
-            stubsDir = stubDir,
-            generateAnnotations = options.generateAnnotations,
-            docStubs = docStubs,
-            reporter = options.reporter,
-            config = stubWriterConfig,
-        )
-
     val codebaseFragment =
         CodebaseFragment(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
                 docStubs = docStubs,
                 preFiltered = codebase.preFiltered,
-                apiVisitorConfig = options.apiVisitorConfig,
+                apiPredicateConfig = options.apiPredicateConfig,
             )
         }
 
@@ -745,6 +741,16 @@ private fun createStubFiles(
         }
     val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
     stubConstructorManager.addConstructors(filterEmit)
+
+    val stubWriter =
+        StubWriter(
+            stubsDir = stubDir,
+            generateAnnotations = options.generateAnnotations,
+            docStubs = docStubs,
+            reporter = options.reporter,
+            config = stubWriterConfig,
+            stubConstructorManager = stubConstructorManager,
+        )
 
     codebaseFragment.accept(stubWriter)
 

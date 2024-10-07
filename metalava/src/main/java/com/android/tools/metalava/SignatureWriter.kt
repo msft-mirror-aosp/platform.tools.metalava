@@ -30,11 +30,11 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
-import java.util.BitSet
 
 class SignatureWriter(
     private val writer: PrintWriter,
@@ -77,33 +77,13 @@ class SignatureWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        fun writeConstructor(skipMask: BitSet? = null) {
-            write("    ctor ")
-            writeModifiers(constructor)
-            writeTypeParameterList(constructor.typeParameterList, addSpace = true)
-            write(constructor.containingClass().fullName())
-            writeParameterList(constructor, skipMask)
-            writeThrowsList(constructor)
-            write(";\n")
-        }
-
-        // Workaround for https://youtrack.jetbrains.com/issue/KT-57537
-        if (constructor.shouldExpandOverloads()) {
-            val parameters = constructor.parameters()
-            val defaultMask = BitSet(parameters.size)
-
-            // fill the bitmask for all parameters
-            parameters.forEachIndexed { i, item -> defaultMask.set(i, item.hasDefaultValue()) }
-
-            // expand overloads ordered by number of parameters, skipping last parameters first
-            for (i in parameters.indices) {
-                if (!defaultMask.get(i)) continue
-                writeConstructor(defaultMask)
-                defaultMask.clear(i)
-            }
-        }
-
-        writeConstructor()
+        write("    ctor ")
+        writeModifiers(constructor)
+        writeTypeParameterList(constructor.typeParameterList, addSpace = true)
+        write(constructor.containingClass().fullName())
+        writeParameterList(constructor)
+        writeThrowsList(constructor)
+        write(";\n")
     }
 
     override fun visitField(field: FieldItem) {
@@ -210,7 +190,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item.actualItem)
+        modifierListWriter.write(item.actualItemToSnapshot)
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
@@ -262,13 +242,10 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(callable: CallableItem, skipMask: BitSet? = null) {
+    private fun writeParameterList(callable: CallableItem) {
         write("(")
         var writtenParams = 0
-        callable.parameters().asSequence().forEachIndexed { i, parameter ->
-            // skip over defaults when generating @JvmOverloads permutations
-            if (skipMask != null && skipMask.get(i)) return@forEachIndexed
-
+        callable.parameters().asSequence().forEach { parameter ->
             if (writtenParams > 0) {
                 write(", ")
             }
@@ -400,10 +377,10 @@ fun createFilteringVisitorForSignatures(
     apiType: ApiType,
     preFiltered: Boolean,
     showUnannotated: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val filterEmit = apiType.getEmitFilter(apiVisitorConfig.apiPredicateConfig)
-    val filterReference = apiType.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
+    val filterEmit = apiType.getEmitFilter(apiPredicateConfig)
+    val filterReference = apiType.getReferenceFilter(apiPredicateConfig)
 
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
@@ -418,6 +395,5 @@ fun createFilteringVisitorForSignatures(
         filterReference = filterReference,
         preFiltered = preFiltered,
         showUnannotated = showUnannotated,
-        config = apiVisitorConfig,
     )
 }

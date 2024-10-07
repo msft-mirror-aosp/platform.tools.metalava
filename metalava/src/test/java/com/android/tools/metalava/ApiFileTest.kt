@@ -437,6 +437,50 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Kotlin Reified Methods`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Context {
+                        @SuppressWarnings("unchecked")
+                        public final <T> T getSystemService(Class<T> serviceClass) {
+                            return null;
+                        }
+                    }
+                    """
+                    ),
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
+                    inline fun Context.systemService2() = getSystemService(String::class.java)
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Context {
+                    ctor public Context();
+                    method public final <T> T getSystemService(Class<T>);
+                  }
+                  public final class TestKt {
+                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
+                    method public static inline String systemService2(@NonNull test.pkg.Context);
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Kotlin Reified Methods 2`() {
         check(
             format = FileFormat.V2,
@@ -522,7 +566,7 @@ class ApiFileTest : DriverTest() {
                         var readOnlyVar = false
                             internal set
                         // This property should have no public setter
-                        public var readOnlyVarWithPublicModifer = false
+                        public var readOnlyVarWithPublicModifier = false
                             internal set
                     }
                     """
@@ -535,9 +579,9 @@ class ApiFileTest : DriverTest() {
                   public final class MyClass {
                     ctor public MyClass();
                     method public boolean getReadOnlyVar();
-                    method public boolean getReadOnlyVarWithPublicModifer();
+                    method public boolean getReadOnlyVarWithPublicModifier();
                     property public final boolean readOnlyVar;
-                    property public final boolean readOnlyVarWithPublicModifer;
+                    property public final boolean readOnlyVarWithPublicModifier;
                   }
                 }
                 """

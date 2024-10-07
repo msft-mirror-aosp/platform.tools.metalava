@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -33,12 +32,14 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import java.io.PrintWriter
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val modifierListWriter: ModifierListWriter,
     private val config: StubWriterConfig,
+    private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
@@ -52,7 +53,7 @@ internal class JavaStubWriter(
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
                 // fails, and thus we need to include imports for the stubs to compile.
-                cls.getSourceFile()?.getImports()?.let {
+                cls.sourceFile()?.getImports()?.let {
                     for (item in it) {
                         if (item.isMember) {
                             writer.println("import static ${item.pattern};")
@@ -87,25 +88,30 @@ internal class JavaStubWriter(
         generateInterfaceList(cls)
         writer.print(" {\n")
 
+        // Enum constants must be written out first.
         if (cls.isEnum()) {
             var first = true
-            // Enums should preserve the original source order, not alphabetical etc. sort
-            for (field in cls.fields().sortedBy { it.sortingRank }) {
-                if (field.isEnumConstant()) {
-                    if (first) {
-                        first = false
-                    } else {
-                        writer.write(",\n")
-                    }
-                    appendDocumentation(field, writer, config)
-
-                    // Append the modifier list even though the enum constant does not actually have
-                    // modifiers as that will write the annotations which it does have and ignore
-                    // the modifiers.
-                    appendModifiers(field)
-
-                    writer.write(field.name())
+            // While enum order is significant at runtime as it affects `Enum.ordinal` and its
+            // comparable order it is not significant in the stubs so sort alphabetically. That
+            // matches the order in the documentation and the signature files. It is theoretically
+            // possible for an annotation processor to care about the order but any that did would
+            // be poorly written and would break on stubs created from signature files.
+            val enumConstants =
+                cls.fields().filter { it.isEnumConstant() }.sortedWith(FieldItem.comparator)
+            for (enumConstant in enumConstants) {
+                if (first) {
+                    first = false
+                } else {
+                    writer.write(",\n")
                 }
+                appendDocumentation(enumConstant, writer, config)
+
+                // Append the modifier list even though the enum constant does not actually have
+                // modifiers as that will write the annotations which it does have and ignore
+                // the modifiers.
+                appendModifiers(enumConstant)
+
+                writer.write(enumConstant.name())
             }
             writer.println(";")
         }
@@ -116,7 +122,7 @@ internal class JavaStubWriter(
     }
 
     private fun appendModifiers(item: Item) {
-        modifierListWriter.write(item.actualItem)
+        modifierListWriter.write(item.actualItemToSnapshot)
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
@@ -182,8 +188,9 @@ internal class JavaStubWriter(
     }
 
     private fun writeConstructorBody(constructor: ConstructorItem) {
-        // Find any constructor in parent that we can compile against
-        constructor.superConstructor?.let { superConstructor ->
+        val optionalSuperConstructor =
+            stubConstructorManager.optionalSuperConstructor(constructor.containingClass())
+        optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
                 writer.print("super(")
@@ -315,7 +322,7 @@ internal class JavaStubWriter(
             }
         }
 
-        if (ModifierListWriter.requiresMethodBodyInStubs(method.actualItem)) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method.actualItemToSnapshot)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")
@@ -338,7 +345,7 @@ internal class JavaStubWriter(
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
-            field.actualItem.modifiers.isFinal() &&
+            field.actualItemToSnapshot.modifiers.isFinal() &&
                 field.initialValue(true) == null &&
                 field.containingClass().isClass()
         field.writeValueWithSemicolon(

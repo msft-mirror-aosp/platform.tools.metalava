@@ -47,12 +47,14 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.Issues
@@ -187,7 +189,6 @@ const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -195,8 +196,8 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
-
 const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
@@ -320,6 +321,9 @@ class Options(
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
+    /** Lint project description that describes project's module structure in details */
+    var projectDescription: File? = null
+
     val configFiles by
         option(
                 ARG_CONFIG_FILE,
@@ -355,17 +359,17 @@ class Options(
      */
     var showUnannotated = false
 
-    /** Packages to include (if null, include all) */
-    private var stubPackages: PackageFilter? = null
+    /** Packages to include in the API (if null, include all) */
+    val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
     /**
      * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
-     * [Item]s that do not match the [stubPackages] filter. If no [stubPackages] filter is provided
+     * [Item]s that do not match the [apiPackages] filter. If no [apiPackages] filter is provided
      * then this will be `null`.
      */
     private val reportableFilter: Predicate<Reportable>? by
         lazy(LazyThreadSafetyMode.NONE) {
-            stubPackages?.let { packageFilter ->
+            apiPackages?.let { packageFilter ->
                 Predicate { reportable ->
                     // If we are only emitting some packages (--stub-packages), don't report
                     // issues from other packages
@@ -436,14 +440,6 @@ class Options(
      * removed and no classes will be allowed from the classpath JARs.
      */
     private var allowClassesFromClasspath = true
-
-    /** The configuration options for the [ApiVisitor] class. */
-    val apiVisitorConfig by lazy {
-        ApiVisitor.Config(
-            packageFilter = stubPackages,
-            apiPredicateConfig = apiPredicateConfig,
-        )
-    }
 
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {
@@ -799,17 +795,6 @@ class Options(
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_STUB_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    val filter =
-                        stubPackages
-                            ?: run {
-                                val newFilter = PackageFilter()
-                                stubPackages = newFilter
-                                newFilter
-                            }
-                    filter.addPackages(packages)
-                }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
@@ -890,6 +875,9 @@ class Options(
                     compileSdkVersion = getValue(args, ++index)
                 }
                 ARG_USE_K2_UAST -> useK2Uast = true
+                ARG_PROJECT -> {
+                    projectDescription = stringToExistingFile(getValue(args, ++index))
+                }
                 ARG_SDK_JAR_ROOT -> {
                     sdkJarRoot = stringToExistingDir(getValue(args, ++index))
                 }
@@ -1235,6 +1223,8 @@ object OptionsHelp {
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                     "source files",
+                "$ARG_PROJECT <xmlfile>",
+                "Project description written in XML according to Lint's project model.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
                 "An external annotations file to merge and overlay " +
                     "the sources, or a directory of such files. Should be used for annotations intended for " +
@@ -1273,12 +1263,6 @@ object OptionsHelp {
                 "Use the given API level",
                 "$ARG_JDK_HOME <dir>",
                 "If set, add the Java APIs from the given JDK to the classpath",
-                "$ARG_STUB_PACKAGES <package-list>",
-                "List of packages (separated by ${File.pathSeparator}) which will " +
-                    "be used to filter out irrelevant code. If specified, only code in these packages will be " +
-                    "included in signature files, stubs, etc. (This is not limited to just the stubs; the name " +
-                    "is historical.) You can also use \".*\" at the end to match subpackages, so `foo.*` will " +
-                    "match both `foo` and `foo.bar`.",
                 "$ARG_SUBTRACT_API <api file>",
                 "Subtracts the API in the given signature or jar file from the " +
                     "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +

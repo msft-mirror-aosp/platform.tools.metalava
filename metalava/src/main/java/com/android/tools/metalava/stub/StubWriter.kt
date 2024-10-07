@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -33,6 +32,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.removeDeprecatedSection
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -50,6 +50,7 @@ internal class StubWriter(
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
+    private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
     /**
@@ -212,11 +213,11 @@ internal class StubWriter(
                 if (kotlin) {
                     error("Generating Kotlin stubs is not supported")
                 } else {
-                    JavaStubWriter(textWriter, modifierListWriter, config)
+                    JavaStubWriter(textWriter, modifierListWriter, config, stubConstructorManager)
                 }
 
             // Copyright statements from the original file?
-            cls.getSourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
         }
         stubWriter?.visitClass(cls)
 
@@ -225,19 +226,15 @@ internal class StubWriter(
 
     /**
      * Stubs that have no accessible constructor may still need to generate one and that constructor
-     * is available from [ClassItem.stubConstructor].
-     *
-     * However, sometimes that constructor is ignored by this because it is not accessible either,
-     * e.g. it might be package private. In that case this will pass it to [visitConstructor]
-     * directly.
+     * is available from [StubConstructorManager.optionalSyntheticConstructor].
      */
     private fun dispatchStubsConstructorIfAvailable(cls: ClassItem) {
-        val clsStubConstructor = cls.stubConstructor
-        val constructors = cls.constructors()
-        // If the default stub constructor is not publicly visible then it won't be output during
-        // the normal visiting so visit it specially to ensure that it is output.
-        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            visitConstructor(clsStubConstructor)
+        // If a special constructor had to be synthesized for the class then it will not be in the
+        // ClassItem's list of constructors that would be visited automatically. So, this will visit
+        // it explicitly to make sure it appears in the stubs.
+        val syntheticConstructor = stubConstructorManager.optionalSyntheticConstructor(cls)
+        if (syntheticConstructor != null) {
+            visitConstructor(syntheticConstructor)
         }
     }
 
@@ -274,25 +271,25 @@ fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
     docStubs: Boolean,
     preFiltered: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
             includeDocOnly = docStubs,
-            config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = FilterPredicate(filterReference)
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the
-        // documentation
-        callableComparator = CallableItem.sourceOrderComparator,
+        // Sort methods in stubs based on their signature. The order of methods in stubs is
+        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
+        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
+        // itself or changes to the order of methods in the sources.
+        callableComparator = CallableItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         preFiltered = preFiltered,
-        config = apiVisitorConfig,
     )
 }
 
@@ -318,7 +315,7 @@ internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWr
  * avoid warnings when compiling and misleading information being written into the Javadoc.
  */
 fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
-    val actualItem = currentItem.actualItem
+    val actualItem = currentItem.actualItemToSnapshot
     // The documentation does not need to be reverted if...
     if (
         // the current item is not being reverted
