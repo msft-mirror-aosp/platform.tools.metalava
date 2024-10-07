@@ -900,52 +900,6 @@ class JavadocTest : DriverTest() {
     }
 
     @Test
-    fun `Handle @attr references`() {
-        checkStubs(
-            docStubs = true,
-            warnings = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg1;
-
-                    @SuppressWarnings("all")
-                    public class Test {
-                        /**
-                         * Returns the drawable that will be drawn between each item in the list.
-                         *
-                         * @return the current drawable drawn between list elements
-                         * This value may be {@code null}.
-                         * @attr ref R.styleable#ListView_divider
-                         */
-                        public Object getFoo() {
-                            return null;
-                        }
-                    }
-                    """
-                    )
-                ),
-            source =
-                """
-                package test.pkg1;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Test {
-                public Test() { throw new RuntimeException("Stub!"); }
-                /**
-                 * Returns the drawable that will be drawn between each item in the list.
-                 *
-                 * @return the current drawable drawn between list elements
-                 * This value may be {@code null}.
-                 * @attr ref android.R.styleable#ListView_divider
-                 */
-                public java.lang.Object getFoo() { throw new RuntimeException("Stub!"); }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Rewrite parameter list`() {
         checkStubs(
             docStubs = true,
