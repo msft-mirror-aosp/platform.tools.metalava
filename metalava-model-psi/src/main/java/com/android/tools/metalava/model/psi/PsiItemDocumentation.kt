@@ -288,7 +288,7 @@ internal class PsiItemDocumentation(
         val reference = extractReference(element)
         val referenceText = reference?.element?.text ?: element.text
         val customLinkText = extractCustomLinkText(element)
-        val displayText = customLinkText?.text ?: referenceText
+        val displayText = customLinkText?.text ?: referenceText.replaceFirst('#', '.')
         if (referenceText.startsWith("#")) {
             val suffix = element.text
             if (suffix.contains("(") && suffix.contains(")")) {
