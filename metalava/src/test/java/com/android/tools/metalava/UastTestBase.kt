@@ -230,6 +230,9 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
         val mod = if (isK2) "" else " final"
+        // https://youtrack.jetbrains.com/issue/KT-72078
+        val horizontalType = if (isK2) "test.pkg.Alignment.Horizontal" else "int"
+        val verticalType = if (isK2) "test.pkg.Alignment.Vertical" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -284,7 +287,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment(int horizontal, int vertical);
+                    ctor public Alignment($horizontalType horizontal, $verticalType vertical);
                     method public int getHorizontal();
                     method public int getVertical();
                     property public$mod int horizontal;
