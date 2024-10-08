@@ -19,12 +19,76 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
 class CommonValueClassTest : BaseModelTest() {
     @Test
+    fun `Constructor visibility`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    @JvmInline
+                    value class PublicConstructor(val value: Int)
+
+                    @JvmInline
+                    value class PrivateConstructor private constructor(val value: Int)
+                """
+            )
+        ) {
+            val publicConstructorClass = codebase.assertClass("test.pkg.PublicConstructor")
+            val publicConstructor = publicConstructorClass.constructors().single()
+            assertTrue(publicConstructor.isPrimary)
+            assertTrue(publicConstructor.modifiers.isPublic())
+
+            val publicConstructorProperty = publicConstructorClass.properties().single()
+            assertTrue(publicConstructorProperty.isPublic)
+            assertNotNull(publicConstructorProperty.constructorParameter)
+            assertNotNull(publicConstructorProperty.backingField)
+
+            val privateConstructorClass = codebase.assertClass("test.pkg.PrivateConstructor")
+            val privateConstructor = privateConstructorClass.constructors().single()
+            assertTrue(privateConstructor.isPrimary)
+            assertTrue(privateConstructor.modifiers.isPrivate())
+
+            val privateConstructorProperty = privateConstructorClass.properties().single()
+            // The constructor is private, but the property is public
+            assertTrue(privateConstructorProperty.isPublic)
+            assertNotNull(privateConstructorProperty.constructorParameter)
+            assertNotNull(privateConstructorProperty.backingField)
+        }
+    }
+
+    @Test
+    fun `Secondary constructor`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    @JvmInline
+                    value class ValueClass(val value: Int) {
+                        constructor(v1: Int, v2: Int) : this(v1 + v2)
+                    }
+                """
+            )
+        ) {
+            val valueClass = codebase.assertClass("test.pkg.ValueClass")
+            assertEquals(valueClass.constructors().size, 2)
+
+            val primaryConstructor = valueClass.assertConstructor("int")
+            assertTrue(primaryConstructor.isPrimary)
+            assertTrue(primaryConstructor.modifiers.isPublic())
+
+            val secondaryConstructor = valueClass.assertConstructor("int,int")
+            assertFalse(secondaryConstructor.isPrimary)
+            assertTrue(secondaryConstructor.modifiers.isPublic())
+        }
+    }
+
     fun `Constructor with optional value`() {
         runCodebaseTest(
             kotlin(

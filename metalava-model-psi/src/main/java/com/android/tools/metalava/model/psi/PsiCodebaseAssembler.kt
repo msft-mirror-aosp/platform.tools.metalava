@@ -64,6 +64,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiSubstitutor
@@ -81,6 +82,7 @@ import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -93,6 +95,7 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
+import org.jetbrains.uast.toUElement
 
 internal class PsiCodebaseAssembler(
     private val uastEnvironment: UastEnvironment,
@@ -323,11 +326,34 @@ internal class PsiCodebaseAssembler(
                 }
             }
         }
+
+        // With K2, value class constructors are not present on the PsiClass (b/369846185#comment6)
+        // because they can't be used from Java code. They can still be found on the KtClass, and we
+        // track them for Kotlin source compatibility.
+        // Value classes must have a primary constructor, so if none of the constructors are primary
+        // this must be K2, and the primary constructor needs to be added.
+        if (classItem.modifiers.isValue() && classItem.constructors().none { it.isPrimary }) {
+            val ktClass = (psiClass as? UClass)?.sourcePsi as? KtClass
+            val ktConstructor = ktClass?.primaryConstructor?.toUElement() as? PsiMethod
+            if (ktConstructor != null) {
+                val primaryConstructor =
+                    PsiConstructorItem.create(
+                        codebase,
+                        classItem,
+                        ktConstructor,
+                        classTypeItemFactory
+                    )
+                classItem.addConstructor(primaryConstructor)
+            }
+        }
+
         // Note that this is dependent on the constructor filtering above. UAST sometimes
         // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
+        // If the primary constructor has optional arguments, `isPrimary` will be true for all
+        // overloads, so there won't be one constructor selected as the class primary constructor.
         val constructors = classItem.constructors()
         constructors.singleOrNull { it.isPrimary }?.let { classItem.primaryConstructor = it }
-        val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
+        val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
         if (hasImplicitDefaultConstructor) {
             assert(constructors.isEmpty())
             classItem.addConstructor(classItem.createDefaultConstructor())
@@ -504,23 +530,21 @@ internal class PsiCodebaseAssembler(
         }
     }
 
-    private fun hasImplicitDefaultConstructor(psiClass: PsiClass): Boolean {
-        if (psiClass.name?.startsWith("-") == true) {
+    private fun hasImplicitDefaultConstructor(classItem: PsiClassItem): Boolean {
+        if (classItem.simpleName().startsWith("-")) {
             // Deliberately hidden; see examples like
             //     @file:JvmName("-ViewModelExtensions") // Hide from Java sources in the IDE.
             return false
         }
 
+        val psiClass = classItem.psiClass
         if (psiClass is UClass && psiClass.sourcePsi == null) {
             // Top level kt classes (FooKt for Foo.kt) do not have implicit default constructor
             return false
         }
 
-        val constructors = psiClass.constructors
-        return constructors.isEmpty() &&
-            !psiClass.isInterface &&
-            !psiClass.isAnnotationType &&
-            !psiClass.isEnum
+        val constructors = classItem.constructors()
+        return constructors.isEmpty() && classItem.isClass()
     }
 
     /**
