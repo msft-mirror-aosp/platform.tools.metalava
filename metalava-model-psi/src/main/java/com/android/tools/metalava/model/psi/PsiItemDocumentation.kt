@@ -171,11 +171,6 @@ internal class PsiItemDocumentation(
             element is PsiDocToken -> {
                 assert(element.firstChild == null)
                 val text = element.text
-                // Auto-fix some docs in the framework which starts with R.styleable in @attr
-                if (text.startsWith("R.styleable#") && item.documentation.contains("@attr")) {
-                    sb.append("android.")
-                }
-
                 sb.append(text)
             }
             element is PsiDocMethodOrFieldRef -> {
