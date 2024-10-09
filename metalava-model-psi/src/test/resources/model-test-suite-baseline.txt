@@ -10,6 +10,24 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
+com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest
+  Documentation fully qualified[kotlin,k1,block comment - link tag]
+  Documentation fully qualified[kotlin,k1,block comment]
+  Documentation fully qualified[kotlin,k1,inline comment - link tag]
+  Documentation fully qualified[kotlin,k1,inline comment]
+  Documentation fully qualified[kotlin,k2,block comment - link tag]
+  Documentation fully qualified[kotlin,k2,block comment]
+  Documentation fully qualified[kotlin,k2,inline comment - link tag]
+  Documentation fully qualified[kotlin,k2,inline comment]
+  Documentation text[kotlin,k1,block comment - link tag]
+  Documentation text[kotlin,k1,block comment]
+  Documentation text[kotlin,k1,inline comment - link tag]
+  Documentation text[kotlin,k1,inline comment]
+  Documentation text[kotlin,k2,block comment - link tag]
+  Documentation text[kotlin,k2,block comment]
+  Documentation text[kotlin,k2,inline comment - link tag]
+  Documentation text[kotlin,k2,inline comment]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]
