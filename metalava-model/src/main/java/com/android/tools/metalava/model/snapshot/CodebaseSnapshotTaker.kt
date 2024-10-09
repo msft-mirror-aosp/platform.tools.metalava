@@ -366,7 +366,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         originalClass.accept(referenceVisitor)
 
         // Find the newly added class.
-        return snapshotCodebase.findClass(originalClass.qualifiedName())!!
+        return snapshotCodebase.findClass(originalClass.qualifiedName())
+            ?: error("Could not snapshot class $qualifiedName")
     }
 
     companion object {
