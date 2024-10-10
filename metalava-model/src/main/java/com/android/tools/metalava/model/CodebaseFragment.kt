@@ -43,7 +43,7 @@ abstract class CodebaseFragment private constructor() {
     fun createVisitor(delegate: DelegatedVisitor) = visitorFactory(delegate)
 
     /**
-     * Take a snapshot of this [CodebaseFragment] and return a new [CodebaseFragment].
+     * Return a [CodebaseFragment] that will take a snapshot of this [CodebaseFragment].
      *
      * @param referenceVisitorFactory a factory for creating an [ItemVisitor] that delegates to a
      *   [DelegatedVisitor]. The [ItemVisitor] is used to determine which parts of [codebase] will
@@ -52,13 +52,16 @@ abstract class CodebaseFragment private constructor() {
     fun snapshotIncludingRevertedItems(
         referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
     ): CodebaseFragment {
-        val snapshot =
-            CodebaseSnapshotTaker.takeSnapshot(
-                codebase,
-                definitionVisitorFactory = visitorFactory,
-                referenceVisitorFactory = referenceVisitorFactory
-            )
-        return ExistingCodebaseFragment(snapshot, ::EmittableDelegatingVisitor)
+        return LazyCodebaseFragment(
+            {
+                CodebaseSnapshotTaker.takeSnapshot(
+                    codebase,
+                    definitionVisitorFactory = visitorFactory,
+                    referenceVisitorFactory = referenceVisitorFactory,
+                )
+            },
+            ::EmittableDelegatingVisitor,
+        )
     }
 
     /** Visit this fragment, delegating to [delegate]. */
@@ -86,4 +89,13 @@ abstract class CodebaseFragment private constructor() {
         override val codebase: Codebase,
         override val visitorFactory: (DelegatedVisitor) -> ItemVisitor,
     ) : CodebaseFragment()
+
+    /** A [CodebaseFragment] of a [Codebase] that will be provided lazily. */
+    private class LazyCodebaseFragment(
+        codebaseProvider: () -> Codebase,
+        override val visitorFactory: (DelegatedVisitor) -> ItemVisitor,
+    ) : CodebaseFragment() {
+
+        override val codebase by lazy(LazyThreadSafetyMode.NONE) { codebaseProvider() }
+    }
 }
