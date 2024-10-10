@@ -60,23 +60,7 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest
   Documentation fully qualified[psi,java,k1,doc comment with link - java]
   Documentation fully qualified[psi,java,k2,doc comment with link - java]
-  Documentation fully qualified[psi,kotlin,k1,block comment - link tag]
-  Documentation fully qualified[psi,kotlin,k1,block comment]
-  Documentation fully qualified[psi,kotlin,k1,inline comment - link tag]
-  Documentation fully qualified[psi,kotlin,k1,inline comment]
-  Documentation fully qualified[psi,kotlin,k2,block comment - link tag]
-  Documentation fully qualified[psi,kotlin,k2,block comment]
-  Documentation fully qualified[psi,kotlin,k2,inline comment - link tag]
-  Documentation fully qualified[psi,kotlin,k2,inline comment]
   Documentation fully qualified[turbine,doc comment with link - java]
-  Documentation text[psi,kotlin,k1,block comment - link tag]
-  Documentation text[psi,kotlin,k1,block comment]
-  Documentation text[psi,kotlin,k1,inline comment - link tag]
-  Documentation text[psi,kotlin,k1,inline comment]
-  Documentation text[psi,kotlin,k2,block comment - link tag]
-  Documentation text[psi,kotlin,k2,block comment]
-  Documentation text[psi,kotlin,k2,inline comment - link tag]
-  Documentation text[psi,kotlin,k2,inline comment]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
