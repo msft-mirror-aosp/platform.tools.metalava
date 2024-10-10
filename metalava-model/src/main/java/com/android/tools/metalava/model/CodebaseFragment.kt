@@ -20,23 +20,27 @@ import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 
 /**
- * Encapsulates [codebase] to visit and a [factory] that if given a [DelegatedVisitor] will return
- * an [ItemVisitor] that can be used to visit some fragment of the [codebase].
- *
- * @param factory a factory for creating an [ItemVisitor] that delegates to a [DelegatedVisitor].
- *   The [ItemVisitor] is used to determine which parts of [codebase] are considered to be defined
- *   within and emitted from this fragment.
+ * Encapsulates [codebase] to visit and a [visitorFactory] that if given a [DelegatedVisitor] will
+ * return an [ItemVisitor] that can be used to visit some fragment of the [codebase].
  */
-class CodebaseFragment
-private constructor(
-    val codebase: Codebase,
-    private val factory: (DelegatedVisitor) -> ItemVisitor,
-) {
+abstract class CodebaseFragment private constructor() {
+
+    /** The [Codebase] whose fragment will be visited. */
+    abstract val codebase: Codebase
+
+    /**
+     * A factory for creating an [ItemVisitor] that delegates to a [DelegatedVisitor].
+     *
+     * The [ItemVisitor] is used to determine which parts of [codebase] are considered to be defined
+     * within and emitted from this fragment.
+     */
+    protected abstract val visitorFactory: (DelegatedVisitor) -> ItemVisitor
+
     /**
      * Create an [ItemVisitor] that will visit this fragment and delegate its contents to
      * [delegate].
      */
-    fun createVisitor(delegate: DelegatedVisitor) = factory(delegate)
+    fun createVisitor(delegate: DelegatedVisitor) = visitorFactory(delegate)
 
     /**
      * Take a snapshot of this [CodebaseFragment] and return a new [CodebaseFragment].
@@ -51,15 +55,15 @@ private constructor(
         val snapshot =
             CodebaseSnapshotTaker.takeSnapshot(
                 codebase,
-                definitionVisitorFactory = factory,
+                definitionVisitorFactory = visitorFactory,
                 referenceVisitorFactory = referenceVisitorFactory
             )
-        return CodebaseFragment(snapshot, ::EmittableDelegatingVisitor)
+        return ExistingCodebaseFragment(snapshot, ::EmittableDelegatingVisitor)
     }
 
     /** Visit this fragment, delegating to [delegate]. */
     fun accept(delegate: DelegatedVisitor) {
-        val visitor = createVisitor(delegate)
+        val visitor = visitorFactory(delegate)
         codebase.accept(visitor)
     }
 
@@ -74,6 +78,12 @@ private constructor(
         fun create(
             codebase: Codebase,
             factory: (DelegatedVisitor) -> ItemVisitor,
-        ) = CodebaseFragment(codebase, factory)
+        ): CodebaseFragment = ExistingCodebaseFragment(codebase, factory)
     }
+
+    /** A [CodebaseFragment] of an existing [Codebase]. */
+    private class ExistingCodebaseFragment(
+        override val codebase: Codebase,
+        override val visitorFactory: (DelegatedVisitor) -> ItemVisitor,
+    ) : CodebaseFragment()
 }
