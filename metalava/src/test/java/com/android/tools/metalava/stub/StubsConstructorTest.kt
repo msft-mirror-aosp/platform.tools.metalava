@@ -956,14 +956,11 @@ class StubsConstructorTest : AbstractStubsTest() {
             stubFiles =
                 arrayOf(
                     java(
-                        // TODO(b/372637655): As file facade classes only hold static fields and
-                        //  methods and Kotlin does not generate an implicit constructor then they
-                        //  should have a package private no-args constructor to prevent them from
-                        //  being instantiated.
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public final class ConstantsKt {
+                            ConstantsKt() { throw new RuntimeException("Stub!"); }
                             @android.annotation.NonNull public static final java.lang.String CONSTANT = "CONSTANT";
                             }
                         """
