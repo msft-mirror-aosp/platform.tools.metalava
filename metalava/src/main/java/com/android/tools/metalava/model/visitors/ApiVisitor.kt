@@ -81,12 +81,7 @@ open class ApiVisitor(
             apiPredicateConfig: ApiPredicate.Config,
         ): ApiFilters {
             return ApiFilters(
-                emit =
-                    ApiPredicate(
-                        matchRemoved = false,
-                        includeApisForStubPurposes = true,
-                        config = apiPredicateConfig.copy(ignoreShown = true),
-                    ),
+                emit = defaultEmitFilter(apiPredicateConfig),
                 reference =
                     ApiPredicate(
                         ignoreRemoved = false,
@@ -94,6 +89,14 @@ open class ApiVisitor(
                     ),
             )
         }
+
+        /** Get the default emit filter to use with [ApiVisitor]. */
+        fun defaultEmitFilter(apiPredicateConfig: ApiPredicate.Config) =
+            ApiPredicate(
+                matchRemoved = false,
+                includeApisForStubPurposes = true,
+                config = apiPredicateConfig.copy(ignoreShown = true),
+            )
     }
 
     /**
