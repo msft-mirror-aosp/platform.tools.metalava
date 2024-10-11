@@ -52,6 +52,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
@@ -342,13 +343,13 @@ internal fun processFlags(
         val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = FilterPredicate(ApiPredicate())
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
                 FilteringApiVisitor(
                     proguardWriter,
                     inlineInheritedFields = true,
-                    filterEmit = apiEmit,
-                    filterReference = apiReferenceIgnoreShown,
+                    apiFilters = apiFilters,
                     preFiltered = codebase.preFiltered,
                 )
             }
