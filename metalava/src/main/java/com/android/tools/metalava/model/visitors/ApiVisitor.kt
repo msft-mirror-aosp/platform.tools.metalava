@@ -32,21 +32,21 @@ open class ApiVisitor(
     /**
      * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
-     * afterwards. Defaults to false.
+     * afterward. Defaults to false.
      */
     preserveClassNesting: Boolean = false,
 
     /** Whether to include inherited fields too */
-    val inlineInheritedFields: Boolean = true,
+    private val inlineInheritedFields: Boolean = true,
 
     /** Comparator to sort callables with. */
-    val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
+    private val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
 
     /** The filter to use to determine if we should emit an item */
-    val filterEmit: Predicate<Item>,
+    protected val filterEmit: Predicate<Item>,
 
     /** The filter to use to determine if we should emit a reference to an item */
-    val filterReference: Predicate<Item>,
+    protected val filterReference: Predicate<Item>,
 
     /**
      * Whether this visitor should visit elements that have not been annotated with one of the
@@ -54,7 +54,7 @@ open class ApiVisitor(
      * files sometimes sets this to false so the signature file only contains the "diff" of the
      * annotated API relative to the base API.
      */
-    val showUnannotated: Boolean = true,
+    protected val showUnannotated: Boolean = true,
 ) : BaseItemVisitor(preserveClassNesting) {
 
     constructor(
