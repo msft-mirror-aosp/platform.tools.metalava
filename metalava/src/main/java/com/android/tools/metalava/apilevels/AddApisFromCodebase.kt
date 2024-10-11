@@ -42,7 +42,6 @@ fun addApisFromCodebase(
     codebase.accept(
         object :
             ApiVisitor(
-                preserveClassNesting = false,
                 filterEmit = providedFilterEmit,
                 filterReference = providedFilterReference,
                 apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,

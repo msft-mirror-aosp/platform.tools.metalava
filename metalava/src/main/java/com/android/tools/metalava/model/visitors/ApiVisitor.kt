@@ -58,57 +58,34 @@ open class ApiVisitor(
 ) : BaseItemVisitor(preserveClassNesting) {
 
     constructor(
-        /**
-         * Whether nested classes should be visited "inside" a class; when this property is true,
-         * nested classes are visited before the [#afterVisitClass] method is called; when false,
-         * it's done afterwards. Defaults to false.
-         */
-        preserveClassNesting: Boolean = false,
-
-        /** Whether to ignore APIs with annotations in the --show-annotations list */
-        ignoreShown: Boolean = true,
-
-        /** Whether to match APIs marked for removal instead of the normal API */
-        remove: Boolean = false,
-
         /** Comparator to sort callables with. */
         callableComparator: Comparator<CallableItem> = CallableItem.comparator,
 
         /**
          * The filter to use to determine if we should emit an item. If null, the default value is
-         * an [ApiPredicate] based on the values of [remove], [includeApisForStubPurposes],
-         * [config], and [ignoreShown].
+         * an [ApiPredicate] based on the [apiPredicateConfig].
          */
         filterEmit: Predicate<Item>? = null,
 
         /**
          * The filter to use to determine if we should emit a reference to an item. If null, the
-         * default value is an [ApiPredicate] based on the values of [remove] and [config].
+         * default value is an [ApiPredicate] based on the [apiPredicateConfig].
          */
         filterReference: Predicate<Item>? = null,
 
-        /**
-         * Whether to include "for stub purposes" APIs.
-         *
-         * See [ApiPredicate.includeOnlyForStubPurposes]
-         */
-        includeApisForStubPurposes: Boolean = true,
-
         /** Configuration that may come from the command line. */
-        apiPredicateConfig: ApiPredicate.Config
+        apiPredicateConfig: ApiPredicate.Config,
     ) : this(
-        preserveClassNesting = preserveClassNesting,
-        inlineInheritedFields = true,
         callableComparator = callableComparator,
         filterEmit = filterEmit
                 ?: ApiPredicate(
-                    matchRemoved = remove,
-                    includeApisForStubPurposes = includeApisForStubPurposes,
-                    config = apiPredicateConfig.copy(ignoreShown = ignoreShown),
+                    matchRemoved = false,
+                    includeApisForStubPurposes = true,
+                    config = apiPredicateConfig.copy(ignoreShown = true),
                 ),
         filterReference = filterReference
                 ?: ApiPredicate(
-                    ignoreRemoved = remove,
+                    ignoreRemoved = false,
                     config = apiPredicateConfig.copy(ignoreShown = true),
                 ),
     )
