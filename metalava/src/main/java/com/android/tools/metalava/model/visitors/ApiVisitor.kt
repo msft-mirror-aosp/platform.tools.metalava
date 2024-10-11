@@ -58,9 +58,6 @@ open class ApiVisitor(
 ) : BaseItemVisitor(preserveClassNesting) {
 
     constructor(
-        /** Comparator to sort callables with. */
-        callableComparator: Comparator<CallableItem> = CallableItem.comparator,
-
         /**
          * The filter to use to determine if we should emit an item. If null, the default value is
          * an [ApiPredicate] based on the [apiPredicateConfig].
@@ -76,7 +73,6 @@ open class ApiVisitor(
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
     ) : this(
-        callableComparator = callableComparator,
         filterEmit = filterEmit
                 ?: ApiPredicate(
                     matchRemoved = false,

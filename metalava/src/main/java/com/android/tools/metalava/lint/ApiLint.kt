@@ -203,8 +203,6 @@ private constructor(
         // that nullability overrides are consistent).
         filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(apiPredicateConfig),
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig),
-        // Sort by source order such that warnings follow source line number order.
-        callableComparator = CallableItem.sourceOrderComparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
