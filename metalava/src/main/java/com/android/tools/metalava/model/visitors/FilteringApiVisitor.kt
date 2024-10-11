@@ -83,8 +83,7 @@ class FilteringApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
         inlineInheritedFields = inlineInheritedFields,
         callableComparator = callableComparator,
-        filterEmit = apiFilters.emit,
-        filterReference = apiFilters.reference,
+        apiFilters = apiFilters,
         showUnannotated = showUnannotated,
     ),
     ItemVisitor {

@@ -21,12 +21,10 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import java.util.function.Predicate
 
 open class ApiVisitor(
     /**
@@ -42,11 +40,8 @@ open class ApiVisitor(
     /** Comparator to sort callables with. */
     private val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
 
-    /** The filter to use to determine if we should emit an item */
-    protected val filterEmit: Predicate<Item>,
-
-    /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference: Predicate<Item>,
+    /** The filters to use to determine what parts of the API will be visited. */
+    private val apiFilters: ApiFilters,
 
     /**
      * Whether this visitor should visit elements that have not been annotated with one of the
@@ -58,22 +53,17 @@ open class ApiVisitor(
 ) : BaseItemVisitor(preserveClassNesting) {
 
     constructor(
-        /**
-         * The filters to use to determine if an [Item] should be emitted or referenced as part of
-         * the API.
-         */
-        apiFilters: ApiFilters,
-    ) : this(
-        filterEmit = apiFilters.emit,
-        filterReference = apiFilters.reference,
-    )
-
-    constructor(
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
     ) : this(
         apiFilters = defaultFilters(apiPredicateConfig),
     )
+
+    /** The filter to use to determine if we should emit an item */
+    protected val filterEmit = apiFilters.emit
+
+    /** The filter to use to determine if we should emit a reference to an item */
+    protected val filterReference = apiFilters.reference
 
     companion object {
         /** Get the default [ApiFilters] to use with [ApiVisitor]. */
