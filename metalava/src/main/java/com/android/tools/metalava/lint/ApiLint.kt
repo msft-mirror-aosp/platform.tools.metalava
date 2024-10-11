@@ -201,8 +201,7 @@ private constructor(
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
-        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(apiPredicateConfig),
-        filterReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig),
+        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
