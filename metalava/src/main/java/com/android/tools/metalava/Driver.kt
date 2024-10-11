@@ -263,8 +263,7 @@ internal fun processFlags(
         )
 
         val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
+        val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
         apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
@@ -272,8 +271,7 @@ internal fun processFlags(
             codebase,
             apiVersionsJson,
             apiVersionNames,
-            apiEmit,
-            apiReference
+            apiFilters,
         )
     }
 

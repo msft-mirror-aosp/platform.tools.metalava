@@ -59,32 +59,42 @@ open class ApiVisitor(
 
     constructor(
         /**
-         * The filter to use to determine if we should emit an item. If null, the default value is
-         * an [ApiPredicate] based on the [apiPredicateConfig].
+         * The filters to use to determine if an [Item] should be emitted or referenced as part of
+         * the API.
          */
-        filterEmit: Predicate<Item>? = null,
+        apiFilters: ApiFilters,
+    ) : this(
+        filterEmit = apiFilters.emit,
+        filterReference = apiFilters.reference,
+    )
 
-        /**
-         * The filter to use to determine if we should emit a reference to an item. If null, the
-         * default value is an [ApiPredicate] based on the [apiPredicateConfig].
-         */
-        filterReference: Predicate<Item>? = null,
-
+    constructor(
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
     ) : this(
-        filterEmit = filterEmit
-                ?: ApiPredicate(
-                    matchRemoved = false,
-                    includeApisForStubPurposes = true,
-                    config = apiPredicateConfig.copy(ignoreShown = true),
-                ),
-        filterReference = filterReference
-                ?: ApiPredicate(
-                    ignoreRemoved = false,
-                    config = apiPredicateConfig.copy(ignoreShown = true),
-                ),
+        apiFilters = defaultFilters(apiPredicateConfig),
     )
+
+    companion object {
+        /** Get the default [ApiFilters] to use with [ApiVisitor]. */
+        fun defaultFilters(
+            apiPredicateConfig: ApiPredicate.Config,
+        ): ApiFilters {
+            return ApiFilters(
+                emit =
+                    ApiPredicate(
+                        matchRemoved = false,
+                        includeApisForStubPurposes = true,
+                        config = apiPredicateConfig.copy(ignoreShown = true),
+                    ),
+                reference =
+                    ApiPredicate(
+                        ignoreRemoved = false,
+                        config = apiPredicateConfig.copy(ignoreShown = true),
+                    ),
+            )
+        }
+    }
 
     /**
      * Visit a [List] of [ClassItem]s after sorting it into order defined by

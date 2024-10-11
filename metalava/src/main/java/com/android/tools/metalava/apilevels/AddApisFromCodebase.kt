@@ -22,30 +22,25 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
-import java.util.function.Predicate
 
 /**
  * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
- * [providedFilterEmit] and [providedFilterReference] are non-null, they are used to determine which
- * [Item]s should be added to the [api]. Otherwise, the [ApiVisitor] default filters are used.
+ * [apiFilters] is non-null, it is used to determine which [Item]s should be added to the [api].
+ * Otherwise, the [ApiVisitor.defaultFilters] are used.
  */
 fun addApisFromCodebase(
     api: Api,
     apiLevel: Int,
     codebase: Codebase,
     useInternalNames: Boolean,
-    providedFilterEmit: Predicate<Item>? = null,
-    providedFilterReference: Predicate<Item>? = null
+    apiFilters: ApiFilters =
+        ApiVisitor.defaultFilters(@Suppress("DEPRECATION") options.apiPredicateConfig),
 ) {
     codebase.accept(
-        object :
-            ApiVisitor(
-                filterEmit = providedFilterEmit,
-                filterReference = providedFilterReference,
-                apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
-            ) {
+        object : ApiVisitor(apiFilters = apiFilters) {
 
             var currentClass: ApiClass? = null
 
