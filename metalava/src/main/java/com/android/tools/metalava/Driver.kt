@@ -233,7 +233,7 @@ internal fun processFlags(
                 null
             }
 
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(
                     delegate = delegatedVisitor,
@@ -241,6 +241,19 @@ internal fun processFlags(
                     preFiltered = false,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for api-versions.xml files as they only refer to them
+                    // by name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
 
         apiGenerator.generateXml(
             apiLevelJars,

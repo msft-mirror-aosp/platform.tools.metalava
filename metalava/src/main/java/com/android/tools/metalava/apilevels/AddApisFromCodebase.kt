@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
 /**
@@ -47,15 +46,8 @@ fun addApisFromCodebase(
                 currentClass = null
             }
 
-            /**
-             * Get the value of [Item.originallyDeprecated] from the [Item.actualItemToSnapshot],
-             * i.e. the item that would actually be written out.
-             */
-            private val Item.actualDeprecated
-                get() = actualItemToSnapshot.effectivelyDeprecated
-
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
+                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.effectivelyDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
@@ -114,7 +106,11 @@ fun addApisFromCodebase(
                 if (callable.isPrivate || callable.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(callable.nameInApi(), apiLevel, callable.actualDeprecated)
+                currentClass?.addMethod(
+                    callable.nameInApi(),
+                    apiLevel,
+                    callable.effectivelyDeprecated
+                )
             }
 
             override fun visitConstructor(constructor: ConstructorItem) {
@@ -129,7 +125,7 @@ fun addApisFromCodebase(
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-                currentClass?.addField(field.nameInApi(), apiLevel, field.actualDeprecated)
+                currentClass?.addField(field.nameInApi(), apiLevel, field.effectivelyDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */
