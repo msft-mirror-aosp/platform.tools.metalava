@@ -53,6 +53,7 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
@@ -230,13 +231,23 @@ internal fun processFlags(
             } else {
                 null
             }
+
+        val codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
+                    preFiltered = false,
+                )
+            }
+
         apiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
             options.isDeveloperPreviewBuild(),
             androidApiLevelXml,
-            codebase,
+            codebaseFragment,
             sdkExtArgs,
             options.removeMissingClassesInApiLevels
         )
@@ -266,13 +277,21 @@ internal fun processFlags(
         val apiType = ApiType.PUBLIC_API
         val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
+        val codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = apiFilters,
+                    preFiltered = false,
+                )
+            }
+
         apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
-            codebase,
+            codebaseFragment,
             apiVersionsJson,
             apiVersionNames,
-            apiFilters,
         )
     }
 

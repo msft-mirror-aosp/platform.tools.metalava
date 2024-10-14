@@ -18,17 +18,14 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.tools.metalava.options
 
 /**
  * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
@@ -38,10 +35,8 @@ import com.android.tools.metalava.options
 fun addApisFromCodebase(
     api: Api,
     apiLevel: Int,
-    codebase: Codebase,
+    codebaseFragment: CodebaseFragment,
     useInternalNames: Boolean,
-    apiFilters: ApiFilters =
-        ApiVisitor.defaultFilters(@Suppress("DEPRECATION") options.apiPredicateConfig),
 ) {
     val delegatedVisitor =
         object : DelegatedVisitor {
@@ -190,13 +185,7 @@ fun addApisFromCodebase(
             }
         }
 
-    codebase.accept(
-        FilteringApiVisitor(
-            delegate = delegatedVisitor,
-            apiFilters = apiFilters,
-            preFiltered = false,
-        )
-    )
+    codebaseFragment.accept(delegatedVisitor)
 }
 
 /**
