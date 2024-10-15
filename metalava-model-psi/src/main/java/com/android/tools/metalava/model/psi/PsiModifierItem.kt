@@ -57,6 +57,7 @@ import com.android.tools.metalava.model.isNullnessAnnotation
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
@@ -71,6 +72,7 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
+import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -79,11 +81,6 @@ import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
-import org.jetbrains.kotlin.psi.psiUtil.hasExpectModifier
-import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
-import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
-import org.jetbrains.kotlin.psi.psiUtil.hasValueModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
@@ -203,11 +200,30 @@ internal object PsiModifierItem {
                 }
             }
         }
+
+        // Merge in the visibility flags.
+        val visibilityFlags = visibilityFlags(modifierList, ktModifierList, element, sourcePsi)
+        flags = flags or visibilityFlags
+
+        // Merge in kotlin flags
+        if (ktModifierList != null) {
+            flags = flags or kotlinFlags { token -> ktModifierList.hasModifier(token) }
+        }
+        return flags
+    }
+
+    /** Determine the element visibility, which can come from several sources. */
+    private fun visibilityFlags(
+        psiModifierList: PsiModifierList?,
+        ktModifierList: KtModifierList?,
+        element: PsiElement?,
+        sourcePsi: PsiElement?
+    ): Int {
         var visibilityFlags =
             when {
-                modifierList.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
-                modifierList.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
-                modifierList.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
+                psiModifierList?.hasModifierProperty(PsiModifier.PUBLIC) == true -> PUBLIC
+                psiModifierList?.hasModifierProperty(PsiModifier.PROTECTED) == true -> PROTECTED
+                psiModifierList?.hasModifierProperty(PsiModifier.PRIVATE) == true -> PRIVATE
                 ktModifierList != null ->
                     when {
                         ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) -> PRIVATE
@@ -223,6 +239,13 @@ internal object PsiModifierItem {
                         element.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
                         element.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
                         element.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
+                        else -> PUBLIC
+                    }
+                sourcePsi is KtModifierListOwner ->
+                    when {
+                        sourcePsi.hasModifier(KtTokens.PRIVATE_KEYWORD) -> PRIVATE
+                        sourcePsi.hasModifier(KtTokens.PROTECTED_KEYWORD) -> PROTECTED
+                        sourcePsi.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
                         else -> PUBLIC
                     }
                 else -> PACKAGE_PRIVATE
@@ -248,60 +271,22 @@ internal object PsiModifierItem {
                     }
                 }
             }
-            if (ktModifierList.hasModifier(KtTokens.VARARG_KEYWORD)) {
-                flags = flags or VARARG
-            }
-            if (ktModifierList.hasModifier(KtTokens.SEALED_KEYWORD)) {
-                flags = flags or SEALED
-            }
-            if (ktModifierList.hasModifier(KtTokens.INFIX_KEYWORD)) {
-                flags = flags or INFIX
-            }
-            if (ktModifierList.hasModifier(KtTokens.CONST_KEYWORD)) {
-                flags = flags or CONST
-            }
-            if (ktModifierList.hasModifier(KtTokens.OPERATOR_KEYWORD)) {
-                flags = flags or OPERATOR
-            }
-            if (ktModifierList.hasModifier(KtTokens.INLINE_KEYWORD)) {
-                flags = flags or INLINE
+        }
 
-                // Workaround for b/117565118:
-                val func = sourcePsi as? KtNamedFunction
-                if (
-                    func != null &&
-                        (func.typeParameterList?.text ?: "").contains(
-                            KtTokens.REIFIED_KEYWORD.value
-                        ) &&
-                        !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
-                        !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
-                ) {
-                    // Switch back from private to public
-                    visibilityFlags = PUBLIC
-                }
-            }
-            if (ktModifierList.hasValueModifier()) {
-                flags = flags or VALUE
-            }
-            if (ktModifierList.hasSuspendModifier()) {
-                flags = flags or SUSPEND
-            }
-            if (ktModifierList.hasModifier(KtTokens.COMPANION_KEYWORD)) {
-                flags = flags or COMPANION
-            }
-            if (ktModifierList.hasFunModifier()) {
-                flags = flags or FUN
-            }
-            if (ktModifierList.hasModifier(KtTokens.DATA_KEYWORD)) {
-                flags = flags or DATA
-            }
-            if (ktModifierList.hasExpectModifier()) {
-                flags = flags or EXPECT
-            }
-            if (ktModifierList.hasActualModifier()) {
-                flags = flags or ACTUAL
+        if (ktModifierList?.hasModifier(KtTokens.INLINE_KEYWORD) == true) {
+            // Workaround for b/117565118:
+            val func = sourcePsi as? KtNamedFunction
+            if (
+                func != null &&
+                    (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
+                    !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
+                    !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
+            ) {
+                // Switch back from private to public
+                visibilityFlags = PUBLIC
             }
         }
+
         // Methods that are property accessors inherit visibility from the source element
         if (element is UMethod && (element.sourceElement is KtPropertyAccessor)) {
             val sourceElement = element.sourceElement
@@ -315,9 +300,51 @@ internal object PsiModifierItem {
             }
         }
 
-        // Merge in the visibility flags.
-        flags = flags or visibilityFlags
+        return visibilityFlags
+    }
 
+    /** Computes Kotlin-specific flags. */
+    private fun kotlinFlags(hasModifier: (KtModifierKeywordToken) -> Boolean): Int {
+        var flags = 0
+        if (hasModifier(KtTokens.VARARG_KEYWORD)) {
+            flags = flags or VARARG
+        }
+        if (hasModifier(KtTokens.SEALED_KEYWORD)) {
+            flags = flags or SEALED
+        }
+        if (hasModifier(KtTokens.INFIX_KEYWORD)) {
+            flags = flags or INFIX
+        }
+        if (hasModifier(KtTokens.CONST_KEYWORD)) {
+            flags = flags or CONST
+        }
+        if (hasModifier(KtTokens.OPERATOR_KEYWORD)) {
+            flags = flags or OPERATOR
+        }
+        if (hasModifier(KtTokens.INLINE_KEYWORD)) {
+            flags = flags or INLINE
+        }
+        if (hasModifier(KtTokens.VALUE_KEYWORD)) {
+            flags = flags or VALUE
+        }
+        if (hasModifier(KtTokens.SUSPEND_KEYWORD)) {
+            flags = flags or SUSPEND
+        }
+        if (hasModifier(KtTokens.COMPANION_KEYWORD)) {
+            flags = flags or COMPANION
+        }
+        if (hasModifier(KtTokens.FUN_KEYWORD)) {
+            flags = flags or FUN
+        }
+        if (hasModifier(KtTokens.DATA_KEYWORD)) {
+            flags = flags or DATA
+        }
+        if (hasModifier(KtTokens.EXPECT_KEYWORD)) {
+            flags = flags or EXPECT
+        }
+        if (hasModifier(KtTokens.ACTUAL_KEYWORD)) {
+            flags = flags or ACTUAL
+        }
         return flags
     }
 
