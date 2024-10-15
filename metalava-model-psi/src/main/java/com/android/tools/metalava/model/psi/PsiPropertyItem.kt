@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
+import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.toUElement
@@ -70,7 +71,8 @@ private constructor(
 
     companion object {
         /**
-         * Creates a new property item, given a [name], [type] and relationships to other items.
+         * Creates a new property item for the [ktDeclaration], given a [name] and relationships to
+         * other items.
          *
          * Kotlin's properties consist of up to four other declarations: Their accessor functions,
          * primary constructor parameter, and a backing field. These relationships are useful for
@@ -90,29 +92,27 @@ private constructor(
          */
         internal fun create(
             codebase: PsiBasedCodebase,
+            ktDeclaration: KtDeclaration,
             containingClass: ClassItem,
             name: String,
-            type: TypeItem,
-            getter: PsiMethodItem,
+            getter: PsiMethodItem?,
             setter: PsiMethodItem? = null,
             constructorParameter: PsiParameterItem? = null,
-            backingField: PsiFieldItem? = null
-        ): PsiPropertyItem {
+            backingField: PsiFieldItem? = null,
+        ): PsiPropertyItem? {
+            val type = getter?.returnType() ?: return null
+
             val psiMethod = getter.psiMethod
-            // Get the appropriate element from which to retrieve the documentation.
-            val psiElement =
-                when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor -> sourcePsi.property
-                    else -> sourcePsi ?: psiMethod
-                }
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.
-            if (backingField == null) {
-                val ktProperty = (getter.sourcePsi as? KtPropertyAccessor)?.property
+            // The getter source is currently required to be a property accessor (not a property or
+            // parameter declaration) to maintain the previous behavior, this will be changed in a
+            // followup.
+            if (backingField == null && getter.sourcePsi is KtPropertyAccessor) {
                 val annotations =
-                    ktProperty?.annotationEntries?.mapNotNull {
+                    ktDeclaration.annotationEntries.mapNotNull {
                         val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
                         if (
                             useSiteTarget == null ||
@@ -121,7 +121,7 @@ private constructor(
                             it.toUElement() as? UAnnotation
                         } else null
                     }
-                annotations?.forEach { uAnnotation ->
+                annotations.forEach { uAnnotation ->
                     val annotationItem =
                         UAnnotationItem.create(codebase, uAnnotation) ?: return@forEach
                     if (annotationItem !in modifiers.annotations()) {
@@ -134,7 +134,7 @@ private constructor(
                     codebase = codebase,
                     psiMethod = psiMethod,
                     modifiers = modifiers,
-                    documentationFactory = PsiItemDocumentation.factory(psiElement, codebase),
+                    documentationFactory = PsiItemDocumentation.factory(ktDeclaration, codebase),
                     name = name,
                     containingClass = containingClass,
                     type = type,

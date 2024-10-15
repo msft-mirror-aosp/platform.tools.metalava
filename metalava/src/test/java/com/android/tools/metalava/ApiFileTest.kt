@@ -5670,6 +5670,8 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
 
                         fun String.bar(): Unit {}
+
+                        val nonConstVal = 3
                     """
                     ),
                     kotlin(
@@ -5681,6 +5683,8 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
 
                         fun String.baz(): Unit {}
+
+                        const val constVal = 4
                     """
                     )
                 ),
@@ -5692,6 +5696,9 @@ class ApiFileTest : DriverTest() {
                   public final class Foo {
                     method public static void bar(String);
                     method public static void baz(String);
+                    method public static int getNonConstVal();
+                    property public static final int nonConstVal;
+                    field public static final int constVal = 4; // 0x4
                   }
                 }
             """
