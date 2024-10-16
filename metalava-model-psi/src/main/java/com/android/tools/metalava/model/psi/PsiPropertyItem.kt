@@ -26,16 +26,12 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
-import com.intellij.psi.PsiMethod
-import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.toUElement
 
 internal class PsiPropertyItem
 private constructor(
     override val codebase: PsiBasedCodebase,
-    private val psiMethod: PsiMethod,
+    private val ktDeclaration: KtDeclaration,
     modifiers: BaseModifierList,
     // This needs to be passed in because the documentation may come from the property, or it may
     // come from the getter method.
@@ -43,15 +39,15 @@ private constructor(
     name: String,
     containingClass: ClassItem,
     type: TypeItem,
-    getter: MethodItem,
+    getter: MethodItem?,
     setter: MethodItem?,
     constructorParameter: ParameterItem?,
     backingField: FieldItem?
 ) :
     DefaultPropertyItem(
         codebase = codebase,
-        fileLocation = PsiFileLocation(psiMethod),
-        itemLanguage = psiMethod.itemLanguage,
+        fileLocation = PsiFileLocation(ktDeclaration),
+        itemLanguage = ktDeclaration.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -66,7 +62,7 @@ private constructor(
     PropertyItem,
     PsiItem {
 
-    override fun psi() = psiMethod
+    override fun psi() = ktDeclaration
 
     companion object {
         /**
@@ -77,10 +73,12 @@ private constructor(
          * primary constructor parameter, and a backing field. These relationships are useful for
          * resolving documentation and exposing the model correctly in Kotlin stubs.
          *
-         * Metalava currently requires all properties to have a [getter]. It does not currently
-         * support private, `const val`, or [JvmField] properties. Mutable `var` properties usually
-         * have a [setter], but properties with a private default setter may use direct field access
-         * instead.
+         * Most properties have a [getter], but those that are available through field access in
+         * Java (e.g. `const val` and [JvmField] properties) or are not accessible from Java (e.g.
+         * private properties and non-constructor value class properties) do not.
+         *
+         * Mutable `var` properties usually have a [setter], but properties with a private default
+         * setter may use direct field access instead.
          *
          * Properties declared in the primary constructor of a class have an associated
          * [constructorParameter]. This relationship is important for resolving docs which may exist
@@ -93,39 +91,22 @@ private constructor(
             codebase: PsiBasedCodebase,
             ktDeclaration: KtDeclaration,
             containingClass: ClassItem,
+            typeItemFactory: PsiTypeItemFactory,
             name: String,
             getter: PsiMethodItem?,
             setter: PsiMethodItem? = null,
             constructorParameter: PsiParameterItem? = null,
             backingField: PsiFieldItem? = null,
         ): PsiPropertyItem? {
-            val type = getter?.returnType() ?: return null
-
-            val psiMethod = getter.psiMethod
-            val modifiers = PsiModifierItem.create(codebase, psiMethod)
-            // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
-            // if the property doesn't need a backing field. Same for unspecified use-site target.
-            // To preserve such annotations, our last resort is to examine source PSI directly.
-            val annotations =
-                ktDeclaration.annotationEntries.mapNotNull {
-                    val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
-                    if (
-                        useSiteTarget == null || useSiteTarget == AnnotationUseSiteTarget.PROPERTY
-                    ) {
-                        it.toUElement() as? UAnnotation
-                    } else null
-                }
-            for (uAnnotation in annotations) {
-                val annotationItem = UAnnotationItem.create(codebase, uAnnotation) ?: continue
-                if (annotationItem !in modifiers.annotations()) {
-                    modifiers.addAnnotation(annotationItem)
-                }
-            }
+            val type =
+                getter?.returnType()
+                    ?: typeItemFactory.getTypeForProperty(ktDeclaration) ?: return null
+            val modifiers = PsiModifierItem.createForProperty(codebase, ktDeclaration, getter)
 
             val property =
                 PsiPropertyItem(
                     codebase = codebase,
-                    psiMethod = psiMethod,
+                    ktDeclaration = ktDeclaration,
                     modifiers = modifiers,
                     documentationFactory = PsiItemDocumentation.factory(ktDeclaration, codebase),
                     name = name,
@@ -136,7 +117,7 @@ private constructor(
                     constructorParameter = constructorParameter,
                     backingField = backingField
                 )
-            getter.property = property
+            getter?.property = property
             setter?.property = property
             constructorParameter?.property = property
             backingField?.property = property

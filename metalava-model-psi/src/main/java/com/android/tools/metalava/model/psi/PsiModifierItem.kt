@@ -72,6 +72,7 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
@@ -81,6 +82,7 @@ import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
@@ -88,6 +90,7 @@ import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
+import org.jetbrains.uast.toUElement
 
 internal object PsiModifierItem {
     fun create(
@@ -112,6 +115,57 @@ internal object PsiModifierItem {
                 // Check for @Deprecated on sourcePsi
                 isDeprecatedFromSourcePsi(element)
         ) {
+            modifiers.setDeprecated(true)
+        }
+
+        return modifiers
+    }
+
+    /**
+     * Creates modifiers for the property represented by [ktDeclaration]. If the [getter] exists, it
+     * is used to create the modifiers (along with annotations appearing directly on the property).
+     * If there is no getter, the kt modifiers are used.
+     */
+    fun createForProperty(
+        codebase: PsiBasedCodebase,
+        ktDeclaration: KtDeclaration,
+        getter: PsiMethodItem?,
+    ): MutableModifierList {
+        val modifiers =
+            if (getter != null) {
+                create(codebase, getter.psi())
+            } else {
+                val ktModifierList = ktDeclaration.modifierList
+                val visibilityFlags =
+                    visibilityFlags(
+                        psiModifierList = null,
+                        ktModifierList = ktModifierList,
+                        element = ktDeclaration,
+                        sourcePsi = ktDeclaration
+                    )
+                val kotlinFlags = kotlinFlags { token ->
+                    ktModifierList?.hasModifier(token) ?: ktDeclaration.hasModifier(token)
+                }
+                val javaFlags = javaFlagsForKotlinElement(ktDeclaration)
+                val flags = visibilityFlags or kotlinFlags or javaFlags
+                createMutableModifiers(flags, emptyList())
+            }
+
+        // Annotations whose target is property won't be bound to anywhere in LC/UAST, if the
+        // property doesn't need a backing field. Same for unspecified use-site target.
+        // Add all annotations applied to the property by examining source PSI directly.
+        for (ktAnnotationEntry in ktDeclaration.annotationEntries) {
+            val useSiteTarget = ktAnnotationEntry.useSiteTarget?.getAnnotationUseSiteTarget()
+            if (useSiteTarget == null || useSiteTarget == AnnotationUseSiteTarget.PROPERTY) {
+                val uAnnotation = ktAnnotationEntry.toUElement() as? UAnnotation ?: continue
+                val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                if (annotationItem !in modifiers.annotations()) {
+                    modifiers.addAnnotation(annotationItem)
+                }
+            }
+        }
+
+        if (hasDeprecatedAnnotation(modifiers)) {
             modifiers.setDeprecated(true)
         }
 
@@ -346,6 +400,31 @@ internal object PsiModifierItem {
             flags = flags or ACTUAL
         }
         return flags
+    }
+
+    /** Creates Java-equivalent flags for the Kotlin element. */
+    private fun javaFlagsForKotlinElement(ktDeclaration: KtDeclaration): Int {
+        return if (ktDeclaration.hasModifier(KtTokens.CONST_KEYWORD)) {
+            FINAL or STATIC
+        } else if (ktDeclaration.hasModifier(KtTokens.FINAL_KEYWORD)) {
+            FINAL
+        } else if (
+            ktDeclaration.hasModifier(KtTokens.ABSTRACT_KEYWORD) ||
+                ktDeclaration.containingClass()?.isAnnotation() == true
+        ) {
+            // Declarations with the abstract keyword are abstract, and so are annotation class
+            // properties.
+            ABSTRACT
+        } else if (
+            !ktDeclaration.hasModifier(KtTokens.OPEN_KEYWORD) &&
+                !ktDeclaration.hasModifier(KtTokens.OVERRIDE_KEYWORD) &&
+                ktDeclaration.containingClass()?.isInterface() != true
+        ) {
+            // Kotlin elements are final unless declared otherwise.
+            FINAL
+        } else {
+            0
+        }
     }
 
     /**

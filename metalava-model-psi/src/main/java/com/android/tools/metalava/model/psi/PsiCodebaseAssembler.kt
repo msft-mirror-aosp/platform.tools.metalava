@@ -83,7 +83,7 @@ import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
-import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -335,7 +335,7 @@ internal class PsiCodebaseAssembler(
         // track them for Kotlin source compatibility.
         // Value classes must have a primary constructor, so if none of the constructors are primary
         // this must be K2, and the primary constructor needs to be added.
-        val ktClass = (psiClass as? UClass)?.sourcePsi as? KtClass
+        val ktClass = (psiClass as? UClass)?.sourcePsi as? KtClassOrObject
         if (classItem.modifiers.isValue() && classItem.constructors().none { it.isPrimary }) {
             val ktConstructor = ktClass?.primaryConstructor?.toUElement() as? PsiMethod
             if (ktConstructor != null) {
@@ -419,6 +419,7 @@ internal class PsiCodebaseAssembler(
                         codebase = codebase,
                         ktDeclaration = propertyDeclaration,
                         containingClass = classItem,
+                        typeItemFactory = enclosingClassTypeItemFactory,
                         name = name,
                         getter = getters[propertyDeclaration],
                         setter = setters[propertyDeclaration],
