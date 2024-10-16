@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.toUElement
 
@@ -107,28 +106,22 @@ private constructor(
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.
-            // The getter source is currently required to be a property accessor (not a property or
-            // parameter declaration) to maintain the previous behavior, this will be changed in a
-            // followup.
-            if (backingField == null && getter.sourcePsi is KtPropertyAccessor) {
-                val annotations =
-                    ktDeclaration.annotationEntries.mapNotNull {
-                        val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
-                        if (
-                            useSiteTarget == null ||
-                                useSiteTarget == AnnotationUseSiteTarget.PROPERTY
-                        ) {
-                            it.toUElement() as? UAnnotation
-                        } else null
-                    }
-                annotations.forEach { uAnnotation ->
-                    val annotationItem =
-                        UAnnotationItem.create(codebase, uAnnotation) ?: return@forEach
-                    if (annotationItem !in modifiers.annotations()) {
-                        modifiers.addAnnotation(annotationItem)
-                    }
+            val annotations =
+                ktDeclaration.annotationEntries.mapNotNull {
+                    val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
+                    if (
+                        useSiteTarget == null || useSiteTarget == AnnotationUseSiteTarget.PROPERTY
+                    ) {
+                        it.toUElement() as? UAnnotation
+                    } else null
+                }
+            for (uAnnotation in annotations) {
+                val annotationItem = UAnnotationItem.create(codebase, uAnnotation) ?: continue
+                if (annotationItem !in modifiers.annotations()) {
+                    modifiers.addAnnotation(annotationItem)
                 }
             }
+
             val property =
                 PsiPropertyItem(
                     codebase = codebase,
