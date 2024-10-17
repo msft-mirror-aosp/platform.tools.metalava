@@ -322,6 +322,15 @@ internal class PsiCodebaseAssembler(
                 )
                 classItem.addConstructor(constructor)
             } else {
+                // With K1, value class property accessors are present as [PsiMethod]s and with K2
+                // they are not. These accessor methods can't actually be used from Java, so this
+                // forces the K2 behavior and filters them out for K1.
+                if (
+                    classItem.modifiers.isValue() && psiMethod.sourceElement is KtPropertyAccessor
+                ) {
+                    continue
+                }
+
                 val method =
                     PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
                 if (!method.isEnumSyntheticMethod()) {

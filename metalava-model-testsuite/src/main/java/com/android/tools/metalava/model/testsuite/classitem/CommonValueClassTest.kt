@@ -21,6 +21,7 @@ import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
@@ -108,6 +109,37 @@ class CommonValueClassTest : BaseModelTest() {
             val param = primaryConstructor.parameters().single()
             assertTrue(param.hasDefaultValue(), "Expected a default value")
             assertEquals(param.defaultValue.value(), "0", "Expected a default value of 0")
+        }
+    }
+
+    @Test
+    fun `Property accessors`() {
+        // Value class property accessors for non-constructor properties can't be used from Java
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    @JvmInline
+                    value class ValueClass(val value: Int) {
+                        var noAccessors: Int
+                            get() = 0
+                            set(v: Int) {}
+                    }
+                """
+            )
+        ) {
+            val valueClass = codebase.assertClass("test.pkg.ValueClass")
+            val ctorProperty = valueClass.assertProperty("value")
+            assertNotNull(ctorProperty.getter)
+            assertNull(ctorProperty.setter)
+            assertNotNull(ctorProperty.constructorParameter)
+            assertNotNull(ctorProperty.backingField)
+
+            val noAccessorsProperty = valueClass.assertProperty("noAccessors")
+            assertNull(noAccessorsProperty.getter)
+            assertNull(noAccessorsProperty.setter)
+            assertNull(noAccessorsProperty.constructorParameter)
+            assertNull(noAccessorsProperty.backingField)
         }
     }
 }

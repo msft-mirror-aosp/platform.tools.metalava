@@ -4839,7 +4839,6 @@ class ApiFileTest : DriverTest() {
                     ctor public Dp(float value);
                     method public int compareTo(float other);
                     method public void doSomething();
-                    method public int getSomeBits();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
