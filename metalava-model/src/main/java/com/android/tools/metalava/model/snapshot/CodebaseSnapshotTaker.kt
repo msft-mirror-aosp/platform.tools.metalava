@@ -268,6 +268,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         },
                     callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
+                    isPrimary = constructorToSnapshot.isPrimary,
                 )
             }
 

@@ -127,6 +127,7 @@ class DefaultItemFactory(
         throwsTypes: List<ExceptionTypeItem>,
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         implicitConstructor: Boolean,
+        isPrimary: Boolean = false,
     ): ConstructorItem =
         DefaultConstructorItem(
             codebase,
@@ -143,6 +144,7 @@ class DefaultItemFactory(
             throwsTypes,
             callableBodyFactory,
             implicitConstructor,
+            isPrimary,
         )
 
     /** Create a [FieldItem]. */
