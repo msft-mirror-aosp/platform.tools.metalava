@@ -26,4 +26,13 @@ sealed interface ApiSurface {
 
     /** The optional [ApiSurface] that this extends. */
     val extends: ApiSurface?
+
+    /** The list of [ApiVariant]s, in the same order as [ApiVariantType]s. */
+    val variants: List<ApiVariant>
+
+    /** The set of all [ApiVariant]s in this [ApiSurface]. */
+    val variantSet: ApiVariantSet
+
+    /** Get the [ApiVariant] for [ApiVariantType] in this [ApiSurface]. */
+    fun variantFor(type: ApiVariantType): ApiVariant
 }
