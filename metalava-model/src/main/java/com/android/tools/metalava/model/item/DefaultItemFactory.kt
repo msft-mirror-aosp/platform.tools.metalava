@@ -237,6 +237,10 @@ class DefaultItemFactory(
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
+        getter: MethodItem? = null,
+        setter: MethodItem? = null,
+        constructorParameter: ParameterItem? = null,
+        backingField: FieldItem? = null,
     ): PropertyItem =
         DefaultPropertyItem(
             codebase,
@@ -248,6 +252,10 @@ class DefaultItemFactory(
             name,
             containingClass,
             type,
+            getter,
+            setter,
+            constructorParameter,
+            backingField,
         )
 
     /**

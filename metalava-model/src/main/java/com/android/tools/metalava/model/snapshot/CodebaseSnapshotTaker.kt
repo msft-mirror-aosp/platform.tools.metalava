@@ -351,6 +351,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     name = propertyToSnapshot.name(),
                     containingClass = containingClass,
                     type = propertyToSnapshot.type().snapshot(),
+                    getter = property.getter,
+                    setter = property.setter,
+                    constructorParameter = property.constructorParameter,
+                    backingField = property.backingField,
                 )
             }
 
