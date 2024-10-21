@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
@@ -289,6 +290,18 @@ internal class PsiCodebaseAssembler(
         // create methods
         for (psiMethod in psiMethods) {
             if (psiMethod.isConstructor) {
+                // Kotlin value class primary constructors must have exactly one parameter. If the
+                // parameter is optional, K1 generates an additional no-args constructor for Java.
+                // However, this constructor can't actually be called from Java, and the constructor
+                // with an optional arg is sufficient for Kotlin API tracking, so filter the no-args
+                // constructor out (this is consistent with K2).
+                if (
+                    classItem.modifiers.isValue() &&
+                        (psiMethod as UMethod).isPrimaryConstructor &&
+                        psiMethod.parameters.isEmpty()
+                )
+                    continue
+
                 val constructor =
                     PsiConstructorItem.create(
                         codebase,
