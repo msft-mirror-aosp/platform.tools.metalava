@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -84,6 +85,50 @@ class CommonApiSurfacesTest : BaseModelTest() {
             val apiSurfaces = codebase.apiSurfaces
             assertEquals("main", apiSurfaces.main.name, "main name")
             assertEquals("base", apiSurfaces.base?.name, "base name")
+        }
+    }
+
+    @Test
+    fun `Test mutating selectedApiVariants`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        public Test() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Make sure that the selectedApiVariants is empty.
+            testClass.mutateSelectedApiVariants { clear() }
+
+            assertEquals(
+                "ApiVariantSet[]",
+                testClass.selectedApiVariants.toString(),
+                "empty selectedApiVariants"
+            )
+
+            val mainStubsApiVariant = codebase.apiSurfaces.main.variantFor(ApiVariantType.DOC_ONLY)
+            testClass.mutateSelectedApiVariants { add(mainStubsApiVariant) }
+            assertEquals(
+                "ApiVariantSet[main(D)]",
+                testClass.selectedApiVariants.toString(),
+                "mutated selectedApiVariants"
+            )
         }
     }
 }
