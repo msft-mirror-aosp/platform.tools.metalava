@@ -29,7 +29,7 @@ import com.android.tools.metalava.reporter.FileLocation
  * their [Item] implementations.
  */
 abstract class DefaultItem(
-    override val codebase: Codebase,
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: BaseModifierList,
@@ -37,6 +37,7 @@ abstract class DefaultItem(
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) :
     AbstractItem(
+        codebase,
         fileLocation,
         itemLanguage,
         modifiers,
