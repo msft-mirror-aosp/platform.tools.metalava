@@ -234,22 +234,6 @@ private constructor(
             return assembler.codebase
         }
 
-        /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-        @Deprecated("Exists only for external callers.")
-        @JvmStatic
-        @MetalavaApi
-        @Throws(ApiParseException::class)
-        fun parseApi(
-            filename: String,
-            apiText: String,
-            @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
-        ): Codebase {
-            return parseApi(
-                filename,
-                apiText,
-            )
-        }
-
         /**
          * Parse the API signature file from the [inputStream].
          *
