@@ -24,6 +24,7 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
@@ -412,7 +413,11 @@ class Options(
         )
     }
 
-    internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
+    internal val signatureFileLoader by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileLoader(annotationManager) }
+
+    internal val signatureFileCache by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     private val suppressCompatibilityMetaAnnotations by
