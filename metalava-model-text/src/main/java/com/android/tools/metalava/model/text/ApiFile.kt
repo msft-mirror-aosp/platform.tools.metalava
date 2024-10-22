@@ -76,11 +76,11 @@ data class SignatureFile(
     val file: File,
 
     /**
-     * Indicates whether [file] is for the current API surface, i.e. the one that is being created.
+     * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
      *
      * This will be stored in [Item.emit].
      */
-    val forCurrentApiSurface: Boolean = true,
+    val forMainApiSurface: Boolean = true,
 ) {
     companion object {
         /** Create a list of [SignatureFile]s from a varargs array of [File]s. */
@@ -142,12 +142,12 @@ private constructor(
     lateinit var format: FileFormat
 
     /**
-     * Indicates whether the file currently being parsed is for the current API surface, i.e. the
-     * one that is being created.
+     * Indicates whether the file currently being parsed is for the main API surface, i.e. the one
+     * that is being created.
      *
-     * See [SignatureFile.forCurrentApiSurface].
+     * See [SignatureFile.forMainApiSurface].
      */
-    private var forCurrentApiSurface: Boolean = true
+    private var forMainApiSurface: Boolean = true
 
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
@@ -213,7 +213,7 @@ private constructor(
                     appending = !first,
                     path = file.toPath(),
                     apiText = apiText,
-                    forCurrentApiSurface = signatureFile.forCurrentApiSurface,
+                    forMainApiSurface = signatureFile.forMainApiSurface,
                 )
                 first = false
             }
@@ -257,7 +257,7 @@ private constructor(
                 appending = false,
                 path = path,
                 apiText = apiText,
-                forCurrentApiSurface = true,
+                forMainApiSurface = true,
             )
 
             return assembler.codebase
@@ -312,25 +312,24 @@ private constructor(
     }
 
     /**
-     * Mark this [Item] as being part of the current API surface, i.e. the one that is being
-     * created.
+     * Mark this [Item] as being part of the main API surface, i.e. the one that is being created.
      *
-     * See [SignatureFile.forCurrentApiSurface].
+     * See [SignatureFile.forMainApiSurface].
      *
-     * This will set [Item.emit] to [forCurrentApiSurface] and should only be called on [Item]s
-     * which have been created from the current signature file.
+     * This will set [Item.emit] to [forMainApiSurface] and should only be called on [Item]s which
+     * have been created from the main signature file.
      */
-    private fun Item.markForCurrentApiSurface() {
-        emit = forCurrentApiSurface
+    private fun Item.markForMainApiSurface() {
+        emit = forMainApiSurface
     }
 
     /**
-     * It is only necessary to mark an existing class as being part of the current API surface, if
-     * it should be but is not already.
+     * It is only necessary to mark an existing class as being part of the main API surface, if it
+     * should be but is not already.
      *
-     * This will set [Item.emit] to `true` iff it was previously `false` and [forCurrentApiSurface]
-     * is `true`. That ensures that a class that is not in the current API surface can be included
-     * in it by another signature file, but once it is included it cannot be removed.
+     * This will set [Item.emit] to `true` iff it was previously `false` and [forMainApiSurface] is
+     * `true`. That ensures that a class that is not in the main API surface can be included in it
+     * by another signature file, but once it is included it cannot be removed.
      *
      * e.g. Imagine that there are two files, `public.txt` and `system.txt` where the second extends
      * the first. When generating the system API classes in the `public.txt` will not be considered
@@ -338,9 +337,9 @@ private constructor(
      * created in `public.txt`. While `public.txt` should come first this ensures the correct
      * behavior irrespective of the order.
      */
-    private fun ClassItem.markExistingClassForCurrentApiSurface() {
-        if (!emit && forCurrentApiSurface) {
-            markForCurrentApiSurface()
+    private fun ClassItem.markExistingClassForMainApiSurface() {
+        if (!emit && forMainApiSurface) {
+            markForMainApiSurface()
         }
     }
 
@@ -348,7 +347,7 @@ private constructor(
         appending: Boolean,
         path: Path,
         apiText: String,
-        forCurrentApiSurface: Boolean = true,
+        forMainApiSurface: Boolean = true,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
@@ -372,9 +371,9 @@ private constructor(
             }
         }
 
-        // Remember whether the file being parsed is for the current API surface, so that Items
+        // Remember whether the file being parsed is for the main API surface, so that Items
         // created from it can be marked correctly.
-        this.forCurrentApiSurface = forCurrentApiSurface
+        this.forMainApiSurface = forMainApiSurface
 
         val tokenizer = Tokenizer(path, apiText.toCharArray())
         while (true) {
@@ -580,7 +579,7 @@ private constructor(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
             )
-        cl.markForCurrentApiSurface()
+        cl.markForMainApiSurface()
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -643,8 +642,8 @@ private constructor(
         parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
 
         // Although the class was first defined in a separate file it is being modified in the
-        // current file so that may include it in the current API surface.
-        existingClass.markExistingClassForCurrentApiSurface()
+        // current file so that may include it in the main API surface.
+        existingClass.markExistingClassForMainApiSurface()
 
         return true
     }
@@ -982,7 +981,7 @@ private constructor(
                 // on the API surface.
                 implicitConstructor = false,
             )
-        method.markForCurrentApiSurface()
+        method.markForMainApiSurface()
 
         if (!containingClass.constructors().contains(method)) {
             containingClass.addConstructor(method)
@@ -1095,7 +1094,7 @@ private constructor(
         // ensure that the resulting Codebase is consistent with the original source Codebase.
         if (method.isEnumSyntheticMethod()) return
 
-        method.markForCurrentApiSurface()
+        method.markForMainApiSurface()
 
         // If the method already exists in the class item because it was defined in a previous
         // signature file then replace it with this one, otherwise just add this method.
@@ -1170,7 +1169,7 @@ private constructor(
                 isEnumConstant = isEnumConstant,
                 fieldValue = fieldValue,
             )
-        field.markForCurrentApiSurface()
+        field.markForMainApiSurface()
         cl.addField(field)
     }
 
@@ -1403,7 +1402,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
             )
-        property.markForCurrentApiSurface()
+        property.markForMainApiSurface()
         cl.addProperty(property)
     }
 
@@ -1711,7 +1710,7 @@ private constructor(
                     defaultValueFactory = { defaultValue },
                 )
 
-            parameter.markForCurrentApiSurface()
+            parameter.markForMainApiSurface()
 
             return parameter
         }

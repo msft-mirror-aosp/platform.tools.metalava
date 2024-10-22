@@ -481,7 +481,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test for current API surface`() {
+    fun `Test for main API surface`() {
         val testFiles =
             listOf(
                 signature(
@@ -526,7 +526,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
         val signatureFiles =
             files.map { file ->
-                SignatureFile(file, forCurrentApiSurface = file.name == "current.txt")
+                SignatureFile(file, forMainApiSurface = file.name == "current.txt")
             }
 
         val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())

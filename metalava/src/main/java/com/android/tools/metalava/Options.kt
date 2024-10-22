@@ -560,7 +560,7 @@ class Options(
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                     ARG_MIGRATE_NULLNESS,
                     it,
-                    onlyUseLastForCurrentApiSurface = false
+                    onlyUseLastForMainApiSurface = false
                 )
             }
 
