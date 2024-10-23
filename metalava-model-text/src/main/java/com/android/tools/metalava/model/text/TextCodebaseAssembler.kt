@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
-import java.io.PrintWriter
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
@@ -191,7 +190,7 @@ internal class TextCodebaseAssembler(
             val assembler =
                 TextCodebaseAssembler(
                     codebaseFactory = { assembler ->
-                        val reporter = BasicReporter(PrintWriter(System.err))
+                        val reporter = BasicReporter.ERR
                         DefaultCodebase(
                             location = location,
                             description = description,
