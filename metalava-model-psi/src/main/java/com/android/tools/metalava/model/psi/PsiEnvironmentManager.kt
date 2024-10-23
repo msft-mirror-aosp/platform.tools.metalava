@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.reporter.Reporter
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.util.Disposer
@@ -127,7 +126,6 @@ class PsiEnvironmentManager(
     }
 
     override fun createSourceParser(
-        reporter: Reporter,
         codebaseConfig: Codebase.Config,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
@@ -138,7 +136,6 @@ class PsiEnvironmentManager(
     ): SourceParser {
         return PsiSourceParser(
             psiEnvironmentManager = this,
-            reporter = reporter,
             codebaseConfig = codebaseConfig,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),

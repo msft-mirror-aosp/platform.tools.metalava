@@ -37,7 +37,6 @@ open class DefaultCodebase(
     final override val config: Codebase.Config,
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
-    reporter: Reporter? = null,
     val assembler: CodebaseAssembler,
 ) : Codebase {
 
@@ -56,10 +55,9 @@ open class DefaultCodebase(
         description += " [disposed]"
     }
 
-    private val optionalReporter = reporter
-
     override val reporter: Reporter
-        get() = optionalReporter ?: unsupported("reporter is not available")
+        // Get the reporter lazily, only when needed, as it can fail if none has been provided.
+        get() = config.reporter
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
     val packageTracker = PackageTracker(assembler::createPackageItem)

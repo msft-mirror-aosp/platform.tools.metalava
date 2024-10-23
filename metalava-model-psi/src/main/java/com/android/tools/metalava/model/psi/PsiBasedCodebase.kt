@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
@@ -49,7 +48,6 @@ internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     config: Codebase.Config,
-    override val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,

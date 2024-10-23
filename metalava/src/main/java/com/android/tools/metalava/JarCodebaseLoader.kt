@@ -123,11 +123,11 @@ private constructor(
             val codebaseConfig =
                 Codebase.Config(
                     annotationManager = annotationManager,
+                    optionalReporter = reporter,
                 )
 
             val sourceParser =
                 environmentManager.createSourceParser(
-                    reporter,
                     codebaseConfig,
                 )
 

@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -135,6 +136,7 @@ class SignatureToJDiffCommand :
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = annotationManager,
+                optionalReporter = BasicReporter.ERR,
             )
         val signatureFileLoader =
             SignatureFileLoader(

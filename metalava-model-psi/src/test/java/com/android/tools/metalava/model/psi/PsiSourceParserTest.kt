@@ -80,10 +80,10 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
     ): Codebase {
         return environmentManager
             .createSourceParser(
-                reporter,
                 codebaseConfig =
                     Codebase.Config(
                         annotationManager = noOpAnnotationManager,
+                        optionalReporter = reporter,
                     ),
             )
             .parseSources(

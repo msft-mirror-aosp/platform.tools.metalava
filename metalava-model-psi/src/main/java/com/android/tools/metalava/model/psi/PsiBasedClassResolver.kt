@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
@@ -29,7 +28,6 @@ import java.io.File
 internal class PsiBasedClassResolver(
     uastEnvironment: UastEnvironment,
     config: Codebase.Config,
-    reporter: Reporter,
     allowReadingComments: Boolean,
 ) : ClassResolver {
     private val javaPsiFacade: JavaPsiFacade
@@ -48,7 +46,6 @@ internal class PsiBasedClassResolver(
                     location = File("classpath"),
                     description = "Codebase from classpath",
                     config = config,
-                    reporter = reporter,
                     fromClasspath = true,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,

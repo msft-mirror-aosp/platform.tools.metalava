@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
 import org.jetbrains.kotlin.config.ApiVersion
@@ -57,7 +56,6 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
  */
 internal class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
-    private val reporter: Reporter,
     private val codebaseConfig: Codebase.Config,
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
@@ -67,13 +65,14 @@ internal class PsiSourceParser(
     private val projectDescription: File?,
 ) : SourceParser {
 
+    private val reporter = codebaseConfig.reporter
+
     override fun getClassResolver(classPath: List<File>): ClassResolver {
         val uastEnvironment = loadUastFromJars(classPath)
         return PsiBasedClassResolver(
             uastEnvironment,
             codebaseConfig,
-            reporter,
-            allowReadingComments
+            allowReadingComments,
         )
     }
 
@@ -147,7 +146,6 @@ internal class PsiSourceParser(
                     location = rootDir,
                     description = description,
                     config = codebaseConfig,
-                    reporter = reporter,
                     allowReadingComments = allowReadingComments,
                     assembler = it,
                 )
@@ -169,7 +167,6 @@ internal class PsiSourceParser(
                     location = apiJar,
                     description = "Codebase loaded from $apiJar",
                     config = codebaseConfig,
-                    reporter = reporter,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,
                 )

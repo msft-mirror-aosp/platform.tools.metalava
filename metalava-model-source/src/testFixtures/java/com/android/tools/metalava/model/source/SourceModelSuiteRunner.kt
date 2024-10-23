@@ -79,10 +79,10 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = inputs.annotationManager,
+                optionalReporter = reporter,
             )
         val sourceParser =
             environmentManager.createSourceParser(
-                reporter = reporter,
                 codebaseConfig = codebaseConfig,
                 modelOptions = inputs.modelOptions,
             )

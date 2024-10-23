@@ -132,9 +132,16 @@ interface Codebase {
     data class Config(
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
+
+        /** Optional reporter. */
+        val optionalReporter: Reporter? = null,
     ) {
+        /** The [Reporter], will fail if no [optionalReporter] has been provided. */
+        val reporter
+            get() = optionalReporter ?: error("reporter is not available")
+
         companion object {
-            /** A [Config] containing a [noOpAnnotationManager]. */
+            /** A [Config] containing a [noOpAnnotationManager] and no reporter. */
             val NOOP =
                 Config(
                     annotationManager = noOpAnnotationManager,

@@ -150,7 +150,6 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = reporter,
             codebaseConfig = codebaseConfig,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,

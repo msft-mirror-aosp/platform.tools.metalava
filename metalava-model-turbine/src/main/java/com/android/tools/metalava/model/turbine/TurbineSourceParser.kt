@@ -22,11 +22,9 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 internal class TurbineSourceParser(
-    private val reporter: Reporter,
     private val codebaseConfig: Codebase.Config,
     private val allowReadingComments: Boolean
 ) : SourceParser {
@@ -57,7 +55,6 @@ internal class TurbineSourceParser(
                         config = codebaseConfig,
                         trustedApi = false,
                         supportsDocumentation = true,
-                        reporter = reporter,
                         assembler = assembler,
                     )
                 },
