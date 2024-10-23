@@ -453,6 +453,7 @@ class Options(
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
                 annotationManager = annotationManager,
+                apiSurfaces = apiSurfaces,
                 reporter = reporter,
             )
         }

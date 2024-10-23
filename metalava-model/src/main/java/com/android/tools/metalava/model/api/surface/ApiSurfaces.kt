@@ -46,6 +46,13 @@ sealed interface ApiSurfaces {
          *   [ApiSurface.extends] property.
          */
         fun create(needsBase: Boolean = false): ApiSurfaces = DefaultApiSurfaces(needsBase)
+
+        /**
+         * A default set of [ApiSurface]s.
+         *
+         * Includes [main] but not [base].
+         */
+        val DEFAULT = create()
     }
 
     /** Default implementation of [ApiSurfaces]. */
