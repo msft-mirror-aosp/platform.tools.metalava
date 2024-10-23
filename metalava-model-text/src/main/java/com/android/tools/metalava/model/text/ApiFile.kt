@@ -118,6 +118,16 @@ sealed interface SignatureFile {
         fun fromStream(filename: String, inputStream: InputStream): SignatureFile {
             return SignatureFileFromStream(File(filename), inputStream)
         }
+
+        /**
+         * Create a [SignatureFile] that wraps a [String].
+         *
+         * @param filename the name of the file, used for error reporting.
+         * @param contents the contents of the file, will be trimmed using [String.trimIndent].
+         */
+        fun fromText(filename: String, contents: String): SignatureFile {
+            return SignatureFileFromText(File(filename), contents.trimIndent())
+        }
     }
 
     /** A [SignatureFile] that will read the text from the [file]. */
@@ -143,6 +153,14 @@ sealed interface SignatureFile {
         val inputStream: InputStream,
     ) : SignatureFile {
         override fun readContents() = inputStream.bufferedReader().readText()
+    }
+
+    /** A [SignatureFile] that wraps a [String]. */
+    private data class SignatureFileFromText(
+        override val file: File,
+        val contents: String,
+    ) : SignatureFile {
+        override fun readContents() = contents
     }
 }
 
@@ -271,32 +289,6 @@ private constructor(
         fun parseApi(filename: String, inputStream: InputStream): Codebase {
             val signatureFile = SignatureFile.fromStream(filename, inputStream)
             return parseApi(listOf(signatureFile))
-        }
-
-        /** Entry point for testing. Take a filename and content separately. */
-        fun parseApi(
-            filename: String,
-            apiText: String,
-            classResolver: ClassResolver? = null,
-            formatForLegacyFiles: FileFormat? = null,
-        ): Codebase {
-            val path = Path.of(filename)
-            val assembler =
-                TextCodebaseAssembler.createAssembler(
-                    location = path.toFile(),
-                    description = "Codebase loaded from $filename",
-                    annotationManager = noOpAnnotationManager,
-                    classResolver = classResolver,
-                )
-            val parser = ApiFile(assembler, formatForLegacyFiles)
-            parser.parseApiSingleFile(
-                appending = false,
-                path = path,
-                apiText = apiText,
-                forMainApiSurface = true,
-            )
-
-            return assembler.codebase
         }
 
         /**

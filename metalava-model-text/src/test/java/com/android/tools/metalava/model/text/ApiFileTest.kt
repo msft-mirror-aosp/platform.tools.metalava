@@ -217,8 +217,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 "other.UnknownException",
                 "java.lang.Throwable",
             )
-        val codebase =
-            ApiFile.parseApi(
+        val signatureFile =
+            SignatureFile.fromText(
                 "api.txt",
                 """
                     // Signature format: 2.0
@@ -228,7 +228,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         }
                     }
                 """
-                    .trimIndent(),
+            )
+
+        val codebase =
+            ApiFile.parseApi(
+                listOf(signatureFile),
                 classResolver = testClassResolver,
             )
 
@@ -564,7 +568,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val signatureFile = SignatureFile.fromText("other.txt", "// Signature format: 2.0")
+                val codebase = ApiFile.parseApi(listOf(signatureFile))
                 val delegate = codebase.resolveClass(name)!!
                 return TestClassItem(delegate)
             }
