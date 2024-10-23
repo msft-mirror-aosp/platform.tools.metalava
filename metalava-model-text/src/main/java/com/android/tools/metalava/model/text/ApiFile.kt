@@ -82,6 +82,18 @@ data class SignatureFile(
      */
     val forMainApiSurface: Boolean = true,
 ) {
+    /** Read the contents of this signature file. */
+    fun readContents(): String =
+        try {
+            file.readText(UTF_8)
+        } catch (ex: IOException) {
+            throw ApiParseException(
+                "Error reading API file",
+                location = FileLocation.createLocation(file.toPath()),
+                cause = ex
+            )
+        }
+
     companion object {
         /** Create a list of [SignatureFile]s from a varargs array of [File]s. */
         fun fromFiles(vararg files: File) =
@@ -210,16 +222,7 @@ private constructor(
             var first = true
             for (signatureFile in signatureFiles) {
                 val file = signatureFile.file
-                val apiText: String =
-                    try {
-                        file.readText(UTF_8)
-                    } catch (ex: IOException) {
-                        throw ApiParseException(
-                            "Error reading API file",
-                            location = FileLocation.createLocation(file.toPath()),
-                            cause = ex
-                        )
-                    }
+                val apiText = signatureFile.readContents()
                 parser.parseApiSingleFile(
                     appending = !first,
                     path = file.toPath(),
