@@ -525,9 +525,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
         val signatureFiles =
-            files.map { file ->
-                SignatureFile(file, forMainApiSurface = file.name == "current.txt")
-            }
+            SignatureFile.fromFiles(files) { _, file -> file.name == "current.txt" }
 
         val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
         val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)

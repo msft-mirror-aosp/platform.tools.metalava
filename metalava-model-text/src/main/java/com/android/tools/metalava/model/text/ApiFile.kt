@@ -91,11 +91,22 @@ data class SignatureFile(
                 )
             }
 
-        /** Create a list of [SignatureFile]s from a list of [File]s. */
-        fun fromFiles(files: List<File>): List<SignatureFile> =
-            files.map {
+        /**
+         * Create a list of [SignatureFile]s from a list of [File]s.
+         *
+         * @param files the list of [File]s.
+         * @param forMainApiSurfacePredicate A predicate that will be called with the index and
+         *   [File] of each item in [files] and whose return value will be stored in
+         *   [SignatureFile.forMainApiSurface].
+         */
+        fun fromFiles(
+            files: List<File>,
+            forMainApiSurfacePredicate: (Int, File) -> Boolean = { _, _ -> true },
+        ): List<SignatureFile> =
+            files.mapIndexed { index, file ->
                 SignatureFile(
-                    it,
+                    file,
+                    forMainApiSurface = forMainApiSurfacePredicate(index, file),
                 )
             }
     }

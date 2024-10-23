@@ -120,12 +120,9 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
         ): SignatureBasedApi {
             val lastIndex = files.size - 1
             return SignatureBasedApi(
-                files.mapIndexed { index, file ->
-                    SignatureFile(
-                        file,
-                        // The last file is assumed to be for the main API surface.
-                        forMainApiSurface = !onlyUseLastForMainApiSurface || index == lastIndex,
-                    )
+                SignatureFile.fromFiles(files) { index, _ ->
+                    // The last file is assumed to be for the main API surface.
+                    !onlyUseLastForMainApiSurface || index == lastIndex
                 }
             )
         }
