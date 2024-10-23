@@ -71,34 +71,26 @@ import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
 /** Encapsulates information needed to process a signature file. */
-data class SignatureFile(
+sealed interface SignatureFile {
     /** The underlying signature [File]. */
-    val file: File,
+    val file: File
 
     /**
      * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
      *
      * This will be stored in [Item.emit].
      */
-    val forMainApiSurface: Boolean = true,
-) {
+    val forMainApiSurface: Boolean
+        get() = true
+
     /** Read the contents of this signature file. */
-    fun readContents(): String =
-        try {
-            file.readText(UTF_8)
-        } catch (ex: IOException) {
-            throw ApiParseException(
-                "Error reading API file",
-                location = FileLocation.createLocation(file.toPath()),
-                cause = ex
-            )
-        }
+    fun readContents(): String
 
     companion object {
         /** Create a list of [SignatureFile]s from a varargs array of [File]s. */
-        fun fromFiles(vararg files: File) =
+        fun fromFiles(vararg files: File): List<SignatureFile> =
             files.map {
-                SignatureFile(
+                SignatureFileFromFile(
                     it,
                 )
             }
@@ -116,9 +108,26 @@ data class SignatureFile(
             forMainApiSurfacePredicate: (Int, File) -> Boolean = { _, _ -> true },
         ): List<SignatureFile> =
             files.mapIndexed { index, file ->
-                SignatureFile(
+                SignatureFileFromFile(
                     file,
                     forMainApiSurface = forMainApiSurfacePredicate(index, file),
+                )
+            }
+    }
+
+    /** A [SignatureFile] that will read the text from the [file]. */
+    private data class SignatureFileFromFile(
+        override val file: File,
+        override val forMainApiSurface: Boolean = true,
+    ) : SignatureFile {
+        override fun readContents() =
+            try {
+                file.readText(UTF_8)
+            } catch (ex: IOException) {
+                throw ApiParseException(
+                    "Error reading API file",
+                    location = FileLocation.createLocation(file.toPath()),
+                    cause = ex
                 )
             }
     }
