@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
@@ -185,7 +185,7 @@ internal class TextCodebaseAssembler(
         fun createAssembler(
             location: File,
             description: String,
-            annotationManager: AnnotationManager,
+            codebaseConfig: Codebase.Config,
             classResolver: ClassResolver?,
         ): TextCodebaseAssembler {
             val assembler =
@@ -196,7 +196,7 @@ internal class TextCodebaseAssembler(
                             location = location,
                             description = description,
                             preFiltered = true,
-                            annotationManager = annotationManager,
+                            config = codebaseConfig,
                             trustedApi = true,
                             supportsDocumentation = false,
                             reporter = reporter,

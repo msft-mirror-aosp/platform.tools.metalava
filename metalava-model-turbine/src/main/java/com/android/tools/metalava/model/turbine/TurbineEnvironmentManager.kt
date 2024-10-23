@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
@@ -28,7 +28,7 @@ internal class TurbineEnvironmentManager() : EnvironmentManager {
 
     override fun createSourceParser(
         reporter: Reporter,
-        annotationManager: AnnotationManager,
+        codebaseConfig: Codebase.Config,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
@@ -36,7 +36,7 @@ internal class TurbineEnvironmentManager() : EnvironmentManager {
         jdkHome: File?,
         projectDescription: File?,
     ): SourceParser {
-        return TurbineSourceParser(reporter, annotationManager, allowReadingComments)
+        return TurbineSourceParser(reporter, codebaseConfig, allowReadingComments)
     }
 
     // TODO (b/299217550 implement it)

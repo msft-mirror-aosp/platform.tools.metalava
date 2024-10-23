@@ -34,12 +34,14 @@ open class DefaultCodebase(
     final override var location: File,
     description: String,
     override val preFiltered: Boolean,
-    override val annotationManager: AnnotationManager,
+    final override val config: Codebase.Config,
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
     reporter: Reporter? = null,
     val assembler: CodebaseAssembler,
 ) : Codebase {
+
+    final override val annotationManager: AnnotationManager = config.annotationManager
 
     final override var description: String = description
         private set

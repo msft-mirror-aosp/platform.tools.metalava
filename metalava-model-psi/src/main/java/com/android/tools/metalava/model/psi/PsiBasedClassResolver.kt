@@ -17,9 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaPsiFacade
@@ -28,7 +28,7 @@ import java.io.File
 
 internal class PsiBasedClassResolver(
     uastEnvironment: UastEnvironment,
-    annotationManager: AnnotationManager,
+    config: Codebase.Config,
     reporter: Reporter,
     allowReadingComments: Boolean,
 ) : ClassResolver {
@@ -47,7 +47,7 @@ internal class PsiBasedClassResolver(
                 PsiBasedCodebase(
                     location = File("classpath"),
                     description = "Codebase from classpath",
-                    annotationManager = annotationManager,
+                    config = config,
                     reporter = reporter,
                     fromClasspath = true,
                     allowReadingComments = allowReadingComments,

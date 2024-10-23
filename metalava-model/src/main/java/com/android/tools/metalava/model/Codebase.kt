@@ -33,6 +33,9 @@ interface Codebase {
      */
     val location: File
 
+    /** Configuration of this [Codebase], typically comes from the command line. */
+    val config: Config
+
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
 
@@ -120,6 +123,23 @@ interface Codebase {
 
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
+    }
+
+    /**
+     * Contains configuration for [Codebase] that can, or at least could, come from command line
+     * options.
+     */
+    data class Config(
+        /** Determines how annotations will affect the [Codebase]. */
+        val annotationManager: AnnotationManager,
+    ) {
+        companion object {
+            /** A [Config] containing a [noOpAnnotationManager]. */
+            val NOOP =
+                Config(
+                    annotationManager = noOpAnnotationManager,
+                )
+        }
     }
 }
 

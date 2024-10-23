@@ -19,7 +19,6 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -59,7 +58,6 @@ import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.javaUnescapeString
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
@@ -237,7 +235,7 @@ private constructor(
          */
         fun parseApi(
             signatureFiles: List<SignatureFile>,
-            annotationManager: AnnotationManager = noOpAnnotationManager,
+            codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
             description: String? = null,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
@@ -255,7 +253,7 @@ private constructor(
                 TextCodebaseAssembler.createAssembler(
                     location = signatureFiles[0].file,
                     description = actualDescription,
-                    annotationManager = annotationManager,
+                    codebaseConfig = codebaseConfig,
                     classResolver = classResolver,
                 )
             val parser = ApiFile(assembler, formatForLegacyFiles)

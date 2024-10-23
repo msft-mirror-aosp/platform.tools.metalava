@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
@@ -28,7 +27,7 @@ import java.io.File
 
 internal class TurbineSourceParser(
     private val reporter: Reporter,
-    private val annotationManager: AnnotationManager,
+    private val codebaseConfig: Codebase.Config,
     private val allowReadingComments: Boolean
 ) : SourceParser {
 
@@ -55,7 +54,7 @@ internal class TurbineSourceParser(
                         location = rootDir,
                         description = description,
                         preFiltered = false,
-                        annotationManager = annotationManager,
+                        config = codebaseConfig,
                         trustedApi = false,
                         supportsDocumentation = true,
                         reporter = reporter,

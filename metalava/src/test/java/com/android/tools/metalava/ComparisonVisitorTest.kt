@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -103,7 +102,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
 
         fun TestFile.readCodebase(): Codebase {
             val signatureFiles = SignatureFile.fromFiles(createFile(temporaryFolder.root))
-            return ApiFile.parseApi(signatureFiles, noOpAnnotationManager)
+            return ApiFile.parseApi(signatureFiles, Codebase.Config.NOOP)
         }
 
         val signatureFile =

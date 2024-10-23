@@ -77,10 +77,14 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         classPath: List<File>,
     ): Codebase {
         val reporter = BasicReporter(PrintWriter(System.err))
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = inputs.annotationManager,
+            )
         val sourceParser =
             environmentManager.createSourceParser(
                 reporter = reporter,
-                annotationManager = inputs.annotationManager,
+                codebaseConfig = codebaseConfig,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(

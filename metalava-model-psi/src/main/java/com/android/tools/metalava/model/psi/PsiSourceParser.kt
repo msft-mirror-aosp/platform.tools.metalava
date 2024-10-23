@@ -20,7 +20,6 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
@@ -59,7 +58,7 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
 internal class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val reporter: Reporter,
-    private val annotationManager: AnnotationManager,
+    private val codebaseConfig: Codebase.Config,
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val useK2Uast: Boolean,
@@ -72,7 +71,7 @@ internal class PsiSourceParser(
         val uastEnvironment = loadUastFromJars(classPath)
         return PsiBasedClassResolver(
             uastEnvironment,
-            annotationManager,
+            codebaseConfig,
             reporter,
             allowReadingComments
         )
@@ -147,7 +146,7 @@ internal class PsiSourceParser(
                 PsiBasedCodebase(
                     location = rootDir,
                     description = description,
-                    annotationManager = annotationManager,
+                    config = codebaseConfig,
                     reporter = reporter,
                     allowReadingComments = allowReadingComments,
                     assembler = it,
@@ -169,7 +168,7 @@ internal class PsiSourceParser(
                 PsiBasedCodebase(
                     location = apiJar,
                     description = "Codebase loaded from $apiJar",
-                    annotationManager = annotationManager,
+                    config = codebaseConfig,
                     reporter = reporter,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,
