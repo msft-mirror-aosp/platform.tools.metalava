@@ -113,6 +113,11 @@ sealed interface SignatureFile {
                     forMainApiSurface = forMainApiSurfacePredicate(index, file),
                 )
             }
+
+        /** Create a [SignatureFile] that wraps an [InputStream]. */
+        fun fromStream(filename: String, inputStream: InputStream): SignatureFile {
+            return SignatureFileFromStream(File(filename), inputStream)
+        }
     }
 
     /** A [SignatureFile] that will read the text from the [file]. */
@@ -130,6 +135,14 @@ sealed interface SignatureFile {
                     cause = ex
                 )
             }
+    }
+
+    /** A [SignatureFile] that wraps an [InputStream]. */
+    private data class SignatureFileFromStream(
+        override val file: File,
+        val inputStream: InputStream,
+    ) : SignatureFile {
+        override fun readContents() = inputStream.bufferedReader().readText()
     }
 }
 
@@ -256,8 +269,8 @@ private constructor(
         @MetalavaApi
         @Throws(ApiParseException::class)
         fun parseApi(filename: String, inputStream: InputStream): Codebase {
-            val apiText = inputStream.bufferedReader().readText()
-            return parseApi(filename, apiText)
+            val signatureFile = SignatureFile.fromStream(filename, inputStream)
+            return parseApi(listOf(signatureFile))
         }
 
         /** Entry point for testing. Take a filename and content separately. */
