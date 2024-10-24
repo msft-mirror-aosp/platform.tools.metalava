@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.util.function.Predicate
 
@@ -102,9 +103,7 @@ private fun <E> Stack<E>.pop(): E = removeAt(lastIndex)
 
 private fun <E> Stack<E>.peek(): E = last()
 
-class CodebaseComparator(
-    private val apiVisitorConfig: ApiVisitor.Config,
-) {
+class CodebaseComparator {
     /**
      * Visits this codebase and compares it with another codebase, informing the visitors about the
      * correlations and differences that it finds
@@ -620,13 +619,13 @@ class CodebaseComparator(
         for (codebase in codebases) {
             val acceptAll = codebase.preFiltered || filter == null
             val predicate = if (acceptAll) Predicate { true } else filter!!
+            val apiFilters = ApiFilters(emit = predicate, reference = predicate)
             codebase.accept(
                 object :
                     ApiVisitor(
                         preserveClassNesting = true,
                         inlineInheritedFields = true,
-                        filterEmit = predicate,
-                        filterReference = predicate,
+                        apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
                         // --check-compatibility:api:released $oldApi",
                         // really what they mean is:
@@ -641,7 +640,6 @@ class CodebaseComparator(
                         // So, when doing compatibility checking we want to consider public APIs
                         // even if the caller didn't explicitly pass --show-unannotated
                         showUnannotated = true,
-                        config = apiVisitorConfig,
                     ) {
                     override fun visitItem(item: Item) {
                         val node = ItemTree(item)

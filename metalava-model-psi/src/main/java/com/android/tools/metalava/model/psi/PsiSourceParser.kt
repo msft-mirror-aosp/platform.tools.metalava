@@ -23,7 +23,7 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -59,12 +59,13 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
 internal class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val reporter: Reporter,
-    private val annotationManager: AnnotationManager = noOpAnnotationManager,
-    private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
-    private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
-    private val useK2Uast: Boolean = false,
+    private val annotationManager: AnnotationManager,
+    private val javaLanguageLevel: LanguageLevel,
+    private val kotlinLanguageLevel: LanguageVersionSettings,
+    private val useK2Uast: Boolean,
     private val allowReadingComments: Boolean,
-    private val jdkHome: File? = null,
+    private val jdkHome: File?,
+    private val projectDescription: File?,
 ) : SourceParser {
 
     override fun getClassResolver(classPath: List<File>): ClassResolver {
@@ -88,12 +89,14 @@ internal class PsiSourceParser(
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
+        apiPackages: PackageFilter?,
     ): Codebase {
         return parseAbsoluteSources(
             sourceSet.absoluteCopy().extractRoots(reporter),
             commonSourceSet.absoluteCopy().extractRoots(reporter),
             description,
-            classPath.map { it.absoluteFile }
+            classPath.map { it.absoluteFile },
+            apiPackages,
         )
     }
 
@@ -103,22 +106,29 @@ internal class PsiSourceParser(
         commonSourceSet: SourceSet,
         description: String,
         classpath: List<File>,
+        apiPackages: PackageFilter?,
     ): PsiBasedCodebase {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
-        if (commonSourceSet.sources.isNotEmpty()) {
-            configureUastEnvironmentForKMP(
-                config,
-                sourceSet.sources,
-                commonSourceSet.sources,
-                classpath,
-                rootDir
-            )
-        } else {
-            configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
+        when {
+            projectDescription != null -> {
+                configureUastEnvironmentFromProjectDescription(config, projectDescription)
+            }
+            commonSourceSet.sources.isNotEmpty() -> {
+                configureUastEnvironmentForKMP(
+                    config,
+                    sourceSet.sources,
+                    commonSourceSet.sources,
+                    classpath,
+                    rootDir
+                )
+            }
+            else -> {
+                configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
+            }
         }
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
         jdkHome?.let {
@@ -144,7 +154,7 @@ internal class PsiSourceParser(
                 )
             }
 
-        assembler.initializeFromSources(sourceSet)
+        assembler.initializeFromSources(sourceSet, apiPackages)
         return assembler.codebase
     }
 
@@ -233,7 +243,11 @@ internal class PsiSourceParser(
             for (dep in classpath) {
                 // TODO: what other kinds of dependencies?
                 if (dep.extension !in SUPPORTED_CLASSPATH_EXT) continue
-                appendLine("    <classpath ${dep.extension}=\"${dep.absolutePath}\" />")
+                if (dep.extension == "klib") {
+                    appendLine("    <klib file=\"${dep.absolutePath}\" />")
+                } else {
+                    appendLine("    <classpath ${dep.extension}=\"${dep.absolutePath}\" />")
+                }
             }
         }
 
@@ -294,6 +308,13 @@ internal class PsiSourceParser(
         }
         projectXml.writeText(description)
 
+        configureUastEnvironmentFromProjectDescription(config, projectXml)
+    }
+
+    private fun configureUastEnvironmentFromProjectDescription(
+        config: UastEnvironment.Configuration,
+        projectDescription: File,
+    ) {
         val lintClient = MetalavaCliClient()
         // This will parse the description of Lint's project model and populate the module structure
         // inside the given Lint client. We will use it to set up the project structure that
@@ -303,7 +324,7 @@ internal class PsiSourceParser(
         // There are a couple of limitations that force use fall into this long steps:
         //  * Lint Project creation is not exposed at all. Only project.xml parsing is available.
         //  * UastEnvironment Module simply reuses existing Lint Project model.
-        computeMetadata(lintClient, projectXml)
+        computeMetadata(lintClient, projectDescription)
         config.addModules(
             lintClient.knownProjects.map { lintProject ->
                 lintProject.kotlinLanguageLevel = kotlinLanguageLevel

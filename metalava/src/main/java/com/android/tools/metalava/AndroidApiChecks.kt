@@ -49,9 +49,7 @@ class AndroidApiChecks(val reporter: Reporter) {
         packageItem.accept(
             object :
                 ApiVisitor(
-                    // Sort by source order such that warnings follow source line number order
-                    callableComparator = CallableItem.sourceOrderComparator,
-                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                 ) {
                 override fun visitItem(item: Item) {
                     checkTodos(item)
@@ -212,9 +210,10 @@ class AndroidApiChecks(val reporter: Reporter) {
                 }
             }
             for (item in permissions) {
-                var perm = item
-                if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
-                val mentioned = text.contains(perm)
+                val perm = item.substringAfterLast('.')
+                // Search for the permission name as a whole word.
+                val regex = Regex("""\b\Q$perm\E\b""")
+                val mentioned = text.contains(regex)
                 if (mentioned && !conditional) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,

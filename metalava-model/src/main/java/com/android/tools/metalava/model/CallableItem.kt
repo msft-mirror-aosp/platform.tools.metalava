@@ -108,16 +108,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
     }
 
-    /**
-     * Returns true if overloads of this callable should be checked separately when checking the
-     * signature of this callable.
-     *
-     * This works around the issue of actual callable not generating overloads for @JvmOverloads
-     * annotation when the default is specified on expect side
-     * (https://youtrack.jetbrains.com/issue/KT-57537).
-     */
-    fun shouldExpandOverloads(): Boolean = false
-
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
         if (other !is CallableItem) return false
@@ -286,17 +276,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
 
         val comparator: Comparator<CallableItem> = Comparator { o1, o2 ->
             compareCallables(o1, o2, false)
-        }
-        val sourceOrderComparator: Comparator<CallableItem> = Comparator { o1, o2 ->
-            val delta = o1.sortingRank - o2.sortingRank
-            if (delta == 0) {
-                // Within a source file all the items will have unique sorting ranks, but since
-                // we copy methods in from hidden super classes it's possible for ranks to clash,
-                // and in that case we'll revert to a signature based comparison
-                comparator.compare(o1, o2)
-            } else {
-                delta
-            }
         }
         val sourceOrderForOverloadedMethodsComparator: Comparator<CallableItem> =
             Comparator { o1, o2 ->

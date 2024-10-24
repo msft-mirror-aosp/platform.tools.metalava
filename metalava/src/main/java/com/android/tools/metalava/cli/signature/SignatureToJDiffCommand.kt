@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.DefaultAnnotationManager
 import com.android.tools.metalava.JDiffXmlWriter
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
@@ -35,10 +35,11 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -137,23 +138,23 @@ class SignatureToJDiffCommand :
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
+        val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFile))
 
-        val apiVisitorConfig = ApiVisitor.Config()
-        val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
+        val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
         val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
         val strip = strip
         val apiReference =
             if (strip) apiType.getEmitFilter(apiPredicateConfig)
             else apiType.getReferenceFilter(apiPredicateConfig)
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
         val baseFile = baseApiFile
 
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(SignatureFile.fromFile(baseFile))
-                computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
+                val baseApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(baseFile))
+                computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
             } else {
                 signatureApi
             }
@@ -166,8 +167,7 @@ class SignatureToJDiffCommand :
                     apiName = apiName,
                 )
                 .createFilteringVisitor(
-                    filterEmit = apiEmit,
-                    filterReference = apiReference,
+                    apiFilters = apiFilters,
                     preFiltered = signatureApi.preFiltered && !strip,
                     showUnannotated = false,
                     // Historically, the super class type has not been filtered.
@@ -199,7 +199,7 @@ private fun computeDelta(
     baseFile: File,
     baseApi: Codebase,
     signatureApi: Codebase,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ): Codebase {
     // Compute just the delta
     return TextCodebaseBuilder.build(
@@ -207,7 +207,7 @@ private fun computeDelta(
         description = "Delta between $baseApi and $signatureApi",
         annotationManager = signatureApi.annotationManager,
     ) {
-        CodebaseComparator(apiVisitorConfig = apiVisitorConfig)
+        CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
                     override fun added(new: PackageItem) {
@@ -236,7 +236,7 @@ private fun computeDelta(
                 },
                 baseApi,
                 signatureApi,
-                ApiType.ALL.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
+                ApiType.ALL.getReferenceFilter(apiPredicateConfig)
             )
     }
 }

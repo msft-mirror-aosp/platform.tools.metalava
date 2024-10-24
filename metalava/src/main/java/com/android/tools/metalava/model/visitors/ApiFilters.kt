@@ -14,23 +14,19 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.snapshot
+package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.Item
+import java.util.function.Predicate
 
-/**
- * A [BaseItemVisitor] that will delegate to [delegate] but skip [Item]s whose [Item.emit] property
- * is `false`.
- *
- * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
- * property.
- */
-class NonEmittableDelegatingVisitor(private val delegate: DelegatedVisitor) :
-    NonFilteringDelegatingVisitor(delegate) {
+/** Encapsulates filters needed by [ApiVisitor]. */
+class ApiFilters(
+    /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
+    val emit: Predicate<Item>,
 
-    override fun skip(item: Item): Boolean {
-        return !item.emit
-    }
-}
+    /**
+     * Returns `true` for [Item]s that can be referenced from the API, this is a super set of
+     * [Item]s that can be emitted.
+     */
+    val reference: Predicate<Item>,
+)

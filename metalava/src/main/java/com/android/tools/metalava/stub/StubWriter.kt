@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -32,7 +31,7 @@ import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
-import com.android.tools.metalava.model.removeDeprecatedSection
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -217,7 +216,7 @@ internal class StubWriter(
                 }
 
             // Copyright statements from the original file?
-            cls.getSourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
         }
         stubWriter?.visitClass(cls)
 
@@ -271,25 +270,31 @@ fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
     docStubs: Boolean,
     preFiltered: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
+    ignoreEmit: Boolean = false,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
             includeDocOnly = docStubs,
-            config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = FilterPredicate(filterReference)
+    val apiFilters =
+        ApiFilters(
+            emit = filterEmit,
+            reference = filterReference,
+        )
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the
-        // documentation
-        callableComparator = CallableItem.sourceOrderComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        // Sort methods in stubs based on their signature. The order of methods in stubs is
+        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
+        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
+        // itself or changes to the order of methods in the sources.
+        callableComparator = CallableItem.comparator,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
-        config = apiVisitorConfig,
+        ignoreEmit = ignoreEmit,
     )
 }
 
@@ -299,35 +304,8 @@ internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWr
         val text = documentation.fullyQualifiedDocumentation()
         if (text.isNotBlank()) {
             val trimmed = trimDocIndent(text)
-            val output = revertDocumentationDeprecationChange(item, trimmed)
-            writer.println(output)
+            writer.println(trimmed)
             writer.println()
         }
     }
-}
-
-/**
- * Revert the documentation change that accompanied a deprecation change.
- *
- * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc tag
- * with text that explains why it is being deprecated and what will replace it. When the deprecation
- * change is being reverted then this will remove the `@deprecated` tag and its associated text to
- * avoid warnings when compiling and misleading information being written into the Javadoc.
- */
-fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
-    val actualItem = currentItem.actualItem
-    // The documentation does not need to be reverted if...
-    if (
-        // the current item is not being reverted
-        currentItem === actualItem
-        // or if the current item and the actual item have the same deprecation setting
-        ||
-            currentItem.effectivelyDeprecated == actualItem.effectivelyDeprecated
-            // or if the actual item is deprecated
-            ||
-            actualItem.effectivelyDeprecated
-    )
-        return docs
-
-    return removeDeprecatedSection(docs)
 }

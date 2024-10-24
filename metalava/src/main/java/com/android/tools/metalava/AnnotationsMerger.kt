@@ -46,6 +46,7 @@ import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
@@ -136,7 +137,8 @@ class AnnotationsMerger(
                         SourceSet(javaStubFiles, roots),
                         SourceSet.empty(),
                         "Codebase loaded from stubs",
-                        classPath = options.classpath
+                        classPath = options.classpath,
+                        apiPackages = options.apiPackages,
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
             }
@@ -242,7 +244,7 @@ class AnnotationsMerger(
         try {
             val signatureCodebase =
                 ApiFile.parseApi(
-                    SignatureFile.fromFile(file),
+                    SignatureFile.fromFiles(file),
                     codebase.annotationManager,
                     "Signature files for annotation merger: loaded from $file"
                 )
@@ -296,10 +298,7 @@ class AnnotationsMerger(
                 }
             }
 
-        CodebaseComparator(
-                apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-            )
-            .compare(visitor, externalCodebase, codebase)
+        CodebaseComparator().compare(visitor, externalCodebase, codebase)
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
@@ -611,10 +610,9 @@ class AnnotationsMerger(
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
                             val filterEmit =
-                                ApiVisitor(
-                                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                                    )
-                                    .filterEmit
+                                ApiVisitor.defaultEmitFilter(
+                                    @Suppress("DEPRECATION") options.apiPredicateConfig,
+                                )
 
                             // Attempt with reflection
                             var first = true
