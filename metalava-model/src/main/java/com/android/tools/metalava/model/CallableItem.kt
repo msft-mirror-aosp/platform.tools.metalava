@@ -224,7 +224,12 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 asClass()?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
-            is VariableTypeItem -> !filterReference.test(asTypeParameter)
+            is VariableTypeItem ->
+                // There is no need to check if a type variable contains a reference to a hidden
+                // class as it is only a reference to a type parameter, and they are checked above
+                // to make sure that their type bounds do not contain a reference to a hidden
+                // class.
+                false
             is WildcardTypeItem ->
                 extendsBound?.hasHiddenType(filterReference) == true ||
                     superBound?.hasHiddenType(filterReference) == true
