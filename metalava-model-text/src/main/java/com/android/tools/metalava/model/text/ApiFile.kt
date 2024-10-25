@@ -240,6 +240,13 @@ private constructor(
      */
     private var forMainApiSurface: Boolean = true
 
+    /**
+     * The [ApiVariant] which is defined within the current signature file being parsed.
+     *
+     * Set in [parseApiSingleFile].
+     */
+    private lateinit var apiVariant: ApiVariant
+
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
@@ -287,15 +294,18 @@ private constructor(
                     classResolver = classResolver,
                 )
             val parser = ApiFile(assembler, formatForLegacyFiles)
+            val apiSurfaces = codebaseConfig.apiSurfaces
             var first = true
             for (signatureFile in signatureFiles) {
                 val file = signatureFile.file
                 val apiText = signatureFile.readContents()
+                val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
                 parser.parseApiSingleFile(
                     appending = !first,
                     path = file.toPath(),
                     apiText = apiText,
                     forMainApiSurface = signatureFile.forMainApiSurface,
+                    apiVariant = apiVariant,
                 )
                 first = false
             }
@@ -368,15 +378,27 @@ private constructor(
     }
 
     /**
-     * Mark this [Item] as being part of the main API surface, i.e. the one that is being created.
+     * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
+     * created.
      *
      * See [SignatureFile.forMainApiSurface].
      *
-     * This will set [Item.emit] to [forMainApiSurface] and should only be called on [Item]s which
-     * have been created from the main signature file.
+     * This will set [SelectableItem.emit] to [forMainApiSurface] and should only be called on
+     * [SelectableItem]s which have been created from the main signature file.
      */
     private fun SelectableItem.markForMainApiSurface() {
         emit = forMainApiSurface
+        markSelectedApiVariant()
+    }
+
+    /**
+     * Record that this [SelectableItem] was loaded from a signature file that contains
+     * [apiVariant].
+     */
+    private fun SelectableItem.markSelectedApiVariant() {
+        if (apiVariant !in selectedApiVariants) {
+            mutateSelectedApiVariants { add(apiVariant) }
+        }
     }
 
     /**
@@ -397,6 +419,11 @@ private constructor(
         if (!emit && forMainApiSurface) {
             markForMainApiSurface()
         }
+
+        // Always record the ApiVariants to which this belongs, even if this was previously loaded.
+        // This is safe because unlike `emit` which is Boolean the `selectedApiVariants` property is
+        // a set of ApiVariants and this just adds an ApiVariant.
+        markSelectedApiVariant()
     }
 
     private fun parseApiSingleFile(
@@ -404,6 +431,7 @@ private constructor(
         path: Path,
         apiText: String,
         forMainApiSurface: Boolean = true,
+        apiVariant: ApiVariant,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
@@ -430,6 +458,9 @@ private constructor(
         // Remember whether the file being parsed is for the main API surface, so that Items
         // created from it can be marked correctly.
         this.forMainApiSurface = forMainApiSurface
+
+        // Remember the API variant of the file being parsed.
+        this.apiVariant = apiVariant
 
         val tokenizer = Tokenizer(path, apiText.toCharArray())
         while (true) {
@@ -469,6 +500,9 @@ private constructor(
             } catch (e: IllegalStateException) {
                 throw ApiParseException(e.message!!, tokenizer)
             }
+
+        // Make sure that the package records the ApiVariants to which it belongs.
+        pkg.markSelectedApiVariant()
 
         token = tokenizer.requireToken()
         if ("{" != token) {

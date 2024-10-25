@@ -188,16 +188,16 @@ class ApiSurfacesTest : DriverTest() {
 
             previouslyReleasedCodebase.assertSelectedApiVariants(
                 """
-                    package test.pkg - ApiVariantSet[]
-                      class test.pkg.Test - ApiVariantSet[]
-                        constructor test.pkg.Test() - ApiVariantSet[]
-                        method test.pkg.Test.foo(int) - ApiVariantSet[]
-                        field test.pkg.Test.field - ApiVariantSet[]
-                        field test.pkg.Test.removed - ApiVariantSet[]
-                        class test.pkg.Test.Nested - ApiVariantSet[]
-                          constructor test.pkg.Test.Nested() - ApiVariantSet[]
-                        class test.pkg.Test.Removed - ApiVariantSet[]
-                          constructor test.pkg.Test.Removed() - ApiVariantSet[]
+                    package test.pkg - ApiVariantSet[main(CR)]
+                      class test.pkg.Test - ApiVariantSet[main(CR)]
+                        constructor test.pkg.Test() - ApiVariantSet[main(C)]
+                        method test.pkg.Test.foo(int) - ApiVariantSet[main(C)]
+                        field test.pkg.Test.field - ApiVariantSet[main(C)]
+                        field test.pkg.Test.removed - ApiVariantSet[main(R)]
+                        class test.pkg.Test.Nested - ApiVariantSet[main(C)]
+                          constructor test.pkg.Test.Nested() - ApiVariantSet[main(C)]
+                        class test.pkg.Test.Removed - ApiVariantSet[main(R)]
+                          constructor test.pkg.Test.Removed() - ApiVariantSet[main(R)]
                 """
             )
         }
