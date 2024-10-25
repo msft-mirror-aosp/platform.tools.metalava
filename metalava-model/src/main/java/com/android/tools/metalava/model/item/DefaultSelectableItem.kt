@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
@@ -23,6 +24,7 @@ import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.reporter.FileLocation
 
 abstract class DefaultSelectableItem(
@@ -39,6 +41,31 @@ abstract class DefaultSelectableItem(
         itemLanguage,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
     ),
-    SelectableItem
+    SelectableItem {
+    /**
+     * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+
+    /**
+     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
+     * expensive.
+     */
+    final override val originallyHidden
+        get() = variantSelectors.originallyHidden
+
+    /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
+    final override val hidden
+        get() = variantSelectors.hidden
+
+    /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
+    final override val removed: Boolean
+        get() = variantSelectors.removed
+
+    final override val showability: Showability
+        get() = variantSelectors.showability
+}
