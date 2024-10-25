@@ -34,7 +34,6 @@ internal class PsiTypeParameterItem(
 ) :
     DefaultTypeParameterItem(
         codebase = codebase,
-        itemLanguage = psiTypeParameter.itemLanguage,
         modifiers = modifiers,
         name = name,
         isReified = isReified(psiTypeParameter),

@@ -32,7 +32,6 @@ import com.android.tools.metalava.reporter.FileLocation
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
 open class DefaultTypeParameterItem(
     codebase: Codebase,
-    itemLanguage: ItemLanguage,
     modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
@@ -40,7 +39,7 @@ open class DefaultTypeParameterItem(
     DefaultItem(
         codebase = codebase,
         fileLocation = FileLocation.UNKNOWN,
-        itemLanguage = itemLanguage,
+        itemLanguage = ItemLanguage.UNKNOWN,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
