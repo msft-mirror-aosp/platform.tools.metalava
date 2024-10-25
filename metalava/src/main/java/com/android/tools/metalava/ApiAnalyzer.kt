@@ -396,7 +396,12 @@ class ApiAnalyzer(
         // level classes and then propagate them, and removed status, down onto the nested classes
         // and members.
         val visitor =
-            object : BaseItemVisitor(preserveClassNesting = true) {
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                    // Only SelectableItems can have variantSelectors.
+                    visitParameterItems = false,
+                ) {
 
                 override fun visitPackage(pkg: PackageItem) {
                     pkg.variantSelectors.inheritInto()

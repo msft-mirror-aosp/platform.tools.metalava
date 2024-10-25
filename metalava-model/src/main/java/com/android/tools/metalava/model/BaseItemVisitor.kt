@@ -23,6 +23,16 @@ open class BaseItemVisitor(
      * afterwards. Defaults to false.
      */
     val preserveClassNesting: Boolean = false,
+
+    /**
+     * Determines whether this will visit [ParameterItem]s or not.
+     *
+     * If this is `true` then [ParameterItem]s will be visited, and passed to [visitItem],
+     * [visitParameter] and [afterVisitItem] in that order. Otherwise, they will not be visited.
+     *
+     * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
+     */
+    protected val visitParameterItems: Boolean = true,
 ) : ItemVisitor {
     /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
     protected inline fun <T : Item> callGenericItemVisitor(item: T, body: () -> Unit) {
@@ -109,8 +119,10 @@ open class BaseItemVisitor(
             // Call the specific visitX method for the CallableItem subclass.
             dispatch(callable)
 
-            for (parameter in callable.parameters()) {
-                parameter.accept(this)
+            if (visitParameterItems) {
+                for (parameter in callable.parameters()) {
+                    parameter.accept(this)
+                }
             }
         }
     }

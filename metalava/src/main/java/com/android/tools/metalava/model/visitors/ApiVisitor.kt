@@ -34,6 +34,9 @@ open class ApiVisitor(
      */
     preserveClassNesting: Boolean = false,
 
+    /** @see BaseItemVisitor.visitParameterItems */
+    visitParameterItems: Boolean = true,
+
     /** Whether to include inherited fields too */
     private val inlineInheritedFields: Boolean = true,
 
@@ -50,12 +53,16 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     protected val showUnannotated: Boolean = true,
-) : BaseItemVisitor(preserveClassNesting) {
+) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
 
     constructor(
+        /** @see BaseItemVisitor.visitParameterItems */
+        visitParameterItems: Boolean = true,
+
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
     ) : this(
+        visitParameterItems = visitParameterItems,
         apiFilters = defaultFilters(apiPredicateConfig),
     )
 

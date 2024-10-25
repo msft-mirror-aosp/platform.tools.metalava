@@ -616,6 +616,9 @@ class CodebaseComparator {
                 object :
                     ApiVisitor(
                         preserveClassNesting = true,
+                        // Do not visit [ParameterItem]s, as they will be compared in
+                        // [dispatchToCompare].
+                        visitParameterItems = false,
                         inlineInheritedFields = true,
                         apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'

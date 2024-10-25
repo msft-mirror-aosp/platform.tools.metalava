@@ -676,7 +676,13 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
+            object :
+                ApiVisitor(
+                    // Do not visit [ParameterItem]s as they do not have their own summary line that
+                    // could become truncated.
+                    visitParameterItems = false,
+                    apiPredicateConfig = apiPredicateConfig,
+                ) {
                 override fun visitItem(item: Item) {
                     item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
@@ -696,6 +702,8 @@ class DocAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
+                    // Only SelectableItems have documentation associated with them.
+                    visitParameterItems = false,
                     apiPredicateConfig = apiPredicateConfig,
                 ) {
 

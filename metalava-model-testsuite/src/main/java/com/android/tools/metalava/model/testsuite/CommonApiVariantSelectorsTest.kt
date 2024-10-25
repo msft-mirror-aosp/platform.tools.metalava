@@ -396,7 +396,12 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
             var count = 0
             pkgItem.accept(
-                object : BaseItemVisitor() {
+                object :
+                    BaseItemVisitor(
+                        // [ParameterItem]s are not [SelectableItem]s so there is no point in
+                        // visiting them.
+                        visitParameterItems = false,
+                    ) {
                     override fun visitItem(item: Item) {
                         val name =
                             when (item) {
