@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,34 +18,27 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultMemberItem(
+abstract class DefaultSelectableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
-    private val name: String,
-    private val containingClass: ClassItem,
 ) :
-    DefaultSelectableItem(
-        codebase = codebase,
-        fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
+    DefaultItem(
+        codebase,
+        fileLocation,
+        itemLanguage,
+        modifiers,
+        documentationFactory,
+        variantSelectorsFactory,
     ),
-    MemberItem {
-
-    final override fun name() = name
-
-    final override fun containingClass() = containingClass
-}
+    SelectableItem
