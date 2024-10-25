@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -78,7 +77,6 @@ class ConvertJarsToSignatureFiles(
             val codebaseConfig =
                 Codebase.Config(
                     annotationManager = annotationManager,
-                    optionalReporter = BasicReporter.ERR,
                 )
             val signatureFileLoader = SignatureFileLoader(codebaseConfig)
 

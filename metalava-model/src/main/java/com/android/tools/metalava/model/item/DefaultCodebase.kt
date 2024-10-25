@@ -55,9 +55,7 @@ open class DefaultCodebase(
         description += " [disposed]"
     }
 
-    override val reporter: Reporter
-        // Get the reporter lazily, only when needed, as it can fail if none has been provided.
-        get() = config.reporter
+    override val reporter: Reporter = config.reporter
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
     val packageTracker = PackageTracker(assembler::createPackageItem)

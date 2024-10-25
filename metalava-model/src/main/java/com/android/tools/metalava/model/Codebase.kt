@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
@@ -133,13 +134,9 @@ interface Codebase {
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
 
-        /** Optional reporter. */
-        val optionalReporter: Reporter? = null,
+        /** The reporter to use for issues found during processing of the [Codebase]. */
+        val reporter: Reporter = BasicReporter.ERR,
     ) {
-        /** The [Reporter], will fail if no [optionalReporter] has been provided. */
-        val reporter
-            get() = optionalReporter ?: error("reporter is not available")
-
         companion object {
             /** A [Config] containing a [noOpAnnotationManager] and no reporter. */
             val NOOP =

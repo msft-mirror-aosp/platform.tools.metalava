@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.SourceDir
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import java.io.File
@@ -75,11 +74,9 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
     ): Codebase {
-        val reporter = BasicReporter.ERR
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = inputs.annotationManager,
-                optionalReporter = reporter,
             )
         val sourceParser =
             environmentManager.createSourceParser(
