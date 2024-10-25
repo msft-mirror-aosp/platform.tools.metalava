@@ -24,52 +24,59 @@ open class BaseItemVisitor(
      */
     val preserveClassNesting: Boolean = false,
 ) : ItemVisitor {
+    /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
+    protected inline fun <T : Item> callGenericItemVisitor(item: T, body: () -> Unit) {
+        visitItem(item)
+        body()
+        afterVisitItem(item)
+    }
+
     override fun visit(cls: ClassItem) {
         if (skip(cls)) {
             return
         }
 
-        visitItem(cls)
-        visitClass(cls)
+        callGenericItemVisitor(cls) {
+            visitClass(cls)
 
-        for (constructor in cls.constructors()) {
-            constructor.accept(this)
-        }
+            for (constructor in cls.constructors()) {
+                constructor.accept(this)
+            }
 
-        for (method in cls.methods()) {
-            method.accept(this)
-        }
+            for (method in cls.methods()) {
+                method.accept(this)
+            }
 
-        for (property in cls.properties()) {
-            property.accept(this)
-        }
+            for (property in cls.properties()) {
+                property.accept(this)
+            }
 
-        if (cls.isEnum()) {
-            // In enums, visit the enum constants first, then the fields
-            for (field in cls.fields()) {
-                if (field.isEnumConstant()) {
+            if (cls.isEnum()) {
+                // In enums, visit the enum constants first, then the fields
+                for (field in cls.fields()) {
+                    if (field.isEnumConstant()) {
+                        field.accept(this)
+                    }
+                }
+                for (field in cls.fields()) {
+                    if (!field.isEnumConstant()) {
+                        field.accept(this)
+                    }
+                }
+            } else {
+                for (field in cls.fields()) {
                     field.accept(this)
                 }
             }
-            for (field in cls.fields()) {
-                if (!field.isEnumConstant()) {
-                    field.accept(this)
+
+            if (preserveClassNesting) {
+                for (nestedCls in cls.nestedClasses()) {
+                    nestedCls.accept(this)
                 }
-            }
-        } else {
-            for (field in cls.fields()) {
-                field.accept(this)
-            }
+            } // otherwise done in visit(PackageItem)
+
+            afterVisitClass(cls)
         }
-
-        if (preserveClassNesting) {
-            for (nestedCls in cls.nestedClasses()) {
-                nestedCls.accept(this)
-            }
-        } // otherwise done in visit(PackageItem)
-
-        afterVisitClass(cls)
-        afterVisitItem(cls)
     }
 
     override fun visit(field: FieldItem) {
@@ -77,9 +84,7 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(field)
-        visitField(field)
-        afterVisitItem(field)
+        callGenericItemVisitor(field) { visitField(field) }
     }
 
     override fun visit(constructor: ConstructorItem) {
@@ -98,17 +103,16 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(callable)
-        visitCallable(callable)
+        callGenericItemVisitor(callable) {
+            visitCallable(callable)
 
-        // Call the specific visitX method for the CallableItem subclass.
-        dispatch(callable)
+            // Call the specific visitX method for the CallableItem subclass.
+            dispatch(callable)
 
-        for (parameter in callable.parameters()) {
-            parameter.accept(this)
+            for (parameter in callable.parameters()) {
+                parameter.accept(this)
+            }
         }
-
-        afterVisitItem(callable)
     }
 
     /**
@@ -139,15 +143,15 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(pkg)
-        visitPackage(pkg)
+        callGenericItemVisitor(pkg) {
+            visitPackage(pkg)
 
-        for (cls in packageClassesAsSequence(pkg)) {
-            cls.accept(this)
+            for (cls in packageClassesAsSequence(pkg)) {
+                cls.accept(this)
+            }
+
+            afterVisitPackage(pkg)
         }
-
-        afterVisitPackage(pkg)
-        afterVisitItem(pkg)
     }
 
     override fun visit(parameter: ParameterItem) {
@@ -155,9 +159,7 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(parameter)
-        visitParameter(parameter)
-        afterVisitItem(parameter)
+        callGenericItemVisitor(parameter) { visitParameter(parameter) }
     }
 
     override fun visit(property: PropertyItem) {
@@ -165,9 +167,7 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(property)
-        visitProperty(property)
-        afterVisitItem(property)
+        callGenericItemVisitor(property) { visitProperty(property) }
     }
 
     open fun skip(item: Item): Boolean = false

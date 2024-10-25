@@ -127,13 +127,13 @@ open class ApiVisitor(
         // If none of the classes in this package will be visited them ignore the package entirely.
         if (classesToVisitDirectly.isEmpty()) return
 
-        visitItem(pkg)
-        visitPackage(pkg)
+        callGenericItemVisitor(pkg) {
+            visitPackage(pkg)
 
-        visitClassList(classesToVisitDirectly)
+            visitClassList(classesToVisitDirectly)
 
-        afterVisitPackage(pkg)
-        afterVisitItem(pkg)
+            afterVisitPackage(pkg)
+        }
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
@@ -261,31 +261,31 @@ open class ApiVisitor(
             visitWrappedClassAndFilteredMembers()
         }
 
-        internal fun visitWrappedClassAndFilteredMembers() {
-            visitItem(cls)
-            visitClass(cls)
+        fun visitWrappedClassAndFilteredMembers() {
+            callGenericItemVisitor(cls) {
+                visitClass(cls)
 
-            for (constructor in constructors) {
-                constructor.accept(this@ApiVisitor)
-            }
+                for (constructor in constructors) {
+                    constructor.accept(this@ApiVisitor)
+                }
 
-            for (method in methods) {
-                method.accept(this@ApiVisitor)
-            }
+                for (method in methods) {
+                    method.accept(this@ApiVisitor)
+                }
 
-            for (property in properties) {
-                property.accept(this@ApiVisitor)
-            }
-            for (field in fields) {
-                field.accept(this@ApiVisitor)
-            }
+                for (property in properties) {
+                    property.accept(this@ApiVisitor)
+                }
+                for (field in fields) {
+                    field.accept(this@ApiVisitor)
+                }
 
-            if (preserveClassNesting) { // otherwise done in visit(PackageItem)
-                visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
-            }
+                if (preserveClassNesting) { // otherwise done in visit(PackageItem)
+                    visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
+                }
 
-            afterVisitClass(cls)
-            afterVisitItem(cls)
+                afterVisitClass(cls)
+            }
         }
     }
 }
