@@ -20,11 +20,11 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
-import java.util.function.Predicate
 
 /**
  * Predicate that decides if the given member should be considered part of an API surface area. To
@@ -57,7 +57,7 @@ class ApiPredicate(
 
     /** Configuration that may be provided by command line options. */
     private val config: Config = @Suppress("DEPRECATION") options.apiPredicateConfig,
-) : Predicate<Item> {
+) : FilterPredicate {
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line

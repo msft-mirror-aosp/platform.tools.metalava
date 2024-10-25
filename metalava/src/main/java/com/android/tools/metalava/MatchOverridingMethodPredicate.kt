@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import java.util.function.Predicate
@@ -27,7 +28,7 @@ import java.util.function.Predicate
  * In other words this will match any [Item] that is matched by [wrapped] and any [MethodItem] that
  * overrides a method which is matched by [wrapped].
  */
-class MatchOverridingMethodPredicate(private val wrapped: Predicate<Item>) : Predicate<Item> {
+class MatchOverridingMethodPredicate(private val wrapped: FilterPredicate) : FilterPredicate {
 
     override fun test(item: Item): Boolean {
         return when {

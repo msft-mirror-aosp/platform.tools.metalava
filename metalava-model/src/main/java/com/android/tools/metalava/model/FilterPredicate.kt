@@ -14,19 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.visitors
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Item
+import java.util.function.Predicate
 
-/** Encapsulates filters needed by [ApiVisitor]. */
-class ApiFilters(
-    /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
-    val emit: FilterPredicate,
-
-    /**
-     * Returns `true` for [Item]s that can be referenced from the API, this is a super set of
-     * [Item]s that can be emitted.
-     */
-    val reference: FilterPredicate,
-)
+/**
+ * Type alias for [Predicate]s that are generally used to filter [Item]s that are defined in the
+ * API, or can be referenced from the API.
+ */
+typealias FilterPredicate = Predicate<Item>

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
@@ -30,7 +31,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import java.util.function.Predicate
 
 /**
  * Visitor which visits all items in two matching codebases and matches up the items and invokes
@@ -108,7 +108,7 @@ class CodebaseComparator {
         visitor: ComparisonVisitor,
         old: Codebase,
         new: Codebase,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ) {
         // Algorithm: build up two trees (by nesting level); then visit the
         // two trees
@@ -127,7 +127,7 @@ class CodebaseComparator {
         visitor: ComparisonVisitor,
         old: MergedCodebase,
         new: MergedCodebase,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ) {
         // Algorithm: build up two trees (by nesting level); then visit the
         // two trees
@@ -148,7 +148,7 @@ class CodebaseComparator {
         newList: List<ItemTree>,
         newParent: SelectableItem?,
         oldParent: SelectableItem?,
-        filter: Predicate<Item>?
+        filter: FilterPredicate?
     ) {
         // Debugging tip: You can print out a tree like this: ItemTree.prettyPrint(list)
         var index1 = 0
@@ -330,7 +330,7 @@ class CodebaseComparator {
         old: SelectableItem,
         visitor: ComparisonVisitor,
         newParent: SelectableItem?,
-        filter: Predicate<Item>?
+        filter: FilterPredicate?
     ) {
         // If it's a method, we may not have removed the method, we may have simply
         // removed an override and are now inheriting the method from a superclass.
@@ -591,18 +591,18 @@ class CodebaseComparator {
 
     private fun createTree(
         codebase: MergedCodebase,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ): List<ItemTree> {
         return createTree(codebase.children, filter)
     }
 
-    private fun createTree(codebase: Codebase, filter: Predicate<Item>? = null): List<ItemTree> {
+    private fun createTree(codebase: Codebase, filter: FilterPredicate? = null): List<ItemTree> {
         return createTree(listOf(codebase), filter)
     }
 
     private fun createTree(
         codebases: List<Codebase>,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ): List<ItemTree> {
         val stack = Stack<ItemTree>()
         val root = ItemTree(null)
@@ -610,7 +610,7 @@ class CodebaseComparator {
 
         for (codebase in codebases) {
             val acceptAll = codebase.preFiltered || filter == null
-            val predicate = if (acceptAll) Predicate { true } else filter!!
+            val predicate = if (acceptAll) FilterPredicate { true } else filter!!
             val apiFilters = ApiFilters(emit = predicate, reference = predicate)
             codebase.accept(
                 object :

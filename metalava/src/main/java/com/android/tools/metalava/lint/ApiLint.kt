@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -182,7 +183,6 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import java.io.StringWriter
 import java.util.Locale
-import java.util.function.Predicate
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 
 /**
@@ -1794,7 +1794,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: Predicate<Item>) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
@@ -1909,7 +1909,7 @@ private constructor(
         // Cannot flag an implicit constructor.
         if (item is ConstructorItem && item.isImplicitConstructor()) return
 
-        fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
+        fun itemOrAnyContainingClasses(predicate: FilterPredicate): Boolean {
             var it: Item? = item
             while (it != null) {
                 if (predicate.test(it)) {
