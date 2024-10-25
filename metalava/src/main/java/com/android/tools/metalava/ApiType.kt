@@ -81,7 +81,8 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     ): Predicate<Item>
 
     open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-        val nonElidingFilter = FilterPredicate(getNonElidingFilter(apiPredicateConfig))
+        val nonElidingFilter =
+            MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig))
         val referenceFilter = getReferenceFilter(apiPredicateConfig)
         return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
     }

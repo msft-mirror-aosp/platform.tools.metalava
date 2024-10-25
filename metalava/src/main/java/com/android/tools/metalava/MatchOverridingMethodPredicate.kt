@@ -20,12 +20,19 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import java.util.function.Predicate
 
-class FilterPredicate(private val wrapped: Predicate<Item>) : Predicate<Item> {
+/**
+ * A [Predicate] that will match an [Item] if [wrapped] matches it, or it is a [MethodItem] and
+ * [wrapped] matches any of its super methods.
+ *
+ * In other words this will match any [Item] that is matched by [wrapped] and any [MethodItem] that
+ * overrides a method which is matched by [wrapped].
+ */
+class MatchOverridingMethodPredicate(private val wrapped: Predicate<Item>) : Predicate<Item> {
 
-    override fun test(method: Item): Boolean {
+    override fun test(item: Item): Boolean {
         return when {
-            wrapped.test(method) -> true
-            method is MethodItem -> method.findPredicateSuperMethod(wrapped) != null
+            wrapped.test(item) -> true
+            item is MethodItem -> item.findPredicateSuperMethod(wrapped) != null
             else -> false
         }
     }
