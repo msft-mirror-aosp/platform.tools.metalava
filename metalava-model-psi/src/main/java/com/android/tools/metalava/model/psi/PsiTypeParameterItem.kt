@@ -28,34 +28,37 @@ import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
     override val codebase: PsiBasedCodebase,
-    private val psiClass: PsiTypeParameter,
+    private val psiTypeParameter: PsiTypeParameter,
     name: String,
     modifiers: BaseModifierList
 ) :
     DefaultTypeParameterItem(
         codebase = codebase,
-        itemLanguage = psiClass.itemLanguage,
+        itemLanguage = psiTypeParameter.itemLanguage,
         modifiers = modifiers,
         name = name,
-        isReified = isReified(psiClass)
+        isReified = isReified(psiTypeParameter),
     ),
     TypeParameterItem,
     PsiItem {
 
-    override fun psi() = psiClass
+    override fun psi() = psiTypeParameter
 
     override fun createVariableTypeItem(): VariableTypeItem {
         return codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
     }
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
-            val simpleName = psiClass.name!!
-            val modifiers = PsiModifierItem.create(codebase, psiClass)
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiTypeParameter: PsiTypeParameter,
+        ): PsiTypeParameterItem {
+            val simpleName = psiTypeParameter.name!!
+            val modifiers = PsiModifierItem.create(codebase, psiTypeParameter)
 
             return PsiTypeParameterItem(
                 codebase = codebase,
-                psiClass = psiClass,
+                psiTypeParameter = psiTypeParameter,
                 name = simpleName,
                 modifiers = modifiers
             )
