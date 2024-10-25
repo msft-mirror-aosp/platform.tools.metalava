@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.intellij.psi.PsiTypeParameter
@@ -37,11 +36,8 @@ internal class PsiTypeParameterItem(
         modifiers = modifiers,
         name = name,
         isReified = isReified(psiTypeParameter),
-    ),
-    TypeParameterItem,
-    PsiItem {
-
-    override fun psi() = psiTypeParameter
+    ) {
+    fun psi() = psiTypeParameter
 
     override fun createVariableTypeItem(): VariableTypeItem {
         return codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
