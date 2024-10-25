@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.testsuite.sourcefile
 
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -27,7 +27,7 @@ import org.junit.Test
 /** Common tests for implementations of [SourceFile]. */
 class CommonSourceFileTest : BaseModelTest() {
     internal class FilterHidden : FilterPredicate {
-        override fun test(item: Item): Boolean = !item.isHiddenOrRemoved()
+        override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
     }
 
     @Test

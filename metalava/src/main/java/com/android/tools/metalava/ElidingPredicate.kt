@@ -17,8 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 
 /**
  * Filter that will elide exact duplicate methods that are already included in another
@@ -33,7 +33,7 @@ class ElidingPredicate(
 
     // Returning true means we are keeping this item
     // i.e. when this returns false, we are eliding the item
-    override fun test(item: Item): Boolean {
+    override fun test(item: SelectableItem): Boolean {
         // This method should be included, but if it's an exact duplicate
         // override then we can elide it.
         return if (item is MethodItem) {

@@ -53,6 +53,8 @@ interface SourceFile {
             cls.accept(
                 object : TraversingVisitor() {
                     override fun visitItem(item: Item): TraversalAction {
+                        if (item !is SelectableItem) return TraversalAction.SKIP_CHILDREN
+
                         // Do not let documentation on hidden items affect the imports.
                         if (!predicate.test(item)) {
                             // Just because an item like a class is hidden does not mean

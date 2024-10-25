@@ -1920,12 +1920,12 @@ private constructor(
         }
     }
 
-    private fun checkHasFlaggedApi(item: Item) {
+    private fun checkHasFlaggedApi(item: SelectableItem) {
         // Cannot flag an implicit constructor.
         if (item is ConstructorItem && item.isImplicitConstructor()) return
 
         fun itemOrAnyContainingClasses(predicate: FilterPredicate): Boolean {
-            var it: Item? = item
+            var it: SelectableItem? = item
             while (it != null) {
                 if (predicate.test(it)) {
                     return true
@@ -1952,7 +1952,7 @@ private constructor(
      * Check whether an `@FlaggedApi` annotation is required on a new [Item], i.e. one that has not
      * previously been released.
      */
-    private fun checkFlaggedApiOnNewApi(item: Item) {
+    private fun checkFlaggedApiOnNewApi(item: SelectableItem) {
         val elidedField =
             if (item is FieldItem) {
                 val inheritedFrom = item.inheritedFrom

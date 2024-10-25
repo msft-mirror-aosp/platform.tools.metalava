@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import java.util.function.Predicate
 
 /**
- * Type alias for [Predicate]s that are generally used to filter [Item]s that are defined in the
- * API, or can be referenced from the API.
+ * Type alias for [Predicate]s that are generally used to filter [SelectableItem]s that are defined
+ * in the API, or can be referenced from the API.
  */
-typealias FilterPredicate = Predicate<Item>
+typealias FilterPredicate = Predicate<SelectableItem>

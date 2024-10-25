@@ -17,20 +17,20 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 import java.util.function.Predicate
 
 /**
- * A [Predicate] that will match an [Item] if [wrapped] matches it, or it is a [MethodItem] and
- * [wrapped] matches any of its super methods.
+ * A [Predicate] that will match a [SelectableItem] if [wrapped] matches it, or it is a [MethodItem]
+ * and [wrapped] matches any of its super methods.
  *
- * In other words this will match any [Item] that is matched by [wrapped] and any [MethodItem] that
- * overrides a method which is matched by [wrapped].
+ * In other words this will match any [SelectableItem] that is matched by [wrapped] and any
+ * [MethodItem] that overrides a method which is matched by [wrapped].
  */
 class MatchOverridingMethodPredicate(private val wrapped: FilterPredicate) : FilterPredicate {
 
-    override fun test(item: Item): Boolean {
+    override fun test(item: SelectableItem): Boolean {
         return when {
             wrapped.test(item) -> true
             item is MethodItem -> item.findPredicateSuperMethod(wrapped) != null
