@@ -72,8 +72,6 @@ open class ComparisonVisitor {
 
     open fun added(new: PropertyItem) {}
 
-    open fun added(new: ParameterItem) {}
-
     open fun removed(old: PackageItem, from: Item?) {}
 
     open fun removed(old: ClassItem, from: Item?) {}
@@ -87,8 +85,6 @@ open class ComparisonVisitor {
     open fun removed(old: FieldItem, from: ClassItem?) {}
 
     open fun removed(old: PropertyItem, from: ClassItem?) {}
-
-    open fun removed(old: ParameterItem, from: MethodItem?) {}
 }
 
 /** Simple stack type built on top of an [ArrayList]. */
@@ -315,8 +311,8 @@ class CodebaseComparator {
             is ConstructorItem -> visitor.added(item)
             is MethodItem -> visitor.added(item)
             is FieldItem -> visitor.added(item)
-            is ParameterItem -> visitor.added(item)
             is PropertyItem -> visitor.added(item)
+            else -> error("unexpected addition of $item")
         }
     }
 
@@ -406,8 +402,8 @@ class CodebaseComparator {
             is ConstructorItem -> visitor.removed(item, from as ClassItem?)
             is MethodItem -> visitor.removed(item, from as ClassItem?)
             is FieldItem -> visitor.removed(item, from as ClassItem?)
-            is ParameterItem -> visitor.removed(item, from as MethodItem?)
             is PropertyItem -> visitor.removed(item, from as ClassItem?)
+            else -> error("unexpected removal of $item")
         }
     }
 
