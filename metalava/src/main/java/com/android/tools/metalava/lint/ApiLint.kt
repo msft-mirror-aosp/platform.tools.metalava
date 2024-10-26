@@ -72,6 +72,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -239,9 +240,23 @@ private constructor(
                     return false
                 }
 
+                // Get the Item to check if it is part of the API. If it is not then there is no
+                // point in reporting the issue.
+                val testItem =
+                    when (item) {
+                        is ParameterItem ->
+                            // The parameter will only be included in the API if and only if its
+                            // containing callable is so check that.
+                            item.containingCallable()
+                        is SelectableItem -> item
+                        else ->
+                            // This should not happen as all Items are either a SelectableItem or a
+                            // ParameterItem
+                            error("Unknown item $item")
+                    }
+
                 // With show annotations we might be flagging API that is filtered out: hide these
-                // here
-                val testItem = if (item is ParameterItem) item.containingCallable() else item
+                // here by checking to see if the item is part of the API.
                 if (!filterEmit.test(testItem)) {
                     return false
                 }
