@@ -72,7 +72,7 @@ open class ComparisonVisitor {
 
     open fun addedPropertyItem(new: PropertyItem) {}
 
-    open fun removedPackageItem(old: PackageItem, from: Item?) {}
+    open fun removedPackageItem(old: PackageItem, from: PackageItem?) {}
 
     open fun removedClassItem(old: ClassItem, from: Item?) {}
 
@@ -397,7 +397,7 @@ class CodebaseComparator {
         }
 
         when (item) {
-            is PackageItem -> visitor.removedPackageItem(item, from)
+            is PackageItem -> visitor.removedPackageItem(item, from as PackageItem?)
             is ClassItem -> visitor.removedClassItem(item, from)
             is ConstructorItem -> visitor.removedConstructorItem(item, from as ClassItem?)
             is MethodItem -> visitor.removedMethodItem(item, from as ClassItem?)

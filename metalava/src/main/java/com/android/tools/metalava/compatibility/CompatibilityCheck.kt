@@ -945,7 +945,7 @@ class CompatibilityCheck(
         handleAdded(Issues.ADDED_FIELD, new)
     }
 
-    override fun removedPackageItem(old: PackageItem, from: Item?) {
+    override fun removedPackageItem(old: PackageItem, from: PackageItem?) {
         handleRemoved(Issues.REMOVED_PACKAGE, old)
     }
 
