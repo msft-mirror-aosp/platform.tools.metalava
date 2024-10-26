@@ -37,8 +37,6 @@ interface Item : Reportable {
 
     /** Return the modifiers of this class */
     @MetalavaApi val modifiers: ModifierList
-    /** Whether this element will be printed in the signature file */
-    var emit: Boolean
 
     fun parent(): SelectableItem?
 
@@ -442,10 +440,6 @@ abstract class DefaultItem(
 
     final override val isPrivate: Boolean
         get() = modifiers.isPrivate()
-
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
 
     companion object {
         private var nextRank = AtomicInteger()

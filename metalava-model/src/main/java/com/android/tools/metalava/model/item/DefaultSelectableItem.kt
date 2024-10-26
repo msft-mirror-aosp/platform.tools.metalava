@@ -43,6 +43,11 @@ abstract class DefaultSelectableItem(
         documentationFactory,
     ),
     SelectableItem {
+
+    final override var emit =
+        // Do not emit expect declarations in APIs.
+        !modifiers.isExpect()
+
     /**
      * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
      *

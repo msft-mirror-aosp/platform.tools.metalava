@@ -27,6 +27,9 @@ package com.android.tools.metalava.model
  * an indivisible part of the [ParameterItem.containingCallable].
  */
 interface SelectableItem : Item {
+    /** Whether this element will be printed in the signature file */
+    var emit: Boolean
+
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
      * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
