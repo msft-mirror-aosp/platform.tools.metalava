@@ -174,8 +174,6 @@ class CodebaseComparator {
                                     new,
                                     oldParent,
                                     visitor,
-                                    newTree,
-                                    filter
                                 )
                             }
                         }
@@ -184,10 +182,9 @@ class CodebaseComparator {
                             if (old.emit) {
                                 dispatchToRemovedOrCompareIfItemWasMoved(
                                     old,
-                                    oldTree,
                                     visitor,
                                     newParent,
-                                    filter
+                                    filter,
                                 )
                             }
                         }
@@ -200,18 +197,15 @@ class CodebaseComparator {
                                         new,
                                         oldParent,
                                         visitor,
-                                        newTree,
-                                        filter
                                     )
                                 }
                             } else {
                                 if (old.emit) {
                                     dispatchToRemovedOrCompareIfItemWasMoved(
                                         old,
-                                        oldTree,
                                         visitor,
                                         newParent,
-                                        filter
+                                        filter,
                                     )
                                 }
                             }
@@ -237,10 +231,9 @@ class CodebaseComparator {
                         val old = oldTree.item()
                         dispatchToRemovedOrCompareIfItemWasMoved(
                             old,
-                            oldTree,
                             visitor,
                             newParent,
-                            filter
+                            filter,
                         )
                     }
                 }
@@ -250,11 +243,30 @@ class CodebaseComparator {
                     val newTree = newList[index2++]
                     val new = newTree.item()
 
-                    dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor, newTree, filter)
+                    dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor)
                 }
             } else {
                 break
             }
+        }
+    }
+
+    /**
+     * Dispatch calls to [ComparisonVisitor.compareParameterItems] for each pair of [ParameterItem]s
+     * in [oldParameters] and [newParameters].
+     *
+     * The [oldParameters] and [newParameters] are guaranteed to have the same number of parameters
+     * as they come from two [MethodItem]s that compare equal according to [comparator].
+     */
+    private fun dispatchCompareParameters(
+        visitor: ComparisonVisitor,
+        oldParameters: List<ParameterItem>,
+        newParameters: List<ParameterItem>,
+    ) {
+        require(oldParameters.size == newParameters.size)
+        for ((oldParameter, newParameter) in oldParameters.zip(newParameters)) {
+            visitor.compareItems(oldParameter, newParameter)
+            visitor.compareParameterItems(oldParameter, newParameter)
         }
     }
 
@@ -266,8 +278,6 @@ class CodebaseComparator {
         new: Item,
         oldParent: Item?,
         visitor: ComparisonVisitor,
-        newTree: ItemTree,
-        filter: Predicate<Item>?
     ) {
         // If it's a method, we may not have added a new method,
         // we may simply have inherited it previously and overriding
@@ -288,11 +298,6 @@ class CodebaseComparator {
 
         if (inherited != null) {
             dispatchToCompare(visitor, inherited, new)
-            // Compare the children (recurse)
-            if (inherited.parameters().isNotEmpty()) {
-                val parameters = inherited.parameters().map { ItemTree(it) }.toList()
-                compare(visitor, parameters, newTree.children, newTree.item(), inherited, filter)
-            }
         } else {
             dispatchToAdded(visitor, new)
         }
@@ -323,7 +328,6 @@ class CodebaseComparator {
      */
     private fun dispatchToRemovedOrCompareIfItemWasMoved(
         old: Item,
-        oldTree: ItemTree,
         visitor: ComparisonVisitor,
         newParent: Item?,
         filter: Predicate<Item>?
@@ -348,18 +352,6 @@ class CodebaseComparator {
 
         if (inheritedMethod != null) {
             dispatchToCompare(visitor, old, inheritedMethod)
-            // Compare the children (recurse)
-            if (inheritedMethod.parameters().isNotEmpty()) {
-                val parameters = inheritedMethod.parameters().map { ItemTree(it) }.toList()
-                compare(
-                    visitor,
-                    oldTree.children,
-                    parameters,
-                    oldTree.item(),
-                    inheritedMethod,
-                    filter
-                )
-            }
             return
         }
 
@@ -422,8 +414,13 @@ class CodebaseComparator {
             is ConstructorItem -> visitor.compareConstructorItems(old, new as ConstructorItem)
             is MethodItem -> visitor.compareMethodItems(old, new as MethodItem)
             is FieldItem -> visitor.compareFieldItems(old, new as FieldItem)
-            is ParameterItem -> visitor.compareParameterItems(old, new as ParameterItem)
             is PropertyItem -> visitor.comparePropertyItems(old, new as PropertyItem)
+            else -> error("unexpected comparison of $old and $new")
+        }
+
+        // If this is comparing two [CallableItem]s then compare their [ParameterItem]s too.
+        if (old is CallableItem) {
+            dispatchCompareParameters(visitor, old.parameters(), (new as CallableItem).parameters())
         }
     }
 
@@ -438,8 +435,7 @@ class CodebaseComparator {
                 is MethodItem -> 2
                 is FieldItem -> 3
                 is ClassItem -> 4
-                is ParameterItem -> 5
-                is PropertyItem -> 6
+                is PropertyItem -> 5
                 else -> error("Unexpected item $item of ${item.javaClass}")
             }
         }
@@ -531,9 +527,6 @@ class CodebaseComparator {
                         }
                         is FieldItem -> {
                             item1.name().compareTo((item2 as FieldItem).name())
-                        }
-                        is ParameterItem -> {
-                            item1.parameterIndex.compareTo((item2 as ParameterItem).parameterIndex)
                         }
                         is PropertyItem -> {
                             item1.name().compareTo((item2 as PropertyItem).name())
@@ -632,6 +625,9 @@ class CodebaseComparator {
                         showUnannotated = true,
                     ) {
                     override fun visitItem(item: Item) {
+                        // Ignore ParameterItems, they will be compared when comparing methods.
+                        if (item is ParameterItem) return
+
                         val node = ItemTree(item)
                         val parent = stack.peek()
                         parent.children += node
@@ -643,6 +639,9 @@ class CodebaseComparator {
                         if (acceptAll) true else super.include(cls)
 
                     override fun afterVisitItem(item: Item) {
+                        // Ignore ParameterItems, they will be compared when comparing methods.
+                        if (item is ParameterItem) return
+
                         stack.pop()
                     }
                 }
