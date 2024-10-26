@@ -949,7 +949,7 @@ class CompatibilityCheck(
         handleRemoved(Issues.REMOVED_PACKAGE, old)
     }
 
-    override fun removedClassItem(old: ClassItem, from: Item?) {
+    override fun removedClassItem(old: ClassItem, from: SelectableItem) {
         val error =
             when {
                 old.isInterface() -> Issues.REMOVED_INTERFACE
@@ -960,13 +960,13 @@ class CompatibilityCheck(
         handleRemoved(error, old)
     }
 
-    override fun removedCallableItem(old: CallableItem, from: ClassItem?) {
+    override fun removedCallableItem(old: CallableItem, from: ClassItem) {
         // See if there's a member from inherited class
         val inherited =
             if (old is MethodItem) {
                 // This can also return self, specially handled below
                 from
-                    ?.findMethod(
+                    .findMethod(
                         old,
                         includeSuperClasses = true,
                         includeInterfaces = from.isInterface()
@@ -1000,9 +1000,9 @@ class CompatibilityCheck(
     private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
         !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
-    override fun removedFieldItem(old: FieldItem, from: ClassItem?) {
+    override fun removedFieldItem(old: FieldItem, from: ClassItem) {
         val inherited =
-            from?.findField(
+            from.findField(
                 old.name(),
                 includeSuperClasses = true,
                 includeInterfaces = from.isInterface()

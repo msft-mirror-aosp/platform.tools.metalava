@@ -141,7 +141,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                         differences += "$new was added"
                     }
 
-                    override fun removedMethodItem(old: MethodItem, from: ClassItem?) {
+                    override fun removedMethodItem(old: MethodItem, from: ClassItem) {
                         differences += "$old was removed"
                     }
                 },

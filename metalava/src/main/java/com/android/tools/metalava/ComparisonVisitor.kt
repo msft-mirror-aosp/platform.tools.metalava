@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.util.function.Predicate
@@ -74,17 +75,17 @@ open class ComparisonVisitor {
 
     open fun removedPackageItem(old: PackageItem, from: PackageItem?) {}
 
-    open fun removedClassItem(old: ClassItem, from: Item?) {}
+    open fun removedClassItem(old: ClassItem, from: SelectableItem) {}
 
-    open fun removedCallableItem(old: CallableItem, from: ClassItem?) {}
+    open fun removedCallableItem(old: CallableItem, from: ClassItem) {}
 
-    open fun removedConstructorItem(old: ConstructorItem, from: ClassItem?) {}
+    open fun removedConstructorItem(old: ConstructorItem, from: ClassItem) {}
 
-    open fun removedMethodItem(old: MethodItem, from: ClassItem?) {}
+    open fun removedMethodItem(old: MethodItem, from: ClassItem) {}
 
-    open fun removedFieldItem(old: FieldItem, from: ClassItem?) {}
+    open fun removedFieldItem(old: FieldItem, from: ClassItem) {}
 
-    open fun removedPropertyItem(old: PropertyItem, from: ClassItem?) {}
+    open fun removedPropertyItem(old: PropertyItem, from: ClassItem) {}
 }
 
 /** Simple stack type built on top of an [ArrayList]. */
@@ -393,16 +394,16 @@ class CodebaseComparator {
         visitor.removedItem(item, from)
 
         if (item is CallableItem) {
-            visitor.removedCallableItem(item, from as ClassItem?)
+            visitor.removedCallableItem(item, from as ClassItem)
         }
 
         when (item) {
             is PackageItem -> visitor.removedPackageItem(item, from as PackageItem?)
-            is ClassItem -> visitor.removedClassItem(item, from)
-            is ConstructorItem -> visitor.removedConstructorItem(item, from as ClassItem?)
-            is MethodItem -> visitor.removedMethodItem(item, from as ClassItem?)
-            is FieldItem -> visitor.removedFieldItem(item, from as ClassItem?)
-            is PropertyItem -> visitor.removedPropertyItem(item, from as ClassItem?)
+            is ClassItem -> visitor.removedClassItem(item, from as SelectableItem)
+            is ConstructorItem -> visitor.removedConstructorItem(item, from as ClassItem)
+            is MethodItem -> visitor.removedMethodItem(item, from as ClassItem)
+            is FieldItem -> visitor.removedFieldItem(item, from as ClassItem)
+            is PropertyItem -> visitor.removedPropertyItem(item, from as ClassItem)
             else -> error("unexpected removal of $item")
         }
     }
