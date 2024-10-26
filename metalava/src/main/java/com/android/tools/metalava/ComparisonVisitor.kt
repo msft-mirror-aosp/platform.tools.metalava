@@ -33,58 +33,58 @@ import java.util.function.Predicate
 
 /**
  * Visitor which visits all items in two matching codebases and matches up the items and invokes
- * [compare] on each pair, or [added] or [removed] when items are not matched
+ * [compareItems] on each pair, or [addedItem] or [removedItem] when items are not matched
  */
 open class ComparisonVisitor {
-    open fun compare(old: Item, new: Item) {}
+    open fun compareItems(old: Item, new: Item) {}
 
-    open fun added(new: Item) {}
+    open fun addedItem(new: Item) {}
 
-    open fun removed(old: Item, from: Item?) {}
+    open fun removedItem(old: Item, from: Item?) {}
 
-    open fun compare(old: PackageItem, new: PackageItem) {}
+    open fun comparePackageItems(old: PackageItem, new: PackageItem) {}
 
-    open fun compare(old: ClassItem, new: ClassItem) {}
+    open fun compareClassItems(old: ClassItem, new: ClassItem) {}
 
-    open fun compare(old: CallableItem, new: CallableItem) {}
+    open fun compareCallableItems(old: CallableItem, new: CallableItem) {}
 
-    open fun compare(old: ConstructorItem, new: ConstructorItem) {}
+    open fun compareConstructorItems(old: ConstructorItem, new: ConstructorItem) {}
 
-    open fun compare(old: MethodItem, new: MethodItem) {}
+    open fun compareMethodItems(old: MethodItem, new: MethodItem) {}
 
-    open fun compare(old: FieldItem, new: FieldItem) {}
+    open fun compareFieldItems(old: FieldItem, new: FieldItem) {}
 
-    open fun compare(old: PropertyItem, new: PropertyItem) {}
+    open fun comparePropertyItems(old: PropertyItem, new: PropertyItem) {}
 
-    open fun compare(old: ParameterItem, new: ParameterItem) {}
+    open fun compareParameterItems(old: ParameterItem, new: ParameterItem) {}
 
-    open fun added(new: PackageItem) {}
+    open fun addedPackageItem(new: PackageItem) {}
 
-    open fun added(new: ClassItem) {}
+    open fun addedClassItem(new: ClassItem) {}
 
-    open fun added(new: CallableItem) {}
+    open fun addedCallableItem(new: CallableItem) {}
 
-    open fun added(new: ConstructorItem) {}
+    open fun addedConstructorItem(new: ConstructorItem) {}
 
-    open fun added(new: MethodItem) {}
+    open fun addedMethodItem(new: MethodItem) {}
 
-    open fun added(new: FieldItem) {}
+    open fun addedFieldItem(new: FieldItem) {}
 
-    open fun added(new: PropertyItem) {}
+    open fun addedPropertyItem(new: PropertyItem) {}
 
-    open fun removed(old: PackageItem, from: Item?) {}
+    open fun removedPackageItem(old: PackageItem, from: Item?) {}
 
-    open fun removed(old: ClassItem, from: Item?) {}
+    open fun removedClassItem(old: ClassItem, from: Item?) {}
 
-    open fun removed(old: CallableItem, from: ClassItem?) {}
+    open fun removedCallableItem(old: CallableItem, from: ClassItem?) {}
 
-    open fun removed(old: ConstructorItem, from: ClassItem?) {}
+    open fun removedConstructorItem(old: ConstructorItem, from: ClassItem?) {}
 
-    open fun removed(old: MethodItem, from: ClassItem?) {}
+    open fun removedMethodItem(old: MethodItem, from: ClassItem?) {}
 
-    open fun removed(old: FieldItem, from: ClassItem?) {}
+    open fun removedFieldItem(old: FieldItem, from: ClassItem?) {}
 
-    open fun removed(old: PropertyItem, from: ClassItem?) {}
+    open fun removedPropertyItem(old: PropertyItem, from: ClassItem?) {}
 }
 
 /** Simple stack type built on top of an [ArrayList]. */
@@ -299,19 +299,19 @@ class CodebaseComparator {
 
     /** Dispatch to the [Item] specific `added(...)` method. */
     private fun dispatchToAdded(visitor: ComparisonVisitor, item: Item) {
-        visitor.added(item)
+        visitor.addedItem(item)
 
         if (item is CallableItem) {
-            visitor.added(item)
+            visitor.addedCallableItem(item)
         }
 
         when (item) {
-            is PackageItem -> visitor.added(item)
-            is ClassItem -> visitor.added(item)
-            is ConstructorItem -> visitor.added(item)
-            is MethodItem -> visitor.added(item)
-            is FieldItem -> visitor.added(item)
-            is PropertyItem -> visitor.added(item)
+            is PackageItem -> visitor.addedPackageItem(item)
+            is ClassItem -> visitor.addedClassItem(item)
+            is ConstructorItem -> visitor.addedConstructorItem(item)
+            is MethodItem -> visitor.addedMethodItem(item)
+            is FieldItem -> visitor.addedFieldItem(item)
+            is PropertyItem -> visitor.addedPropertyItem(item)
             else -> error("unexpected addition of $item")
         }
     }
@@ -390,39 +390,39 @@ class CodebaseComparator {
 
     /** Dispatch to the [Item] specific `removed(...)` method. */
     private fun dispatchToRemoved(visitor: ComparisonVisitor, item: Item, from: Item?) {
-        visitor.removed(item, from)
+        visitor.removedItem(item, from)
 
         if (item is CallableItem) {
-            visitor.removed(item, from as ClassItem?)
+            visitor.removedCallableItem(item, from as ClassItem?)
         }
 
         when (item) {
-            is PackageItem -> visitor.removed(item, from)
-            is ClassItem -> visitor.removed(item, from)
-            is ConstructorItem -> visitor.removed(item, from as ClassItem?)
-            is MethodItem -> visitor.removed(item, from as ClassItem?)
-            is FieldItem -> visitor.removed(item, from as ClassItem?)
-            is PropertyItem -> visitor.removed(item, from as ClassItem?)
+            is PackageItem -> visitor.removedPackageItem(item, from)
+            is ClassItem -> visitor.removedClassItem(item, from)
+            is ConstructorItem -> visitor.removedConstructorItem(item, from as ClassItem?)
+            is MethodItem -> visitor.removedMethodItem(item, from as ClassItem?)
+            is FieldItem -> visitor.removedFieldItem(item, from as ClassItem?)
+            is PropertyItem -> visitor.removedPropertyItem(item, from as ClassItem?)
             else -> error("unexpected removal of $item")
         }
     }
 
     /** Dispatch to the [Item] specific `compare(...)` method. */
     private fun dispatchToCompare(visitor: ComparisonVisitor, old: Item, new: Item) {
-        visitor.compare(old, new)
+        visitor.compareItems(old, new)
 
         if (old is CallableItem) {
-            visitor.compare(old, new as CallableItem)
+            visitor.compareCallableItems(old, new as CallableItem)
         }
 
         when (old) {
-            is PackageItem -> visitor.compare(old, new as PackageItem)
-            is ClassItem -> visitor.compare(old, new as ClassItem)
-            is ConstructorItem -> visitor.compare(old, new as ConstructorItem)
-            is MethodItem -> visitor.compare(old, new as MethodItem)
-            is FieldItem -> visitor.compare(old, new as FieldItem)
-            is ParameterItem -> visitor.compare(old, new as ParameterItem)
-            is PropertyItem -> visitor.compare(old, new as PropertyItem)
+            is PackageItem -> visitor.comparePackageItems(old, new as PackageItem)
+            is ClassItem -> visitor.compareClassItems(old, new as ClassItem)
+            is ConstructorItem -> visitor.compareConstructorItems(old, new as ConstructorItem)
+            is MethodItem -> visitor.compareMethodItems(old, new as MethodItem)
+            is FieldItem -> visitor.compareFieldItems(old, new as FieldItem)
+            is ParameterItem -> visitor.compareParameterItems(old, new as ParameterItem)
+            is PropertyItem -> visitor.comparePropertyItems(old, new as PropertyItem)
         }
     }
 

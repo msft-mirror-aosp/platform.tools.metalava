@@ -270,7 +270,7 @@ class AnnotationsMerger(
     private fun mergeQualifierAnnotationsFromCodebase(externalCodebase: Codebase) {
         val visitor =
             object : ComparisonVisitor() {
-                override fun compare(old: Item, new: Item) {
+                override fun compareItems(old: Item, new: Item) {
                     val itemAnnotations = old.modifiers.annotations()
                     mergeQualifierAnnotations(itemAnnotations, new)
                     old.type()?.let {
@@ -281,7 +281,7 @@ class AnnotationsMerger(
                     }
                 }
 
-                override fun removed(old: Item, from: Item?) {
+                override fun removedItem(old: Item, from: Item?) {
                     // Do not report missing items if there are no annotations to copy.
                     if (old.modifiers.annotations().isEmpty()) {
                         old.type()?.let { typeItem ->

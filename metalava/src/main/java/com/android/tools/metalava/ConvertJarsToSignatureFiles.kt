@@ -130,7 +130,7 @@ class ConvertJarsToSignatureFiles(
                         signatureFileLoader.loadFiles(SignatureFile.fromFiles(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
-                            override fun compare(old: Item, new: Item) {
+                            override fun compareItems(old: Item, new: Item) {
                                 if (old.originallyDeprecated && old !is PackageItem) {
                                     new.deprecateIfRequired("previous signature file for $old")
                                 }

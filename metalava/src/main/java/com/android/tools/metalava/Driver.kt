@@ -485,7 +485,7 @@ private fun ActionContext.subtractApi(
     CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
-                override fun compare(old: ClassItem, new: ClassItem) {
+                override fun compareClassItems(old: ClassItem, new: ClassItem) {
                     new.emit = false
                 }
             },

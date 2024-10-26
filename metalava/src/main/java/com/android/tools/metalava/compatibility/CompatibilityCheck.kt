@@ -172,7 +172,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: Item, new: Item) {
+    override fun compareItems(old: Item, new: Item) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
         if (oldModifiers.isOperator() && !newModifiers.isOperator()) {
@@ -221,7 +221,7 @@ class CompatibilityCheck(
         compareItemNullability(old, new)
     }
 
-    override fun compare(old: ParameterItem, new: ParameterItem) {
+    override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
         val prevName = old.publicName()
         val newName = new.publicName()
         if (prevName != null) {
@@ -266,7 +266,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: ClassItem, new: ClassItem) {
+    override fun compareClassItems(old: ClassItem, new: ClassItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -481,7 +481,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: CallableItem, new: CallableItem) {
+    override fun compareCallableItems(old: CallableItem, new: CallableItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -542,7 +542,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: MethodItem, new: MethodItem) {
+    override fun compareMethodItems(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -714,7 +714,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: FieldItem, new: FieldItem) {
+    override fun compareFieldItems(old: FieldItem, new: FieldItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -862,11 +862,11 @@ class CompatibilityCheck(
         )
     }
 
-    override fun added(new: PackageItem) {
+    override fun addedPackageItem(new: PackageItem) {
         handleAdded(Issues.ADDED_PACKAGE, new)
     }
 
-    override fun added(new: ClassItem) {
+    override fun addedClassItem(new: ClassItem) {
         val error =
             if (new.isInterface()) {
                 Issues.ADDED_INTERFACE
@@ -876,7 +876,7 @@ class CompatibilityCheck(
         handleAdded(error, new)
     }
 
-    override fun added(new: CallableItem) {
+    override fun addedCallableItem(new: CallableItem) {
         if (new is MethodItem) {
             // *Overriding* methods from super classes that are outside the
             // API is OK (e.g. overriding toString() from java.lang.Object)
@@ -941,15 +941,15 @@ class CompatibilityCheck(
         }
     }
 
-    override fun added(new: FieldItem) {
+    override fun addedFieldItem(new: FieldItem) {
         handleAdded(Issues.ADDED_FIELD, new)
     }
 
-    override fun removed(old: PackageItem, from: Item?) {
+    override fun removedPackageItem(old: PackageItem, from: Item?) {
         handleRemoved(Issues.REMOVED_PACKAGE, old)
     }
 
-    override fun removed(old: ClassItem, from: Item?) {
+    override fun removedClassItem(old: ClassItem, from: Item?) {
         val error =
             when {
                 old.isInterface() -> Issues.REMOVED_INTERFACE
@@ -960,7 +960,7 @@ class CompatibilityCheck(
         handleRemoved(error, old)
     }
 
-    override fun removed(old: CallableItem, from: ClassItem?) {
+    override fun removedCallableItem(old: CallableItem, from: ClassItem?) {
         // See if there's a member from inherited class
         val inherited =
             if (old is MethodItem) {
@@ -1000,7 +1000,7 @@ class CompatibilityCheck(
     private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
         !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
-    override fun removed(old: FieldItem, from: ClassItem?) {
+    override fun removedFieldItem(old: FieldItem, from: ClassItem?) {
         val inherited =
             from?.findField(
                 old.name(),
