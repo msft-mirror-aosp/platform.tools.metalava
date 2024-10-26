@@ -847,7 +847,7 @@ class CompatibilityCheck(
         report(issue, item, message)
     }
 
-    private fun handleRemoved(issue: Issue, item: Item) {
+    private fun handleRemoved(issue: Issue, item: SelectableItem) {
         if (!item.emit) {
             // It's a stub; this can happen when analyzing partial APIs
             // such as a signature file for a library referencing types

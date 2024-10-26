@@ -39,9 +39,9 @@ import java.util.function.Predicate
 open class ComparisonVisitor {
     open fun compareItems(old: Item, new: Item) {}
 
-    open fun addedItem(new: Item) {}
+    open fun addedItem(new: SelectableItem) {}
 
-    open fun removedItem(old: Item, from: Item?) {}
+    open fun removedItem(old: SelectableItem, from: SelectableItem?) {}
 
     open fun comparePackageItems(old: PackageItem, new: PackageItem) {}
 
@@ -146,8 +146,8 @@ class CodebaseComparator {
         visitor: ComparisonVisitor,
         oldList: List<ItemTree>,
         newList: List<ItemTree>,
-        newParent: Item?,
-        oldParent: Item?,
+        newParent: SelectableItem?,
+        oldParent: SelectableItem?,
         filter: Predicate<Item>?
     ) {
         // Debugging tip: You can print out a tree like this: ItemTree.prettyPrint(list)
@@ -275,8 +275,8 @@ class CodebaseComparator {
      * and dispatch to the appropriate method.
      */
     private fun dispatchToAddedOrCompareIfItemWasMoved(
-        new: Item,
-        oldParent: Item?,
+        new: SelectableItem,
+        oldParent: SelectableItem?,
         visitor: ComparisonVisitor,
     ) {
         // If it's a method, we may not have added a new method,
@@ -304,7 +304,7 @@ class CodebaseComparator {
     }
 
     /** Dispatch to the [Item] specific `added(...)` method. */
-    private fun dispatchToAdded(visitor: ComparisonVisitor, item: Item) {
+    private fun dispatchToAdded(visitor: ComparisonVisitor, item: SelectableItem) {
         visitor.addedItem(item)
 
         if (item is CallableItem) {
@@ -327,9 +327,9 @@ class CodebaseComparator {
      * and dispatch to the appropriate method.
      */
     private fun dispatchToRemovedOrCompareIfItemWasMoved(
-        old: Item,
+        old: SelectableItem,
         visitor: ComparisonVisitor,
-        newParent: Item?,
+        newParent: SelectableItem?,
         filter: Predicate<Item>?
     ) {
         // If it's a method, we may not have removed the method, we may have simply
@@ -382,7 +382,11 @@ class CodebaseComparator {
     }
 
     /** Dispatch to the [Item] specific `removed(...)` method. */
-    private fun dispatchToRemoved(visitor: ComparisonVisitor, item: Item, from: Item?) {
+    private fun dispatchToRemoved(
+        visitor: ComparisonVisitor,
+        item: SelectableItem,
+        from: SelectableItem?
+    ) {
         visitor.removedItem(item, from)
 
         if (item is CallableItem) {
@@ -401,7 +405,11 @@ class CodebaseComparator {
     }
 
     /** Dispatch to the [Item] specific `compare(...)` method. */
-    private fun dispatchToCompare(visitor: ComparisonVisitor, old: Item, new: Item) {
+    private fun dispatchToCompare(
+        visitor: ComparisonVisitor,
+        old: SelectableItem,
+        new: SelectableItem
+    ) {
         visitor.compareItems(old, new)
 
         if (old is CallableItem) {
@@ -424,7 +432,8 @@ class CodebaseComparator {
         }
     }
 
-    private fun compare(item1: Item, item2: Item): Int = comparator.compare(item1, item2)
+    private fun compare(item1: SelectableItem, item2: SelectableItem): Int =
+        comparator.compare(item1, item2)
 
     companion object {
         /** Sorting rank for types */
@@ -440,7 +449,7 @@ class CodebaseComparator {
             }
         }
 
-        val comparator: Comparator<Item> = Comparator { item1, item2 ->
+        val comparator: Comparator<SelectableItem> = Comparator { item1, item2 ->
             val typeSort = typeRank(item1) - typeRank(item2)
             when {
                 typeSort != 0 -> typeSort
@@ -625,8 +634,9 @@ class CodebaseComparator {
                         showUnannotated = true,
                     ) {
                     override fun visitItem(item: Item) {
-                        // Ignore ParameterItems, they will be compared when comparing methods.
-                        if (item is ParameterItem) return
+                        // Ignore ParameterItems (the only Item that is not also a SelectableItem),
+                        // they will be compared when comparing callables.
+                        if (item !is SelectableItem) return
 
                         val node = ItemTree(item)
                         val parent = stack.peek()
@@ -639,8 +649,9 @@ class CodebaseComparator {
                         if (acceptAll) true else super.include(cls)
 
                     override fun afterVisitItem(item: Item) {
-                        // Ignore ParameterItems, they will be compared when comparing methods.
-                        if (item is ParameterItem) return
+                        // Ignore ParameterItems (the only Item that is not also a SelectableItem),
+                        // they will be compared when comparing callables.
+                        if (item !is SelectableItem) return
 
                         stack.pop()
                     }
@@ -658,10 +669,10 @@ class CodebaseComparator {
         return root.children
     }
 
-    data class ItemTree(val item: Item?) : Comparable<ItemTree> {
+    data class ItemTree(val item: SelectableItem?) : Comparable<ItemTree> {
         val children: MutableList<ItemTree> = mutableListOf()
 
-        fun item(): Item =
+        fun item(): SelectableItem =
             item!! // Only the root note can be null, and this method should never be called on it
 
         override fun compareTo(other: ItemTree): Int {

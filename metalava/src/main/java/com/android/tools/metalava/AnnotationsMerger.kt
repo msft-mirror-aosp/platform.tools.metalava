@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.source.SourceParser
@@ -281,7 +282,7 @@ class AnnotationsMerger(
                     }
                 }
 
-                override fun removedItem(old: Item, from: Item?) {
+                override fun removedItem(old: SelectableItem, from: SelectableItem?) {
                     // Do not report missing items if there are no annotations to copy.
                     if (old.modifiers.annotations().isEmpty()) {
                         old.type()?.let { typeItem ->
