@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -322,7 +321,7 @@ class CodebaseComparator {
     }
 
     /**
-     * Checks to see whether [new] has actually been removed or if it was just moved from elsewhere
+     * Checks to see whether [old] has actually been removed or if it was just moved from elsewhere
      * and dispatch to the appropriate method.
      */
     private fun dispatchToRemovedOrCompareIfItemWasMoved(
@@ -443,9 +442,8 @@ class CodebaseComparator {
                 is FieldItem -> 3
                 is ClassItem -> 4
                 is ParameterItem -> 5
-                is AnnotationItem -> 6
-                is PropertyItem -> 7
-                else -> 8
+                is PropertyItem -> 6
+                else -> error("Unexpected item $item of ${item.javaClass}")
             }
         }
 
@@ -540,15 +538,10 @@ class CodebaseComparator {
                         is ParameterItem -> {
                             item1.parameterIndex.compareTo((item2 as ParameterItem).parameterIndex)
                         }
-                        is AnnotationItem -> {
-                            item1.qualifiedName.compareTo((item2 as AnnotationItem).qualifiedName)
-                        }
                         is PropertyItem -> {
                             item1.name().compareTo((item2 as PropertyItem).name())
                         }
-                        else -> {
-                            error("Unexpected item type ${item1.javaClass}")
-                        }
+                        else -> error("Unexpected item $item1 of ${item1.javaClass}")
                     }
             }
         }
