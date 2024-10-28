@@ -691,7 +691,13 @@ class DocAnalyzer(
                     visitParameterItems = false,
                     apiPredicateConfig = apiPredicateConfig,
                 ) {
-                override fun visitItem(item: Item) {
+                /**
+                 * Work around an issue with JavaDoc summary truncation.
+                 *
+                 * This is not called for [ParameterItem]s as they do not have their own summary
+                 * line that could become truncated.
+                 */
+                override fun visitSelectableItem(item: SelectableItem) {
                     item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
             }

@@ -35,10 +35,28 @@ open class BaseItemVisitor(
     protected val visitParameterItems: Boolean = true,
 ) : ItemVisitor {
     /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
-    protected inline fun <T : Item> callGenericItemVisitor(item: T, body: () -> Unit) {
+    protected inline fun <T : Item> wrapBodyWithCallsToVisitMethodsForItem(
+        item: T,
+        body: () -> Unit
+    ) {
         visitItem(item)
         body()
         afterVisitItem(item)
+    }
+
+    /**
+     * Calls [visitItem], then [visitSelectableItem] before invoking [body] after which it calls
+     * [afterVisitSelectableItem] and finally [afterVisitItem].
+     */
+    protected inline fun <T : SelectableItem> wrapBodyWithCallsToVisitMethodsForSelectableItem(
+        item: T,
+        body: () -> Unit
+    ) {
+        wrapBodyWithCallsToVisitMethodsForItem(item) {
+            visitSelectableItem(item)
+            body()
+            afterVisitSelectableItem(item)
+        }
     }
 
     override fun visit(cls: ClassItem) {
@@ -46,7 +64,7 @@ open class BaseItemVisitor(
             return
         }
 
-        callGenericItemVisitor(cls) {
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
             visitClass(cls)
 
             for (constructor in cls.constructors()) {
@@ -94,7 +112,7 @@ open class BaseItemVisitor(
             return
         }
 
-        callGenericItemVisitor(field) { visitField(field) }
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(field) { visitField(field) }
     }
 
     override fun visit(constructor: ConstructorItem) {
@@ -113,7 +131,7 @@ open class BaseItemVisitor(
             return
         }
 
-        callGenericItemVisitor(callable) {
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(callable) {
             visitCallable(callable)
 
             // Call the specific visitX method for the CallableItem subclass.
@@ -155,7 +173,7 @@ open class BaseItemVisitor(
             return
         }
 
-        callGenericItemVisitor(pkg) {
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
             visitPackage(pkg)
 
             for (cls in packageClassesAsSequence(pkg)) {
@@ -171,7 +189,7 @@ open class BaseItemVisitor(
             return
         }
 
-        callGenericItemVisitor(parameter) { visitParameter(parameter) }
+        wrapBodyWithCallsToVisitMethodsForItem(parameter) { visitParameter(parameter) }
     }
 
     override fun visit(property: PropertyItem) {
@@ -179,16 +197,25 @@ open class BaseItemVisitor(
             return
         }
 
-        callGenericItemVisitor(property) { visitProperty(property) }
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(property) { visitProperty(property) }
     }
 
     open fun skip(item: Item): Boolean = false
 
     /**
-     * Visits the item. This is always called before other more specialized visit methods, such as
-     * [visitClass].
+     * Visits any [Item].
+     *
+     * This is always called BEFORE other more specialized visit methods, such as [visitClass].
      */
     open fun visitItem(item: Item) {}
+
+    /**
+     * Visits any [SelectableItem], i.e. everything for which [visitItem] is called except
+     * [ParameterItem]s.
+     *
+     * This is always called BEFORE other more specialized visit methods, such as [visitClass].
+     */
+    open fun visitSelectableItem(item: SelectableItem) {}
 
     open fun visitCodebase(codebase: Codebase) {}
 
@@ -204,10 +231,24 @@ open class BaseItemVisitor(
 
     open fun visitField(field: FieldItem) {}
 
+    /** Visits a [ParameterItem]. */
     open fun visitParameter(parameter: ParameterItem) {}
 
     open fun visitProperty(property: PropertyItem) {}
 
+    /**
+     * Visits any [SelectableItem], i.e. everything for which [afterVisitItem] is called except
+     * [ParameterItem]s.
+     *
+     * This is always called AFTER other more specialized visit methods, such as [afterVisitClass].
+     */
+    open fun afterVisitSelectableItem(item: SelectableItem) {}
+
+    /**
+     * Visits any [Item], except for [TypeParameterItem].
+     *
+     * This is always called AFTER other more specialized visit methods, such as [afterVisitClass].
+     */
     open fun afterVisitItem(item: Item) {}
 
     open fun afterVisitCodebase(codebase: Codebase) {}

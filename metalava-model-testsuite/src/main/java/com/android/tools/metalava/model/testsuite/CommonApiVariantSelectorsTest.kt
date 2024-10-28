@@ -20,8 +20,8 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectors.TestableSelectorsState
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -402,7 +402,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         // visiting them.
                         visitParameterItems = false,
                     ) {
-                    override fun visitItem(item: Item) {
+                    override fun visitSelectableItem(item: SelectableItem) {
                         val name =
                             when (item) {
                                 is ClassItem -> item.simpleName()

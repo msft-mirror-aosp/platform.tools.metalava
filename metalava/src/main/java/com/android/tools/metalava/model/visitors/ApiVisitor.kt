@@ -27,11 +27,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 
 open class ApiVisitor(
-    /**
-     * Whether nested classes should be visited "inside" a class; when this property is true, nested
-     * classes are visited before the [#afterVisitClass] method is called; when false, it's done
-     * afterward. Defaults to false.
-     */
+    /** @see BaseItemVisitor.preserveClassNesting */
     preserveClassNesting: Boolean = false,
 
     /** @see BaseItemVisitor.visitParameterItems */
@@ -134,7 +130,7 @@ open class ApiVisitor(
         // If none of the classes in this package will be visited them ignore the package entirely.
         if (classesToVisitDirectly.isEmpty()) return
 
-        callGenericItemVisitor(pkg) {
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
             visitPackage(pkg)
 
             visitClassList(classesToVisitDirectly)
@@ -269,7 +265,7 @@ open class ApiVisitor(
         }
 
         fun visitWrappedClassAndFilteredMembers() {
-            callGenericItemVisitor(cls) {
+            wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
                 visitClass(cls)
 
                 for (constructor in constructors) {
