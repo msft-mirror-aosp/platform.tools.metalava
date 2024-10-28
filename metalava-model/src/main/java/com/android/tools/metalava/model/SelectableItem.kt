@@ -84,4 +84,11 @@ interface SelectableItem : Item {
 
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
+
+    /** Override to specialize return type. */
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ): SelectableItem?
 }
