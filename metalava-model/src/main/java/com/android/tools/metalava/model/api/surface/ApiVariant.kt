@@ -176,6 +176,11 @@ internal constructor(apiSurfaces: ApiSurfaces, override var bits: Int = 0) :
         bits = bits and variant.bitMask.inv()
     }
 
+    /** Clear the set. */
+    fun clear() {
+        bits = 0
+    }
+
     companion object {
 
         /** Create a [MutableApiVariantSet] for [apiSurfaces]. */

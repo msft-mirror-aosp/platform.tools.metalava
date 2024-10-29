@@ -82,6 +82,21 @@ class ApiVariantSetTest {
     }
 
     @Test
+    fun `Test clear`() {
+        val mutable = MutableApiVariantSet.setOf(apiSurfaces)
+
+        val mainCore = main.variantFor(ApiVariantType.CORE)
+        val baseCore = base.variantFor(ApiVariantType.CORE)
+
+        mutable.add(mainCore)
+        mutable.add(baseCore)
+
+        assertFalse(mutable.isEmpty(), "expected not empty before clear")
+        mutable.clear()
+        assertTrue(mutable.isEmpty(), "expected empty before clear")
+    }
+
+    @Test
     fun `Test mutable and immutable`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
 
