@@ -19,6 +19,7 @@ package com.android.tools.metalava.cli.compatibility
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.SignatureBasedApi
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -126,7 +127,11 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
+                            previouslyReleasedApi =
+                                SignatureBasedApi.fromFiles(
+                                    listOf(file),
+                                    apiVariantType = ApiVariantType.REMOVED,
+                                ),
                             apiType = ApiType.REMOVED,
                         ),
                     )

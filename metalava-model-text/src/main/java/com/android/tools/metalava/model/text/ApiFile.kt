@@ -49,6 +49,9 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -82,6 +85,27 @@ sealed interface SignatureFile {
     val forMainApiSurface: Boolean
         get() = true
 
+    /** The [ApiVariantType] of the signature files. */
+    val apiVariantType: ApiVariantType
+        get() = ApiVariantType.CORE
+
+    /**
+     * Get the [ApiVariant] that this signature file represents.
+     *
+     * If [forMainApiSurface] is `false` then [apiSurfaces] must provide a non-null value for
+     * [ApiSurfaces.base]. An exception will be thrown if it is not.
+     *
+     * @param apiSurfaces the [ApiSurfaces] the returned [Codebase] is required to support.
+     */
+    fun apiVariantFor(apiSurfaces: ApiSurfaces): ApiVariant {
+        val apiSurface =
+            if (forMainApiSurface) apiSurfaces.main
+            else
+                apiSurfaces.base
+                    ?: error("$file expects a base API surface to be available but it is not")
+        return apiSurface.variantFor(apiVariantType)
+    }
+
     /** Read the contents of this signature file. */
     fun readContents(): String
 
@@ -98,18 +122,22 @@ sealed interface SignatureFile {
          * Create a list of [SignatureFile]s from a list of [File]s.
          *
          * @param files the list of [File]s.
+         * @param apiVariantTypeChooser A lambda that will be called with the [File] of each item in
+         *   [files] and whose return value will be stored in [SignatureFile.apiVariantType].
          * @param forMainApiSurfacePredicate A predicate that will be called with the index and
          *   [File] of each item in [files] and whose return value will be stored in
          *   [SignatureFile.forMainApiSurface].
          */
         fun fromFiles(
             files: List<File>,
+            apiVariantTypeChooser: (File) -> ApiVariantType = { ApiVariantType.CORE },
             forMainApiSurfacePredicate: (Int, File) -> Boolean = { _, _ -> true },
         ): List<SignatureFile> =
             files.mapIndexed { index, file ->
                 SignatureFileFromFile(
                     file,
                     forMainApiSurface = forMainApiSurfacePredicate(index, file),
+                    apiVariantType = apiVariantTypeChooser(file),
                 )
             }
 
@@ -133,6 +161,7 @@ sealed interface SignatureFile {
     private data class SignatureFileFromFile(
         override val file: File,
         override val forMainApiSurface: Boolean = true,
+        override val apiVariantType: ApiVariantType = ApiVariantType.CORE,
     ) : SignatureFile {
         override fun readContents() =
             try {
