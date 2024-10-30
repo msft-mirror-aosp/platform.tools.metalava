@@ -233,14 +233,6 @@ private constructor(
     lateinit var format: FileFormat
 
     /**
-     * Indicates whether the file currently being parsed is for the main API surface, i.e. the one
-     * that is being created.
-     *
-     * See [SignatureFile.forMainApiSurface].
-     */
-    private var forMainApiSurface: Boolean = true
-
-    /**
      * The [ApiVariant] which is defined within the current signature file being parsed.
      *
      * Set in [parseApiSingleFile].
@@ -304,7 +296,6 @@ private constructor(
                     appending = !first,
                     path = file.toPath(),
                     apiText = apiText,
-                    forMainApiSurface = signatureFile.forMainApiSurface,
                     apiVariant = apiVariant,
                 )
                 first = false
@@ -387,7 +378,7 @@ private constructor(
      * [SelectableItem]s which have been created from the main signature file.
      */
     private fun SelectableItem.markForMainApiSurface() {
-        emit = forMainApiSurface
+        emit = apiVariant.surface.isMain
         markSelectedApiVariant()
     }
 
@@ -416,7 +407,7 @@ private constructor(
      * behavior irrespective of the order.
      */
     private fun ClassItem.markExistingClassForMainApiSurface() {
-        if (!emit && forMainApiSurface) {
+        if (!emit && apiVariant.surface.isMain) {
             markForMainApiSurface()
         }
 
@@ -430,7 +421,6 @@ private constructor(
         appending: Boolean,
         path: Path,
         apiText: String,
-        forMainApiSurface: Boolean = true,
         apiVariant: ApiVariant,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
@@ -454,10 +444,6 @@ private constructor(
                 return
             }
         }
-
-        // Remember whether the file being parsed is for the main API surface, so that Items
-        // created from it can be marked correctly.
-        this.forMainApiSurface = forMainApiSurface
 
         // Remember the API variant of the file being parsed.
         this.apiVariant = apiVariant
