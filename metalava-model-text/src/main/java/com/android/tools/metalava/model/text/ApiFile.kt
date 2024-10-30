@@ -73,20 +73,20 @@ import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
 /** Encapsulates information needed to process a signature file. */
-sealed interface SignatureFile {
+sealed class SignatureFile {
     /** The underlying signature [File]. */
-    val file: File
+    abstract val file: File
 
     /**
      * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
      *
      * This will be stored in [Item.emit].
      */
-    val forMainApiSurface: Boolean
+    protected open val forMainApiSurface: Boolean
         get() = true
 
     /** The [ApiVariantType] of the signature files. */
-    val apiVariantType: ApiVariantType
+    protected open val apiVariantType: ApiVariantType
         get() = ApiVariantType.CORE
 
     /**
@@ -107,7 +107,7 @@ sealed interface SignatureFile {
     }
 
     /** Read the contents of this signature file. */
-    fun readContents(): String
+    abstract fun readContents(): String
 
     companion object {
         /** Create a list of [SignatureFile]s from a varargs array of [File]s. */
@@ -162,7 +162,7 @@ sealed interface SignatureFile {
         override val file: File,
         override val forMainApiSurface: Boolean = true,
         override val apiVariantType: ApiVariantType = ApiVariantType.CORE,
-    ) : SignatureFile {
+    ) : SignatureFile() {
         override fun readContents() =
             try {
                 file.readText(UTF_8)
@@ -179,7 +179,7 @@ sealed interface SignatureFile {
     private data class SignatureFileFromStream(
         override val file: File,
         val inputStream: InputStream,
-    ) : SignatureFile {
+    ) : SignatureFile() {
         override fun readContents() = inputStream.bufferedReader().readText()
     }
 
@@ -187,7 +187,7 @@ sealed interface SignatureFile {
     private data class SignatureFileFromText(
         override val file: File,
         val contents: String,
-    ) : SignatureFile {
+    ) : SignatureFile() {
         override fun readContents() = contents
     }
 }
