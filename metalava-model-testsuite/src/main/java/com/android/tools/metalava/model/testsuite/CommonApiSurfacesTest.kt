@@ -23,6 +23,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.junit.Test
 
+@Suppress("JavadocDeclaration")
 class CommonApiSurfacesTest : BaseModelTest() {
 
     @Test
@@ -128,6 +129,58 @@ class CommonApiSurfacesTest : BaseModelTest() {
                 "ApiVariantSet[main(D)]",
                 testClass.selectedApiVariants.toString(),
                 "mutated selectedApiVariants"
+            )
+        }
+    }
+
+    @Test
+    fun `Test updating selectedApiVariants`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Test {
+                            ctor public Test();
+                            field public int field;
+                            method public void foo(int);
+                          }
+                          public static class Test.Nested {
+                            ctor public Test.Nested();
+                          }
+                        }
+                    """
+                ),
+                signature(
+                    "removed.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Test {
+                            field public int removed;
+                          }
+                          public static class Test.Removed {
+                            ctor public Test.Removed();
+                          }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            codebase.assertSelectedApiVariants(
+                """
+                    package test.pkg - ApiVariantSet[]
+                      class test.pkg.Test - ApiVariantSet[]
+                        constructor test.pkg.Test() - ApiVariantSet[]
+                        method test.pkg.Test.foo(int) - ApiVariantSet[]
+                        field test.pkg.Test.field - ApiVariantSet[]
+                        field test.pkg.Test.removed - ApiVariantSet[]
+                        class test.pkg.Test.Nested - ApiVariantSet[]
+                          constructor test.pkg.Test.Nested() - ApiVariantSet[]
+                        class test.pkg.Test.Removed - ApiVariantSet[]
+                          constructor test.pkg.Test.Removed() - ApiVariantSet[]
+                """
             )
         }
     }
