@@ -513,13 +513,15 @@ abstract class DefaultTypeItem(
                         }
                         append(type.className)
                     } else {
+                        // Get the class name prefix, i.e. the part before the class's simple name
+                        // where annotations can be placed. e.g. for java.lang.String the simple
+                        // name is `String` and the prefix is `java.lang.`.
+                        val classNamePrefix = type.classNamePrefix
+                        append(classNamePrefix)
                         if (configuration.annotations) {
-                            append(type.qualifiedName.substringBeforeLast(type.className))
                             appendAnnotations(type.modifiers, configuration)
-                            append(type.className)
-                        } else {
-                            append(type.qualifiedName)
                         }
+                        append(type.className)
                     }
 
                     if (type.arguments.isNotEmpty()) {
@@ -944,6 +946,21 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      * "test.pkg.Outer.Inner".
      */
     val className: String
+
+    /**
+     * Get the class name prefix, i.e. the part before [className] and after which type use
+     * annotations, if any will appear.
+     *
+     * e.g. for `java.lang.String`, [className] is `String` and the prefix is `java.lang.`. For
+     * `java.util.Map.Entry` [className] is `Entry` and the prefix is `java.util.Map.`.
+     *
+     * This is the value such that [classNamePrefix] + [className] == [qualifiedName].
+     */
+    val classNamePrefix: String
+        get() {
+            val classNamePrefixEnd = qualifiedName.length - className.length
+            return qualifiedName.substring(0, classNamePrefixEnd)
+        }
 
     override val erasedClass: ClassItem?
         get() = asClass()
