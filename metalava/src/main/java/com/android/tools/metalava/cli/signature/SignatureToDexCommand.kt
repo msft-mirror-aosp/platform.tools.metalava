@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
@@ -24,9 +25,8 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.createReportFile
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -61,14 +61,13 @@ class SignatureToDexCommand :
         // property.
         OptionsDelegate.disallowAccess()
 
-        val signatureFileLoader = SignatureFileLoader(annotationManager = noOpAnnotationManager)
+        val codebaseConfig = Codebase.Config.NOOP
+        val signatureFileLoader = SignatureFileLoader(codebaseConfig)
         val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFiles))
 
-        val apiVisitorConfig = ApiVisitor.Config()
-        val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
+        val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
+        val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
         createReportFile(progressTracker, signatureApi, outFile, "DEX API") { printWriter ->
             DexApiWriter(
@@ -78,10 +77,8 @@ class SignatureToDexCommand :
                     FilteringApiVisitor(
                         dexApiWriter,
                         inlineInheritedFields = true,
-                        filterEmit = apiEmit,
-                        filterReference = apiReference,
+                        apiFilters = apiFilters,
                         preFiltered = signatureApi.preFiltered,
-                        config = apiVisitorConfig,
                     )
                 }
         }

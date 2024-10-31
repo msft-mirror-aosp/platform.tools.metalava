@@ -21,6 +21,7 @@ import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
@@ -32,10 +33,10 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
@@ -43,13 +44,13 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.Locale
-import java.util.function.Predicate
 
 /**
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
@@ -119,26 +120,39 @@ class ApiAnalyzer(
     // Warn about @DefaultValue("null"); they probably meant @DefaultNull
     // Supplying default parameter in override is not allowed!
 
-    fun generateInheritedStubs(filterEmit: Predicate<Item>, filterReference: Predicate<Item>) {
+    fun generateInheritedStubs(filterEmit: FilterPredicate, filterReference: FilterPredicate) {
         // When analyzing libraries we may discover some new classes during traversal; these aren't
         // part of the API but may be super classes or interfaces; these will then be added into the
         // package class lists, which could trigger a concurrent modification, so create a snapshot
         // of the class list and iterate over it:
         val allClasses = packages.allClasses().toList()
-        allClasses.forEach {
-            if (filterEmit.test(it)) {
-                generateInheritedStubs(it, filterEmit, filterReference)
-            }
-        }
+
+        val visited = mutableSetOf<ClassItem>()
+        allClasses.forEach { generateInheritedStubs(it, filterEmit, filterReference, visited) }
     }
 
     private fun generateInheritedStubs(
         cls: ClassItem,
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>
+        filterEmit: FilterPredicate,
+        filterReference: FilterPredicate,
+        visited: MutableSet<ClassItem>,
     ) {
+        // If it is not a class, i.e. an interface, etc., then return.
         if (!cls.isClass()) return
-        if (cls.superClass() == null) return
+
+        // If already visited this class then ignore it. Otherwise, remember that this was visited.
+        if (cls in visited) return
+        visited += cls
+
+        // If it has no super class then ignore it.
+        val superClass = cls.superClass() ?: return
+
+        // If the class is not going to be emitted then do not inherit any methods into it.
+        if (!filterEmit.test(cls)) return
+
+        // Make sure that the super class has inherited the stubs and interfaces.
+        generateInheritedStubs(superClass, filterEmit, filterReference, visited)
+
         val allSuperClasses = cls.allSuperClasses()
         val hiddenSuperClasses =
             allSuperClasses.filter { !filterReference.test(it) && !it.isJavaLangObject() }
@@ -154,7 +168,7 @@ class ApiAnalyzer(
     private fun addInheritedInterfacesFrom(
         cls: ClassItem,
         hiddenSuperClasses: Sequence<ClassItem>,
-        filterReference: Predicate<Item>
+        filterReference: FilterPredicate
     ) {
         var interfaceTypes: MutableList<ClassTypeItem>? = null
         var interfaceTypeClasses: MutableList<ClassItem>? = null
@@ -196,8 +210,8 @@ class ApiAnalyzer(
         cls: ClassItem,
         hiddenSuperClasses: Sequence<ClassItem>,
         superClasses: Sequence<ClassItem>,
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>
+        filterEmit: FilterPredicate,
+        filterReference: FilterPredicate
     ) {
         // Also generate stubs for any methods we would have inherited from abstract parents
         // All methods from super classes that (1) aren't overridden in this class already, and
@@ -209,19 +223,11 @@ class ApiAnalyzer(
         // doesn't actually implement the interface, but still provides a matching signature for the
         // interface. Instead, we'll look through all of our interface methods and look for
         // potential overrides.
-        val interfaceNames = mutableMapOf<String, MutableList<MethodItem>>()
+        val inheritableMethods = MethodItemSet()
         for (interfaceType in interfaces) {
             val interfaceClass = interfaceType.asClass() ?: continue
             for (method in interfaceClass.methods()) {
-                val name = method.name()
-                val list =
-                    interfaceNames[name]
-                        ?: run {
-                            val list = ArrayList<MethodItem>()
-                            interfaceNames[name] = list
-                            list
-                        }
-                list.add(method)
+                inheritableMethods.add(method)
             }
         }
 
@@ -233,15 +239,7 @@ class ApiAnalyzer(
                 if (!method.modifiers.isAbstract() || !method.modifiers.isPublicOrProtected()) {
                     continue
                 }
-                val name = method.name()
-                val list =
-                    interfaceNames[name]
-                        ?: run {
-                            val list = ArrayList<MethodItem>()
-                            interfaceNames[name] = list
-                            list
-                        }
-                list.add(method)
+                inheritableMethods.add(method)
             }
         }
 
@@ -270,46 +268,22 @@ class ApiAnalyzer(
                     continue
                 }
 
-                val name = method.name()
-                val list =
-                    interfaceNames[name]
-                        ?: run {
-                            val list = ArrayList<MethodItem>()
-                            interfaceNames[name] = list
-                            list
-                        }
-                list.add(method)
+                inheritableMethods.add(method)
             }
         }
 
-        // Find all methods that are inherited from these classes into our class
-        // (making sure that we don't have duplicates, e.g. a method defined by one
-        // inherited class and then overridden by another closer one).
-        // map from method name to super methods overriding our interfaces
-        val map = HashMap<String, MutableList<MethodItem>>()
+        // Find all methods that are inherited from these classes into our class (making sure that
+        // we don't have duplicates, e.g. a method defined by one inherited class and then
+        // overridden by another closer one). map from method name to super methods overriding our
+        // interfaces
+        val inheritedMethods = MethodItemSet()
 
         for (superClass in hiddenSuperClasses) {
             for (method in superClass.methods()) {
                 val modifiers = method.modifiers
                 if (!modifiers.isPrivate() && !modifiers.isAbstract()) {
-                    val name = method.name()
-                    val candidates = interfaceNames[name] ?: continue
-                    val parameterCount = method.parameters().size
-                    for (superMethod in candidates) {
-                        if (parameterCount != superMethod.parameters().count()) {
-                            continue
-                        }
-                        if (method.matches(superMethod)) {
-                            val list =
-                                map[name]
-                                    ?: run {
-                                        val newList = ArrayList<MethodItem>()
-                                        map[name] = newList
-                                        newList
-                                    }
-                            list.add(method)
-                            break
-                        }
+                    if (inheritableMethods.containsMatchingMethod(method)) {
+                        inheritedMethods.add(method)
                     }
                 }
             }
@@ -317,21 +291,12 @@ class ApiAnalyzer(
 
         // Remove any methods that are overriding any of our existing methods
         for (method in cls.methods()) {
-            val name = method.name()
-            val candidates = map[name] ?: continue
-            val iterator = candidates.listIterator()
-            while (iterator.hasNext()) {
-                val inheritedMethod = iterator.next()
-                if (method.matches(inheritedMethod)) {
-                    iterator.remove()
-                }
-            }
+            inheritedMethods.removeMatchingMethods(method)
         }
 
         // Next remove any overrides among the remaining super methods (e.g. one method from a
-        // hidden parent is
-        // overriding another method from a more distant hidden parent).
-        map.values.forEach { methods ->
+        // hidden parent is overriding another method from a more distant hidden parent).
+        inheritedMethods.values.forEach { methods ->
             if (methods.size >= 2) {
                 for (candidate in ArrayList(methods)) {
                     for (superMethod in candidate.allSuperMethods()) {
@@ -341,22 +306,15 @@ class ApiAnalyzer(
             }
         }
 
-        val existingMethodMap = HashMap<String, MutableList<MethodItem>>()
+        // Add all the existing methods in the class to the set of existing methods.
+        val existingMethods = MethodItemSet()
         for (method in cls.methods()) {
-            val name = method.name()
-            val list =
-                existingMethodMap[name]
-                    ?: run {
-                        val newList = ArrayList<MethodItem>()
-                        existingMethodMap[name] = newList
-                        newList
-                    }
-            list.add(method)
+            existingMethods.add(method)
         }
 
         // We're now left with concrete methods in hidden parents that are implementing methods in
         // public interfaces that are listed in this class. Create stubs for them:
-        map.values.flatten().forEach {
+        inheritedMethods.values.flatten().forEach {
             // Copy the method from the hidden class that is not part of the API into the class that
             // is part of the API.
             val method = it.duplicate(cls)
@@ -366,21 +324,15 @@ class ApiAnalyzer(
                     method.documentation
              */
 
-            val name = method.name()
-            val candidates = existingMethodMap[name]
-            if (candidates != null) {
-                val iterator = candidates.listIterator()
-                while (iterator.hasNext()) {
-                    val inheritedMethod = iterator.next()
-                    if (method.matches(inheritedMethod)) {
-                        // If we already have an override of this method, do not add it to the
-                        // methods list
-                        return@forEach
-                    }
-                }
+            // If we already have an override of this method, do not add it to the methods list
+            if (existingMethods.containsMatchingMethod(method)) {
+                return@forEach
             }
 
             cls.addMethod(method)
+
+            // Make sure that the same method is not added from multiple super classes.
+            existingMethods.add(method)
         }
     }
 
@@ -443,22 +395,14 @@ class ApiAnalyzer(
         // level classes and then propagate them, and removed status, down onto the nested classes
         // and members.
         val visitor =
-            object : BaseItemVisitor(preserveClassNesting = true) {
-
-                override fun visitPackage(pkg: PackageItem) {
-                    pkg.variantSelectors.inheritInto()
-                }
-
-                override fun visitClass(cls: ClassItem) {
-                    cls.variantSelectors.inheritInto()
-                }
-
-                override fun visitCallable(callable: CallableItem) {
-                    callable.variantSelectors.inheritInto()
-                }
-
-                override fun visitField(field: FieldItem) {
-                    field.variantSelectors.inheritInto()
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                    // Only SelectableItems can have variantSelectors.
+                    visitParameterItems = false,
+                ) {
+                override fun visitSelectableItem(item: SelectableItem) {
+                    item.variantSelectors.inheritInto()
                 }
             }
 
@@ -567,20 +511,21 @@ class ApiAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                 ) {
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
                 }
 
-                override fun visitItem(item: Item) {
-                    // None of the checks in this apply to [ParameterItem]. The deprecation checks
-                    // do not apply as there is no way to provide an `@deprecation` tag in Javadoc
-                    // for parameters. The unhidden showability annotation check
-                    // ('UnhiddemSystemApi`) does not apply as you cannot annotation a
-                    // [ParameterItem] with a showability annotation.
-                    if (item is ParameterItem) return
-
+                /**
+                 * Visit all [SelectableItem]s, i.e. all [Item]s apart from [ParameterItem]s.
+                 *
+                 * None of the checks in this apply to [ParameterItem]. The deprecation checks do
+                 * not apply as there is no way to provide an `@deprecation` tag in Javadoc for
+                 * parameters. The unhidden showability annotation check ('UnhiddemSystemApi`) does
+                 * not apply as you cannot annotate a [ParameterItem] with a showability annotation.
+                 */
+                override fun visitSelectableItem(item: SelectableItem) {
                     if (
                         item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
@@ -607,7 +552,7 @@ class ApiAnalyzer(
                         val deprecatedForSdk =
                             item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
                         if (deprecatedForSdk != null) {
-                            if (item.documentation.contains("@deprecated")) {
+                            if (item.documentation.hasTagSection("@deprecated")) {
                                 reporter.report(
                                     Issues.DEPRECATION_MISMATCH,
                                     item,
@@ -791,7 +736,7 @@ class ApiAnalyzer(
 
     private fun cantStripThis(
         cl: ClassItem,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
         from: Item,
         usage: String
@@ -816,16 +761,16 @@ class ApiAnalyzer(
             return
         }
 
-        // cant strip any public fields or their generics
+        // can't strip any public fields or their generics
         for (field in cl.fields()) {
             if (!filter.test(field)) {
                 continue
             }
             cantStripThis(field.type(), field, filter, notStrippable, "in field type")
         }
-        // cant strip any of the type's generics
+        // can't strip any of the type's generics
         cantStripThis(cl.typeParameterList, filter, notStrippable, cl)
-        // cant strip any of the annotation elements
+        // can't strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
         cantStripThis(cl.methods(), filter, notStrippable)
@@ -884,7 +829,7 @@ class ApiAnalyzer(
 
     private fun cantStripThis(
         callables: List<CallableItem>,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
     ) {
         // for each callable, blow open the parameters, throws and return types. also blow open
@@ -914,7 +859,7 @@ class ApiAnalyzer(
 
     private fun cantStripThis(
         typeParameterList: TypeParameterList,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
         context: Item
     ) {
@@ -928,7 +873,7 @@ class ApiAnalyzer(
     private fun cantStripThis(
         type: TypeItem,
         context: Item,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
         usage: String,
     ) {
@@ -1045,4 +990,52 @@ private fun Item.documentationContainsDeprecated(): Boolean {
         return superMethods().any { it.documentationContainsDeprecated() }
     }
     return false
+}
+
+/**
+ * A set of [MethodItem]s.
+ *
+ * This is implemented as a [MutableMap] from the [MethodItem.name] to the list of [MethodItem]s
+ * with that name.
+ */
+private typealias MethodItemSet = HashMap<String, MutableList<MethodItem>>
+
+/**
+ * Add a method to the set.
+ *
+ * This does not check to see if the [MethodItem] exists already so it is possible that it will
+ * contain duplicate methods.
+ */
+private fun MethodItemSet.add(method: MethodItem) {
+    val name = method.name()
+    val list = computeIfAbsent(name) { mutableListOf() }
+    list.add(method)
+}
+
+/**
+ * Check to see whether the set contains a method that matches [method] as determined by
+ * [MethodItem.matches].
+ */
+private fun MethodItemSet.containsMatchingMethod(method: MethodItem): Boolean {
+    val name = method.name()
+    val list = this[name] ?: return false
+    for (existing in list) {
+        if (method.matches(existing)) {
+            return true
+        }
+    }
+    return false
+}
+
+/** Remove any method that matches [method] as determined by [MethodItem.matches]. */
+private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
+    val name = method.name()
+    val list = this[name] ?: return
+    val iterator = list.listIterator()
+    while (iterator.hasNext()) {
+        val existing = iterator.next()
+        if (method.matches(existing)) {
+            iterator.remove()
+        }
+    }
 }

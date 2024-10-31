@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -49,11 +50,13 @@ class AndroidApiChecks(val reporter: Reporter) {
         packageItem.accept(
             object :
                 ApiVisitor(
-                    // Sort by source order such that warnings follow source line number order
-                    callableComparator = CallableItem.sourceOrderComparator,
-                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                 ) {
-                override fun visitItem(item: Item) {
+
+                override fun visitSelectableItem(item: SelectableItem) {
+                    // TODOs are only checked on [Item]s with documentation and [ParameterItem]s
+                    // do not have any. Documentation for parameters is stored within the containing
+                    // callable in @param sections.
                     checkTodos(item)
                 }
 
@@ -212,9 +215,10 @@ class AndroidApiChecks(val reporter: Reporter) {
                 }
             }
             for (item in permissions) {
-                var perm = item
-                if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
-                val mentioned = text.contains(perm)
+                val perm = item.substringAfterLast('.')
+                // Search for the permission name as a whole word.
+                val regex = Regex("""\b\Q$perm\E\b""")
+                val mentioned = text.contains(regex)
                 if (mentioned && !conditional) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
