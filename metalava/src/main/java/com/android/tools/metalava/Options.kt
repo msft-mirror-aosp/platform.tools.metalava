@@ -24,6 +24,7 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
@@ -36,8 +37,6 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
@@ -46,15 +45,19 @@ import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
@@ -187,7 +190,6 @@ const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -195,8 +197,8 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
-
 const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
@@ -293,7 +295,7 @@ class Options(
      * (Copyright notices are not affected by this, they are always included. Documentation stubs
      * (--doc-stubs) are not affected.)
      */
-    var includeDocumentationInStubs = true
+    private var includeDocumentationInStubs = true
 
     /**
      * Enhance documentation in various ways, for example auto-generating documentation based on
@@ -320,7 +322,10 @@ class Options(
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
-    val configFiles by
+    /** Lint project description that describes project's module structure in details */
+    var projectDescription: File? = null
+
+    private val configFiles by
         option(
                 ARG_CONFIG_FILE,
                 help =
@@ -355,17 +360,17 @@ class Options(
      */
     var showUnannotated = false
 
-    /** Packages to include (if null, include all) */
-    private var stubPackages: PackageFilter? = null
+    /** Packages to include in the API (if null, include all) */
+    val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
     /**
      * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
-     * [Item]s that do not match the [stubPackages] filter. If no [stubPackages] filter is provided
+     * [Item]s that do not match the [apiPackages] filter. If no [apiPackages] filter is provided
      * then this will be `null`.
      */
     private val reportableFilter: Predicate<Reportable>? by
         lazy(LazyThreadSafetyMode.NONE) {
-            stubPackages?.let { packageFilter ->
+            apiPackages?.let { packageFilter ->
                 Predicate { reportable ->
                     // If we are only emitting some packages (--stub-packages), don't report
                     // issues from other packages
@@ -383,12 +388,12 @@ class Options(
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to hide */
-    val hideAnnotations by lazy(hideAnnotationsBuilder::build)
+    private val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
     /** Annotations to revert */
     val revertAnnotations by lazy(revertAnnotationsBuilder::build)
 
-    val annotationManager: AnnotationManager by lazy {
+    private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
@@ -409,7 +414,19 @@ class Options(
         )
     }
 
-    internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
+    internal val codebaseConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            Codebase.Config(
+                annotationManager = annotationManager,
+                reporter = reporter,
+            )
+        }
+
+    internal val signatureFileLoader by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileLoader(codebaseConfig) }
+
+    internal val signatureFileCache by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     private val suppressCompatibilityMetaAnnotations by
@@ -436,14 +453,6 @@ class Options(
      * removed and no classes will be allowed from the classpath JARs.
      */
     private var allowClassesFromClasspath = true
-
-    /** The configuration options for the [ApiVisitor] class. */
-    val apiVisitorConfig by lazy {
-        ApiVisitor.Config(
-            packageFilter = stubPackages,
-            apiPredicateConfig = apiPredicateConfig,
-        )
-    }
 
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {
@@ -498,7 +507,7 @@ class Options(
     var docStubsDir: File? = null
 
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
-    var kotlinStubs = false
+    private var kotlinStubs = false
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -506,9 +515,6 @@ class Options(
     val apiFile by signatureFileOptions::apiFile
     val removedApiFile by signatureFileOptions::removedApiFile
     val signatureFileFormat by signatureFormatOptions::fileFormat
-
-    /** Like [apiFile], but with JDiff xml format. */
-    var apiXmlFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -563,7 +569,7 @@ class Options(
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                     ARG_MIGRATE_NULLNESS,
                     it,
-                    onlyUseLastForCurrentApiSurface = false
+                    onlyUseLastForMainApiSurface = false
                 )
             }
 
@@ -657,14 +663,6 @@ class Options(
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     lateinit var reporter: Reporter
         private set
-
-    /**
-     * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
-     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED]).
-     *
-     * Initialized in [parse].
-     */
-    private lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -799,17 +797,6 @@ class Options(
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_STUB_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    val filter =
-                        stubPackages
-                            ?: run {
-                                val newFilter = PackageFilter()
-                                stubPackages = newFilter
-                                newFilter
-                            }
-                    filter.addPackages(packages)
-                }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
@@ -890,6 +877,9 @@ class Options(
                     compileSdkVersion = getValue(args, ++index)
                 }
                 ARG_USE_K2_UAST -> useK2Uast = true
+                ARG_PROJECT -> {
+                    projectDescription = stringToExistingFile(getValue(args, ++index))
+                }
                 ARG_SDK_JAR_ROOT -> {
                     sdkJarRoot = stringToExistingDir(getValue(args, ++index))
                 }
@@ -1235,6 +1225,8 @@ object OptionsHelp {
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                     "source files",
+                "$ARG_PROJECT <xmlfile>",
+                "Project description written in XML according to Lint's project model.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
                 "An external annotations file to merge and overlay " +
                     "the sources, or a directory of such files. Should be used for annotations intended for " +
@@ -1273,12 +1265,6 @@ object OptionsHelp {
                 "Use the given API level",
                 "$ARG_JDK_HOME <dir>",
                 "If set, add the Java APIs from the given JDK to the classpath",
-                "$ARG_STUB_PACKAGES <package-list>",
-                "List of packages (separated by ${File.pathSeparator}) which will " +
-                    "be used to filter out irrelevant code. If specified, only code in these packages will be " +
-                    "included in signature files, stubs, etc. (This is not limited to just the stubs; the name " +
-                    "is historical.) You can also use \".*\" at the end to match subpackages, so `foo.*` will " +
-                    "match both `foo` and `foo.bar`.",
                 "$ARG_SUBTRACT_API <api file>",
                 "Subtracts the API in the given signature or jar file from the " +
                     "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +

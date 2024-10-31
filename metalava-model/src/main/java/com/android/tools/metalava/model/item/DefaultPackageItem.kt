@@ -36,7 +36,7 @@ open class DefaultPackageItem(
     val containingPackage: PackageItem?,
     override val overviewDocumentation: ResourceFile?,
 ) :
-    DefaultItem(
+    DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
