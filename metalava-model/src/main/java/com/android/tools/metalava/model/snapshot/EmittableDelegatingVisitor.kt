@@ -19,18 +19,18 @@ package com.android.tools.metalava.model.snapshot
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
 
 /**
- * A [BaseItemVisitor] that will delegate to [delegate] but skip [Item]s whose [Item.emit] property
- * is `false`.
+ * A [BaseItemVisitor] that will delegate to [delegate] only for [Item]'s whose [emit] is `true`.
  *
  * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
  * property.
  */
-class NonEmittableDelegatingVisitor(private val delegate: DelegatedVisitor) :
+class EmittableDelegatingVisitor(private val delegate: DelegatedVisitor) :
     NonFilteringDelegatingVisitor(delegate) {
 
     override fun skip(item: Item): Boolean {
-        return !item.emit
+        return item !is SelectableItem || !item.emit
     }
 }
