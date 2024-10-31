@@ -396,14 +396,21 @@ abstract class DefaultTypeItem(
         // Cache the default type string. Other configurations are less likely to be reused.
         return if (configuration.isDefault) {
             if (!::cachedDefaultType.isInitialized) {
-                cachedDefaultType = buildString {
-                    appendTypeString(this@DefaultTypeItem, configuration)
-                }
+                cachedDefaultType = generateTypeString(configuration)
             }
             cachedDefaultType
         } else {
-            buildString { appendTypeString(this@DefaultTypeItem, configuration) }
+            generateTypeString(configuration)
         }
+    }
+
+    /**
+     * Generate a string representation of this type based on [configuration].
+     *
+     * The returned value will be cached if the [configuration] is the default.
+     */
+    private fun generateTypeString(configuration: TypeStringConfiguration) = buildString {
+        appendTypeString(this@DefaultTypeItem, configuration)
     }
 
     override fun toErasedTypeString(): String {
