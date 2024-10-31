@@ -35,7 +35,7 @@ abstract class DefaultMemberItem(
     private val name: String,
     private val containingClass: ClassItem,
 ) :
-    DefaultItem(
+    DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,

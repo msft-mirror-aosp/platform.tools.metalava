@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.Item
-import java.util.function.Predicate
+import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.visitors.ApiFilters
 
 /** Types of APIs emitted (or parsed etc.) */
 enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
     PUBLIC_API("api", "public") {
 
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
             return ApiPredicate(
@@ -33,7 +33,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             )
         }
 
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
             return ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
         }
     },
@@ -41,7 +41,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The API that has been removed */
     REMOVED("removed", "removed") {
 
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
             return ApiPredicate(
@@ -51,7 +51,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             )
         }
 
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
             return ApiPredicate(
                 ignoreRemoved = true,
                 config = apiPredicateConfig.copy(ignoreShown = true),
@@ -62,40 +62,68 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** Everything */
     ALL("all", "all") {
 
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-            return Predicate { it.emit }
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+            return FilterPredicate { it.emit }
         }
 
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-            return Predicate { it.emit }
+        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+            return FilterPredicate { it.emit }
         }
 
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-            return Predicate { true }
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+            return FilterPredicate { true }
         }
     };
 
-    abstract fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
+    protected abstract fun getNonElidingFilter(
+        apiPredicateConfig: ApiPredicate.Config
+    ): FilterPredicate
 
-    open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-        val nonElidingFilter = FilterPredicate(getNonElidingFilter(apiPredicateConfig))
+    open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+        val nonElidingFilter =
+            MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig))
         val referenceFilter = getReferenceFilter(apiPredicateConfig)
         return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
     }
 
-    abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
+    abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate
 
     /**
      * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
      * [apiPredicateConfig].
      */
     protected fun elidingPredicate(
-        wrappedPredicate: Predicate<Item>,
+        wrappedPredicate: FilterPredicate,
         apiPredicateConfig: ApiPredicate.Config
     ) =
         ElidingPredicate(
             wrappedPredicate,
             addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
+        )
+
+    /**
+     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
+     * customize their behavior.
+     *
+     * The returned [ApiFilters.emit] will elide methods overrides that match the overridden method.
+     */
+    fun getApiFilters(apiPredicateConfig: ApiPredicate.Config) =
+        ApiFilters(
+            emit = getEmitFilter(apiPredicateConfig),
+            reference = getReferenceFilter(apiPredicateConfig),
+        )
+
+    /**
+     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
+     * customize their behavior.
+     *
+     * The returned [ApiFilters.emit] will NOT elide methods overrides that match the overridden
+     * method.
+     */
+    fun getNonElidingApiFilters(apiPredicateConfig: ApiPredicate.Config) =
+        ApiFilters(
+            emit = getNonElidingFilter(apiPredicateConfig),
+            reference = getReferenceFilter(apiPredicateConfig),
         )
 
     override fun toString(): String = displayName
