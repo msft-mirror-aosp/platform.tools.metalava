@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.TypeItem.Companion.stripJavaLangPrefix
 import java.util.Objects
 
 /**
@@ -73,11 +74,13 @@ interface TypeItem {
      * @param spaceBetweenParameters Controls whether there should be a space between class type
      *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
      *   "java.util.Map<java.lang.Integer,java.lang.Number>".
+     * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
      */
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
-        spaceBetweenParameters: Boolean = false
+        spaceBetweenParameters: Boolean = false,
+        stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
     ): String
 
     /**
@@ -98,7 +101,7 @@ interface TypeItem {
     fun asClass(): ClassItem?
 
     fun toSimpleType(): String {
-        return stripJavaLangPrefix(toTypeString())
+        return toTypeString(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
     }
 
     /**
@@ -187,7 +190,7 @@ interface TypeItem {
             if (cleaned.contains("@androidx.annotation.")) {
                 cleaned = cleaned.replace("@androidx.annotation.", "@")
             }
-            return stripJavaLangPrefix(cleaned)
+            return cleaned
         }
 
         /**
@@ -359,6 +362,23 @@ interface TypeItem {
     }
 }
 
+/** Different ways of handling `java.lang.` prefix stripping in [TypeItem.toTypeString]. */
+enum class StripJavaLangPrefix {
+    /** Never strip java.lang. prefixes when */
+    NEVER,
+
+    /**
+     * Only strip java.lang. prefixes from the start of the type as long as they are not a generic
+     * varargs parameter.
+     *
+     * This is legacy behavior from when types were treated as strings.
+     */
+    LEGACY,
+
+    /** Always strip java.lang. prefixes from the type. */
+    ALWAYS,
+}
+
 /**
  * A mapping from one class's type parameters to the types provided for those type parameters in a
  * possibly indirect subclass.
@@ -385,10 +405,16 @@ abstract class DefaultTypeItem(
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
-        spaceBetweenParameters: Boolean
+        spaceBetweenParameters: Boolean,
+        stripJavaLangPrefix: StripJavaLangPrefix,
     ): String {
         return toTypeString(
-            TypeStringConfiguration(annotations, kotlinStyleNulls, spaceBetweenParameters)
+            TypeStringConfiguration(
+                annotations,
+                kotlinStyleNulls,
+                spaceBetweenParameters,
+                stripJavaLangPrefix,
+            )
         )
     }
 
@@ -409,9 +435,13 @@ abstract class DefaultTypeItem(
      *
      * The returned value will be cached if the [configuration] is the default.
      */
-    private fun generateTypeString(configuration: TypeStringConfiguration) = buildString {
-        appendTypeString(this@DefaultTypeItem, configuration)
-    }
+    private fun generateTypeString(configuration: TypeStringConfiguration) =
+        buildString { appendTypeString(this@DefaultTypeItem, configuration) }
+            .let { typeString ->
+                if (configuration.stripJavaLangPrefix == StripJavaLangPrefix.LEGACY)
+                    stripJavaLangPrefix(typeString)
+                else typeString
+            }
 
     override fun toErasedTypeString(): String {
         if (!::cachedErasedType.isInitialized) {
@@ -446,8 +476,13 @@ abstract class DefaultTypeItem(
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
             val spaceBetweenParameters: Boolean = false,
+            val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
         ) {
-            val isDefault = !annotations && !kotlinStyleNulls && !spaceBetweenParameters
+            val isDefault =
+                !annotations &&
+                    !kotlinStyleNulls &&
+                    !spaceBetweenParameters &&
+                    stripJavaLangPrefix == StripJavaLangPrefix.NEVER
         }
 
         private fun StringBuilder.appendTypeString(
@@ -513,11 +548,24 @@ abstract class DefaultTypeItem(
                         }
                         append(type.className)
                     } else {
+                        // Check to see whether a java.lang. prefix should be stripped from the type
+                        // name.
+                        val stripJavaLangPrefix =
+                            when (configuration.stripJavaLangPrefix) {
+                                StripJavaLangPrefix.ALWAYS -> true
+                                else -> false
+                            }
+
                         // Get the class name prefix, i.e. the part before the class's simple name
                         // where annotations can be placed. e.g. for java.lang.String the simple
                         // name is `String` and the prefix is `java.lang.`.
                         val classNamePrefix = type.classNamePrefix
-                        append(classNamePrefix)
+
+                        // Append the class name prefix unless it is `java.lang.` and `java.lang.`
+                        // prefixes should be stripped.
+                        if (!(stripJavaLangPrefix && classNamePrefix == JAVA_LANG_PREFIX)) {
+                            append(classNamePrefix)
+                        }
                         if (configuration.annotations) {
                             appendAnnotations(type.modifiers, configuration)
                         }
