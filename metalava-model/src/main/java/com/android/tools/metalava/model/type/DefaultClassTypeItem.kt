@@ -22,12 +22,12 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultClassTypeItem(
-    private val codebase: Codebase,
+open class DefaultClassTypeItem(
+    internal val codebase: Codebase,
     modifiers: TypeModifiers,
-    override val qualifiedName: String,
-    override val arguments: List<TypeArgumentTypeItem>,
-    override val outerClassType: ClassTypeItem?,
+    final override val qualifiedName: String,
+    final override val arguments: List<TypeArgumentTypeItem>,
+    final override val outerClassType: ClassTypeItem?,
 ) : ClassTypeItem, DefaultTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
