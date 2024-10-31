@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
-import java.util.function.Predicate
 
 /**
  * An [ApiVisitor] that filters the input and forwards it to the [delegate] [ItemVisitor].
@@ -75,21 +74,21 @@ class FilteringApiVisitor(
      * This is mutually exclusive with [interfaceListSorter].
      */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
+    apiFilters: ApiFilters,
     private val preFiltered: Boolean,
     private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
-    config: Config,
+    private val ignoreEmit: Boolean = false,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
+        // Only `SelectableItem`s can be filtered separately, i.e. `ParameterItem`s will be included
+        // if and only if their containing method is included.
+        visitParameterItems = false,
         inlineInheritedFields = inlineInheritedFields,
         callableComparator = callableComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         showUnannotated = showUnannotated,
-        config = config,
     ),
     ItemVisitor {
 
@@ -124,6 +123,10 @@ class FilteringApiVisitor(
 
     /** The current [ClassItem] being visited, */
     private var currentClassItem: FilteringClassItem? = null
+
+    override fun include(cls: ClassItem): Boolean {
+        return ignoreEmit || cls.emit
+    }
 
     override fun visitClass(cls: ClassItem) {
         // Switch the current class, if any, to be a containing class.
@@ -183,7 +186,7 @@ class FilteringApiVisitor(
         val delegate: ClassItem,
     ) : ClassItem by delegate {
 
-        override fun getSourceFile() = delegate.getSourceFile()?.let { FilteringSourceFile(it) }
+        override fun sourceFile() = delegate.sourceFile()?.let { FilteringSourceFile(it) }
 
         override fun superClass() = superClassType()?.asClass()
 

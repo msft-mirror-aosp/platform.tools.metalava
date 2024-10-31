@@ -80,6 +80,9 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
 
         /** The optional common sources. */
         val commonSourceDir: SourceDir?,
+
+        /** Additional information to provide to the test runner. */
+        val testFixture: BaseModelTest.TestFixture,
     )
 
     /**
