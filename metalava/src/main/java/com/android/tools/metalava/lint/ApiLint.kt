@@ -374,6 +374,7 @@ private constructor(
         reporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
         }
+        kotlinInterop.checkClass(cls)
     }
 
     override fun visitCallable(callable: CallableItem) {
