@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
@@ -31,6 +32,10 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Test
 
+/**
+ * Tests [SignatureWriter] and [ApiFile] by round tripping a signature file and make sure that it
+ * matches the original.
+ */
 class SignatureInputOutputTest : Assertions {
 
     /**
@@ -576,6 +581,87 @@ class SignatureInputOutputTest : Assertions {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat)
+    }
+
+    /**
+     * Make sure that despite the `java.lang.` prefix being stripped from various types when writing
+     * the signature file that they have the correct type when the [Codebase] is loaded.
+     */
+    private fun checkStrippedCodebaseTypes(codebase: Codebase) {
+        val fooClass = codebase.assertClass("test.pkg.Foo")
+        val superTypes = listOfNotNull(fooClass.superClassType()) + fooClass.interfaceTypes()
+        assertThat(superTypes.joinToString { it.toTypeString() })
+            .isEqualTo(
+                "java.util.AbstractList<java.lang.String>, java.lang.Comparable<java.lang.String>, kotlin.collections.List<java.lang.String>"
+            )
+
+        val fooMethod = fooClass.methods().single()
+        assertThat(fooMethod.returnType().toTypeString()).isEqualTo("java.lang.String")
+        assertThat(fooMethod.parameters().single().type().toTypeString())
+            .isEqualTo("java.lang.String...")
+        assertThat(fooMethod.throwsTypes().single().toTypeString()).isEqualTo("java.lang.Exception")
+    }
+
+    @Test
+    fun `Test strip-java-lang-prefix=never`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                    method public java.lang.String foo(java.lang.String...) throws java.lang.Exception;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(specifiedStripJavaLangPrefix = StripJavaLangPrefix.NEVER)
+        ) {
+            checkStrippedCodebaseTypes(codebase)
+        }
+    }
+
+    @Test
+    fun `Test strip-java-lang-prefix=legacy`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                    method public String foo(java.lang.String...) throws java.lang.Exception;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(specifiedStripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
+        ) {
+            checkStrippedCodebaseTypes(codebase)
+        }
+    }
+
+    @Test
+    fun `Test strip-java-lang-prefix=always`() {
+        // TODO(b/321061298): Always should also mean everywhere so make sure that is true for
+        //  implements, extends and throws lists too.
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public abstract class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                    method public String foo(String...) throws java.lang.Exception;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS)
+        ) {
+            checkStrippedCodebaseTypes(codebase)
+        }
     }
 
     companion object {

@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.text.FileFormat
@@ -294,7 +293,7 @@ class SignatureWriter(
             type.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
             )
 
         // Strip java.lang. prefix
