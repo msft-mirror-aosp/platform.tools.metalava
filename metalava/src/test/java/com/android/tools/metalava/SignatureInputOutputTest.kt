@@ -644,14 +644,12 @@ class SignatureInputOutputTest : Assertions {
 
     @Test
     fun `Test strip-java-lang-prefix=always`() {
-        // TODO(b/321061298): Always should also mean everywhere so make sure that is true for
-        //  implements, extends and throws lists too.
         val api =
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public abstract class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
-                    method public String foo(String...) throws java.lang.Exception;
+                  public abstract class Foo extends java.util.AbstractList<String> implements Comparable<String> kotlin.collections.List<String> {
+                    method public String foo(String...) throws Exception;
                   }
                 }
             """
