@@ -96,14 +96,7 @@ interface TypeItem {
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType(): String {
-        var s = toTypeString(CANONICAL_TYPE_CONFIGURATION)
-        if (s.contains("...")) {
-            s = s.replace("...", "[]")
-        }
-
-        return s
-    }
+    fun toCanonicalType() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
 
     /**
      * Makes substitutions to the type based on the [typeParameterBindings]. For instance, if the
@@ -176,6 +169,7 @@ interface TypeItem {
         private val CANONICAL_TYPE_CONFIGURATION =
             TypeStringConfiguration(
                 stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                treatVarargsAsArray = true,
             )
 
         /** Shortens types, if configured */
@@ -444,7 +438,8 @@ abstract class DefaultTypeItem(
                     // Compute the outermost array suffix as that can differ if it is varargs. If
                     // this is a varargs then it must be the outermost, otherwise the outermost is
                     // not a varargs so they will all use the same suffix.
-                    val outermostArraySuffix = if (type.isVarargs) "..." else "[]"
+                    val outermostArraySuffix =
+                        if (type.isVarargs && !configuration.treatVarargsAsArray) "..." else "[]"
 
                     // The ordering of array annotations means this can't just use a recursive
                     // approach for annotated multi-dimensional arrays, but it can if annotations
@@ -727,12 +722,15 @@ abstract class DefaultTypeItem(
  *   `@Nullable List<String>` would be represented as `List<String!>?`.
  * @param spaceBetweenParameters Whether to include a space between class type params.
  * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
+ * @param treatVarargsAsArray If `false` then a varargs type will use `...` to indicate that it is a
+ *   varargs type, otherwise it will use `[]` like a normal array.
  */
 data class TypeStringConfiguration(
     val annotations: Boolean = false,
     val kotlinStyleNulls: Boolean = false,
     val spaceBetweenParameters: Boolean = false,
     val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
+    val treatVarargsAsArray: Boolean = false,
 ) {
     /**
      * Check to see if this matches [DEFAULT].

@@ -473,6 +473,24 @@ class CommonTypeStringTest : BaseModelTest() {
                                     ),
                                 expectedTypeString = "java.lang.String?..."
                             ),
+                            ConfigurationTestCase(
+                                name = "treatVarargsAsArray",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        treatVarargsAsArray = true,
+                                    ),
+                                expectedTypeString = "java.lang.String[]"
+                            ),
+                            ConfigurationTestCase(
+                                name = "treatVarargsAsArray and annotated",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        treatVarargsAsArray = true
+                                    ),
+                                expectedTypeString =
+                                    "java.lang.@libcore.util.Nullable String @libcore.util.NonNull []"
+                            ),
                         ),
                     extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource),
                     extraTextPackages = listOf(libcoreTextPackage)
