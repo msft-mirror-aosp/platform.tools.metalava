@@ -497,7 +497,7 @@ abstract class DefaultTypeItem(
                                 configuration.copy(stripJavaLangPrefix = StripJavaLangPrefix.NEVER)
                             else configuration
                         appendTypeString(type.outerClassType!!, nestedConfiguration)
-                        append('.')
+                        append(configuration.nestedClassSeparator)
                         if (configuration.annotations) {
                             appendAnnotations(type.modifiers, configuration)
                         }
@@ -724,6 +724,8 @@ abstract class DefaultTypeItem(
  * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
  *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
  *   `@Nullable List<String>` would be represented as `List<String!>?`.
+ * @param nestedClassSeparator The character that is used to separate a nested class from its
+ *   containing class.
  * @param spaceBetweenParameters Whether to include a space between class type params.
  * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
  * @param treatVarargsAsArray If `false` then a varargs type will use `...` to indicate that it is a
@@ -733,6 +735,7 @@ data class TypeStringConfiguration(
     val annotations: Boolean = false,
     val eraseGenerics: Boolean = false,
     val kotlinStyleNulls: Boolean = false,
+    val nestedClassSeparator: Char = '.',
     val spaceBetweenParameters: Boolean = false,
     val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
     val treatVarargsAsArray: Boolean = false,

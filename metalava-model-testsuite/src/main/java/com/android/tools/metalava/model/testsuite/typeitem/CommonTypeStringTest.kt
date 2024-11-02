@@ -768,6 +768,15 @@ class CommonTypeStringTest : BaseModelTest() {
                                     ),
                                 expectedTypeString = "test.pkg.Outer.Inner",
                             ),
+                            ConfigurationTestCase(
+                                name = "nestedClassSeparator",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        nestedClassSeparator = '@',
+                                    ),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.String>@Inner<java.lang.Integer>",
+                            ),
                         ),
                     extraJavaSourceFiles =
                         listOf(
