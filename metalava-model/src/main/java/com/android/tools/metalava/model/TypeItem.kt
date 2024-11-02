@@ -392,7 +392,7 @@ abstract class DefaultTypeItem(
 
     override fun toErasedTypeString(): String {
         if (!::cachedErasedType.isInitialized) {
-            cachedErasedType = buildString { appendErasedTypeString(this@DefaultTypeItem) }
+            cachedErasedType = toTypeString(ERASED_TYPE_STRING_CONFIGURATION)
         }
         return cachedErasedType
     }
@@ -410,6 +410,12 @@ abstract class DefaultTypeItem(
     override fun hashCode(): Int = hashCodeForType()
 
     companion object {
+        private val ERASED_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(
+                eraseGenerics = true,
+                treatVarargsAsArray = true,
+            )
+
         private fun StringBuilder.appendTypeString(
             type: TypeItem,
             configuration: TypeStringConfiguration
@@ -528,7 +534,7 @@ abstract class DefaultTypeItem(
                         append(type.className)
                     }
 
-                    if (type.arguments.isNotEmpty()) {
+                    if (!configuration.eraseGenerics && type.arguments.isNotEmpty()) {
                         append("<")
                         type.arguments.forEachIndexed { index, parameter ->
                             appendTypeString(parameter, configuration)
@@ -549,7 +555,21 @@ abstract class DefaultTypeItem(
                     if (configuration.annotations) {
                         appendAnnotations(type.modifiers, configuration)
                     }
-                    append(type.name)
+                    if (configuration.eraseGenerics) {
+                        // Replace the type variable with the bounds of the type parameter.
+                        val typeParameter = type.asTypeParameter
+                        typeParameter.asErasedType()?.let { boundsType ->
+                            appendTypeString(boundsType, configuration)
+                        }
+                        // No explicit bounds were provided so use the default of java.lang.Object.
+                        ?: if (configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS) {
+                                append("Object")
+                            } else {
+                                append(JAVA_LANG_OBJECT)
+                            }
+                    } else {
+                        append(type.name)
+                    }
                     if (configuration.kotlinStyleNulls) {
                         append(type.modifiers.nullability.suffix)
                     }
@@ -633,24 +653,6 @@ abstract class DefaultTypeItem(
             }
         }
 
-        private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
-            when (type) {
-                is PrimitiveTypeItem -> append(type.kind.primitiveName)
-                is ArrayTypeItem -> {
-                    appendErasedTypeString(type.componentType)
-                    append("[]")
-                }
-                is ClassTypeItem -> append(type.qualifiedName)
-                is VariableTypeItem ->
-                    type.asTypeParameter.asErasedType()?.let { appendErasedTypeString(it) }
-                        ?: append(JAVA_LANG_OBJECT)
-                else ->
-                    throw IllegalStateException(
-                        "should never visit $type of type ${type.javaClass} while generating erased type string"
-                    )
-            }
-        }
-
         // Copied from doclava1
         private fun toSlashFormat(typeName: String): String {
             var name = typeName
@@ -717,6 +719,8 @@ abstract class DefaultTypeItem(
  * Configuration options for how to represent a type as a string.
  *
  * @param annotations Whether to include annotations on the type.
+ * @param eraseGenerics If `true` then type parameters are ignored and type variables are replaced
+ *   with the upper bound of the type parameter.
  * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
  *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
  *   `@Nullable List<String>` would be represented as `List<String!>?`.
@@ -727,6 +731,7 @@ abstract class DefaultTypeItem(
  */
 data class TypeStringConfiguration(
     val annotations: Boolean = false,
+    val eraseGenerics: Boolean = false,
     val kotlinStyleNulls: Boolean = false,
     val spaceBetweenParameters: Boolean = false,
     val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,

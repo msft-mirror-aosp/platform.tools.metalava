@@ -529,10 +529,52 @@ class CommonTypeStringTest : BaseModelTest() {
                                 methodToTest = TO_CANONICAL_TYPE,
                                 expectedTypeString = "T",
                             ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                    ),
+                                expectedTypeString = "java.lang.Object",
+                            ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true and stripJavaLangPrefix=ALWAYS",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString = "Object",
+                            ),
                         ),
                     typeParameters = "<T>",
                     extraJavaSourceFiles = listOf(libcoreNonNullSource),
                     extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated T",
+                    sourceType = "@libcore.util.NonNull T",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                    ),
+                                expectedTypeString = "java.lang.String",
+                            ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true and stripJavaLangPrefix=ALWAYS",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString = "String",
+                            ),
+                        ),
+                    typeParameters = "<T extends java.lang.String>",
                 ) +
                 TypeStringParameters(
                     name = "super T comparable",
@@ -717,7 +759,15 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration = TypeStringConfiguration(kotlinStyleNulls = true),
                                 expectedTypeString =
                                     "test.pkg.Outer<java.lang.String?>.Inner<java.lang.Integer>?"
-                            )
+                            ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                    ),
+                                expectedTypeString = "test.pkg.Outer.Inner",
+                            ),
                         ),
                     extraJavaSourceFiles =
                         listOf(
