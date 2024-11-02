@@ -97,10 +97,7 @@ interface TypeItem {
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
     fun toCanonicalType(): String {
-        var s = toTypeString()
-        while (s.contains(JAVA_LANG_PREFIX)) {
-            s = s.replace(JAVA_LANG_PREFIX, "")
-        }
+        var s = toTypeString(CANONICAL_TYPE_CONFIGURATION)
         if (s.contains("...")) {
             s = s.replace("...", "[]")
         }
@@ -173,8 +170,12 @@ interface TypeItem {
     companion object {
         /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
+            TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
+
+        /** [TypeStringConfiguration] for [toCanonicalType] to pass to [toTypeString]. */
+        private val CANONICAL_TYPE_CONFIGURATION =
             TypeStringConfiguration(
-                stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
             )
 
         /** Shortens types, if configured */

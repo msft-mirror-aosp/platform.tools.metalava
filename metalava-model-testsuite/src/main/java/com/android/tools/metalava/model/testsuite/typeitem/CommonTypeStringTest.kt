@@ -908,10 +908,8 @@ class CommonTypeStringTest : BaseModelTest() {
                             ConfigurationTestCase(
                                 name = "toCanonicalType",
                                 methodToTest = TO_CANONICAL_TYPE,
-                                // TODO(b/321061298): This is wrong, the java.lang. prefix should
-                                //  not be removed from `java.lang.annotation.Annotation`.
                                 expectedTypeString =
-                                    "Comparable<java.util.Map<String,annotation.Annotation>>",
+                                    "Comparable<java.util.Map<String,java.lang.annotation.Annotation>>",
                             ),
                         ),
                     extraJavaSourceFiles = listOf(libcoreNullableSource),
