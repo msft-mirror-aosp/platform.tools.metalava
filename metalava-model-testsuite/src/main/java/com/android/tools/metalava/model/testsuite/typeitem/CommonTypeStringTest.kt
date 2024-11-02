@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -116,13 +117,6 @@ class CommonTypeStringTest : BaseModelTest() {
         val expectedTypeString: String
     )
 
-    data class TypeStringConfiguration(
-        val annotations: Boolean = false,
-        val kotlinStyleNulls: Boolean = false,
-        val spaceBetweenParameters: Boolean = false,
-        val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
-    )
-
     /**
      * Set by injection by [Parameterized] after class initializers are called.
      *
@@ -185,14 +179,7 @@ class CommonTypeStringTest : BaseModelTest() {
                     val filter = parameters.filter ?: return@let unfilteredType
                     unfilteredType.transform(typeUseAnnotationFilter(filter))
                 }
-            val typeString =
-                type.toTypeString(
-                    annotations = parameters.typeStringConfiguration.annotations,
-                    kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
-                    spaceBetweenParameters =
-                        parameters.typeStringConfiguration.spaceBetweenParameters,
-                    stripJavaLangPrefix = parameters.typeStringConfiguration.stripJavaLangPrefix,
-                )
+            val typeString = type.toTypeString(parameters.typeStringConfiguration)
             assertThat(typeString).isEqualTo(parameters.expectedTypeString)
         }
     }

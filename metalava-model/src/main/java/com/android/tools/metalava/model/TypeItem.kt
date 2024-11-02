@@ -66,21 +66,29 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
-     *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
-     * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
-     *   "List<String!>?".
-     * @param spaceBetweenParameters Controls whether there should be a space between class type
-     *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
-     *   "java.util.Map<java.lang.Integer,java.lang.Number>".
-     * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
+     * @see [TypeStringConfiguration] for information on the parameters.
      */
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         spaceBetweenParameters: Boolean = false,
         stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
-    ): String
+    ): String =
+        toTypeString(
+            TypeStringConfiguration(
+                annotations,
+                kotlinStyleNulls,
+                spaceBetweenParameters,
+                stripJavaLangPrefix,
+            )
+        )
+
+    /**
+     * Generates a string for this type.
+     *
+     * @see [TypeStringConfiguration] for information on the parameters.
+     */
+    fun toTypeString(configuration: TypeStringConfiguration): String
 
     /**
      * Get a string representation of the erased type.
@@ -380,23 +388,7 @@ abstract class DefaultTypeItem(
 
     override fun toString(): String = toTypeString()
 
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        spaceBetweenParameters: Boolean,
-        stripJavaLangPrefix: StripJavaLangPrefix,
-    ): String {
-        return toTypeString(
-            TypeStringConfiguration(
-                annotations,
-                kotlinStyleNulls,
-                spaceBetweenParameters,
-                stripJavaLangPrefix,
-            )
-        )
-    }
-
-    private fun toTypeString(configuration: TypeStringConfiguration): String {
+    override fun toTypeString(configuration: TypeStringConfiguration): String {
         // Cache the default type string. Other configurations are less likely to be reused.
         return if (configuration.isDefault) {
             if (!::cachedDefaultType.isInitialized) {
@@ -437,28 +429,6 @@ abstract class DefaultTypeItem(
     override fun hashCode(): Int = hashCodeForType()
 
     companion object {
-        /**
-         * Configuration options for how to represent a type as a string.
-         *
-         * @param annotations Whether to include annotations on the type.
-         * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
-         *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
-         *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
-         * @param spaceBetweenParameters Whether to include a space between class type params.
-         */
-        private data class TypeStringConfiguration(
-            val annotations: Boolean = false,
-            val kotlinStyleNulls: Boolean = false,
-            val spaceBetweenParameters: Boolean = false,
-            val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
-        ) {
-            val isDefault =
-                !annotations &&
-                    !kotlinStyleNulls &&
-                    !spaceBetweenParameters &&
-                    stripJavaLangPrefix == StripJavaLangPrefix.NEVER
-        }
-
         private fun StringBuilder.appendTypeString(
             type: TypeItem,
             configuration: TypeStringConfiguration
@@ -756,6 +726,29 @@ abstract class DefaultTypeItem(
             }
         }
     }
+}
+
+/**
+ * Configuration options for how to represent a type as a string.
+ *
+ * @param annotations Whether to include annotations on the type.
+ * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
+ *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
+ *   `@Nullable List<String>` would be represented as `List<String!>?`.
+ * @param spaceBetweenParameters Whether to include a space between class type params.
+ * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
+ */
+data class TypeStringConfiguration(
+    val annotations: Boolean = false,
+    val kotlinStyleNulls: Boolean = false,
+    val spaceBetweenParameters: Boolean = false,
+    val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
+) {
+    val isDefault =
+        !annotations &&
+            !kotlinStyleNulls &&
+            !spaceBetweenParameters &&
+            stripJavaLangPrefix == StripJavaLangPrefix.NEVER
 }
 
 /**
