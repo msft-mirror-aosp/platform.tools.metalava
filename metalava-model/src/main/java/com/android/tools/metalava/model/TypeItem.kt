@@ -69,26 +69,6 @@ interface TypeItem {
      * @see [TypeStringConfiguration] for information on the parameters.
      */
     fun toTypeString(
-        annotations: Boolean = false,
-        kotlinStyleNulls: Boolean = false,
-        spaceBetweenParameters: Boolean = false,
-        stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
-    ): String =
-        toTypeString(
-            TypeStringConfiguration(
-                annotations,
-                kotlinStyleNulls,
-                spaceBetweenParameters,
-                stripJavaLangPrefix,
-            )
-        )
-
-    /**
-     * Generates a string for this type.
-     *
-     * @see [TypeStringConfiguration] for information on the parameters.
-     */
-    fun toTypeString(
         configuration: TypeStringConfiguration = TypeStringConfiguration.DEFAULT
     ): String
 

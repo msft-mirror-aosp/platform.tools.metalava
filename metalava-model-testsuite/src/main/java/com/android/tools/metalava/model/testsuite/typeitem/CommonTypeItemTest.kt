@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -1569,7 +1570,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     val typeToTest = method.returnType()
 
                     fun TypeItem.typeInfo() =
-                        toTypeString(
+                        testTypeString(
                             annotations = true,
                             kotlinStyleNulls = true,
                         )
@@ -1742,7 +1743,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     val typeToTest = method.returnType()
 
                     fun TypeItem.typeInfo() =
-                        toTypeString(
+                        testTypeString(
                             annotations = true,
                             kotlinStyleNulls = true,
                         )
