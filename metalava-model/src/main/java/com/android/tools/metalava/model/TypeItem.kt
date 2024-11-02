@@ -744,11 +744,18 @@ data class TypeStringConfiguration(
     val spaceBetweenParameters: Boolean = false,
     val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
 ) {
-    val isDefault =
-        !annotations &&
-            !kotlinStyleNulls &&
-            !spaceBetweenParameters &&
-            stripJavaLangPrefix == StripJavaLangPrefix.NEVER
+    /**
+     * Check to see if this matches [DEFAULT].
+     *
+     * This is computed lazily to avoid the comparison against [DEFAULT] being done while creating
+     * the instance to assign to [DEFAULT] at which point [DEFAULT] would be `null`.
+     */
+    val isDefault by lazy(LazyThreadSafetyMode.NONE) { this == DEFAULT }
+
+    companion object {
+        /** The default[TypeStringConfiguration]. */
+        val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
+    }
 }
 
 /**
