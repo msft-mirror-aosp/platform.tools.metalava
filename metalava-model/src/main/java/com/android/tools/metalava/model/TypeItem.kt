@@ -88,7 +88,9 @@ interface TypeItem {
      *
      * @see [TypeStringConfiguration] for information on the parameters.
      */
-    fun toTypeString(configuration: TypeStringConfiguration): String
+    fun toTypeString(
+        configuration: TypeStringConfiguration = TypeStringConfiguration.DEFAULT
+    ): String
 
     /**
      * Get a string representation of the erased type.
@@ -107,9 +109,7 @@ interface TypeItem {
 
     fun asClass(): ClassItem?
 
-    fun toSimpleType(): String {
-        return toTypeString(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
-    }
+    fun toSimpleType() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
      * Helper methods to compare types, especially types from signature files with types from
@@ -191,6 +191,12 @@ interface TypeItem {
     fun transform(transformer: TypeTransformer): TypeItem
 
     companion object {
+        /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
+        private val SIMPLE_TYPE_CONFIGURATION =
+            TypeStringConfiguration(
+                stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+            )
+
         /** Shortens types, if configured */
         fun shortenTypes(type: String): String {
             var cleaned = type
