@@ -40,6 +40,7 @@ class CommonTypeStringTest : BaseModelTest() {
         val name: String,
         val sourceType: String = name,
         val typeStringConfiguration: TypeStringConfiguration = TypeStringConfiguration(),
+        val filter: FilterPredicate? = null,
         val expectedTypeString: String = sourceType,
         val typeParameters: String? = null,
         val extraJavaSourceFiles: List<TestFile> = emptyList(),
@@ -96,6 +97,7 @@ class CommonTypeStringTest : BaseModelTest() {
                         name = "$name - ${it.name}",
                         sourceType = sourceType,
                         typeStringConfiguration = it.configuration,
+                        filter = it.filter,
                         expectedTypeString = it.expectedTypeString,
                         typeParameters = typeParameters,
                         extraJavaSourceFiles = extraJavaSourceFiles,
@@ -110,13 +112,13 @@ class CommonTypeStringTest : BaseModelTest() {
     data class ConfigurationTestCase(
         val name: String,
         val configuration: TypeStringConfiguration,
+        val filter: FilterPredicate? = null,
         val expectedTypeString: String
     )
 
     data class TypeStringConfiguration(
         val annotations: Boolean = false,
         val kotlinStyleNulls: Boolean = false,
-        val filter: FilterPredicate? = null,
         val spaceBetweenParameters: Boolean = false,
         val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
     )
@@ -180,8 +182,7 @@ class CommonTypeStringTest : BaseModelTest() {
             val param = method.parameters().single()
             val type =
                 param.type().let { unfilteredType ->
-                    val filter =
-                        parameters.typeStringConfiguration.filter ?: return@let unfilteredType
+                    val filter = parameters.filter ?: return@let unfilteredType
                     unfilteredType.transform(typeUseAnnotationFilter(filter))
                 }
             val typeString =
@@ -595,8 +596,8 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration =
                                     TypeStringConfiguration(
                                         annotations = true,
-                                        filter = { false },
                                     ),
+                                filter = { false },
                                 expectedTypeString = "java.util.List<java.lang.Integer>"
                             ),
                             ConfigurationTestCase(
@@ -604,9 +605,9 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration =
                                     TypeStringConfiguration(
                                         annotations = true,
-                                        filter = { false },
                                         kotlinStyleNulls = true
                                     ),
+                                filter = { false },
                                 expectedTypeString = "java.util.List<java.lang.Integer!>!"
                             ),
                             ConfigurationTestCase(
@@ -614,8 +615,8 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration =
                                     TypeStringConfiguration(
                                         annotations = true,
-                                        filter = { true },
                                     ),
+                                filter = { true },
                                 expectedTypeString =
                                     "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                             )
@@ -724,13 +725,13 @@ class CommonTypeStringTest : BaseModelTest() {
                             configuration =
                                 TypeStringConfiguration(
                                     annotations = true,
-                                    // Filter that removes nullness annotations
-                                    filter = {
-                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                            isNullnessAnnotation(name)
-                                        } != true
-                                    }
                                 ),
+                            // Filter that removes nullness annotations
+                            filter = {
+                                (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                    isNullnessAnnotation(name)
+                                } != true
+                            },
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                         ),
@@ -740,14 +741,14 @@ class CommonTypeStringTest : BaseModelTest() {
                                 TypeStringConfiguration(
                                     annotations = true,
                                     kotlinStyleNulls = true,
-                                    // Filter that removes nullness annotations, but Kotlin-nulls
-                                    // should still be present
-                                    filter = {
-                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                            isNullnessAnnotation(name)
-                                        } != true
-                                    }
                                 ),
+                            // Filter that removes nullness annotations, but Kotlin-nulls
+                            // should still be present
+                            filter = {
+                                (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                    isNullnessAnnotation(name)
+                                } != true
+                            },
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
                         ),
