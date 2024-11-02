@@ -441,6 +441,11 @@ abstract class DefaultTypeItem(
                             configuration.copy(stripJavaLangPrefix = StripJavaLangPrefix.VARARGS)
                         } else configuration
 
+                    // Compute the outermost array suffix as that can differ if it is varargs. If
+                    // this is a varargs then it must be the outermost, otherwise the outermost is
+                    // not a varargs so they will all use the same suffix.
+                    val outermostArraySuffix = if (type.isVarargs) "..." else "[]"
+
                     // The ordering of array annotations means this can't just use a recursive
                     // approach for annotated multi-dimensional arrays, but it can if annotations
                     // aren't included.
@@ -459,11 +464,13 @@ abstract class DefaultTypeItem(
                         // Print modifiers from the outermost array type in, and the array suffixes.
                         arrayModifiers.zip(suffixes).forEachIndexed { index, (modifiers, suffix) ->
                             appendAnnotations(modifiers, configuration, leadingSpace = true)
-                            // Only the outermost array can be varargs.
-                            if (index < arrayModifiers.size - 1 || !type.isVarargs) {
-                                append("[]")
+                            // The array suffix can be different on the outermost array type. The
+                            // outermost is the last in the list.
+                            if (index == arrayModifiers.lastIndex) {
+                                append(outermostArraySuffix)
                             } else {
-                                append("...")
+                                // Only the outermost array can be varargs.
+                                append("[]")
                             }
                             if (configuration.kotlinStyleNulls) {
                                 append(suffix)
@@ -472,11 +479,7 @@ abstract class DefaultTypeItem(
                     } else {
                         // Non-annotated case: just recur to the component
                         appendTypeString(type.componentType, nestedConfiguration)
-                        if (type.isVarargs) {
-                            append("...")
-                        } else {
-                            append("[]")
-                        }
+                        append(outermostArraySuffix)
                         if (configuration.kotlinStyleNulls) {
                             append(type.modifiers.nullability.suffix)
                         }
