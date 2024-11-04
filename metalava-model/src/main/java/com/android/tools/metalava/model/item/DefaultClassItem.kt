@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.MutableCodebase
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
@@ -38,7 +38,7 @@ import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
-    codebase: MutableCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: BaseModifierList,
@@ -54,7 +54,7 @@ open class DefaultClassItem(
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
 ) :
-    DefaultItem(
+    DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
@@ -96,7 +96,8 @@ open class DefaultClassItem(
         }
     }
 
-    override fun getSourceFile() = source
+    /** If [source] is not set and this is a nested class then try the containing class. */
+    override fun sourceFile() = source ?: containingClass?.sourceFile()
 
     final override fun containingPackage(): PackageItem = containingPackage
 
@@ -123,16 +124,39 @@ open class DefaultClassItem(
     protected open fun createClassTypeItemForThis() =
         DefaultResolvedClassTypeItem.createForClass(this)
 
+    final override var frozen = false
+        private set
+
+    override fun freeze() {
+        if (frozen) return
+        frozen = true
+        superClass()?.freeze()
+        for (interfaceType in interfaceTypes) {
+            interfaceType.asClass()?.freeze()
+        }
+    }
+
+    private fun ensureNotFrozen() {
+        if (frozen) error("Cannot modify frozen $this")
+    }
+
+    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+        ensureNotFrozen()
+        super.mutateModifiers(mutator)
+    }
+
     final override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Set the super class [ClassTypeItem]. */
     fun setSuperClassType(superClassType: ClassTypeItem?) {
+        ensureNotFrozen()
         this.superClassType = superClassType
     }
 
     final override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     final override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
+        ensureNotFrozen()
         this.interfaceTypes = interfaceTypes
     }
 
@@ -171,6 +195,7 @@ open class DefaultClassItem(
 
     /** Add a constructor to this class. */
     fun addConstructor(constructor: ConstructorItem) {
+        ensureNotFrozen()
         mutableConstructors += constructor
 
         // Keep track of whether any implicit constructors were added.
@@ -201,6 +226,7 @@ open class DefaultClassItem(
 
     /** Add a method to this class. */
     final override fun addMethod(method: MethodItem) {
+        ensureNotFrozen()
         mutableMethods += method
     }
 
@@ -209,6 +235,7 @@ open class DefaultClassItem(
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem) {
+        ensureNotFrozen()
         val iterator = mutableMethods.listIterator()
         while (iterator.hasNext()) {
             val existing = iterator.next()
@@ -225,6 +252,7 @@ open class DefaultClassItem(
 
     /** Add a field to this class. */
     fun addField(field: FieldItem) {
+        ensureNotFrozen()
         mutableFields += field
     }
 
@@ -237,6 +265,7 @@ open class DefaultClassItem(
 
     /** Add a property to this class. */
     fun addProperty(property: PropertyItem) {
+        ensureNotFrozen()
         mutableProperties += property
     }
 
@@ -247,6 +276,7 @@ open class DefaultClassItem(
 
     /** Add a nested class to this class. */
     private fun addNestedClass(classItem: ClassItem) {
+        ensureNotFrozen()
         mutableNestedClasses.add(classItem)
     }
 
