@@ -28,10 +28,7 @@ sealed interface PreviouslyReleasedApi {
     val lastSignatureFile: File?
 
     /** Load the files into a list of [Codebase]s. */
-    fun load(
-        jarLoader: (File) -> Codebase,
-        signatureFileLoader: (List<SignatureFile>) -> Codebase,
-    ): Codebase
+    fun load(signatureFileLoader: (List<SignatureFile>) -> Codebase): Codebase
 
     override fun toString(): String
 
@@ -40,56 +37,29 @@ sealed interface PreviouslyReleasedApi {
          * Create an optional [PreviouslyReleasedApi] instance from the list of [files] passed to
          * the option [optionName].
          *
-         * If [files] is empty then this returns `null`. If [files] contains a mixture of jar and
-         * non-jar files (assumed to be signature files) then it is an error. Otherwise, this will
-         * return a [JarBasedApi] or [SignatureBasedApi] for a list of jar files and a list of
-         * signature files respectively.
+         * If [files] is empty then this returns `null`. If [files] contains any `.jar` files then
+         * it is an error. Otherwise, this will assume all the files are signature files and return
+         * [SignatureBasedApi] that wraps a list of [SignatureFile]s. files.
          */
         internal fun optionalPreviouslyReleasedApi(
             optionName: String,
             files: List<File>,
             onlyUseLastForMainApiSurface: Boolean = true,
-        ) =
+        ): PreviouslyReleasedApi? =
             if (files.isEmpty()) null
             else {
-                // Partition the files into jar and non-jar files, the latter are assumed to be
-                // signature files.
-                val (jarFiles, signatureFiles) =
-                    files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
-                when {
-                    jarFiles.isEmpty() ->
-                        SignatureBasedApi.fromFiles(
-                            signatureFiles,
-                            onlyUseLastForMainApiSurface,
-                        )
-                    signatureFiles.isEmpty() ->
-                        if (jarFiles.size > 1)
-                            throw IllegalStateException(
-                                "$optionName: Cannot have more than one jar file, found: ${jarFiles.joinToString()}"
-                            )
-                        else JarBasedApi(jarFiles[0])
-                    else ->
-                        throw IllegalStateException(
-                            "$optionName: Cannot mix jar files (e.g. ${jarFiles.first()}) and signature files (e.g. ${signatureFiles.first()})"
-                        )
-                }
+                // Extract the jar files, if any.
+                val jarFiles = files.filter { it.path.endsWith(SdkConstants.DOT_JAR) }
+                if (jarFiles.isNotEmpty())
+                    error(
+                        "$optionName: Can no longer check compatibility against jar files like ${jarFiles.joinToString()} please use equivalent signature files"
+                    )
+
+                SignatureBasedApi.fromFiles(
+                    files,
+                    onlyUseLastForMainApiSurface,
+                )
             }
-    }
-}
-
-/** A previously released API defined by jar files. */
-data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
-
-    /** This does not have any signature files, so it always returns `null`. */
-    override val lastSignatureFile: File? = null
-
-    override fun load(
-        jarLoader: (File) -> Codebase,
-        signatureFileLoader: (List<SignatureFile>) -> Codebase,
-    ) = jarLoader(file)
-
-    override fun toString(): String {
-        return file.toString()
     }
 }
 
@@ -105,7 +75,6 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
     override val lastSignatureFile = signatureFiles.last().file
 
     override fun load(
-        jarLoader: (File) -> Codebase,
         signatureFileLoader: (List<SignatureFile>) -> Codebase,
     ) = signatureFileLoader(signatureFiles)
 
