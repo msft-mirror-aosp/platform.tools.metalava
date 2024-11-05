@@ -1853,4 +1853,115 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(interfaceType.hasTypeArguments()).isTrue()
         }
     }
+
+    @Test
+    fun `Test toSimpleType on varargs parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(String...p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(vararg p: String)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(String...);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType()).isEqualTo("java.lang.String...")
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on varargs generic parameter`() {
+        runCodebaseTest(
+            java(
+                @Suppress("unchecked")
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(Comparable<? super String>...p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(vararg p: Comparable<String>)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(Comparable<? super String>...);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType())
+                .isEqualTo("Comparable<? super java.lang.String>...")
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on nested class`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(Thread.UncaughtExceptionHandler p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(p: Thread.UncaughtExceptionHandler)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(Thread.UncaughtExceptionHandler);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType())
+                .isEqualTo("java.lang.Thread.UncaughtExceptionHandler")
+        }
+    }
 }
