@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -42,7 +43,8 @@ class CommonTypeStringTest : BaseModelTest() {
         val expectedTypeString: String = sourceType,
         val typeParameters: String? = null,
         val extraJavaSourceFiles: List<TestFile> = emptyList(),
-        val extraTextPackages: List<String> = emptyList()
+        val extraImports: String = "",
+        val extraTextPackages: List<String> = emptyList(),
     ) {
         override fun toString(): String {
             return name
@@ -86,7 +88,8 @@ class CommonTypeStringTest : BaseModelTest() {
                 configs: List<ConfigurationTestCase>,
                 typeParameters: String? = null,
                 extraJavaSourceFiles: List<TestFile> = emptyList(),
-                extraTextPackages: List<String> = emptyList()
+                extraImports: String = "",
+                extraTextPackages: List<String> = emptyList(),
             ): List<TypeStringParameters> {
                 return configs.map {
                     TypeStringParameters(
@@ -96,7 +99,8 @@ class CommonTypeStringTest : BaseModelTest() {
                         expectedTypeString = it.expectedTypeString,
                         typeParameters = typeParameters,
                         extraJavaSourceFiles = extraJavaSourceFiles,
-                        extraTextPackages = extraTextPackages
+                        extraTextPackages = extraTextPackages,
+                        extraImports = extraImports,
                     )
                 }
             }
@@ -114,6 +118,7 @@ class CommonTypeStringTest : BaseModelTest() {
         val kotlinStyleNulls: Boolean = false,
         val filter: FilterPredicate? = null,
         val spaceBetweenParameters: Boolean = false,
+        val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
     )
 
     /**
@@ -131,6 +136,7 @@ class CommonTypeStringTest : BaseModelTest() {
             java(
                 """
                 package test.pkg;
+                ${parameters.extraImports}
                 public class Foo {
                     public ${parameters.typeParameters.orEmpty()} void foo(${parameters.sourceType} arg) {}
                 }
@@ -184,6 +190,7 @@ class CommonTypeStringTest : BaseModelTest() {
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
                     spaceBetweenParameters =
                         parameters.typeStringConfiguration.spaceBetweenParameters,
+                    stripJavaLangPrefix = parameters.typeStringConfiguration.stripJavaLangPrefix,
                 )
             assertThat(typeString).isEqualTo(parameters.expectedTypeString)
         }
@@ -836,6 +843,166 @@ class CommonTypeStringTest : BaseModelTest() {
                         ),
                     extraJavaSourceFiles = listOf(libcoreNullableSource),
                     extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "java.lang. prefix stripping",
+                    sourceType =
+                        "@libcore.util.Nullable Comparable<java.util.Map<@libcore.util.Nullable String,java.lang.annotation.Annotation>>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString =
+                                    "java.lang.Comparable<java.util.Map<java.lang.String,java.lang.annotation.Annotation>>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "strip legacy",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                                    ),
+                                expectedTypeString =
+                                    "Comparable<java.util.Map<java.lang.String,java.lang.annotation.Annotation>>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "strip always",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString =
+                                    "Comparable<java.util.Map<String,java.lang.annotation.Annotation>>",
+                            ),
+                            ConfigurationTestCase(
+                                name = "strip always plus annotations",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString =
+                                    "@libcore.util.Nullable Comparable<java.util.Map<@libcore.util.Nullable String,java.lang.annotation.Annotation>>",
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "java.lang. prefix stripping varargs",
+                    sourceType = "java.lang.@IntRange(from=5L, to=10L) String...",
+                    extraJavaSourceFiles = listOf(intRangeTypeUseSource),
+                    extraImports = "import androidx.annotation.IntRange;",
+                    extraTextPackages = listOf(androidxTextPackage),
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.lang.String...",
+                            ),
+                            ConfigurationTestCase(
+                                name = "default plus annotations",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                    ),
+                                expectedTypeString =
+                                    "java.lang.@androidx.annotation.IntRange(from=5L, to=10L) String...",
+                            ),
+                            ConfigurationTestCase(
+                                name = "legacy",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                                    ),
+                                expectedTypeString = "java.lang.String...",
+                            ),
+                            ConfigurationTestCase(
+                                name = "legacy plus annotations",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                                    ),
+                                expectedTypeString =
+                                    "java.lang.@androidx.annotation.IntRange(from=5L, to=10L) String...",
+                            ),
+                            ConfigurationTestCase(
+                                name = "always",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString = "String...",
+                            ),
+                            ConfigurationTestCase(
+                                name = "always plus annotations",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString =
+                                    "@androidx.annotation.IntRange(from=5L, to=10L) String...",
+                            ),
+                        ),
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "java.lang. prefix stripping varargs generic",
+                    sourceType = "java.lang.Comparable<String>...",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.lang.Comparable<java.lang.String>...",
+                            ),
+                            ConfigurationTestCase(
+                                name = "legacy",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                                    ),
+                                expectedTypeString = "Comparable<java.lang.String>...",
+                            ),
+                            ConfigurationTestCase(
+                                name = "always",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString = "Comparable<String>...",
+                            ),
+                        ),
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "java.lang. prefix stripping nested class",
+                    sourceType = "java.lang.Thread.UncaughtExceptionHandler",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.lang.Thread.UncaughtExceptionHandler",
+                            ),
+                            ConfigurationTestCase(
+                                name = "legacy",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                                    ),
+                                expectedTypeString = "java.lang.Thread.UncaughtExceptionHandler",
+                            ),
+                            ConfigurationTestCase(
+                                name = "always",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString = "Thread.UncaughtExceptionHandler",
+                            ),
+                        ),
                 )
     }
 }
