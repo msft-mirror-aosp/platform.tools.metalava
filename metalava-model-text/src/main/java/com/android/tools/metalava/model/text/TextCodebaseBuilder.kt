@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -37,14 +36,14 @@ class TextCodebaseBuilder private constructor(private val assembler: TextCodebas
         fun build(
             location: File,
             description: String,
-            annotationManager: AnnotationManager,
+            codebaseConfig: Codebase.Config,
             block: TextCodebaseBuilder.() -> Unit
         ): Codebase {
             val assembler =
                 TextCodebaseAssembler.createAssembler(
                     location = location,
                     description = description,
-                    annotationManager = annotationManager,
+                    codebaseConfig = codebaseConfig,
                     classResolver = null,
                 )
             val builder = TextCodebaseBuilder(assembler)
@@ -67,8 +66,19 @@ class TextCodebaseBuilder private constructor(private val assembler: TextCodebas
     }
 
     fun addClass(cls: ClassItem) {
-        val pkg = getOrAddPackage(cls.containingPackage().qualifiedName())
-        pkg.addTopClass(cls)
+        // Replicate some of the registration code from DefaultClassItem initialization block. This
+        // does not register classes correctly. e.g. It adds nested classes as top level classes in
+        // the package. While that is strictly speaking invalid it works for this which is only used
+        // to create a very short-lived Codebase that is written out to a JDiff file.
+        // TODO(b/369078254): Clean this up.
+        codebase.registerClass(cls as DefaultClassItem)
+        val containingPackage = getOrAddPackage(cls.containingPackage().qualifiedName())
+        containingPackage.addTopClass(cls)
+
+        // If the class is emittable then make sure its package is too.
+        if (cls.emit) {
+            containingPackage.emit = true
+        }
     }
 
     fun addConstructor(ctor: ConstructorItem) {
