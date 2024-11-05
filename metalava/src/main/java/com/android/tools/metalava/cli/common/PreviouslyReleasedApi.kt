@@ -30,6 +30,14 @@ sealed interface PreviouslyReleasedApi {
     /** Load the files into a list of [Codebase]s. */
     fun load(signatureFileLoader: (List<SignatureFile>) -> Codebase): Codebase
 
+    /**
+     * Combine this with [other] and return the result.
+     *
+     * This simply involves creating another [PreviouslyReleasedApi] that contains all the signature
+     * files from this plus all the signature files from [other].
+     */
+    fun combine(other: PreviouslyReleasedApi): PreviouslyReleasedApi
+
     override fun toString(): String
 
     companion object {
@@ -77,6 +85,9 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
     override fun load(
         signatureFileLoader: (List<SignatureFile>) -> Codebase,
     ) = signatureFileLoader(signatureFiles)
+
+    override fun combine(other: PreviouslyReleasedApi) =
+        SignatureBasedApi(signatureFiles + (other as SignatureBasedApi).signatureFiles)
 
     override fun toString(): String {
         return signatureFiles.joinToString(",") { it.file.path }

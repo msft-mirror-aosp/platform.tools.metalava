@@ -442,8 +442,8 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebasesProvider = {
-                    compatibilityCheckOptions.previouslyReleasedCodebases(signatureFileCache)
+                previouslyReleasedCodebaseProvider = {
+                    compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
                 },
             )
         )

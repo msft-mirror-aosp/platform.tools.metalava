@@ -190,10 +190,13 @@ class CompatibilityCheckOptions(
         lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
     /**
-     * The list of [Codebase]s corresponding to [compatibilityChecks].
+     * The optional Codebase corresponding to [compatibilityChecks].
      *
      * This is used to provide the previously released API needed for `--revert-annotation`.
      */
-    fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.map { it.previouslyReleasedApi.load { signatureFileCache.load(it) } }
+    fun previouslyReleasedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
+        compatibilityChecks
+            .map { it.previouslyReleasedApi }
+            .reduceOrNull { p1, p2 -> p1.combine(p2) }
+            ?.load({ signatureFileCache.load(it) })
 }
