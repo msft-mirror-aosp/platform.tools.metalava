@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
@@ -206,17 +207,22 @@ class SignatureWriter(
         writeExtendsOrImplementsType(superClassType)
     }
 
+    /**
+     * Legacy [TypeStringConfiguration] when writing super types in [writeExtendsOrImplementsType].
+     */
+    private val legacySuperTypeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+        )
+
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
         write(" ")
 
         if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) {
             writeType(typeItem)
         } else {
-            val superClassString =
-                typeItem.toTypeString(
-                    annotations = fileFormat.includeTypeUseAnnotations,
-                    kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                )
+            val superClassString = typeItem.toTypeString(legacySuperTypeStringConfiguration)
             write(superClassString)
         }
     }
@@ -292,17 +298,20 @@ class SignatureWriter(
         write(")")
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeType]. */
+    private val typeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
+        )
+
     private fun writeType(type: TypeItem?) {
         type ?: return
 
-        var typeString =
-            type.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
-            )
+        var typeString = type.toTypeString(typeStringConfiguration)
 
-        // Strip java.lang. prefix
+        // Strip androidx.annotation. prefix from annotations.
         typeString = TypeItem.shortenTypes(typeString)
 
         write(typeString)
