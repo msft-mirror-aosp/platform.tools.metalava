@@ -24,6 +24,7 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
@@ -36,8 +37,6 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
@@ -46,17 +45,20 @@ import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
@@ -294,7 +296,7 @@ class Options(
      * (Copyright notices are not affected by this, they are always included. Documentation stubs
      * (--doc-stubs) are not affected.)
      */
-    var includeDocumentationInStubs = true
+    private var includeDocumentationInStubs = true
 
     /**
      * Enhance documentation in various ways, for example auto-generating documentation based on
@@ -324,7 +326,7 @@ class Options(
     /** Lint project description that describes project's module structure in details */
     var projectDescription: File? = null
 
-    val configFiles by
+    private val configFiles by
         option(
                 ARG_CONFIG_FILE,
                 help =
@@ -359,6 +361,40 @@ class Options(
      */
     var showUnannotated = false
 
+    val apiSurfaces by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ApiSurfaces.create(
+                // A base API surface is needed if and only if the main API surface being generated
+                // extends another API surface. That is not currently explicitly specified on the
+                // command line so has to be inferred from the existing arguments. There are four
+                // main supported cases:
+                //
+                // * Public which does not extend another API surface so does not need a base. This
+                //   happens by default unless one or more `--show*annotation` options were
+                //   specified. In that case it behaves as if `--show-unannotated` was specified.
+                //
+                // * Restricted API in AndroidX which is basically public + other and does not need
+                //   a base. This happens when `--show-unannotated` was provided (the public part)
+                //   as well as `--show-annotation RestrictTo(...)` (the other part).
+                //
+                // * System delta on public in Android build. This happens when --show-unannotated
+                //   was not specified (so the public part is not included in signature files at
+                //   least) but `--show-annotation SystemApi` was.
+                //
+                // * Test API delta on system (or similar) in Android build. This happens when
+                //   `--show-unannotated` was not specified (so the public part is not included),
+                //   `--show-for-stub-purposes-only SystemApi` was (so system API is included in the
+                //   stubs but not the signature files) and `--show-annotation TestApi` was.
+                //
+                // There are other combinations of the `--show*` options which are not used, and it
+                // is not clear whether they make any sense so this does not cover them.
+                //
+                // This does not need a base if --show-unannotated was specified, or it defaulted to
+                // behaving as if it was.
+                needsBase = !showUnannotated,
+            )
+        }
+
     /** Packages to include in the API (if null, include all) */
     val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
@@ -387,12 +423,12 @@ class Options(
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to hide */
-    val hideAnnotations by lazy(hideAnnotationsBuilder::build)
+    private val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
     /** Annotations to revert */
     val revertAnnotations by lazy(revertAnnotationsBuilder::build)
 
-    val annotationManager: AnnotationManager by lazy {
+    private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
@@ -413,7 +449,20 @@ class Options(
         )
     }
 
-    internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
+    internal val codebaseConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            Codebase.Config(
+                annotationManager = annotationManager,
+                apiSurfaces = apiSurfaces,
+                reporter = reporter,
+            )
+        }
+
+    internal val signatureFileLoader by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileLoader(codebaseConfig) }
+
+    internal val signatureFileCache by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     private val suppressCompatibilityMetaAnnotations by
@@ -494,7 +543,7 @@ class Options(
     var docStubsDir: File? = null
 
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
-    var kotlinStubs = false
+    private var kotlinStubs = false
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -502,9 +551,6 @@ class Options(
     val apiFile by signatureFileOptions::apiFile
     val removedApiFile by signatureFileOptions::removedApiFile
     val signatureFileFormat by signatureFormatOptions::fileFormat
-
-    /** Like [apiFile], but with JDiff xml format. */
-    var apiXmlFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -559,7 +605,7 @@ class Options(
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                     ARG_MIGRATE_NULLNESS,
                     it,
-                    onlyUseLastForCurrentApiSurface = false
+                    onlyUseLastForMainApiSurface = false
                 )
             }
 
@@ -653,14 +699,6 @@ class Options(
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     lateinit var reporter: Reporter
         private set
-
-    /**
-     * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
-     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED]).
-     *
-     * Initialized in [parse].
-     */
-    private lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 

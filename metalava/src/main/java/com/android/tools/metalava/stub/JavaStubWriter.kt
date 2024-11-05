@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import java.io.PrintWriter
 
 internal class JavaStubWriter(
@@ -122,7 +121,7 @@ internal class JavaStubWriter(
     }
 
     private fun appendModifiers(item: Item) {
-        modifierListWriter.write(item.actualItemToSnapshot)
+        modifierListWriter.write(item)
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
@@ -307,7 +306,7 @@ internal class JavaStubWriter(
         generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         val returnType = method.returnType()
-        writer.print(returnType.toTypeString(annotations = false))
+        writer.print(returnType.toTypeString())
 
         writer.print(' ')
         writer.print(method.name())
@@ -322,7 +321,7 @@ internal class JavaStubWriter(
             }
         }
 
-        if (ModifierListWriter.requiresMethodBodyInStubs(method.actualItemToSnapshot)) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")
@@ -341,11 +340,11 @@ internal class JavaStubWriter(
 
         appendDocumentation(field, writer, config)
         appendModifiers(field)
-        writer.print(field.type().toTypeString(annotations = false))
+        writer.print(field.type().toTypeString())
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
-            field.actualItemToSnapshot.modifiers.isFinal() &&
+            field.modifiers.isFinal() &&
                 field.initialValue(true) == null &&
                 field.containingClass().isClass()
         field.writeValueWithSemicolon(
@@ -374,7 +373,7 @@ internal class JavaStubWriter(
                 writer.print(", ")
             }
             appendModifiers(parameter)
-            writer.print(parameter.type().toTypeString(annotations = false))
+            writer.print(parameter.type().toTypeString())
             writer.print(' ')
             val name = parameter.publicName() ?: parameter.name()
             writer.print(name)

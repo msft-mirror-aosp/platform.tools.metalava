@@ -20,10 +20,9 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.VisibilityLevel
-import java.util.function.Predicate
 
 class StubConstructorManager(codebase: Codebase) {
 
@@ -59,7 +58,7 @@ class StubConstructorManager(codebase: Codebase) {
         }
     }
 
-    fun addConstructors(filter: Predicate<Item>) {
+    fun addConstructors(filter: FilterPredicate) {
         // Let's say we have
         //  class GrandParent { public GrandParent(int) {} }
         //  class Parent {  Parent(int) {} }
@@ -105,7 +104,7 @@ class StubConstructorManager(codebase: Codebase) {
      */
     private fun addConstructors(
         cls: ClassItem,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
     ): StubConstructors {
 
         // Don't add constructors to interfaces, enums, annotations, etc
@@ -157,27 +156,25 @@ class StubConstructorManager(codebase: Codebase) {
 
         val superDefaultConstructor = superClassConstructors?.stubConstructor
 
-        // Find default constructor, if one doesn't exist
+        // Find constructor subclasses should delegate to, creating one if necessary. If the stub
+        // will contain a no-args constructor then that is represented as `null` to allow it to be
+        // optimized below.
         val filteredConstructors = cls.filteredConstructors(filter).toList()
         val stubConstructor =
             if (filteredConstructors.isNotEmpty()) {
-                pickBest(filteredConstructors)
-            } else if (
-                cls.constructors().isNotEmpty() ||
-                    // For text based codebase, stub constructor needs to be generated even if
-                    // cls.constructors() is empty, so that public default constructor is not
-                    // created.
-                    cls.codebase.preFiltered
-            ) {
-                // No accessible constructors are available so a package private constructor is
-                // created. Technically, the stub now has a constructor that isn't available at
-                // runtime, but apps creating subclasses inside the android.* package is not
-                // supported.
-                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
+                // Pick the best constructor. If that is a no-args constructor then represent that
+                // as `null`.
+                pickBest(filteredConstructors).takeUnless { it.parameters().isEmpty() }
             } else {
-                null
+                // No accessible constructors are available (not even a default implicit
+                // constructor) so a package private constructor is needed. Technically, this will
+                // result in the stub class having a constructor that isn't available at runtime,
+                // but creating subclasses in API packages is not supported.
+                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
             }
 
+        // If neither the constructors in this class nor its subclasses need to add a `super(...)`
+        // call then use a shared object.
         if (stubConstructor == null && superDefaultConstructor == null) {
             return StubConstructors.EMPTY
         }

@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.source.SourceParser
@@ -244,8 +245,8 @@ class AnnotationsMerger(
         try {
             val signatureCodebase =
                 ApiFile.parseApi(
-                    SignatureFile.fromFile(file),
-                    codebase.annotationManager,
+                    SignatureFile.fromFiles(file),
+                    codebase.config,
                     "Signature files for annotation merger: loaded from $file"
                 )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
@@ -270,7 +271,7 @@ class AnnotationsMerger(
     private fun mergeQualifierAnnotationsFromCodebase(externalCodebase: Codebase) {
         val visitor =
             object : ComparisonVisitor() {
-                override fun compare(old: Item, new: Item) {
+                override fun compareItems(old: Item, new: Item) {
                     val itemAnnotations = old.modifiers.annotations()
                     mergeQualifierAnnotations(itemAnnotations, new)
                     old.type()?.let {
@@ -281,7 +282,7 @@ class AnnotationsMerger(
                     }
                 }
 
-                override fun removed(old: Item, from: Item?) {
+                override fun removedItem(old: SelectableItem, from: SelectableItem?) {
                     // Do not report missing items if there are no annotations to copy.
                     if (old.modifiers.annotations().isEmpty()) {
                         old.type()?.let { typeItem ->
@@ -610,11 +611,9 @@ class AnnotationsMerger(
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
                             val filterEmit =
-                                ApiVisitor(
-                                        apiPredicateConfig =
-                                            @Suppress("DEPRECATION") options.apiPredicateConfig,
-                                    )
-                                    .filterEmit
+                                ApiVisitor.defaultEmitFilter(
+                                    @Suppress("DEPRECATION") options.apiPredicateConfig,
+                                )
 
                             // Attempt with reflection
                             var first = true

@@ -21,11 +21,11 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.ActionContext
+import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
@@ -43,15 +43,19 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
@@ -65,7 +69,6 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
-import java.util.function.Predicate
 import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
@@ -132,7 +135,7 @@ internal fun processFlags(
 
     val reporter = options.reporter
 
-    val annotationManager = options.annotationManager
+    val codebaseConfig = options.codebaseConfig
     val modelOptions =
         // If the option was specified on the command line then use [ModelOptions] created from
         // that.
@@ -148,8 +151,7 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = reporter,
-            annotationManager = annotationManager,
+            codebaseConfig = codebaseConfig,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
@@ -186,7 +188,7 @@ internal fun processFlags(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val signatureFileLoader = SignatureFileLoader(annotationManager)
+            val signatureFileLoader = options.signatureFileLoader
             signatureFileLoader.loadFiles(
                 SignatureFile.fromFiles(sources),
                 classResolverProvider.classResolver,
@@ -198,6 +200,14 @@ internal fun processFlags(
         } else {
             return
         }
+
+    // If provided by a test, run some additional checks on the internal state of this.
+    executionEnvironment.testEnvironment?.let { testEnvironment ->
+        testEnvironment.postAnalysisChecker?.let { function ->
+            val context = CheckerContext(options, codebase)
+            context.function()
+        }
+    }
 
     progressTracker.progress(
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
@@ -229,13 +239,36 @@ internal fun processFlags(
             } else {
                 null
             }
+
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
+                    preFiltered = false,
+                )
+            }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for api-versions.xml files as they only refer to them
+                    // by name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
+
         apiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
             options.isDeveloperPreviewBuild(),
             androidApiLevelXml,
-            codebase,
+            codebaseFragment,
             sdkExtArgs,
             options.removeMissingClassesInApiLevels
         )
@@ -263,17 +296,23 @@ internal fun processFlags(
         )
 
         val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
+        val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
+
+        val codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = apiFilters,
+                    preFiltered = false,
+                )
+            }
 
         apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
-            codebase,
+            codebaseFragment,
             apiVersionsJson,
             apiVersionNames,
-            apiEmit,
-            apiReference
         )
     }
 
@@ -291,8 +330,8 @@ internal fun processFlags(
     // files
     options.apiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
-            CodebaseFragment(codebase) { delegate ->
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
                     fileFormat = fileFormat,
@@ -302,6 +341,19 @@ internal fun processFlags(
                     apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
 
         createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
             SignatureWriter(
@@ -313,8 +365,8 @@ internal fun processFlags(
 
     options.removedApiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
-            CodebaseFragment(codebase) { delegate ->
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
                     fileFormat = fileFormat,
@@ -324,6 +376,19 @@ internal fun processFlags(
                     apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
 
         createReportFile(
             progressTracker,
@@ -343,14 +408,14 @@ internal fun processFlags(
     options.proguard?.let { proguard ->
         val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-        val apiEmit = FilterPredicate(ApiPredicate())
+        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate())
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
                 FilteringApiVisitor(
                     proguardWriter,
                     inlineInheritedFields = true,
-                    filterEmit = apiEmit,
-                    filterReference = apiReferenceIgnoreShown,
+                    apiFilters = apiFilters,
                     preFiltered = codebase.preFiltered,
                 )
             }
@@ -417,7 +482,7 @@ private fun ActionContext.subtractApi(
     val oldCodebase =
         when {
             path.endsWith(DOT_TXT) ->
-                signatureFileCache.load(SignatureFile.fromFile(subtractApiFile))
+                signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
             path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(
@@ -429,7 +494,7 @@ private fun ActionContext.subtractApi(
     CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
-                override fun compare(old: ClassItem, new: ClassItem) {
+                override fun compareClassItems(old: ClassItem, new: ClassItem) {
                     new.emit = false
                 }
             },
@@ -721,8 +786,8 @@ private fun createStubFiles(
             }
         }
 
-    val codebaseFragment =
-        CodebaseFragment(codebase) { delegate ->
+    var codebaseFragment =
+        CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
                 docStubs = docStubs,
@@ -731,10 +796,27 @@ private fun createStubFiles(
             )
         }
 
+    // If reverting some changes then create a snapshot that combines the items from the sources for
+    // any un-reverted changes and items from the previously released API for any reverted changes.
+    if (options.revertAnnotations.isNotEmpty()) {
+        codebaseFragment =
+            codebaseFragment.snapshotIncludingRevertedItems(
+                referenceVisitorFactory = { delegate ->
+                    createFilteringVisitorForStubs(
+                        delegate = delegate,
+                        docStubs = docStubs,
+                        preFiltered = codebase.preFiltered,
+                        apiPredicateConfig = options.apiPredicateConfig,
+                        ignoreEmit = true,
+                    )
+                },
+            )
+    }
+
     // Add additional constructors needed by the stubs.
     val filterEmit =
         if (codebaseFragment.codebase.preFiltered) {
-            Predicate { true }
+            FilterPredicate { true }
         } else {
             val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
             ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)

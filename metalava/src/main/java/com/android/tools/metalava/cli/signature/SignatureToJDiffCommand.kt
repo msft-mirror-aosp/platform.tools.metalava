@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -131,13 +132,17 @@ class SignatureToJDiffCommand :
         OptionsDelegate.disallowAccess()
 
         val annotationManager = DefaultAnnotationManager()
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+            )
         val signatureFileLoader =
             SignatureFileLoader(
-                annotationManager = annotationManager,
+                codebaseConfig = codebaseConfig,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
+        val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFile))
 
         val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
@@ -146,12 +151,13 @@ class SignatureToJDiffCommand :
         val apiReference =
             if (strip) apiType.getEmitFilter(apiPredicateConfig)
             else apiType.getReferenceFilter(apiPredicateConfig)
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
         val baseFile = baseApiFile
 
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(SignatureFile.fromFile(baseFile))
+                val baseApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(baseFile))
                 computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
             } else {
                 signatureApi
@@ -165,8 +171,7 @@ class SignatureToJDiffCommand :
                     apiName = apiName,
                 )
                 .createFilteringVisitor(
-                    filterEmit = apiEmit,
-                    filterReference = apiReference,
+                    apiFilters = apiFilters,
                     preFiltered = signatureApi.preFiltered && !strip,
                     showUnannotated = false,
                     // Historically, the super class type has not been filtered.
@@ -204,32 +209,32 @@ private fun computeDelta(
     return TextCodebaseBuilder.build(
         location = baseFile,
         description = "Delta between $baseApi and $signatureApi",
-        annotationManager = signatureApi.annotationManager,
+        codebaseConfig = signatureApi.config,
     ) {
         CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
-                    override fun added(new: PackageItem) {
+                    override fun addedPackageItem(new: PackageItem) {
                         addPackage(new)
                     }
 
-                    override fun added(new: ClassItem) {
+                    override fun addedClassItem(new: ClassItem) {
                         addClass(new)
                     }
 
-                    override fun added(new: ConstructorItem) {
+                    override fun addedConstructorItem(new: ConstructorItem) {
                         addConstructor(new)
                     }
 
-                    override fun added(new: MethodItem) {
+                    override fun addedMethodItem(new: MethodItem) {
                         addMethod(new)
                     }
 
-                    override fun added(new: FieldItem) {
+                    override fun addedFieldItem(new: FieldItem) {
                         addField(new)
                     }
 
-                    override fun added(new: PropertyItem) {
+                    override fun addedPropertyItem(new: PropertyItem) {
                         addProperty(new)
                     }
                 },
