@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.testing.surfaces.SelectedApiVariantsTestData
 import com.android.tools.metalava.model.testing.surfaces.selectedApiVariantsTestData
 import org.junit.Test
@@ -36,7 +37,11 @@ class CommonParameterizedSelectedApiVariantsTest : BaseModelTest() {
 
     @Test
     fun `Test selectedApiVariants`() {
-        runCodebaseTest(inputSet(testData.signatureFiles)) {
+        val testFixture =
+            TestFixture(
+                apiSurfaces = ApiSurfaces.create(testData.needsBase),
+            )
+        runCodebaseTest(inputSet(testData.signatureFiles), testFixture = testFixture) {
             codebase.assertSelectedApiVariants(testData.expectedSelectedApiVariants)
         }
     }

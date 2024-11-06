@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testing.surfaces
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.signature
 
@@ -46,6 +47,8 @@ data class SelectedApiVariantsTestData(
      */
     val expectedSelectedApiVariants: String,
 ) {
+    val needsBase = signatureFiles.any { it.targetRelativePath.contains("base") }
+
     override fun toString() = name
 }
 
@@ -131,4 +134,95 @@ val selectedApiVariantsTestData =
                           constructor test.pkg.Test.Removed() - ApiVariantSet[main(R)]
                 """,
         ),
+        // A test consisting of a base and extending API.
+        SelectedApiVariantsTestData(
+            name = "base",
+            signatureFiles =
+                listOf(
+                    signature(
+                        "base.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Base {
+                                ctor public Base();
+                                field public int baseField;
+                                method public void baseMethod(int);
+                              }
+                              public class Test {
+                                ctor public Test();
+                                field public int baseField;
+                                method public void baseMethod(int);
+                              }
+                            }
+                        """
+                    ),
+                    signature(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Test {
+                                field public int field;
+                                method public void method(int);
+                              }
+                              public static class Test.Nested {
+                                ctor public Test.Nested();
+                              }
+                            }
+                        """
+                    ),
+                ),
+            javaSourceFiles =
+                listOf(
+                    KnownSourceFiles.systemApiSource,
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Base {
+                                public int baseField;
+                                public void baseMethod(int p) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.SystemApi;
+
+                            public class Test {
+                                /** @hide */
+                                @SystemApi
+                                public int field;
+
+                                /** @hide */
+                                @SystemApi
+                                public void method(int p) {}
+
+                                /** @hide */
+                                @SystemApi
+                                public static class Nested {
+                                }
+                            }
+                        """
+                    ),
+                ),
+            expectedSelectedApiVariants =
+                """
+                    package test.pkg - ApiVariantSet[base(C),main(C)]
+                      class test.pkg.Base - ApiVariantSet[base(C)]
+                        constructor test.pkg.Base() - ApiVariantSet[base(C)]
+                        method test.pkg.Base.baseMethod(int) - ApiVariantSet[base(C)]
+                        field test.pkg.Base.baseField - ApiVariantSet[base(C)]
+                      class test.pkg.Test - ApiVariantSet[base(C),main(C)]
+                        constructor test.pkg.Test() - ApiVariantSet[base(C)]
+                        method test.pkg.Test.baseMethod(int) - ApiVariantSet[base(C)]
+                        method test.pkg.Test.method(int) - ApiVariantSet[main(C)]
+                        field test.pkg.Test.baseField - ApiVariantSet[base(C)]
+                        field test.pkg.Test.field - ApiVariantSet[main(C)]
+                        class test.pkg.Test.Nested - ApiVariantSet[main(C)]
+                          constructor test.pkg.Test.Nested() - ApiVariantSet[main(C)]
+                """,
+        )
     )
