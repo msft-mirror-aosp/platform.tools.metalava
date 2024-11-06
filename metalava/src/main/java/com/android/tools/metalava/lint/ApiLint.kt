@@ -76,6 +76,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
@@ -3285,8 +3286,8 @@ private constructor(
         setter: MethodItem
     ) {
         if (getterType.modifiers.nullability != setterType.modifiers.nullability) {
-            val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
-            val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
+            val getterTypeString = getterType.toTypeString(KOTLIN_NULLS_TYPE_STRING_CONFIGURATION)
+            val setterTypeString = setterType.toTypeString(KOTLIN_NULLS_TYPE_STRING_CONFIGURATION)
             report(
                 Issues.GETTER_SETTER_NULLABILITY,
                 getter,
@@ -3333,6 +3334,9 @@ private constructor(
     }
 
     companion object {
+        /** [TypeStringConfiguration] for use in [checkAccessorNullabilityMatches] */
+        private val KOTLIN_NULLS_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(kotlinStyleNulls = true)
 
         /**
          * Check the supplied [codebase] to see if it adheres to the API lint rules enforced by this
