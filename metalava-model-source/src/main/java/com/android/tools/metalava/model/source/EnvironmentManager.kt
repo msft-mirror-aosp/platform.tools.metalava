@@ -16,9 +16,8 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
-import com.android.tools.metalava.reporter.Reporter
 import java.io.Closeable
 import java.io.File
 
@@ -31,24 +30,23 @@ import java.io.File
 interface EnvironmentManager : Closeable {
 
     /**
-     * Create a [SourceParser] that can be used to create [SourceCodebase] related objects.
+     * Create a [SourceParser] that can be used to create [Codebase] related objects.
      *
-     * @param reporter the [Reporter] to use for any issues found while processing the sources.
-     * @param annotationManager the [AnnotationManager] that determines how annotations will affect
-     *   any generated [SourceCodebase]s.
+     * @param codebaseConfig the [Codebase.Config] to pass through to the created [Codebase]s.
      * @param javaLanguageLevel the java language level as a string, e.g. 1.8, 17, etc.
      * @param kotlinLanguageLevel the kotlin language level as a string, e.g. 1.8, etc.
      * @param modelOptions a set of model specific options provided by the caller.
      * @param jdkHome the optional path to the jdk home directory.
+     * @param projectDescription Lint project model that can describe project structures in detail.
      */
     fun createSourceParser(
-        reporter: Reporter,
-        annotationManager: AnnotationManager,
+        codebaseConfig: Codebase.Config,
         javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
         kotlinLanguageLevel: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL,
         modelOptions: ModelOptions = ModelOptions.empty,
         allowReadingComments: Boolean = true,
         jdkHome: File? = null,
+        projectDescription: File? = null,
     ): SourceParser
 }
 

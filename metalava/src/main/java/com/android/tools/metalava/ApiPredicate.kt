@@ -17,13 +17,13 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.TypeParameterItem
-import java.util.function.Predicate
+import com.android.tools.metalava.model.SelectableItem
 
 /**
  * Predicate that decides if the given member should be considered part of an API surface area. To
@@ -56,7 +56,7 @@ class ApiPredicate(
 
     /** Configuration that may be provided by command line options. */
     private val config: Config = @Suppress("DEPRECATION") options.apiPredicateConfig,
-) : Predicate<Item> {
+) : FilterPredicate {
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -82,41 +82,39 @@ class ApiPredicate(
         val addAdditionalOverrides: Boolean = false,
     )
 
-    override fun test(member: Item): Boolean {
+    override fun test(item: SelectableItem): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
         // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
-        if (member !is ClassItem && !member.emit) {
+        if (item !is ClassItem && !item.emit) {
             return false
         }
 
-        // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
-        if (member is TypeParameterItem) {
-            return true
-        }
-
-        if (!config.allowClassesFromClasspath && member.isFromClassPath()) {
+        if (
+            !config.allowClassesFromClasspath &&
+                item is ClassContentItem &&
+                // This disallows classes from the source path not just the class path, contrary to
+                // what might be expected from the config property name.
+                item.origin != ClassOrigin.COMMAND_LINE
+        ) {
             return false
         }
 
         val visibleForAdditionalOverridePurpose =
             if (config.addAdditionalOverrides) {
-                member is MethodItem &&
-                    !member.isConstructor() &&
-                    member.isRequiredOverridingMethodForTextStub()
+                item is MethodItem && item.isRequiredOverridingMethodForTextStub()
             } else {
                 false
             }
 
-        var visible =
-            member.isPublic ||
-                member.isProtected ||
-                (member.isInternal &&
-                    member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
-        var hidden = member.hidden && !visibleForAdditionalOverridePurpose
-        if (!visible || hidden) {
-            return false
-        }
-        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(member)) {
+        val itemSelectors = item.variantSelectors
+
+        // If the item or any of its containing classes are inaccessible then ignore it.
+        if (!itemSelectors.accessible) return false
+
+        var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
+        if (hidden) return false
+
+        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
             return false
         }
 
@@ -127,57 +125,45 @@ class ApiPredicate(
         // Only the class definition is marked visible, and class attributes are
         // not affected.
         if (
-            member is ClassItem &&
-                member.superClass()?.let {
+            item is ClassItem &&
+                item.superClass()?.let {
                     it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
                 } == true
         ) {
-            return member.removed == matchRemoved
+            return itemSelectors.removed == matchRemoved
         }
 
-        var hasShowAnnotation = config.ignoreShown || member.hasShowAnnotation()
-        var docOnly = member.docOnly
-        var removed = member.removed
+        // If docOnly items are not included and this item is docOnly then ignore it.
+        if (!includeDocOnly && itemSelectors.docOnly) return false
 
-        var clazz: ClassItem? =
-            when (member) {
-                is MemberItem -> member.containingClass()
-                is ClassItem -> member
+        // If removed status is not ignored and this item's status does not match what is required
+        // then ignore this item.
+        if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
+
+        val closestClass: ClassItem? =
+            when (item) {
+                is MemberItem -> item.containingClass()
+                is ClassItem -> item
                 else -> null
             }
 
-        if (clazz != null) {
-            var pkg: PackageItem? = clazz.containingPackage()
-            while (pkg != null) {
-                hidden = hidden or pkg.hidden
-                docOnly = docOnly or pkg.docOnly
-                removed = removed or pkg.removed
-                pkg = pkg.containingPackage()
+        if (!config.ignoreShown) {
+            var hasShowAnnotation = item.hasShowAnnotation()
+            var showClass = closestClass
+            while (showClass != null && !hasShowAnnotation) {
+                hasShowAnnotation = showClass.hasShowAnnotation()
+                showClass = showClass.containingClass()
             }
-        }
-        while (clazz != null) {
-            visible =
-                visible and
-                    (clazz.isPublic ||
-                        clazz.isProtected ||
-                        (clazz.isInternal && clazz.hasShowAnnotation()))
-            hasShowAnnotation =
-                hasShowAnnotation or (config.ignoreShown || clazz.hasShowAnnotation())
-            hidden = hidden or clazz.hidden
-            docOnly = docOnly or clazz.docOnly
-            removed = removed or clazz.removed
-            clazz = clazz.containingClass()
+            if (!hasShowAnnotation) return false
         }
 
-        if (ignoreRemoved) {
-            removed = matchRemoved
+        var hiddenClass = closestClass
+        while (hiddenClass != null) {
+            if (hiddenClass.hidden) return false
+            hiddenClass = hiddenClass.containingClass()
         }
 
-        if (docOnly && includeDocOnly) {
-            docOnly = false
-        }
-
-        return visible && hasShowAnnotation && !hidden && !docOnly && removed == matchRemoved
+        return true
     }
 
     /**
@@ -185,7 +171,7 @@ class ApiPredicate(
      * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
      * also an [AnnotationItem.isShowForStubPurposes] annotation.
      */
-    private fun includeOnlyForStubPurposes(item: Item): Boolean {
+    private fun includeOnlyForStubPurposes(item: SelectableItem): Boolean {
         if (!item.codebase.annotationManager.hasAnyStubPurposesAnnotations()) {
             return false
         }
@@ -193,7 +179,7 @@ class ApiPredicate(
         return includeOnlyForStubPurposesRecursive(item)
     }
 
-    private fun includeOnlyForStubPurposesRecursive(item: Item): Boolean {
+    private fun includeOnlyForStubPurposesRecursive(item: SelectableItem): Boolean {
         // Get the item's API membership. If it belongs to an API surface then return `true` if the
         // API surface to which it belongs is the base API, and false otherwise.
         val membership = item.apiMembership()
@@ -236,8 +222,8 @@ class ApiPredicate(
         CURRENT
     }
 
-    /** Get the API to which this [Item] belongs, according to the annotations. */
-    private fun Item.apiMembership(): ApiMembership {
+    /** Get the API to which this [SelectableItem] belongs, according to the annotations. */
+    private fun SelectableItem.apiMembership(): ApiMembership {
         // If the item has a "show" annotation, then return whether it *only* has a "for stubs"
         // show annotation or not.
         //

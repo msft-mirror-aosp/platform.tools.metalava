@@ -17,18 +17,17 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.source.SourceSet
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
 
 internal class PsiBasedClassResolver(
     uastEnvironment: UastEnvironment,
-    annotationManager: AnnotationManager,
-    reporter: Reporter,
+    config: Codebase.Config,
     allowReadingComments: Boolean,
 ) : ClassResolver {
     private val javaPsiFacade: JavaPsiFacade
@@ -41,17 +40,19 @@ internal class PsiBasedClassResolver(
         javaPsiFacade = JavaPsiFacade.getInstance(project)
         searchScope = GlobalSearchScope.everythingScope(project)
 
-        classpathCodebase =
-            PsiBasedCodebase(
-                location = File("classpath"),
-                description = "Codebase from classpath",
-                annotationManager = annotationManager,
-                reporter = reporter,
-                fromClasspath = true,
-                allowReadingComments = allowReadingComments,
-            )
-        val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf(), mutableSetOf())
-        classpathCodebase.initializeFromSources(uastEnvironment, emptyList(), emptyPackageDocs)
+        val assembler =
+            PsiCodebaseAssembler(uastEnvironment) { assembler ->
+                PsiBasedCodebase(
+                    location = File("classpath"),
+                    description = "Codebase from classpath",
+                    config = config,
+                    fromClasspath = true,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                )
+            }
+        assembler.initializeFromSources(SourceSet.empty(), apiPackages = null)
+        classpathCodebase = assembler.codebase
     }
 
     override fun resolveClass(erasedName: String): ClassItem? {

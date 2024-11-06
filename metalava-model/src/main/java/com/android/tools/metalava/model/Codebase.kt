@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /**
@@ -32,14 +35,43 @@ interface Codebase {
      */
     val location: File
 
+    /** Configuration of this [Codebase], typically comes from the command line. */
+    val config: Config
+
+    /** [Reporter] to which any issues found within the [Codebase] can be reported. */
+    val reporter: Reporter
+
     /** The manager of annotations within this codebase. */
     val annotationManager: AnnotationManager
+
+    /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
+    val apiSurfaces: ApiSurfaces
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
 
     /** The rough size of the codebase (package count) */
     fun size(): Int
+
+    /**
+     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    fun getTopLevelClassesFromSource(): List<ClassItem>
+
+    /**
+     * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
+     * sources.
+     */
+    fun isFromClassPath(): Boolean = false
+
+    /**
+     * Freeze all the classes loaded from sources, along with their super classes.
+     *
+     * This does not prevent adding new classes and does automatically freeze classes added after
+     * this is called.
+     */
+    fun freezeClasses()
 
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
@@ -67,29 +99,61 @@ interface Codebase {
     fun trustedApi(): Boolean
 
     fun accept(visitor: ItemVisitor) {
-        getPackages().accept(visitor)
+        visitor.visit(this)
     }
 
-    /** Creates an annotation item for the given (fully qualified) Java source */
+    /**
+     * Creates an annotation item for the given (fully qualified) Java source.
+     *
+     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
+     */
     fun createAnnotation(
         source: String,
         context: Item? = null,
-    ): AnnotationItem
+    ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
-    fun unsupported(desc: String? = null): Nothing
+    fun unsupported(desc: String? = null): Nothing {
+        error(
+            desc
+                ?: "This operation is not available on this type of codebase (${javaClass.simpleName})"
+        )
+    }
 
     /** Discards this model */
     fun dispose()
-
-    /** If this codebase was filtered from another codebase, this points to the original */
-    val original: Codebase?
 
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
 
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
+    }
+
+    /**
+     * Contains configuration for [Codebase] that can, or at least could, come from command line
+     * options.
+     */
+    data class Config(
+        /** Determines how annotations will affect the [Codebase]. */
+        val annotationManager: AnnotationManager,
+
+        /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The reporter to use for issues found during processing of the [Codebase]. */
+        val reporter: Reporter = BasicReporter.ERR,
+    ) {
+        companion object {
+            /**
+             * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
+             * reporter.
+             */
+            val NOOP =
+                Config(
+                    annotationManager = noOpAnnotationManager,
+                )
+        }
     }
 }
 
@@ -98,75 +162,3 @@ sealed class MinSdkVersion
 data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
-
-const val CLASS_ESTIMATE = 15000
-
-abstract class DefaultCodebase(
-    final override var location: File,
-    final override var description: String,
-    final override var preFiltered: Boolean,
-    final override val annotationManager: AnnotationManager,
-) : Codebase {
-    final override var original: Codebase? = null
-
-    override fun unsupported(desc: String?): Nothing {
-        error(
-            desc
-                ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
-        )
-    }
-
-    override fun dispose() {
-        description += " [disposed]"
-    }
-
-    /** A list of all the classes. Primarily used by [iterateAllClasses]. */
-    private val allClasses: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
-
-    /**
-     * Add a [ClassItem].
-     *
-     * It is the responsibility of the caller to ensure that each [classItem] is not added more than
-     * once.
-     */
-    protected fun addClass(classItem: ClassItem) {
-        allClasses.add(classItem)
-    }
-
-    /**
-     * Iterate over all the [ClassItem]s in the [Codebase].
-     *
-     * If additional classes are added to the [Codebase] by [body], e.g. by resolving a
-     * `ClassTypeItem` to a class on the classpath that was not previously loaded, then they will be
-     * included in the iteration.
-     */
-    fun iterateAllClasses(body: (ClassItem) -> Unit) {
-        // Iterate by index not using an iterator to avoid `ConcurrentModificationException`s.
-        // Limit the first round of iteration to just the classes that were present at the start.
-        var start = 0
-        var end = allClasses.size
-        do {
-            // Iterate over the classes in the selected range, invoking [body] pn each.
-            for (i in start until end) {
-                val classItem = allClasses[i]
-                body(classItem)
-            }
-
-            // Move the range to include all the classes, if any, added during the previous round.
-            start = end
-            end = allClasses.size
-
-            // Repeat until no new classes were added.
-        } while (start < end)
-    }
-
-    /** Iterate over all the classes resolving their super class and interface types. */
-    fun resolveSuperTypes() {
-        iterateAllClasses { classItem ->
-            classItem.superClass()
-            for (interfaceType in classItem.interfaceTypes()) {
-                interfaceType.asClass()
-            }
-        }
-    }
-}
