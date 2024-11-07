@@ -35,9 +35,6 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[psi,java,k1]
   modifiers public explicitly final method in final class[psi,java,k2]
 
-com.android.tools.metalava.model.testsuite.CommonParameterizedSelectedApiVariantsTest
-  Test selectedApiVariants[text,base]
-
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation toSource() with char values[text]
   annotation toSource() with class values[text]
