@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -34,12 +36,16 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
+typealias MethodToTest = TypeItem.(TypeStringConfiguration) -> String
+
 class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
         val name: String,
+        val methodToTest: MethodToTest = TO_TYPE_STRING_METHOD,
         val sourceType: String = name,
         val typeStringConfiguration: TypeStringConfiguration = TypeStringConfiguration(),
+        val filter: FilterPredicate? = null,
         val expectedTypeString: String = sourceType,
         val typeParameters: String? = null,
         val extraJavaSourceFiles: List<TestFile> = emptyList(),
@@ -94,8 +100,10 @@ class CommonTypeStringTest : BaseModelTest() {
                 return configs.map {
                     TypeStringParameters(
                         name = "$name - ${it.name}",
+                        methodToTest = it.methodToTest ?: TO_TYPE_STRING_METHOD,
                         sourceType = sourceType,
                         typeStringConfiguration = it.configuration,
+                        filter = it.filter,
                         expectedTypeString = it.expectedTypeString,
                         typeParameters = typeParameters,
                         extraJavaSourceFiles = extraJavaSourceFiles,
@@ -109,16 +117,10 @@ class CommonTypeStringTest : BaseModelTest() {
 
     data class ConfigurationTestCase(
         val name: String,
-        val configuration: TypeStringConfiguration,
-        val expectedTypeString: String
-    )
-
-    data class TypeStringConfiguration(
-        val annotations: Boolean = false,
-        val kotlinStyleNulls: Boolean = false,
+        val methodToTest: MethodToTest? = null,
+        val configuration: TypeStringConfiguration = TypeStringConfiguration.DEFAULT,
         val filter: FilterPredicate? = null,
-        val spaceBetweenParameters: Boolean = false,
-        val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
+        val expectedTypeString: String,
     )
 
     /**
@@ -180,18 +182,11 @@ class CommonTypeStringTest : BaseModelTest() {
             val param = method.parameters().single()
             val type =
                 param.type().let { unfilteredType ->
-                    val filter =
-                        parameters.typeStringConfiguration.filter ?: return@let unfilteredType
+                    val filter = parameters.filter ?: return@let unfilteredType
                     unfilteredType.transform(typeUseAnnotationFilter(filter))
                 }
-            val typeString =
-                type.toTypeString(
-                    annotations = parameters.typeStringConfiguration.annotations,
-                    kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
-                    spaceBetweenParameters =
-                        parameters.typeStringConfiguration.spaceBetweenParameters,
-                    stripJavaLangPrefix = parameters.typeStringConfiguration.stripJavaLangPrefix,
-                )
+            val methodToTest = parameters.methodToTest
+            val typeString = type.methodToTest(parameters.typeStringConfiguration)
             assertThat(typeString).isEqualTo(parameters.expectedTypeString)
         }
     }
@@ -227,6 +222,27 @@ class CommonTypeStringTest : BaseModelTest() {
                   }
                 }
             """
+
+        /**
+         * [MethodToTest] that calls [TypeItem.toTypeString] with a [TypeStringConfiguration] that
+         * is supplied.
+         */
+        private val TO_TYPE_STRING_METHOD: MethodToTest = { configuration ->
+            toTypeString(configuration)
+        }
+
+        /**
+         * [MethodToTest] that call [TypeItem.toCanonicalType].
+         *
+         * [TypeItem.toCanonicalType] does not take a [TypeStringConfiguration] so this makes sure
+         * that a test just provides the default configuration to avoid confusion.
+         */
+        private val TO_CANONICAL_TYPE: MethodToTest = { configuration ->
+            require(configuration.isDefault) {
+                "toCanonicalType does not use configuration so expects the default but found $configuration"
+            }
+            toCanonicalType()
+        }
 
         @JvmStatic @Parameterized.Parameters fun testCases() = testCases
 
@@ -457,6 +473,24 @@ class CommonTypeStringTest : BaseModelTest() {
                                     ),
                                 expectedTypeString = "java.lang.String?..."
                             ),
+                            ConfigurationTestCase(
+                                name = "treatVarargsAsArray",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        treatVarargsAsArray = true,
+                                    ),
+                                expectedTypeString = "java.lang.String[]"
+                            ),
+                            ConfigurationTestCase(
+                                name = "treatVarargsAsArray and annotated",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        treatVarargsAsArray = true
+                                    ),
+                                expectedTypeString =
+                                    "java.lang.@libcore.util.Nullable String @libcore.util.NonNull []"
+                            ),
                         ),
                     extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource),
                     extraTextPackages = listOf(libcoreTextPackage)
@@ -490,10 +524,57 @@ class CommonTypeStringTest : BaseModelTest() {
                                     ),
                                 expectedTypeString = "T"
                             ),
+                            ConfigurationTestCase(
+                                name = "toCanonicalType",
+                                methodToTest = TO_CANONICAL_TYPE,
+                                expectedTypeString = "T",
+                            ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                    ),
+                                expectedTypeString = "java.lang.Object",
+                            ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true and stripJavaLangPrefix=ALWAYS",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString = "Object",
+                            ),
                         ),
                     typeParameters = "<T>",
                     extraJavaSourceFiles = listOf(libcoreNonNullSource),
                     extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated T",
+                    sourceType = "@libcore.util.NonNull T",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                    ),
+                                expectedTypeString = "java.lang.String",
+                            ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics=true and stripJavaLangPrefix=ALWAYS",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                        stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                                    ),
+                                expectedTypeString = "String",
+                            ),
+                        ),
+                    typeParameters = "<T extends java.lang.String>",
                 ) +
                 TypeStringParameters(
                     name = "super T comparable",
@@ -595,8 +676,8 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration =
                                     TypeStringConfiguration(
                                         annotations = true,
-                                        filter = { false },
                                     ),
+                                filter = { false },
                                 expectedTypeString = "java.util.List<java.lang.Integer>"
                             ),
                             ConfigurationTestCase(
@@ -604,9 +685,9 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration =
                                     TypeStringConfiguration(
                                         annotations = true,
-                                        filter = { false },
                                         kotlinStyleNulls = true
                                     ),
+                                filter = { false },
                                 expectedTypeString = "java.util.List<java.lang.Integer!>!"
                             ),
                             ConfigurationTestCase(
@@ -614,8 +695,8 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration =
                                     TypeStringConfiguration(
                                         annotations = true,
-                                        filter = { true },
                                     ),
+                                filter = { true },
                                 expectedTypeString =
                                     "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                             )
@@ -678,7 +759,24 @@ class CommonTypeStringTest : BaseModelTest() {
                                 configuration = TypeStringConfiguration(kotlinStyleNulls = true),
                                 expectedTypeString =
                                     "test.pkg.Outer<java.lang.String?>.Inner<java.lang.Integer>?"
-                            )
+                            ),
+                            ConfigurationTestCase(
+                                name = "eraseGenerics",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        eraseGenerics = true,
+                                    ),
+                                expectedTypeString = "test.pkg.Outer.Inner",
+                            ),
+                            ConfigurationTestCase(
+                                name = "nestedClassSeparator",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        nestedClassSeparator = '@',
+                                    ),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.String>@Inner<java.lang.Integer>",
+                            ),
                         ),
                     extraJavaSourceFiles =
                         listOf(
@@ -724,13 +822,13 @@ class CommonTypeStringTest : BaseModelTest() {
                             configuration =
                                 TypeStringConfiguration(
                                     annotations = true,
-                                    // Filter that removes nullness annotations
-                                    filter = {
-                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                            isNullnessAnnotation(name)
-                                        } != true
-                                    }
                                 ),
+                            // Filter that removes nullness annotations
+                            filter = {
+                                (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                    isNullnessAnnotation(name)
+                                } != true
+                            },
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                         ),
@@ -740,14 +838,14 @@ class CommonTypeStringTest : BaseModelTest() {
                                 TypeStringConfiguration(
                                     annotations = true,
                                     kotlinStyleNulls = true,
-                                    // Filter that removes nullness annotations, but Kotlin-nulls
-                                    // should still be present
-                                    filter = {
-                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                            isNullnessAnnotation(name)
-                                        } != true
-                                    }
                                 ),
+                            // Filter that removes nullness annotations, but Kotlin-nulls
+                            // should still be present
+                            filter = {
+                                (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                    isNullnessAnnotation(name)
+                                } != true
+                            },
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
                         ),
@@ -884,6 +982,12 @@ class CommonTypeStringTest : BaseModelTest() {
                                 expectedTypeString =
                                     "@libcore.util.Nullable Comparable<java.util.Map<@libcore.util.Nullable String,java.lang.annotation.Annotation>>",
                             ),
+                            ConfigurationTestCase(
+                                name = "toCanonicalType",
+                                methodToTest = TO_CANONICAL_TYPE,
+                                expectedTypeString =
+                                    "Comparable<java.util.Map<String,java.lang.annotation.Annotation>>",
+                            ),
                         ),
                     extraJavaSourceFiles = listOf(libcoreNullableSource),
                     extraTextPackages = listOf(libcoreTextPackage)
@@ -946,6 +1050,11 @@ class CommonTypeStringTest : BaseModelTest() {
                                 expectedTypeString =
                                     "@androidx.annotation.IntRange(from=5L, to=10L) String...",
                             ),
+                            ConfigurationTestCase(
+                                name = "toCanonicalType",
+                                methodToTest = TO_CANONICAL_TYPE,
+                                expectedTypeString = "String[]",
+                            ),
                         ),
                 ) +
                 TypeStringParameters.fromConfigurations(
@@ -974,6 +1083,11 @@ class CommonTypeStringTest : BaseModelTest() {
                                     ),
                                 expectedTypeString = "Comparable<String>...",
                             ),
+                            ConfigurationTestCase(
+                                name = "toCanonicalType",
+                                methodToTest = TO_CANONICAL_TYPE,
+                                expectedTypeString = "Comparable<String>[]",
+                            ),
                         ),
                 ) +
                 TypeStringParameters.fromConfigurations(
@@ -1000,6 +1114,11 @@ class CommonTypeStringTest : BaseModelTest() {
                                     TypeStringConfiguration(
                                         stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
                                     ),
+                                expectedTypeString = "Thread.UncaughtExceptionHandler",
+                            ),
+                            ConfigurationTestCase(
+                                name = "toCanonicalType",
+                                methodToTest = TO_CANONICAL_TYPE,
                                 expectedTypeString = "Thread.UncaughtExceptionHandler",
                             ),
                         ),

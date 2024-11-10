@@ -66,20 +66,10 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
-     *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
-     * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
-     *   "List<String!>?".
-     * @param spaceBetweenParameters Controls whether there should be a space between class type
-     *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
-     *   "java.util.Map<java.lang.Integer,java.lang.Number>".
-     * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
+     * @see [TypeStringConfiguration] for information on the parameters.
      */
     fun toTypeString(
-        annotations: Boolean = false,
-        kotlinStyleNulls: Boolean = false,
-        spaceBetweenParameters: Boolean = false,
-        stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
+        configuration: TypeStringConfiguration = TypeStringConfiguration.DEFAULT
     ): String
 
     /**
@@ -99,26 +89,14 @@ interface TypeItem {
 
     fun asClass(): ClassItem?
 
-    fun toSimpleType(): String {
-        return toTypeString(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
-    }
+    fun toSimpleType() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
      * Helper methods to compare types, especially types from signature files with types from
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType(): String {
-        var s = toTypeString()
-        while (s.contains(JAVA_LANG_PREFIX)) {
-            s = s.replace(JAVA_LANG_PREFIX, "")
-        }
-        if (s.contains("...")) {
-            s = s.replace("...", "[]")
-        }
-
-        return s
-    }
+    fun toCanonicalType() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
 
     /**
      * Makes substitutions to the type based on the [typeParameterBindings]. For instance, if the
@@ -183,6 +161,17 @@ interface TypeItem {
     fun transform(transformer: TypeTransformer): TypeItem
 
     companion object {
+        /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
+        private val SIMPLE_TYPE_CONFIGURATION =
+            TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
+
+        /** [TypeStringConfiguration] for [toCanonicalType] to pass to [toTypeString]. */
+        private val CANONICAL_TYPE_CONFIGURATION =
+            TypeStringConfiguration(
+                stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                treatVarargsAsArray = true,
+            )
+
         /** Shortens types, if configured */
         fun shortenTypes(type: String): String {
             var cleaned = type
@@ -380,23 +369,7 @@ abstract class DefaultTypeItem(
 
     override fun toString(): String = toTypeString()
 
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        spaceBetweenParameters: Boolean,
-        stripJavaLangPrefix: StripJavaLangPrefix,
-    ): String {
-        return toTypeString(
-            TypeStringConfiguration(
-                annotations,
-                kotlinStyleNulls,
-                spaceBetweenParameters,
-                stripJavaLangPrefix,
-            )
-        )
-    }
-
-    private fun toTypeString(configuration: TypeStringConfiguration): String {
+    override fun toTypeString(configuration: TypeStringConfiguration): String {
         // Cache the default type string. Other configurations are less likely to be reused.
         return if (configuration.isDefault) {
             if (!::cachedDefaultType.isInitialized) {
@@ -419,7 +392,7 @@ abstract class DefaultTypeItem(
 
     override fun toErasedTypeString(): String {
         if (!::cachedErasedType.isInitialized) {
-            cachedErasedType = buildString { appendErasedTypeString(this@DefaultTypeItem) }
+            cachedErasedType = toTypeString(ERASED_TYPE_STRING_CONFIGURATION)
         }
         return cachedErasedType
     }
@@ -437,27 +410,11 @@ abstract class DefaultTypeItem(
     override fun hashCode(): Int = hashCodeForType()
 
     companion object {
-        /**
-         * Configuration options for how to represent a type as a string.
-         *
-         * @param annotations Whether to include annotations on the type.
-         * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
-         *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
-         *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
-         * @param spaceBetweenParameters Whether to include a space between class type params.
-         */
-        private data class TypeStringConfiguration(
-            val annotations: Boolean = false,
-            val kotlinStyleNulls: Boolean = false,
-            val spaceBetweenParameters: Boolean = false,
-            val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
-        ) {
-            val isDefault =
-                !annotations &&
-                    !kotlinStyleNulls &&
-                    !spaceBetweenParameters &&
-                    stripJavaLangPrefix == StripJavaLangPrefix.NEVER
-        }
+        private val ERASED_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(
+                eraseGenerics = true,
+                treatVarargsAsArray = true,
+            )
 
         private fun StringBuilder.appendTypeString(
             type: TypeItem,
@@ -484,6 +441,12 @@ abstract class DefaultTypeItem(
                             configuration.copy(stripJavaLangPrefix = StripJavaLangPrefix.VARARGS)
                         } else configuration
 
+                    // Compute the outermost array suffix as that can differ if it is varargs. If
+                    // this is a varargs then it must be the outermost, otherwise the outermost is
+                    // not a varargs so they will all use the same suffix.
+                    val outermostArraySuffix =
+                        if (type.isVarargs && !configuration.treatVarargsAsArray) "..." else "[]"
+
                     // The ordering of array annotations means this can't just use a recursive
                     // approach for annotated multi-dimensional arrays, but it can if annotations
                     // aren't included.
@@ -502,11 +465,13 @@ abstract class DefaultTypeItem(
                         // Print modifiers from the outermost array type in, and the array suffixes.
                         arrayModifiers.zip(suffixes).forEachIndexed { index, (modifiers, suffix) ->
                             appendAnnotations(modifiers, configuration, leadingSpace = true)
-                            // Only the outermost array can be varargs.
-                            if (index < arrayModifiers.size - 1 || !type.isVarargs) {
-                                append("[]")
+                            // The array suffix can be different on the outermost array type. The
+                            // outermost is the last in the list.
+                            if (index == arrayModifiers.lastIndex) {
+                                append(outermostArraySuffix)
                             } else {
-                                append("...")
+                                // Only the outermost array can be varargs.
+                                append("[]")
                             }
                             if (configuration.kotlinStyleNulls) {
                                 append(suffix)
@@ -515,11 +480,7 @@ abstract class DefaultTypeItem(
                     } else {
                         // Non-annotated case: just recur to the component
                         appendTypeString(type.componentType, nestedConfiguration)
-                        if (type.isVarargs) {
-                            append("...")
-                        } else {
-                            append("[]")
-                        }
+                        append(outermostArraySuffix)
                         if (configuration.kotlinStyleNulls) {
                             append(type.modifiers.nullability.suffix)
                         }
@@ -536,7 +497,7 @@ abstract class DefaultTypeItem(
                                 configuration.copy(stripJavaLangPrefix = StripJavaLangPrefix.NEVER)
                             else configuration
                         appendTypeString(type.outerClassType!!, nestedConfiguration)
-                        append('.')
+                        append(configuration.nestedClassSeparator)
                         if (configuration.annotations) {
                             appendAnnotations(type.modifiers, configuration)
                         }
@@ -573,7 +534,7 @@ abstract class DefaultTypeItem(
                         append(type.className)
                     }
 
-                    if (type.arguments.isNotEmpty()) {
+                    if (!configuration.eraseGenerics && type.arguments.isNotEmpty()) {
                         append("<")
                         type.arguments.forEachIndexed { index, parameter ->
                             appendTypeString(parameter, configuration)
@@ -594,7 +555,21 @@ abstract class DefaultTypeItem(
                     if (configuration.annotations) {
                         appendAnnotations(type.modifiers, configuration)
                     }
-                    append(type.name)
+                    if (configuration.eraseGenerics) {
+                        // Replace the type variable with the bounds of the type parameter.
+                        val typeParameter = type.asTypeParameter
+                        typeParameter.asErasedType()?.let { boundsType ->
+                            appendTypeString(boundsType, configuration)
+                        }
+                        // No explicit bounds were provided so use the default of java.lang.Object.
+                        ?: if (configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS) {
+                                append("Object")
+                            } else {
+                                append(JAVA_LANG_OBJECT)
+                            }
+                    } else {
+                        append(type.name)
+                    }
                     if (configuration.kotlinStyleNulls) {
                         append(type.modifiers.nullability.suffix)
                     }
@@ -678,24 +653,6 @@ abstract class DefaultTypeItem(
             }
         }
 
-        private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
-            when (type) {
-                is PrimitiveTypeItem -> append(type.kind.primitiveName)
-                is ArrayTypeItem -> {
-                    appendErasedTypeString(type.componentType)
-                    append("[]")
-                }
-                is ClassTypeItem -> append(type.qualifiedName)
-                is VariableTypeItem ->
-                    type.asTypeParameter.asErasedType()?.let { appendErasedTypeString(it) }
-                        ?: append(JAVA_LANG_OBJECT)
-                else ->
-                    throw IllegalStateException(
-                        "should never visit $type of type ${type.javaClass} while generating erased type string"
-                    )
-            }
-        }
-
         // Copied from doclava1
         private fun toSlashFormat(typeName: String): String {
             var name = typeName
@@ -755,6 +712,45 @@ abstract class DefaultTypeItem(
                 }
             }
         }
+    }
+}
+
+/**
+ * Configuration options for how to represent a type as a string.
+ *
+ * @param annotations Whether to include annotations on the type.
+ * @param eraseGenerics If `true` then type parameters are ignored and type variables are replaced
+ *   with the upper bound of the type parameter.
+ * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
+ *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
+ *   `@Nullable List<String>` would be represented as `List<String!>?`.
+ * @param nestedClassSeparator The character that is used to separate a nested class from its
+ *   containing class.
+ * @param spaceBetweenParameters Whether to include a space between class type params.
+ * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
+ * @param treatVarargsAsArray If `false` then a varargs type will use `...` to indicate that it is a
+ *   varargs type, otherwise it will use `[]` like a normal array.
+ */
+data class TypeStringConfiguration(
+    val annotations: Boolean = false,
+    val eraseGenerics: Boolean = false,
+    val kotlinStyleNulls: Boolean = false,
+    val nestedClassSeparator: Char = '.',
+    val spaceBetweenParameters: Boolean = false,
+    val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
+    val treatVarargsAsArray: Boolean = false,
+) {
+    /**
+     * Check to see if this matches [DEFAULT].
+     *
+     * This is computed lazily to avoid the comparison against [DEFAULT] being done while creating
+     * the instance to assign to [DEFAULT] at which point [DEFAULT] would be `null`.
+     */
+    val isDefault by lazy(LazyThreadSafetyMode.NONE) { this == DEFAULT }
+
+    companion object {
+        /** The default[TypeStringConfiguration]. */
+        val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
     }
 }
 
