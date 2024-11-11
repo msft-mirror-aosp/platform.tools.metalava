@@ -55,7 +55,7 @@ class ApiPredicate(
     private val includeApisForStubPurposes: Boolean = true,
 
     /** Configuration that may be provided by command line options. */
-    private val config: Config = @Suppress("DEPRECATION") options.apiPredicateConfig,
+    private val config: Config,
 ) : FilterPredicate {
 
     /**

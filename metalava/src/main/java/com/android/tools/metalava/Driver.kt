@@ -406,9 +406,10 @@ internal fun processFlags(
     }
 
     options.proguard?.let { proguard ->
-        val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+        val apiPredicateConfig = options.apiPredicateConfig
+        val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate())
+        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
