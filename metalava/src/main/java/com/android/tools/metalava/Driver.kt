@@ -55,8 +55,11 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
