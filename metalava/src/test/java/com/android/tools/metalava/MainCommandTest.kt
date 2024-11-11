@@ -109,6 +109,8 @@ $SIGNATURE_FORMAT_OPTIONS_HELP
 
 $STUB_GENERATION_OPTIONS_HELP
 
+$API_LEVELS_GENERATION_OPTIONS_HELP
+
 Arguments:
   flags                                      See below.
 
@@ -224,9 +226,6 @@ Injecting API Levels:
 
 
 Extracting API Levels:
---generate-api-levels <xmlfile>
-                                             Reads android.jar SDK files and generates an XML file recording the API
-                                             level for each class, method and field
 --remove-missing-class-references-in-api-levels
                                              Removes references to missing classes when generating the API levels XML
                                              file. This can happen when generating the XML file for the non-updatable

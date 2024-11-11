@@ -173,7 +173,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
     "--remove-missing-class-references-in-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
@@ -215,6 +214,7 @@ class Options(
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
+    apiLevelsGenerationOptions: ApiLevelsGenerationOptions = ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
     /** Execution environment; initialized in [parse]. */
     private lateinit var executionEnvironment: ExecutionEnvironment
@@ -640,8 +640,7 @@ class Options(
      */
     var currentCodeName: String? = null
 
-    /** API level XML file to generate */
-    var generateApiLevelXml: File? = null
+    val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
 
     /** Whether references to missing classes should be removed from the api levels file. */
     var removeMissingClassesInApiLevels: Boolean = false
@@ -873,9 +872,6 @@ class Options(
                 }
                 ARG_CURRENT_JAR -> {
                     currentJar = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_GENERATE_API_LEVELS -> {
-                    generateApiLevelXml = stringToNewFile(getValue(args, ++index))
                 }
                 ARG_APPLY_API_LEVELS -> {
                     applyApiLevelsXml =
@@ -1361,9 +1357,6 @@ object OptionsHelp {
                     "and merges the information into the documentation",
                 "",
                 "Extracting API Levels:",
-                "$ARG_GENERATE_API_LEVELS <xmlfile>",
-                "Reads android.jar SDK files and generates an XML file recording " +
-                    "the API level for each class, method and field",
                 ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
                 "Removes references to missing classes when generating the API levels XML file. " +
                     "This can happen when generating the XML file for the non-updatable portions of " +
