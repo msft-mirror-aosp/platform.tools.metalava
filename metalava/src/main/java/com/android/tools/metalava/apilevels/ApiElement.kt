@@ -39,7 +39,9 @@ open class ApiElement : Comparable<ApiElement> {
      *
      * This field is a super-set of mSince, and if non-null/non-empty, should be preferred.
      */
-    private var mSdks: String? = null
+    var sdks: String? = null
+        private set
+
     var mainlineModule: String? = null
         private set
 
@@ -49,7 +51,8 @@ open class ApiElement : Comparable<ApiElement> {
     var deprecatedIn = 0
         private set
 
-    private var mLastPresentIn = 0
+    var lastPresentIn = 0
+        private set
 
     /**
      * @param name the name of the API element
@@ -60,7 +63,7 @@ open class ApiElement : Comparable<ApiElement> {
     internal constructor(name: String, version: Int, deprecated: Boolean = false) {
         this.name = name
         since = version
-        mLastPresentIn = version
+        lastPresentIn = version
         if (deprecated) {
             deprecatedIn = version
         }
@@ -92,8 +95,8 @@ open class ApiElement : Comparable<ApiElement> {
         if (since > version) {
             since = version
         }
-        if (mLastPresentIn < version) {
-            mLastPresentIn = version
+        if (lastPresentIn < version) {
+            lastPresentIn = version
         }
         if (deprecated) {
             // If it was not previously deprecated or was deprecated in a later version than this
@@ -132,7 +135,7 @@ open class ApiElement : Comparable<ApiElement> {
     }
 
     fun updateSdks(sdks: String?) {
-        mSdks = sdks
+        this.sdks = sdks
     }
 
     fun updateMainlineModule(module: String?) {
@@ -180,7 +183,7 @@ open class ApiElement : Comparable<ApiElement> {
         writer.print(tag)
         writer.print(" name=\"")
         writer.print(encodeAttribute(name))
-        if (!isEmpty(mainlineModule) && !isEmpty(mSdks)) {
+        if (!isEmpty(mainlineModule) && !isEmpty(sdks)) {
             writer.print("\" module=\"")
             writer.print(encodeAttribute(mainlineModule!!))
         }
@@ -188,17 +191,17 @@ open class ApiElement : Comparable<ApiElement> {
             writer.print("\" since=\"")
             writer.print(since)
         }
-        if (!isEmpty(mSdks) && mSdks != parentElement.mSdks) {
+        if (!isEmpty(sdks) && sdks != parentElement.sdks) {
             writer.print("\" sdks=\"")
-            writer.print(mSdks)
+            writer.print(sdks)
         }
         if (deprecatedIn != 0 && deprecatedIn != parentElement.deprecatedIn) {
             writer.print("\" deprecated=\"")
             writer.print(deprecatedIn)
         }
-        if (mLastPresentIn < parentElement.mLastPresentIn) {
+        if (lastPresentIn < parentElement.lastPresentIn) {
             writer.print("\" removed=\"")
-            writer.print(mLastPresentIn + 1)
+            writer.print(lastPresentIn + 1)
         }
         writer.print('"')
         if (closeTag) {
