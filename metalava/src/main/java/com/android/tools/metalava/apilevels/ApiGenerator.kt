@@ -25,8 +25,6 @@ import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 import java.io.IOException
-import java.io.PrintStream
-import java.nio.charset.StandardCharsets
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
@@ -231,9 +229,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             }
         }
         try {
-            PrintStream(outFile, StandardCharsets.UTF_8).use { stream ->
-                stream.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-                api.print(stream, sdkIdentifiers)
+            outFile.printWriter().use { writer ->
+                writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+                api.print(writer, sdkIdentifiers)
             }
         } catch (e: Exception) {
             e.printStackTrace()

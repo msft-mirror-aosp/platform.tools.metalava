@@ -15,7 +15,7 @@
  */
 package com.android.tools.metalava.apilevels
 
-import java.io.PrintStream
+import java.io.PrintWriter
 
 /** Represents an API element, e.g. class, method or field. */
 open class ApiElement : Comparable<ApiElement> {
@@ -144,20 +144,20 @@ open class ApiElement : Comparable<ApiElement> {
         get() = deprecatedIn != 0
 
     /**
-     * Prints an XML representation of the element to a stream terminated by a line break.
+     * Prints an XML representation of the element to a writer terminated by a line break.
      * Attributes with values matching the parent API element are omitted.
      *
      * @param tag the tag of the XML element
      * @param parentElement the parent API element
      * @param indent the whitespace prefix to insert before the XML element
-     * @param stream the stream to print the XML element to
+     * @param writer the writer to which the XML element will be written.
      */
-    open fun print(tag: String?, parentElement: ApiElement, indent: String, stream: PrintStream) {
-        print(tag, true, parentElement, indent, stream)
+    open fun print(tag: String?, parentElement: ApiElement, indent: String, writer: PrintWriter) {
+        print(tag, true, parentElement, indent, writer)
     }
 
     /**
-     * Prints an XML representation of the element to a stream terminated by a line break.
+     * Prints an XML representation of the element to a writer terminated by a line break.
      * Attributes with values matching the parent API element are omitted.
      *
      * @param tag the tag of the XML element
@@ -165,46 +165,46 @@ open class ApiElement : Comparable<ApiElement> {
      *   the element is not printed
      * @param parentElement the parent API element
      * @param indent the whitespace prefix to insert before the XML element
-     * @param stream the stream to print the XML element to
-     * @see .printClosingTag
+     * @param writer the writer to which the XML element will be written.
+     * @see printClosingTag
      */
     fun print(
         tag: String?,
         closeTag: Boolean,
         parentElement: ApiElement,
         indent: String?,
-        stream: PrintStream
+        writer: PrintWriter
     ) {
-        stream.print(indent)
-        stream.print('<')
-        stream.print(tag)
-        stream.print(" name=\"")
-        stream.print(encodeAttribute(name))
+        writer.print(indent)
+        writer.print('<')
+        writer.print(tag)
+        writer.print(" name=\"")
+        writer.print(encodeAttribute(name))
         if (!isEmpty(mainlineModule) && !isEmpty(mSdks)) {
-            stream.print("\" module=\"")
-            stream.print(encodeAttribute(mainlineModule!!))
+            writer.print("\" module=\"")
+            writer.print(encodeAttribute(mainlineModule!!))
         }
         if (since > parentElement.since) {
-            stream.print("\" since=\"")
-            stream.print(since)
+            writer.print("\" since=\"")
+            writer.print(since)
         }
         if (!isEmpty(mSdks) && mSdks != parentElement.mSdks) {
-            stream.print("\" sdks=\"")
-            stream.print(mSdks)
+            writer.print("\" sdks=\"")
+            writer.print(mSdks)
         }
         if (deprecatedIn != 0 && deprecatedIn != parentElement.deprecatedIn) {
-            stream.print("\" deprecated=\"")
-            stream.print(deprecatedIn)
+            writer.print("\" deprecated=\"")
+            writer.print(deprecatedIn)
         }
         if (mLastPresentIn < parentElement.mLastPresentIn) {
-            stream.print("\" removed=\"")
-            stream.print(mLastPresentIn + 1)
+            writer.print("\" removed=\"")
+            writer.print(mLastPresentIn + 1)
         }
-        stream.print('"')
+        writer.print('"')
         if (closeTag) {
-            stream.print('/')
+            writer.print('/')
         }
-        stream.println('>')
+        writer.println('>')
     }
 
     private fun isEmpty(s: String?): Boolean {
@@ -212,17 +212,17 @@ open class ApiElement : Comparable<ApiElement> {
     }
 
     /**
-     * Prints homogeneous XML elements to a stream. Each element is printed on a separate line.
+     * Prints homogeneous XML elements to a writer. Each element is printed on a separate line.
      * Attributes with values matching the parent API element are omitted.
      *
      * @param elements the elements to print
      * @param tag the tag of the XML elements
      * @param indent the whitespace prefix to insert before each XML element
-     * @param stream the stream to print the XML elements to
+     * @param writer the writer to which the XML elements will be written.
      */
-    fun print(elements: Collection<ApiElement>, tag: String?, indent: String, stream: PrintStream) {
+    fun print(elements: Collection<ApiElement>, tag: String?, indent: String, writer: PrintWriter) {
         for (element in elements.sorted()) {
-            element.print(tag, this, indent, stream)
+            element.print(tag, this, indent, writer)
         }
     }
 
@@ -238,13 +238,13 @@ open class ApiElement : Comparable<ApiElement> {
          *
          * @param tag the tag of the element
          * @param indent the whitespace prefix to insert before the closing tag
-         * @param stream the stream to print the XML element to
+         * @param writer the writer to which the XML element will be written.
          */
-        fun printClosingTag(tag: String?, indent: String?, stream: PrintStream) {
-            stream.print(indent)
-            stream.print("</")
-            stream.print(tag)
-            stream.println('>')
+        fun printClosingTag(tag: String?, indent: String?, writer: PrintWriter) {
+            writer.print(indent)
+            writer.print("</")
+            writer.print(tag)
+            writer.println('>')
         }
 
         private fun encodeAttribute(attribute: String): String {

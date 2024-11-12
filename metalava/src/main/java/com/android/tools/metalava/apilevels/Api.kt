@@ -16,7 +16,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.SdkIdentifier
-import java.io.PrintStream
+import java.io.PrintWriter
 import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
@@ -26,18 +26,18 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
-     * Prints the whole API definition to a stream.
+     * Prints the whole API definition to a writer.
      *
-     * @param stream the stream to print the XML elements to
+     * @param writer the writer to which the XML elements will be written.
      */
-    fun print(stream: PrintStream, sdkIdentifiers: Set<SdkIdentifier>) {
-        stream.print("<api version=\"3\"")
+    fun print(writer: PrintWriter, sdkIdentifiers: Set<SdkIdentifier>) {
+        writer.print("<api version=\"3\"")
         if (mMin > 1) {
-            stream.print(" min=\"$mMin\"")
+            writer.print(" min=\"$mMin\"")
         }
-        stream.println(">")
+        writer.println(">")
         for ((id, shortname, name, reference) in sdkIdentifiers) {
-            stream.println(
+            writer.println(
                 String.format(
                     "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
                     id,
@@ -47,8 +47,8 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
                 )
             )
         }
-        print(mClasses.values, "class", "\t", stream)
-        printClosingTag("api", "", stream)
+        print(mClasses.values, "class", "\t", writer)
+        printClosingTag("api", "", writer)
     }
 
     /**

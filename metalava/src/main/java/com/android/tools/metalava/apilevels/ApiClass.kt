@@ -16,7 +16,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.google.common.collect.Iterables
-import java.io.PrintStream
+import java.io.PrintWriter
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.min
@@ -128,18 +128,18 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
         tag: String?,
         parentElement: ApiElement,
         indent: String,
-        stream: PrintStream
+        writer: PrintWriter
     ) {
         if (hiddenUntil < 0) {
             return
         }
-        super.print(tag, false, parentElement, indent, stream)
+        super.print(tag, false, parentElement, indent, writer)
         val innerIndent = indent + '\t'
-        print(mSuperClasses, "extends", innerIndent, stream)
-        print(mInterfaces, "implements", innerIndent, stream)
-        print(mMethods.values, "method", innerIndent, stream)
-        print(mFields.values, "field", innerIndent, stream)
-        printClosingTag(tag, indent, stream)
+        print(mSuperClasses, "extends", innerIndent, writer)
+        print(mInterfaces, "implements", innerIndent, writer)
+        print(mMethods.values, "method", innerIndent, writer)
+        print(mFields.values, "field", innerIndent, writer)
+        printClosingTag(tag, indent, writer)
     }
 
     /**
