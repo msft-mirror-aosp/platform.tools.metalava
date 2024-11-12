@@ -173,7 +173,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
@@ -770,7 +769,6 @@ class Options(
     ) {
         this.executionEnvironment = executionEnvironment
 
-        var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
 
         var index = 0
@@ -845,16 +843,6 @@ class Options(
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
-                ARG_ANDROID_JAR_PATTERN -> {
-                    val list =
-                        androidJarPatterns
-                            ?: run {
-                                val list = arrayListOf<String>()
-                                androidJarPatterns = list
-                                list
-                            }
-                    list.add(getValue(args, ++index))
-                }
                 ARG_CURRENT_JAR -> {
                     currentJar = stringToExistingFile(getValue(args, ++index))
                 }
@@ -930,10 +918,7 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
-            val patterns = androidJarPatterns ?: run { mutableListOf() }
-            // Fallbacks
-            patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
-            patterns.add("prebuilts/sdk/%/public/android.jar")
+            val patterns = apiLevelsGenerationOptions.androidJarPatterns
             apiLevelJars =
                 findAndroidJars(
                     patterns,
@@ -1318,9 +1303,6 @@ object OptionsHelp {
                     "and merges the information into the documentation",
                 "",
                 "Extracting API Levels:",
-                "$ARG_ANDROID_JAR_PATTERN <pattern>",
-                "Patterns to use to locate Android JAR files. The default " +
-                    "is \$ANDROID_HOME/platforms/android-%/android.jar.",
                 ARG_CURRENT_JAR,
                 "Points to the current API jar, if any",
                 ARG_SDK_JAR_ROOT,

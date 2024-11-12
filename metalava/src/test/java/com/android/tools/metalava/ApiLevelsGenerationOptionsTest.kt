@@ -35,6 +35,11 @@ Api Levels Generation:
   --current-version <numeric-version>        Sets the current API level of the current source code. Must be greater than
                                              or equal to 27.
   --current-codename <version-codename>      Sets the code name for the current source code.
+  --android-jar-pattern <android-jar-pattern>
+                                             Pattern to use to locate Android JAR files. Each pattern must contain a %
+                                             character that will be replaced with each API level that is being included
+                                             and if the result is an existing jar file then it will be taken as the
+                                             definition of the API at that level.
     """
         .trimIndent()
 

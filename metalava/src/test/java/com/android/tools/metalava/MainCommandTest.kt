@@ -226,9 +226,6 @@ Injecting API Levels:
 
 
 Extracting API Levels:
---android-jar-pattern <pattern>
-                                             Patterns to use to locate Android JAR files. The default is
-                                             ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
 --current-jar
                                              Points to the current API jar, if any
 --sdk-extensions-root

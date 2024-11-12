@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.newFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
@@ -35,6 +36,8 @@ const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
 const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
+
+const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
 class ApiLevelsGenerationOptions :
     OptionGroup(
@@ -125,4 +128,28 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .map { if (it == "REL") null else it }
+
+    /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
+    val androidJarPatterns: List<String> by
+        option(
+                ARG_ANDROID_JAR_PATTERN,
+                metavar = "<android-jar-pattern>",
+                help =
+                    """
+                        Pattern to use to locate Android JAR files. Each pattern must contain a %
+                        character that will be replaced with each API level that is being included
+                        and if the result is an existing jar file then it will be taken as the
+                        definition of the API at that level.
+                    """
+                        .trimIndent(),
+            )
+            .multiple(default = emptyList())
+            .map {
+                buildList {
+                    addAll(it)
+                    // Fallbacks
+                    add("prebuilts/tools/common/api-versions/android-%/android.jar")
+                    add("prebuilts/sdk/%/public/android.jar")
+                }
+            }
 }
