@@ -67,7 +67,8 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         } else {
             api.verifyNoMissingClasses()
         }
-        return createApiLevelsXml(outputFile, api, sdkIdentifiers)
+        val printer = ApiXmlPrinter(sdkIdentifiers)
+        return createApiLevelsFile(outputFile, printer, api)
     }
 
     /**
@@ -209,16 +210,16 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     /**
-     * Creates the simplified diff-based API level.
+     * Creates a file containing the [api].
      *
      * @param outFile the output file
+     * @param printer the [ApiPrinter] to use to write the file.
      * @param api the api to write
-     * @param sdkIdentifiers SDKs referenced by the api
      */
-    private fun createApiLevelsXml(
+    private fun createApiLevelsFile(
         outFile: File,
+        printer: ApiPrinter,
         api: Api,
-        sdkIdentifiers: Set<SdkIdentifier>
     ): Boolean {
         val parentFile = outFile.parentFile
         if (!parentFile.exists()) {
@@ -229,10 +230,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             }
         }
         try {
-            outFile.printWriter().use { writer ->
-                writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-                api.print(writer, sdkIdentifiers)
-            }
+            outFile.printWriter().use { writer -> printer.print(api, writer) }
         } catch (e: Exception) {
             e.printStackTrace()
             return false
