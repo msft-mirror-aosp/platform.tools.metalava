@@ -67,7 +67,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         } else {
             api.verifyNoMissingClasses()
         }
-        val printer = ApiXmlPrinter(sdkIdentifiers)
+        val printer = ApiXmlPrinter(sdkIdentifiers, firstApiLevel)
         return createApiLevelsFile(outputFile, printer, api)
     }
 
@@ -81,7 +81,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     private fun createApiFromSignatureFiles(previousApiFiles: List<File>): Api {
         // Starts at level 1 because 0 is not a valid API level.
         var apiLevel = 1
-        val api = Api(apiLevel)
+        val api = Api()
         for (apiFile in previousApiFiles) {
             val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFiles(apiFile))
             val codebaseFragment =
@@ -122,7 +122,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     private fun createApiFromAndroidJars(apiLevels: Array<File>, firstApiLevel: Int): Api {
-        val api = Api(firstApiLevel)
+        val api = Api()
         for (apiLevel in firstApiLevel until apiLevels.size) {
             val jar = apiLevels[apiLevel]
             api.readAndroidJar(apiLevel, jar)

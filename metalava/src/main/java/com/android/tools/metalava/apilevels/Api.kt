@@ -22,7 +22,7 @@ import java.util.TreeMap
 import java.util.TreeSet
 
 /** Represents the whole Android API. */
-class Api(private val mMin: Int) : ApiElement("Android API") {
+class Api : ApiElement("Android API") {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
@@ -30,10 +30,10 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
      *
      * @param writer the writer to which the XML elements will be written.
      */
-    fun print(writer: PrintWriter, sdkIdentifiers: Set<SdkIdentifier>) {
+    fun print(writer: PrintWriter, sdkIdentifiers: Set<SdkIdentifier>, firstApiLevel: Int) {
         writer.print("<api version=\"3\"")
-        if (mMin > 1) {
-            writer.print(" min=\"$mMin\"")
+        if (firstApiLevel > 1) {
+            writer.print(" min=\"$firstApiLevel\"")
         }
         writer.println(">")
         for ((id, shortname, name, reference) in sdkIdentifiers) {

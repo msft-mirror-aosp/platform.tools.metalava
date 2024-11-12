@@ -20,9 +20,12 @@ import com.android.tools.metalava.SdkIdentifier
 import java.io.PrintWriter
 
 /** Printer that will write an XML representation of an [Api] instance. */
-class ApiXmlPrinter(private val sdkIdentifiers: Set<SdkIdentifier>) : ApiPrinter {
+class ApiXmlPrinter(
+    private val sdkIdentifiers: Set<SdkIdentifier>,
+    private val firstApiLevel: Int,
+) : ApiPrinter {
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-        api.print(writer, sdkIdentifiers)
+        api.print(writer, sdkIdentifiers, firstApiLevel)
     }
 }
