@@ -226,11 +226,6 @@ Injecting API Levels:
 
 
 Extracting API Levels:
---remove-missing-class-references-in-api-levels
-                                             Removes references to missing classes when generating the API levels XML
-                                             file. This can happen when generating the XML file for the non-updatable
-                                             portions of the module-lib sdk, as those non-updatable portions can
-                                             reference classes that are part of an updatable apex.
 --android-jar-pattern <pattern>
                                              Patterns to use to locate Android JAR files. The default is
                                              ${"$"}ANDROID_HOME/platforms/android-%/android.jar.

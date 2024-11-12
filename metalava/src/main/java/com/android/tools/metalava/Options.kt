@@ -173,8 +173,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
-    "--remove-missing-class-references-in-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
@@ -642,8 +640,8 @@ class Options(
 
     val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
 
-    /** Whether references to missing classes should be removed from the api levels file. */
-    var removeMissingClassesInApiLevels: Boolean = false
+    val removeMissingClassesInApiLevels by
+        apiLevelsGenerationOptions::removeMissingClassReferencesInApiLevels
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
@@ -883,8 +881,6 @@ class Options(
                             stringToExistingFile(getValue(args, ++index))
                         }
                 }
-                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS ->
-                    removeMissingClassesInApiLevels = true
                 ARG_GENERATE_API_VERSION_HISTORY -> {
                     generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
                 }
@@ -1357,11 +1353,6 @@ object OptionsHelp {
                     "and merges the information into the documentation",
                 "",
                 "Extracting API Levels:",
-                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                "Removes references to missing classes when generating the API levels XML file. " +
-                    "This can happen when generating the XML file for the non-updatable portions of " +
-                    "the module-lib sdk, as those non-updatable portions can reference classes that are " +
-                    "part of an updatable apex.",
                 "$ARG_ANDROID_JAR_PATTERN <pattern>",
                 "Patterns to use to locate Android JAR files. The default " +
                     "is \$ANDROID_HOME/platforms/android-%/android.jar.",

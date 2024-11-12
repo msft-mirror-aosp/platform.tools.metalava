@@ -18,10 +18,14 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.newFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
+
+const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
+    "--remove-missing-class-references-in-api-levels"
 
 class ApiLevelsGenerationOptions :
     OptionGroup(
@@ -45,4 +49,19 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .newFile()
+
+    /** Whether references to missing classes should be removed from the api levels file. */
+    val removeMissingClassReferencesInApiLevels: Boolean by
+        option(
+                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
+                help =
+                    """
+                        Removes references to missing classes when generating the API levels XML
+                        file. This can happen when generating the XML file for the non-updatable
+                        portions of the module-lib sdk, as those non-updatable portions can
+                        reference classes that are part of an updatable apex.
+                    """
+                        .trimIndent(),
+            )
+            .flag()
 }

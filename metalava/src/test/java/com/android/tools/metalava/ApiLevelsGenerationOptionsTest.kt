@@ -26,6 +26,11 @@ Api Levels Generation:
 
   --generate-api-levels <xmlfile>            Reads android.jar SDK files and generates an XML file recording the API
                                              level for each class, method and field
+  --remove-missing-class-references-in-api-levels
+                                             Removes references to missing classes when generating the API levels XML
+                                             file. This can happen when generating the XML file for the non-updatable
+                                             portions of the module-lib sdk, as those non-updatable portions can
+                                             reference classes that are part of an updatable apex.
     """
         .trimIndent()
 
