@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import java.io.PrintWriter
-
 /** Represents an API element, e.g. class, method or field. */
 open class ApiElement : Comparable<ApiElement> {
     /** Returns the name of the API element. */
@@ -146,138 +144,11 @@ open class ApiElement : Comparable<ApiElement> {
         /** Checks whether the API element is deprecated or not. */
         get() = deprecatedIn != 0
 
-    /**
-     * Prints an XML representation of the element to a writer terminated by a line break.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param tag the tag of the XML element
-     * @param parentElement the parent API element
-     * @param indent the whitespace prefix to insert before the XML element
-     * @param writer the writer to which the XML element will be written.
-     */
-    open fun print(tag: String?, parentElement: ApiElement, indent: String, writer: PrintWriter) {
-        print(tag, true, parentElement, indent, writer)
-    }
-
-    /**
-     * Prints an XML representation of the element to a writer terminated by a line break.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param tag the tag of the XML element
-     * @param closeTag if true the XML element is terminated by "/>", otherwise the closing tag of
-     *   the element is not printed
-     * @param parentElement the parent API element
-     * @param indent the whitespace prefix to insert before the XML element
-     * @param writer the writer to which the XML element will be written.
-     * @see printClosingTag
-     */
-    fun print(
-        tag: String?,
-        closeTag: Boolean,
-        parentElement: ApiElement,
-        indent: String?,
-        writer: PrintWriter
-    ) {
-        writer.print(indent)
-        writer.print('<')
-        writer.print(tag)
-        writer.print(" name=\"")
-        writer.print(encodeAttribute(name))
-        if (!isEmpty(mainlineModule) && !isEmpty(sdks)) {
-            writer.print("\" module=\"")
-            writer.print(encodeAttribute(mainlineModule!!))
-        }
-        if (since > parentElement.since) {
-            writer.print("\" since=\"")
-            writer.print(since)
-        }
-        if (!isEmpty(sdks) && sdks != parentElement.sdks) {
-            writer.print("\" sdks=\"")
-            writer.print(sdks)
-        }
-        if (deprecatedIn != 0 && deprecatedIn != parentElement.deprecatedIn) {
-            writer.print("\" deprecated=\"")
-            writer.print(deprecatedIn)
-        }
-        if (lastPresentIn < parentElement.lastPresentIn) {
-            writer.print("\" removed=\"")
-            writer.print(lastPresentIn + 1)
-        }
-        writer.print('"')
-        if (closeTag) {
-            writer.print('/')
-        }
-        writer.println('>')
-    }
-
-    private fun isEmpty(s: String?): Boolean {
-        return s.isNullOrEmpty()
-    }
-
-    /**
-     * Prints homogeneous XML elements to a writer. Each element is printed on a separate line.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param elements the elements to print
-     * @param tag the tag of the XML elements
-     * @param indent the whitespace prefix to insert before each XML element
-     * @param writer the writer to which the XML elements will be written.
-     */
-    fun print(elements: Collection<ApiElement>, tag: String?, indent: String, writer: PrintWriter) {
-        for (element in elements.sorted()) {
-            element.print(tag, this, indent, writer)
-        }
-    }
-
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
     }
 
     companion object {
         const val NEVER = Int.MAX_VALUE
-
-        /**
-         * Prints a closing tag of an XML element terminated by a line break.
-         *
-         * @param tag the tag of the element
-         * @param indent the whitespace prefix to insert before the closing tag
-         * @param writer the writer to which the XML element will be written.
-         */
-        fun printClosingTag(tag: String?, indent: String?, writer: PrintWriter) {
-            writer.print(indent)
-            writer.print("</")
-            writer.print(tag)
-            writer.println('>')
-        }
-
-        private fun encodeAttribute(attribute: String): String {
-            return buildString {
-                val n = attribute.length
-                // &, ", ' and < are illegal in attributes; see
-                // http://www.w3.org/TR/REC-xml/#NT-AttValue
-                // (' legal in a " string and " is legal in a ' string but here we'll stay on the
-                // safe
-                // side).
-                for (i in 0 until n) {
-                    when (val c = attribute[i]) {
-                        '"' -> {
-                            append("&quot;") // $NON-NLS-1$
-                        }
-                        '<' -> {
-                            append("&lt;") // $NON-NLS-1$
-                        }
-                        '\'' -> {
-                            append("&apos;") // $NON-NLS-1$
-                        }
-                        '&' -> {
-                            append("&amp;") // $NON-NLS-1$
-                        }
-                        else -> {
-                            append(c)
-                        }
-                    }
-                }
-            }
-        }
     }
 }

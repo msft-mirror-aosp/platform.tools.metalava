@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
-import java.io.PrintWriter
 import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
@@ -24,32 +22,6 @@ import java.util.TreeSet
 /** Represents the whole Android API. */
 class Api : ApiElement("Android API") {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
-
-    /**
-     * Prints the whole API definition to a writer.
-     *
-     * @param writer the writer to which the XML elements will be written.
-     */
-    fun print(writer: PrintWriter, sdkIdentifiers: Set<SdkIdentifier>, firstApiLevel: Int) {
-        writer.print("<api version=\"3\"")
-        if (firstApiLevel > 1) {
-            writer.print(" min=\"$firstApiLevel\"")
-        }
-        writer.println(">")
-        for ((id, shortname, name, reference) in sdkIdentifiers) {
-            writer.println(
-                String.format(
-                    "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
-                    id,
-                    shortname,
-                    name,
-                    reference
-                )
-            )
-        }
-        print(mClasses.values, "class", "\t", writer)
-        printClosingTag("api", "", writer)
-    }
 
     /**
      * Adds or updates a class.

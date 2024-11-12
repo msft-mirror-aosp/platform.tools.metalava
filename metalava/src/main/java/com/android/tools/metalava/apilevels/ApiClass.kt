@@ -16,7 +16,6 @@
 package com.android.tools.metalava.apilevels
 
 import com.google.common.collect.Iterables
-import java.io.PrintWriter
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.min
@@ -122,24 +121,6 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
             }
         }
         return null
-    }
-
-    override fun print(
-        tag: String?,
-        parentElement: ApiElement,
-        indent: String,
-        writer: PrintWriter
-    ) {
-        if (hiddenUntil < 0) {
-            return
-        }
-        super.print(tag, false, parentElement, indent, writer)
-        val innerIndent = indent + '\t'
-        print(mSuperClasses, "extends", innerIndent, writer)
-        print(mInterfaces, "implements", innerIndent, writer)
-        print(mMethods.values, "method", innerIndent, writer)
-        print(mFields.values, "field", innerIndent, writer)
-        printClosingTag(tag, indent, writer)
     }
 
     /**
