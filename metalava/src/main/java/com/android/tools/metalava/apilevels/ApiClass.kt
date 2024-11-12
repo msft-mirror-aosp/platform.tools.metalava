@@ -66,14 +66,6 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
         return addToArray(mSuperClasses, superClass, since)
     }
 
-    fun removeSuperClass(superClass: String): ApiElement? {
-        val entry = findByName(mSuperClasses, superClass)
-        if (entry != null) {
-            mSuperClasses.remove(entry)
-        }
-        return entry
-    }
-
     val superClasses: List<ApiElement>
         get() = mSuperClasses
 
@@ -323,8 +315,8 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     fun removeMissingClasses(api: Map<String, ApiClass>) {
         val superClassIter = mSuperClasses.iterator()
         while (superClassIter.hasNext()) {
-            val scls = superClassIter.next()
-            if (!api.containsKey(scls.name)) {
+            val superClass = superClassIter.next()
+            if (!api.containsKey(superClass.name)) {
                 superClassIter.remove()
             }
         }
@@ -340,9 +332,9 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     // Returns the set of superclasses or interfaces are not present in the provided api map
     fun findMissingClasses(api: Map<String, ApiClass>): Set<ApiElement> {
         val result: MutableSet<ApiElement> = HashSet()
-        for (scls in mSuperClasses) {
-            if (!api.containsKey(scls.name)) {
-                result.add(scls)
+        for (superClass in mSuperClasses) {
+            if (!api.containsKey(superClass.name)) {
+                result.add(superClass)
             }
         }
         for (intf in mInterfaces) {

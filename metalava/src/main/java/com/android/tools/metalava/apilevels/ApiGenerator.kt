@@ -21,7 +21,6 @@ import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
@@ -105,9 +104,6 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @param apiVersionNames The names of the API versions, ordered starting from version 1. This
      *   should include the names of all the [pastApiVersions], then the name of the
      *   [currentApiVersion].
-     * @param filterEmit The filter to use to determine if an [Item] should be included in the API.
-     * @param filterReference The filter to use to determine if a reference to an [Item] should be
-     *   included in the API.
      */
     fun generateJson(
         pastApiVersions: List<File>,
@@ -149,7 +145,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @param apiLevelNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param sdkJarRoot path to directory containing extension SDK jars (usually
      *   $ANDROID_ROOT/prebuilts/sdk/extensions)
-     * @param filterPath: path to the filter file. @see ApiToExtensionsMap
+     * @param filterPath path to the filter file. @see ApiToExtensionsMap
      * @throws IOException if the filter file can not be read
      * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar
      *   files were found
