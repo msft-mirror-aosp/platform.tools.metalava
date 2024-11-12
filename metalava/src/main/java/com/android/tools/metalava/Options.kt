@@ -173,7 +173,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
@@ -769,8 +768,6 @@ class Options(
     ) {
         this.executionEnvironment = executionEnvironment
 
-        var currentJar: File? = null
-
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -843,9 +840,6 @@ class Options(
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
-                ARG_CURRENT_JAR -> {
-                    currentJar = stringToExistingFile(getValue(args, ++index))
-                }
                 ARG_APPLY_API_LEVELS -> {
                     applyApiLevelsXml =
                         if (args.contains(ARG_GENERATE_API_LEVELS)) {
@@ -924,7 +918,7 @@ class Options(
                     patterns,
                     firstApiLevel,
                     currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
-                    currentJar
+                    apiLevelsGenerationOptions.currentJar,
                 )
         }
 
@@ -1303,8 +1297,6 @@ object OptionsHelp {
                     "and merges the information into the documentation",
                 "",
                 "Extracting API Levels:",
-                ARG_CURRENT_JAR,
-                "Points to the current API jar, if any",
                 ARG_SDK_JAR_ROOT,
                 "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
                     "contain snapshots of historical extension SDK versions in the form of stub jars. " +

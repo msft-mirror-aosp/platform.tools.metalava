@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -38,6 +39,7 @@ const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
+const val ARG_CURRENT_JAR = "--current-jar"
 
 class ApiLevelsGenerationOptions :
     OptionGroup(
@@ -152,4 +154,20 @@ class ApiLevelsGenerationOptions :
                     add("prebuilts/sdk/%/public/android.jar")
                 }
             }
+
+    /**
+     * Optional path to a jar that defines the current API surface for which API levels are being
+     * generated.
+     */
+    val currentJar: File? by
+        option(
+                ARG_CURRENT_JAR,
+                metavar = "<android-jar>",
+                help =
+                    """
+                        Points to the current API jar, if any.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
 }

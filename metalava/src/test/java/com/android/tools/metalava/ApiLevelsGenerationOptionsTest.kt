@@ -40,6 +40,7 @@ Api Levels Generation:
                                              character that will be replaced with each API level that is being included
                                              and if the result is an existing jar file then it will be taken as the
                                              definition of the API at that level.
+  --current-jar <android-jar>                Points to the current API jar, if any.
     """
         .trimIndent()
 

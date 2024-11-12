@@ -226,8 +226,6 @@ Injecting API Levels:
 
 
 Extracting API Levels:
---current-jar
-                                             Points to the current API jar, if any
 --sdk-extensions-root
                                              Points to root of prebuilt extension SDK jars, if any. This directory is
                                              expected to contain snapshots of historical extension SDK versions in the
