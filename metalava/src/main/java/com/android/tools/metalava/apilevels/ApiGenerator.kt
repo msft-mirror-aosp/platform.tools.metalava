@@ -118,7 +118,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             false,
         )
         val printer = ApiJsonPrinter(apiVersionNames)
-        printer.print(api, outputFile)
+        createApiLevelsFile(outputFile, printer, api)
     }
 
     private fun createApiFromAndroidJars(apiLevels: Array<File>, firstApiLevel: Int): Api {
