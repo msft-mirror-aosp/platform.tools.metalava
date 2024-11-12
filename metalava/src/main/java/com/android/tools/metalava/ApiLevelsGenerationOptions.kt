@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
@@ -33,6 +34,7 @@ const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
 
 const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
+const val ARG_CURRENT_CODENAME = "--current-codename"
 
 class ApiLevelsGenerationOptions :
     OptionGroup(
@@ -107,4 +109,20 @@ class ApiLevelsGenerationOptions :
                     throw MetalavaCliException("Suspicious currentApi=$it, expected at least 27")
                 }
             }
+
+    /**
+     * The codename of the codebase: non-null string if this is a developer preview build, null if
+     * this is a release build.
+     */
+    val currentCodeName: String? by
+        option(
+                ARG_CURRENT_CODENAME,
+                metavar = "<version-codename>",
+                help =
+                    """
+                        Sets the code name for the current source code.
+                    """
+                        .trimIndent(),
+            )
+            .map { if (it == "REL") null else it }
 }

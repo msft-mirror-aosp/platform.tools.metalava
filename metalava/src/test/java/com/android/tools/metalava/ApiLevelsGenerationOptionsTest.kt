@@ -34,6 +34,7 @@ Api Levels Generation:
   --first-version <numeric-version>          Sets the first API level to generate an API database from. (default: 1)
   --current-version <numeric-version>        Sets the current API level of the current source code. Must be greater than
                                              or equal to 27.
+  --current-codename <version-codename>      Sets the code name for the current source code.
     """
         .trimIndent()
 

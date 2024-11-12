@@ -174,7 +174,6 @@ const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
-const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
@@ -641,11 +640,7 @@ class Options(
 
     val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
 
-    /**
-     * The codename of the codebase: non-null string if this is a developer preview build, null if
-     * this is a release build.
-     */
-    var currentCodeName: String? = null
+    val currentCodeName by apiLevelsGenerationOptions::currentCodeName
 
     val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
 
@@ -859,12 +854,6 @@ class Options(
                                 list
                             }
                     list.add(getValue(args, ++index))
-                }
-                ARG_CURRENT_CODENAME -> {
-                    val codeName = getValue(args, ++index)
-                    if (codeName != "REL") {
-                        currentCodeName = codeName
-                    }
                 }
                 ARG_CURRENT_JAR -> {
                     currentJar = stringToExistingFile(getValue(args, ++index))
@@ -1348,8 +1337,6 @@ object OptionsHelp {
                 "$ARG_ANDROID_JAR_PATTERN <pattern>",
                 "Patterns to use to locate Android JAR files. The default " +
                     "is \$ANDROID_HOME/platforms/android-%/android.jar.",
-                ARG_CURRENT_CODENAME,
-                "Sets the code name for the current source code",
                 ARG_CURRENT_JAR,
                 "Points to the current API jar, if any",
                 ARG_SDK_JAR_ROOT,

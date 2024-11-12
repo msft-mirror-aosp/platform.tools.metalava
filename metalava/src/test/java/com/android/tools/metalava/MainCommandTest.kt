@@ -229,8 +229,6 @@ Extracting API Levels:
 --android-jar-pattern <pattern>
                                              Patterns to use to locate Android JAR files. The default is
                                              ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
---current-codename
-                                             Sets the code name for the current source code
 --current-jar
                                              Points to the current API jar, if any
 --sdk-extensions-root
