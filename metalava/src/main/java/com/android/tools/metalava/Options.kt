@@ -174,8 +174,6 @@ const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
-const val ARG_CURRENT_VERSION = "--current-version"
-const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
@@ -212,7 +210,8 @@ class Options(
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
-    apiLevelsGenerationOptions: ApiLevelsGenerationOptions = ApiLevelsGenerationOptions(),
+    private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
+        ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
     /** Execution environment; initialized in [parse]. */
     private lateinit var executionEnvironment: ExecutionEnvironment
@@ -623,11 +622,9 @@ class Options(
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
-    /** The api level of the codebase, or null if not known/specified */
-    private var mutableCurrentApiLevel: Int? = null
-
     /** Get the [ARG_CURRENT_VERSION] or if that was not specified then return [default]. */
-    fun currentApiLevelOrDefault(default: Int): Int = mutableCurrentApiLevel ?: default
+    fun currentApiLevelOrDefault(default: Int): Int =
+        apiLevelsGenerationOptions.currentApiLevel ?: default
 
     /**
      * Get the current API level.
@@ -637,16 +634,12 @@ class Options(
      */
     val currentApiLevel: Int
         get() =
-            mutableCurrentApiLevel
+            apiLevelsGenerationOptions.currentApiLevel
                 ?: throw MetalavaCliException(
                     stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
                 )
 
-    /**
-     * The first api level of the codebase; typically 1 but can be higher for example for the System
-     * API.
-     */
-    var firstApiLevel = 1
+    val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
 
     /**
      * The codename of the codebase: non-null string if this is a developer preview build, null if
@@ -866,18 +859,6 @@ class Options(
                                 list
                             }
                     list.add(getValue(args, ++index))
-                }
-                ARG_CURRENT_VERSION -> {
-                    val apiLevel = Integer.parseInt(getValue(args, ++index))
-                    if (apiLevel <= 26) {
-                        throw MetalavaCliException(
-                            "Suspicious currentApi=$apiLevel, expected at least 27"
-                        )
-                    }
-                    mutableCurrentApiLevel = apiLevel
-                }
-                ARG_FIRST_VERSION -> {
-                    firstApiLevel = Integer.parseInt(getValue(args, ++index))
                 }
                 ARG_CURRENT_CODENAME -> {
                     val codeName = getValue(args, ++index)
@@ -1367,10 +1348,6 @@ object OptionsHelp {
                 "$ARG_ANDROID_JAR_PATTERN <pattern>",
                 "Patterns to use to locate Android JAR files. The default " +
                     "is \$ANDROID_HOME/platforms/android-%/android.jar.",
-                ARG_FIRST_VERSION,
-                "Sets the first API level to generate an API database from; usually 1",
-                ARG_CURRENT_VERSION,
-                "Sets the current API level of the current source code",
                 ARG_CURRENT_CODENAME,
                 "Sets the code name for the current source code",
                 ARG_CURRENT_JAR,

@@ -16,16 +16,23 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.newFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 
 const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
     "--remove-missing-class-references-in-api-levels"
+
+const val ARG_CURRENT_VERSION = "--current-version"
+const val ARG_FIRST_VERSION = "--first-version"
 
 class ApiLevelsGenerationOptions :
     OptionGroup(
@@ -64,4 +71,40 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .flag()
+
+    /**
+     * The first api level of the codebase; typically 1 but can be higher for example for the System
+     * API.
+     */
+    val firstApiLevel: Int by
+        option(
+                ARG_FIRST_VERSION,
+                metavar = "<numeric-version>",
+                help =
+                    """
+                        Sets the first API level to generate an API database from.
+                    """
+                        .trimIndent()
+            )
+            .int()
+            .default(1)
+
+    /** The api level of the codebase, or null if not known/specified */
+    val currentApiLevel: Int? by
+        option(
+                ARG_CURRENT_VERSION,
+                metavar = "<numeric-version>",
+                help =
+                    """
+                        Sets the current API level of the current source code. Must be greater than
+                        or equal to 27.
+                    """
+                        .trimIndent(),
+            )
+            .int()
+            .validate {
+                if (it <= 26) {
+                    throw MetalavaCliException("Suspicious currentApi=$it, expected at least 27")
+                }
+            }
 }

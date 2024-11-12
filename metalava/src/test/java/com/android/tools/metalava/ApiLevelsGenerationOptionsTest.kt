@@ -31,6 +31,9 @@ Api Levels Generation:
                                              file. This can happen when generating the XML file for the non-updatable
                                              portions of the module-lib sdk, as those non-updatable portions can
                                              reference classes that are part of an updatable apex.
+  --first-version <numeric-version>          Sets the first API level to generate an API database from. (default: 1)
+  --current-version <numeric-version>        Sets the current API level of the current source code. Must be greater than
+                                             or equal to 27.
     """
         .trimIndent()
 
