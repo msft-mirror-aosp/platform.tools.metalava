@@ -188,8 +188,6 @@ const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatur
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
-const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
@@ -648,14 +646,9 @@ class Options(
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
 
-    /** Directory of prebuilt extension SDK jars that contribute to the API */
-    var sdkJarRoot: File? = null
+    val sdkJarRoot: File? by apiLevelsGenerationOptions::sdkJarRoot
 
-    /**
-     * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
-     * that are kept
-     */
-    var sdkInfoFile: File? = null
+    val sdkInfoFile: File? by apiLevelsGenerationOptions::sdkInfoFile
 
     /**
      * The latest publicly released SDK extension version. When generating docs for d.android.com,
@@ -879,12 +872,6 @@ class Options(
                 ARG_USE_K2_UAST -> useK2Uast = true
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_SDK_JAR_ROOT -> {
-                    sdkJarRoot = stringToExistingDir(getValue(args, ++index))
-                }
-                ARG_SDK_INFO_FILE -> {
-                    sdkInfoFile = stringToExistingFile(getValue(args, ++index))
                 }
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
@@ -1295,30 +1282,6 @@ object OptionsHelp {
                 "$ARG_APPLY_API_LEVELS <api-versions.xml>",
                 "Reads an XML file containing API level descriptions " +
                     "and merges the information into the documentation",
-                "",
-                "Extracting API Levels:",
-                ARG_SDK_JAR_ROOT,
-                "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
-                    "contain snapshots of historical extension SDK versions in the form of stub jars. " +
-                    "The paths should be on the format \"<int>/public/<module-name>.jar\", where <int> " +
-                    "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
-                ARG_SDK_INFO_FILE,
-                "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
-                    "and describes, per extension SDK, what APIs from that extension to include in the " +
-                    "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
-                    "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the " +
-                    "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
-                    "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
-                    "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +
-                    "<ext-name> is the name of an SDK, " +
-                    "<ext-id> its numerical ID and <type> is one of " +
-                    "\"platform\" (the Android platform SDK), " +
-                    "\"platform-ext\" (an extension to the Android platform SDK), " +
-                    "\"standalone\" (a separate SDK). " +
-                    "Fields are separated by whitespace. " +
-                    "A mainline module may be listed multiple times. " +
-                    "The special pattern \"*\" refers to all APIs in the given mainline module. " +
-                    "Lines beginning with # are comments.",
                 "",
                 "Generating API version history:",
                 "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",

@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
@@ -40,6 +41,9 @@ const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_JAR = "--current-jar"
+
+const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
+const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 
 class ApiLevelsGenerationOptions :
     OptionGroup(
@@ -166,6 +170,53 @@ class ApiLevelsGenerationOptions :
                 help =
                     """
                         Points to the current API jar, if any.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+
+    /** Directory of prebuilt extension SDK jars that contribute to the API */
+    val sdkJarRoot: File? by
+        option(
+                ARG_SDK_JAR_ROOT,
+                metavar = "<sdk-jar-root>",
+                help =
+                    """
+                        Points to root of prebuilt extension SDK jars, if any. This directory is
+                        expected to contain snapshots of historical extension SDK versions in the
+                        form of stub jars. The paths should be on the format
+                        \"<int>/public/<module-name>.jar\", where <int> corresponds to the extension
+                        SDK version, and <module-name> to the name of the mainline module.
+                    """
+                        .trimIndent(),
+            )
+            .existingDir()
+
+    /**
+     * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
+     * that are kept
+     */
+    val sdkInfoFile: File? by
+        option(
+                ARG_SDK_INFO_FILE,
+                metavar = "<sdk-info-file>",
+                help =
+                    """
+                        Points to map of extension SDK APIs to include, if any. The file is a plain
+                        text file and describes, per extension SDK, what APIs from that extension
+                        to include in the file created via $ARG_GENERATE_API_LEVELS. The format of
+                        each line is one of the following:
+                        \"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where
+                        <module-name> is the name of the mainline module this line refers to,
+                        <pattern> is a common Java name prefix of the APIs this line refers to, and
+                        <ext-name> is a list of extension SDK names in which these SDKs first
+                        appeared, or \"<ext-name> <ext-id> <type>\", where <ext-name> is the name of
+                        an SDK, <ext-id> its numerical ID and <type> is one of \"platform\" (the
+                        Android platform SDK), \"platform-ext\" (an extension to the Android
+                        platform SDK), \"standalone\" (a separate SDK). Fields are separated by
+                        whitespace. A mainline module may be listed multiple times.
+                        The special pattern \"*\" refers to all APIs in the given mainline module.
+                        Lines beginning with # are comments.
                     """
                         .trimIndent(),
             )
