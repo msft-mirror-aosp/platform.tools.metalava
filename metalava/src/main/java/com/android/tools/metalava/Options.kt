@@ -623,8 +623,24 @@ class Options(
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
-    /** The api level of the codebase, or -1 if not known/specified */
-    var currentApiLevel = -1
+    /** The api level of the codebase, or null if not known/specified */
+    private var mutableCurrentApiLevel: Int? = null
+
+    /** Get the [ARG_CURRENT_VERSION] or if that was not specified then return [default]. */
+    fun currentApiLevelOrDefault(default: Int): Int = mutableCurrentApiLevel ?: default
+
+    /**
+     * Get the current API level.
+     *
+     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
+     * specified.
+     */
+    val currentApiLevel: Int
+        get() =
+            mutableCurrentApiLevel
+                ?: throw MetalavaCliException(
+                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
+                )
 
     /**
      * The first api level of the codebase; typically 1 but can be higher for example for the System
@@ -852,12 +868,13 @@ class Options(
                     list.add(getValue(args, ++index))
                 }
                 ARG_CURRENT_VERSION -> {
-                    currentApiLevel = Integer.parseInt(getValue(args, ++index))
-                    if (currentApiLevel <= 26) {
+                    val apiLevel = Integer.parseInt(getValue(args, ++index))
+                    if (apiLevel <= 26) {
                         throw MetalavaCliException(
-                            "Suspicious currentApi=$currentApiLevel, expected at least 27"
+                            "Suspicious currentApi=$apiLevel, expected at least 27"
                         )
                     }
+                    mutableCurrentApiLevel = apiLevel
                 }
                 ARG_FIRST_VERSION -> {
                     firstApiLevel = Integer.parseInt(getValue(args, ++index))
@@ -943,12 +960,6 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
-            if (currentApiLevel == -1) {
-                throw MetalavaCliException(
-                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
-                )
-            }
-
             // <String> is redundant here but while IDE (with newer type inference engine
             // understands that) the current 1.3.x compiler does not
             @Suppress("RemoveExplicitTypeArguments")
