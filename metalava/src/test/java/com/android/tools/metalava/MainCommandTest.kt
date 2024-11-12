@@ -67,8 +67,6 @@ Options:
                                              min_sdk_version. (default: no manifest)
   --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
-  --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
-                                             not yet released SDK extensions.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 

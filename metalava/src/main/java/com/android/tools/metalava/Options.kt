@@ -74,7 +74,6 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
-import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -650,20 +649,7 @@ class Options(
 
     val sdkInfoFile: File? by apiLevelsGenerationOptions::sdkInfoFile
 
-    /**
-     * The latest publicly released SDK extension version. When generating docs for d.android.com,
-     * the SDK extensions that have been finalized but not yet publicly released should be excluded
-     * from the docs.
-     *
-     * If null, the docs will include all SDK extensions.
-     */
-    val latestReleasedSdkExtension by
-        option(
-                "--hide-sdk-extensions-newer-than",
-                help =
-                    "Ignore SDK extensions version INT and above. Used to exclude finalized but not yet released SDK extensions."
-            )
-            .int()
+    val latestReleasedSdkExtension by apiLevelsGenerationOptions::latestReleasedSdkExtension
 
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null

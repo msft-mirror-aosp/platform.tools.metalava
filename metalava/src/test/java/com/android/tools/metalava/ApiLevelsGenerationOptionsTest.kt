@@ -61,6 +61,9 @@ Api Levels Generation:
                                              SDK). Fields are separated by whitespace. A mainline module may be listed
                                              multiple times. The special pattern \"*\" refers to all APIs in the given
                                              mainline module. Lines beginning with # are comments.
+  --hide-sdk-extensions-newer-than <numeric-version>
+                                             Ignore SDK extensions version INT and above. Used to exclude finalized but
+                                             not yet released SDK extensions.
     """
         .trimIndent()
 
