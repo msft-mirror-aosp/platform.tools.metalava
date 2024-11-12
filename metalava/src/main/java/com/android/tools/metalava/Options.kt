@@ -930,16 +930,12 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
-            // <String> is redundant here but while IDE (with newer type inference engine
-            // understands that) the current 1.3.x compiler does not
-            @Suppress("RemoveExplicitTypeArguments")
-            val patterns = androidJarPatterns ?: run { mutableListOf<String>() }
+            val patterns = androidJarPatterns ?: run { mutableListOf() }
             // Fallbacks
             patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
             patterns.add("prebuilts/sdk/%/public/android.jar")
             apiLevelJars =
                 findAndroidJars(
-                    args,
                     patterns,
                     firstApiLevel,
                     currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
@@ -1079,15 +1075,8 @@ class Options(
         }
     }
 
-    /**
-     * Find an android stub jar that matches the given criteria.
-     *
-     * Note because the default baseline file is not explicitly set in the command line, this file
-     * would trigger a --strict-input-files violation. To avoid that, use
-     * --strict-input-files-exempt to exempt the jar directory.
-     */
+    /** Find an android stub jar that matches the given criteria. */
     private fun findAndroidJars(
-        args: Array<String>,
         androidJarPatterns: List<String>,
         minApi: Int,
         currentApiLevel: Int,
@@ -1120,16 +1109,11 @@ class Options(
                     if (apiLevel < 28) {
                         // Clearly something is wrong with the patterns; this should result in a
                         // build error
-                        val argList = mutableListOf<String>()
-                        args.forEachIndexed { index, arg ->
-                            if (arg == ARG_ANDROID_JAR_PATTERN) {
-                                argList.add(args[index + 1])
-                            }
-                        }
                         throw MetalavaCliException(
                             stderr =
                                 "Could not find android.jar for API level $apiLevel; the " +
-                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}"
+                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid see:" +
+                                    " ${androidJarPatterns.joinToString()} (the last two entries are defaults)"
                         )
                     }
 
