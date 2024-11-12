@@ -64,10 +64,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                     sdkExtensionsArguments.skipVersionsGreaterThan
                 )
         }
-        api.inlineFromHiddenSuperClasses()
-        api.removeImplicitInterfaces()
-        api.removeOverridingMethods()
-        api.prunePackagePrivateClasses()
+        api.clean()
         if (removeMissingClasses) {
             api.removeMissingClasses()
         } else {

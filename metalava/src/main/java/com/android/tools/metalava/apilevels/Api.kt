@@ -117,20 +117,20 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
      * that have interfaces, we check up the inheritance chain to see if it has already been
      * introduced in a super class at an earlier API level.
      */
-    fun removeImplicitInterfaces() {
+    private fun removeImplicitInterfaces() {
         for (classElement in mClasses.values) {
             classElement.removeImplicitInterfaces(mClasses)
         }
     }
 
     /** @see ApiClass.removeOverridingMethods */
-    fun removeOverridingMethods() {
+    private fun removeOverridingMethods() {
         for (classElement in mClasses.values) {
             classElement.removeOverridingMethods(mClasses)
         }
     }
 
-    fun inlineFromHiddenSuperClasses() {
+    private fun inlineFromHiddenSuperClasses() {
         val hidden: MutableMap<String, ApiClass> = HashMap()
         for (classElement in mClasses.values) {
             if (
@@ -144,7 +144,7 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
         }
     }
 
-    fun prunePackagePrivateClasses() {
+    private fun prunePackagePrivateClasses() {
         for (cls in mClasses.values) {
             cls.removeHiddenSuperClasses(mClasses)
         }
