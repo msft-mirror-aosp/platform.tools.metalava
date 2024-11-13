@@ -193,6 +193,7 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
+    private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
     private val commonOptions: CommonOptions = CommonOptions(),
     private val sourceOptions: SourceOptions = SourceOptions(),
     private val issueReportingOptions: IssueReportingOptions =
@@ -207,9 +208,6 @@ class Options(
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
         ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
-    /** Execution environment; initialized in [parse]. */
-    private lateinit var executionEnvironment: ExecutionEnvironment
-
     /** Writer to direct output to. */
     val stdout: PrintWriter
         get() = executionEnvironment.stdout
@@ -739,12 +737,7 @@ class Options(
                     .trimIndent()
             )
 
-    fun parse(
-        executionEnvironment: ExecutionEnvironment,
-        args: Array<String>,
-    ) {
-        this.executionEnvironment = executionEnvironment
-
+    fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
