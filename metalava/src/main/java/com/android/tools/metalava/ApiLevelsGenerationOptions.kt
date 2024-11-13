@@ -100,7 +100,7 @@ class ApiLevelsGenerationOptions :
             .default(1)
 
     /** The api level of the codebase, or null if not known/specified */
-    val currentApiLevel: Int? by
+    private val optionalCurrentApiLevel: Int? by
         option(
                 ARG_CURRENT_VERSION,
                 metavar = "<numeric-version>",
@@ -117,6 +117,19 @@ class ApiLevelsGenerationOptions :
                     throw MetalavaCliException("Suspicious currentApi=$it, expected at least 27")
                 }
             }
+
+    /**
+     * Get the current API level.
+     *
+     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
+     * specified.
+     */
+    val currentApiLevel: Int
+        get() =
+            optionalCurrentApiLevel
+                ?: throw MetalavaCliException(
+                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
+                )
 
     /**
      * The codename of the codebase: non-null string if this is a developer preview build, null if
@@ -218,7 +231,7 @@ class ApiLevelsGenerationOptions :
      */
     fun getApiLevelLabel(level: Int): String {
         val codename = currentCodeName
-        val current = currentApiLevel
+        val current = optionalCurrentApiLevel
         return if (current == null || codename == null || level <= current) level.toString()
         else codename
     }
@@ -237,7 +250,7 @@ class ApiLevelsGenerationOptions :
      */
     fun includeApiLevelInDocumentation(level: Int): Boolean {
         if (isDeveloperPreviewBuild) return true
-        val current = currentApiLevel ?: return true
+        val current = optionalCurrentApiLevel ?: return true
         return level <= current
     }
 }

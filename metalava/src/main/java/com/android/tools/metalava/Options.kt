@@ -616,18 +616,7 @@ class Options(
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
-    /**
-     * Get the current API level.
-     *
-     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
-     * specified.
-     */
-    val currentApiLevel: Int
-        get() =
-            apiLevelsGenerationOptions.currentApiLevel
-                ?: throw MetalavaCliException(
-                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
-                )
+    val currentApiLevel by apiLevelsGenerationOptions::currentApiLevel
 
     val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
 
