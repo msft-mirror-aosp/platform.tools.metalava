@@ -20,7 +20,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
@@ -222,24 +221,12 @@ internal fun processFlags(
         actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
-    val androidApiLevelXml = options.generateApiLevelXml
+    val generateXmlConfig = options.apiLevelsGenerationOptions.generateXmlConfig
     val apiGenerator = ApiGenerator(signatureFileCache)
-    if (androidApiLevelXml != null) {
+    if (generateXmlConfig != null) {
         progressTracker.progress(
-            "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
+            "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
         )
-        val sdkJarRoot = options.sdkJarRoot
-        val sdkInfoFile = options.sdkInfoFile
-        val sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
-            if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator.SdkExtensionsArguments(
-                    sdkJarRoot,
-                    sdkInfoFile,
-                )
-            } else {
-                null
-            }
-
         var codebaseFragment =
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(
@@ -262,18 +249,7 @@ internal fun processFlags(
                 )
         }
 
-        val config =
-            GenerateXmlConfig(
-                apiLevels = options.apiLevelJars,
-                firstApiLevel = options.firstApiLevel,
-                currentApiLevel = options.currentApiLevel,
-                isDeveloperPreviewBuild = options.isDeveloperPreviewBuild,
-                outputFile = androidApiLevelXml,
-                sdkExtensionsArguments = sdkExtArgs,
-                removeMissingClasses = options.removeMissingClassesInApiLevels,
-            )
-
-        apiGenerator.generateXml(codebaseFragment, config)
+        apiGenerator.generateXml(codebaseFragment, generateXmlConfig)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {

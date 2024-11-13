@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -75,7 +77,7 @@ class ApiLevelsGenerationOptions(
             .newFile()
 
     /** Whether references to missing classes should be removed from the api levels file. */
-    val removeMissingClassReferencesInApiLevels: Boolean by
+    private val removeMissingClassReferencesInApiLevels: Boolean by
         option(
                 ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
                 help =
@@ -93,7 +95,7 @@ class ApiLevelsGenerationOptions(
      * The first api level of the codebase; typically 1 but can be higher for example for the System
      * API.
      */
-    val firstApiLevel: Int by
+    private val firstApiLevel: Int by
         option(
                 ARG_FIRST_VERSION,
                 metavar = "<numeric-version>",
@@ -139,7 +141,7 @@ class ApiLevelsGenerationOptions(
      * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
      * specified.
      */
-    val currentApiLevel: Int
+    private val currentApiLevel: Int
         get() =
             optionalCurrentApiLevel
                 ?: throw MetalavaCliException(
@@ -163,11 +165,11 @@ class ApiLevelsGenerationOptions(
             .map { if (it == "REL") null else it }
 
     /** True if [currentCodeName] is specified, false otherwise. */
-    val isDeveloperPreviewBuild
+    private val isDeveloperPreviewBuild
         get() = currentCodeName != null
 
     /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
-    val androidJarPatterns: List<String> by
+    private val androidJarPatterns: List<String> by
         option(
                 ARG_ANDROID_JAR_PATTERN,
                 metavar = "<android-jar-pattern>",
@@ -191,7 +193,7 @@ class ApiLevelsGenerationOptions(
             }
 
     /** Directory of prebuilt extension SDK jars that contribute to the API */
-    val sdkJarRoot: File? by
+    private val sdkJarRoot: File? by
         option(
                 ARG_SDK_JAR_ROOT,
                 metavar = "<sdk-jar-root>",
@@ -212,7 +214,7 @@ class ApiLevelsGenerationOptions(
      * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
      * that are kept
      */
-    val sdkInfoFile: File? by
+    private val sdkInfoFile: File? by
         option(
                 ARG_SDK_INFO_FILE,
                 metavar = "<sdk-info-file>",
@@ -291,7 +293,7 @@ class ApiLevelsGenerationOptions(
      * level, indexed by API level, starting from 1. The 0th element plus any element less than
      * [firstApiLevel] is a placeholder that is an invalid file and should not be used.
      */
-    val apiLevelJars
+    private val apiLevelJars
         get() = findAndroidJars()
 
     /** Find an android stub jar that matches the given criteria. */
@@ -349,4 +351,29 @@ class ApiLevelsGenerationOptions(
             .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
             .firstOrNull { it.isFile }
     }
+
+    private val sdkExtensionsArguments
+        get() =
+            if (sdkJarRoot != null && sdkInfoFile != null) {
+                ApiGenerator.SdkExtensionsArguments(
+                    sdkJarRoot!!,
+                    sdkInfoFile!!,
+                )
+            } else {
+                null
+            }
+
+    val generateXmlConfig
+        get() =
+            generateApiLevelXml?.let { outputFile ->
+                GenerateXmlConfig(
+                    apiLevels = apiLevelJars,
+                    firstApiLevel = firstApiLevel,
+                    currentApiLevel = currentApiLevel,
+                    isDeveloperPreviewBuild = isDeveloperPreviewBuild,
+                    outputFile = outputFile,
+                    sdkExtensionsArguments = sdkExtensionsArguments,
+                    removeMissingClasses = removeMissingClassReferencesInApiLevels,
+                )
+            }
 }

@@ -206,7 +206,7 @@ class Options(
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
-    private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
+    internal val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
         ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to. */
@@ -612,24 +612,6 @@ class Options(
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
-    /**
-     * Mapping from API level to android.jar files, if computing API levels.
-     *
-     * This should only be accessed if [generateApiLevelXml] is not `null`.
-     */
-    val apiLevelJars by apiLevelsGenerationOptions::apiLevelJars
-
-    val currentApiLevel by apiLevelsGenerationOptions::currentApiLevel
-
-    val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
-
-    val isDeveloperPreviewBuild by apiLevelsGenerationOptions::isDeveloperPreviewBuild
-
-    val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
-
-    val removeMissingClassesInApiLevels by
-        apiLevelsGenerationOptions::removeMissingClassReferencesInApiLevels
-
     val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
 
     val includeApiLevelInDocumentation: ApiLevelFilter =
@@ -637,10 +619,6 @@ class Options(
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
-
-    val sdkJarRoot: File? by apiLevelsGenerationOptions::sdkJarRoot
-
-    val sdkInfoFile: File? by apiLevelsGenerationOptions::sdkInfoFile
 
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null
