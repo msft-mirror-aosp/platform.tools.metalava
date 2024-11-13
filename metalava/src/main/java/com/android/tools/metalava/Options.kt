@@ -649,8 +649,6 @@ class Options(
 
     val sdkInfoFile: File? by apiLevelsGenerationOptions::sdkInfoFile
 
-    val latestReleasedSdkExtension by apiLevelsGenerationOptions::latestReleasedSdkExtension
-
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null
 

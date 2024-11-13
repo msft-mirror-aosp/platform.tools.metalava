@@ -235,7 +235,6 @@ internal fun processFlags(
                 ApiGenerator.SdkExtensionsArguments(
                     sdkJarRoot,
                     sdkInfoFile,
-                    options.latestReleasedSdkExtension
                 )
             } else {
                 null

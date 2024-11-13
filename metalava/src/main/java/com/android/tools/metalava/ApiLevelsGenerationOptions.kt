@@ -221,24 +221,4 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .existingFile()
-
-    /**
-     * The latest publicly released SDK extension version. When generating docs for d.android.com,
-     * the SDK extensions that have been finalized but not yet publicly released should be excluded
-     * from the docs.
-     *
-     * If null, the docs will include all SDK extensions.
-     */
-    val latestReleasedSdkExtension by
-        option(
-                "--hide-sdk-extensions-newer-than",
-                metavar = "<numeric-version>",
-                help =
-                    """
-                        Ignore SDK extensions version INT and above. Used to exclude finalized but 
-                        not yet released SDK extensions.
-                    """
-                        .trimIndent()
-            )
-            .int()
 }
