@@ -222,9 +222,8 @@ internal fun processFlags(
     }
 
     val androidApiLevelXml = options.generateApiLevelXml
-    val apiLevelJars = options.apiLevelJars
     val apiGenerator = ApiGenerator(signatureFileCache)
-    if (androidApiLevelXml != null && apiLevelJars != null) {
+    if (androidApiLevelXml != null) {
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
         )
@@ -263,7 +262,7 @@ internal fun processFlags(
         }
 
         apiGenerator.generateXml(
-            apiLevelJars,
+            options.apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
             options.isDeveloperPreviewBuild,

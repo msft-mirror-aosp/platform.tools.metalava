@@ -613,8 +613,18 @@ class Options(
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
-    /** mapping from API level to android.jar files, if computing API levels */
-    var apiLevelJars: List<File>? = null
+    /**
+     * Mapping from API level to android.jar files, if computing API levels.
+     *
+     * This should only be accessed if [generateApiLevelXml] is not `null`.
+     */
+    val apiLevelJars: List<File>
+        get() =
+            findAndroidJars(
+                apiLevelsGenerationOptions.androidJarPatterns,
+                apiLevelsGenerationOptions.firstApiLevel,
+                apiLevelsGenerationOptions.currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0,
+            )
 
     val currentApiLevel by apiLevelsGenerationOptions::currentApiLevel
 
@@ -865,16 +875,6 @@ class Options(
             }
 
             ++index
-        }
-
-        if (generateApiLevelXml != null) {
-            val patterns = apiLevelsGenerationOptions.androidJarPatterns
-            apiLevelJars =
-                findAndroidJars(
-                    patterns,
-                    firstApiLevel,
-                    currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0,
-                )
         }
 
         if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
