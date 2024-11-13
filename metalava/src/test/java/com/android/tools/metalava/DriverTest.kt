@@ -1399,12 +1399,31 @@ abstract class DriverTest :
             fileOrFileContents: String,
             newBasename: String
         ) =
+            useExistingFileOrCreateNewFile(project, fileOrFileContents, newBasename) {
+                prepareSignatureFileForTest(it, FileFormat.V2)
+            }
+
+        /**
+         * Get an optional [File] from either a file path or its contents.
+         *
+         * @param project the directory in which to create a new file.
+         * @param fileOrFileContents either a path to an existing file or the contents of the file.
+         *   If the latter the [transformer] will be applied to [fileOrFileContents] and written to
+         *   a new file created within [project].
+         * @param newBasename the basename of a new file created.
+         */
+        private fun useExistingFileOrCreateNewFile(
+            project: File,
+            fileOrFileContents: String,
+            newBasename: String,
+            transformer: (String) -> String,
+        ) =
             File(fileOrFileContents).let { maybeFile ->
                 if (maybeFile.isFile) {
                     maybeFile
                 } else {
                     val file = findNonExistentFile(project, newBasename)
-                    file.writeSignatureText(fileOrFileContents)
+                    file.writeText(transformer(fileOrFileContents))
                     file
                 }
             }
