@@ -33,7 +33,7 @@ import java.io.IOException
 class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     @Throws(IOException::class, IllegalArgumentException::class)
     fun generateXml(
-        apiLevels: Array<File>,
+        apiLevels: List<File>,
         firstApiLevel: Int,
         currentApiLevel: Int,
         isDeveloperPreviewBuild: Boolean,
@@ -120,7 +120,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         createApiLevelsFile(outputFile, printer, api)
     }
 
-    private fun createApiFromAndroidJars(apiLevels: Array<File>, firstApiLevel: Int): Api {
+    private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
         val api = Api()
         for (apiLevel in firstApiLevel until apiLevels.size) {
             val jar = apiLevels[apiLevel]

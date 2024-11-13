@@ -614,7 +614,7 @@ class Options(
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
     /** mapping from API level to android.jar files, if computing API levels */
-    var apiLevelJars: Array<File>? = null
+    var apiLevelJars: List<File>? = null
 
     val currentApiLevel by apiLevelsGenerationOptions::currentApiLevel
 
@@ -1010,26 +1010,23 @@ class Options(
     /** Find an android stub jar that matches the given criteria. */
     private fun findAndroidJars(
         androidJarPatterns: List<String>,
-        minApi: Int,
-        currentApiLevel: Int,
-    ): Array<File> {
+        firstApiLevel: Int,
+        lastApiLevel: Int,
+    ): List<File> {
         val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed.
-        // (This is here because we want the array index to match
-        // the API level)
-        val element = File("not an api: the starting API index is $minApi")
-        for (i in 0 until minApi) {
+        // api level 0: placeholder, should not be processed. (This is here because we want the
+        // array index to match the API level)
+        val element = File("not an api: the starting API index is $firstApiLevel")
+        for (i in 0 until firstApiLevel) {
             apiLevelFiles.add(element)
         }
 
         // Get all the android.jar. They are in platforms-#
-        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
+        for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
             try {
                 val jar = getAndroidJarFile(apiLevel, androidJarPatterns)
                 if (jar == null || !jar.isFile) {
-                    if (verbose) {
-                        stdout.println("Last API level found: ${apiLevel - 1}")
-                    }
+                    verbosePrint { "Last API level found: ${apiLevel - 1}" }
 
                     if (apiLevel < 28) {
                         // Clearly something is wrong with the patterns; this should result in a
@@ -1044,16 +1041,23 @@ class Options(
 
                     break
                 }
-                if (verbose) {
-                    stdout.println("Found API $apiLevel at ${jar.path}")
-                }
+
+                verbosePrint { "Found API $apiLevel at ${jar.path}" }
+
                 apiLevelFiles.add(jar)
             } catch (e: IOException) {
                 e.printStackTrace()
             }
         }
 
-        return apiLevelFiles.toTypedArray()
+        return apiLevelFiles.toList()
+    }
+
+    /** Print string returned by [message] if verbose output has been requested. */
+    private inline fun verbosePrint(message: () -> String) {
+        if (verbose) {
+            executionEnvironment.stdout.println(message())
+        }
     }
 
     private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
