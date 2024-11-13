@@ -20,6 +20,7 @@ package com.android.tools.metalava
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
@@ -261,16 +262,18 @@ internal fun processFlags(
                 )
         }
 
-        apiGenerator.generateXml(
-            options.apiLevelJars,
-            options.firstApiLevel,
-            options.currentApiLevel,
-            options.isDeveloperPreviewBuild,
-            androidApiLevelXml,
-            codebaseFragment,
-            sdkExtArgs,
-            options.removeMissingClassesInApiLevels
-        )
+        val config =
+            GenerateXmlConfig(
+                apiLevels = options.apiLevelJars,
+                firstApiLevel = options.firstApiLevel,
+                currentApiLevel = options.currentApiLevel,
+                isDeveloperPreviewBuild = options.isDeveloperPreviewBuild,
+                outputFile = androidApiLevelXml,
+                sdkExtensionsArguments = sdkExtArgs,
+                removeMissingClasses = options.removeMissingClassesInApiLevels,
+            )
+
+        apiGenerator.generateXml(codebaseFragment, config)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {

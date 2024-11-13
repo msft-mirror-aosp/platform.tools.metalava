@@ -33,17 +33,15 @@ import java.io.IOException
 class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     @Throws(IOException::class, IllegalArgumentException::class)
     fun generateXml(
-        apiLevels: List<File>,
-        firstApiLevel: Int,
-        currentApiLevel: Int,
-        isDeveloperPreviewBuild: Boolean,
-        outputFile: File,
         codebaseFragment: CodebaseFragment,
-        sdkExtensionsArguments: SdkExtensionsArguments?,
-        removeMissingClasses: Boolean
+        config: GenerateXmlConfig,
     ): Boolean {
+        val apiLevels = config.apiLevels
+        val firstApiLevel = config.firstApiLevel
+        val currentApiLevel = config.currentApiLevel
         val notFinalizedApiLevel = currentApiLevel + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
+        val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
         if (isDeveloperPreviewBuild || apiLevels.size - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
             val apiLevel = if (isDeveloperPreviewBuild) notFinalizedApiLevel else currentApiLevel
@@ -51,6 +49,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         }
         api.backfillHistoricalFixes()
         var sdkIdentifiers = emptySet<SdkIdentifier>()
+        val sdkExtensionsArguments = config.sdkExtensionsArguments
         if (sdkExtensionsArguments != null) {
             sdkIdentifiers =
                 processExtensionSdkApis(
@@ -61,13 +60,13 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 )
         }
         api.clean()
-        if (removeMissingClasses) {
+        if (config.removeMissingClasses) {
             api.removeMissingClasses()
         } else {
             api.verifyNoMissingClasses()
         }
         val printer = ApiXmlPrinter(sdkIdentifiers, firstApiLevel)
-        return createApiLevelsFile(outputFile, printer, api)
+        return createApiLevelsFile(config.outputFile, printer, api)
     }
 
     /**
