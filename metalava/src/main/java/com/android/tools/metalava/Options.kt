@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -442,12 +443,14 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebasesProvider = {
-                    compatibilityCheckOptions.previouslyReleasedCodebases(signatureFileCache)
-                },
+                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
             )
         )
     }
+
+    /** Make this available for testing purposes. */
+    internal val previouslyReleasedCodebase
+        get() = compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
 
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
