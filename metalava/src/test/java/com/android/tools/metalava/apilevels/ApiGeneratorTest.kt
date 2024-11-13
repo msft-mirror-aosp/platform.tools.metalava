@@ -86,7 +86,25 @@ class ApiGeneratorTest : DriverTest() {
                     }
                     """
                     )
-                )
+                ),
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.test;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class ClassAddedInApi31AndExt2 {
+                            ClassAddedInApi31AndExt2() { throw new RuntimeException("Stub!"); }
+                            public void methodAddedInApi31AndExt2() { throw new RuntimeException("Stub!"); }
+                            public void methodAddedInExt3() { throw new RuntimeException("Stub!"); }
+                            public void methodNotFinalized() { throw new RuntimeException("Stub!"); }
+                            public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1; // 0x1
+                            public static final int FIELD_ADDED_IN_EXT_3 = 2; // 0x2
+                            }
+                        """
+                    ),
+                ),
         )
 
         assertTrue(apiVersionsXml.isFile)
