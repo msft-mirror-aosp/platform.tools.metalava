@@ -77,7 +77,6 @@ import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
-import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Optional
@@ -618,13 +617,7 @@ class Options(
      *
      * This should only be accessed if [generateApiLevelXml] is not `null`.
      */
-    val apiLevelJars: List<File>
-        get() =
-            findAndroidJars(
-                apiLevelsGenerationOptions.androidJarPatterns,
-                apiLevelsGenerationOptions.firstApiLevel,
-                apiLevelsGenerationOptions.currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0,
-            )
+    val apiLevelJars by apiLevelsGenerationOptions::apiLevelJars
 
     val currentApiLevel by apiLevelsGenerationOptions::currentApiLevel
 
@@ -1005,65 +998,6 @@ class Options(
             val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
         }
-    }
-
-    /** Find an android stub jar that matches the given criteria. */
-    private fun findAndroidJars(
-        androidJarPatterns: List<String>,
-        firstApiLevel: Int,
-        lastApiLevel: Int,
-    ): List<File> {
-        val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed. (This is here because we want the
-        // array index to match the API level)
-        val element = File("not an api: the starting API index is $firstApiLevel")
-        for (i in 0 until firstApiLevel) {
-            apiLevelFiles.add(element)
-        }
-
-        // Get all the android.jar. They are in platforms-#
-        for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
-            try {
-                val jar = getAndroidJarFile(apiLevel, androidJarPatterns)
-                if (jar == null || !jar.isFile) {
-                    verbosePrint { "Last API level found: ${apiLevel - 1}" }
-
-                    if (apiLevel < 28) {
-                        // Clearly something is wrong with the patterns; this should result in a
-                        // build error
-                        throw MetalavaCliException(
-                            stderr =
-                                "Could not find android.jar for API level $apiLevel; the " +
-                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid see:" +
-                                    " ${androidJarPatterns.joinToString()} (the last two entries are defaults)"
-                        )
-                    }
-
-                    break
-                }
-
-                verbosePrint { "Found API $apiLevel at ${jar.path}" }
-
-                apiLevelFiles.add(jar)
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-        }
-
-        return apiLevelFiles.toList()
-    }
-
-    /** Print string returned by [message] if verbose output has been requested. */
-    private inline fun verbosePrint(message: () -> String) {
-        if (verbose) {
-            executionEnvironment.stdout.println(message())
-        }
-    }
-
-    private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
-        return patterns
-            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
-            .firstOrNull { it.isFile }
     }
 
     private fun getValue(args: Array<String>, index: Int): String {
