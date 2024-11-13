@@ -821,7 +821,7 @@ class Options(
                 // Extracting API levels
                 ARG_APPLY_API_LEVELS -> {
                     applyApiLevelsXml =
-                        if (args.contains(ARG_GENERATE_API_LEVELS)) {
+                        if (apiLevelsGenerationOptions.generateApiLevelXml != null) {
                             // If generating the API file at the same time, it doesn't have
                             // to already exist
                             stringToNewFile(getValue(args, ++index))
