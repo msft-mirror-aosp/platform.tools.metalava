@@ -55,8 +55,11 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
@@ -406,9 +409,10 @@ internal fun processFlags(
     }
 
     options.proguard?.let { proguard ->
-        val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+        val apiPredicateConfig = options.apiPredicateConfig
+        val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate())
+        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
@@ -434,10 +438,7 @@ internal fun processFlags(
     val previouslyReleasedApi = options.migrateNullsFrom
     if (previouslyReleasedApi != null) {
         val previous =
-            previouslyReleasedApi.load(
-                jarLoader = { jarFile -> actionContext.loadFromJarFile(jarFile) },
-                signatureFileLoader = { signatureFiles -> signatureFileCache.load(signatureFiles) }
-            )
+            previouslyReleasedApi.load { signatureFiles -> signatureFileCache.load(signatureFiles) }
 
         // If configured, checks for newly added nullness information compared
         // to the previous stable API and marks the newly annotated elements
@@ -540,12 +541,9 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebase =
-        check.previouslyReleasedApi.load(
-            jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-            signatureFileLoader = { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-            }
-        )
+        check.previouslyReleasedApi.load { signatureFiles ->
+            signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+        }
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
@@ -691,12 +689,9 @@ private fun ActionContext.loadFromSources(
 
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedApi =
-            apiLintOptions.previouslyReleasedApi?.load(
-                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-                signatureFileLoader = { signatureFiles ->
-                    signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-                }
-            )
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            }
 
         ApiLint.check(
             codebase,

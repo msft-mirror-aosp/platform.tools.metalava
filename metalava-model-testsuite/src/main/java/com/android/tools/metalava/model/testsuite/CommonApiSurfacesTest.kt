@@ -23,6 +23,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.junit.Test
 
+@Suppress("JavadocDeclaration")
 class CommonApiSurfacesTest : BaseModelTest() {
 
     @Test
