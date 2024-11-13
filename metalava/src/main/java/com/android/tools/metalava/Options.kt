@@ -889,7 +889,6 @@ class Options(
                     patterns,
                     firstApiLevel,
                     currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
-                    apiLevelsGenerationOptions.currentJar,
                 )
         }
 
@@ -1030,7 +1029,6 @@ class Options(
         androidJarPatterns: List<String>,
         minApi: Int,
         currentApiLevel: Int,
-        currentJar: File?
     ): Array<File> {
         val apiLevelFiles = mutableListOf<File>()
         // api level 0: placeholder, should not be processed.
@@ -1044,13 +1042,7 @@ class Options(
         // Get all the android.jar. They are in platforms-#
         for (apiLevel in minApi.rangeTo(currentApiLevel)) {
             try {
-                var jar: File? = null
-                if (apiLevel == currentApiLevel) {
-                    jar = currentJar
-                }
-                if (jar == null) {
-                    jar = getAndroidJarFile(apiLevel, androidJarPatterns)
-                }
+                val jar = getAndroidJarFile(apiLevel, androidJarPatterns)
                 if (jar == null || !jar.isFile) {
                     if (verbose) {
                         stdout.println("Last API level found: ${apiLevel - 1}")

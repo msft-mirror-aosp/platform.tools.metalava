@@ -40,7 +40,6 @@ const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
-const val ARG_CURRENT_JAR = "--current-jar"
 
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
@@ -158,22 +157,6 @@ class ApiLevelsGenerationOptions :
                     add("prebuilts/sdk/%/public/android.jar")
                 }
             }
-
-    /**
-     * Optional path to a jar that defines the current API surface for which API levels are being
-     * generated.
-     */
-    val currentJar: File? by
-        option(
-                ARG_CURRENT_JAR,
-                metavar = "<android-jar>",
-                help =
-                    """
-                        Points to the current API jar, if any.
-                    """
-                        .trimIndent(),
-            )
-            .existingFile()
 
     /** Directory of prebuilt extension SDK jars that contribute to the API */
     val sdkJarRoot: File? by
