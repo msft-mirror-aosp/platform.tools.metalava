@@ -1386,7 +1386,7 @@ abstract class DriverTest :
         }
 
         /**
-         * Get an optional signature API [File] from either a file path or its contents.
+         * Get a signature API [File] from either a file path or its contents.
          *
          * @param project the directory in which to create a new file.
          * @param fileOrFileContents either a path to an existing file or the contents of the
@@ -1396,11 +1396,10 @@ abstract class DriverTest :
          */
         private fun useExistingSignatureFileOrCreateNewFile(
             project: File,
-            fileOrFileContents: String?,
+            fileOrFileContents: String,
             newBasename: String
         ) =
-            fileOrFileContents?.let {
-                val maybeFile = File(fileOrFileContents)
+            File(fileOrFileContents).let { maybeFile ->
                 if (maybeFile.isFile) {
                     maybeFile
                 } else {
@@ -1429,9 +1428,7 @@ abstract class DriverTest :
         ): Array<String> {
             if (isEmpty()) return emptyArray()
 
-            val paths = mapNotNull {
-                useExistingSignatureFileOrCreateNewFile(project, it, baseName)?.path
-            }
+            val paths = map { useExistingSignatureFileOrCreateNewFile(project, it, baseName).path }
 
             // For each path in the list generate an option with the path as the value.
             return paths.flatMap { listOf(optionName, it) }.toTypedArray()
