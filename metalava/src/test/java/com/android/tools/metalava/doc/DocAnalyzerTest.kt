@@ -957,19 +957,18 @@ class DocAnalyzerTest : DriverTest() {
             stubFiles =
                 arrayOf(
                     java(
-                        // TODO(b/378479241): Fix this, should not use codename for all levels.
                         """
                             package android.pkg;
-                            /** @apiSince Z */
+                            /** @apiSince 1 */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             public Test() { throw new RuntimeException("Stub!"); }
                             /**
-                             * @apiSince Z
-                             * @deprecatedSince Z
+                             * @apiSince 24
+                             * @deprecatedSince 30
                              */
                             public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
-                            /** @apiSince Z */
+                            /** @apiSince 36 */
                             public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                             }
                         """

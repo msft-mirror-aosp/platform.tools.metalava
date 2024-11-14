@@ -787,10 +787,7 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            if (
-                !options.isDeveloperPreviewBuild() &&
-                    level > options.currentApiLevelOrDefault(Int.MAX_VALUE)
-            ) {
+            if (!options.isDeveloperPreviewBuild() && level > options.currentApiLevelOrMaxInt) {
                 // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
                 // in a dessert (only in an extension), but for release builds, we don't want to
                 // include a "future" SDK_INT
@@ -874,15 +871,11 @@ class DocAnalyzer(
      * If a codename has been specified and [level] is greater than the current API level (which
      * defaults to `-1` when not set) then use the codename as the label, otherwise use the number
      * itself.
-     *
-     * Note: if codename is specified but the current API level is not then this will cause all API
-     * levels to use the codename which is clearly not desirable. However, it seems as though that
-     * never occurs because codename is only specified when the current API level is also specified.
      */
     @Suppress("DEPRECATION")
     private fun getApiLevelLabel(level: Int) =
         options.currentCodeName.let { currentCodeName ->
-            if (currentCodeName != null && level > options.currentApiLevelOrDefault(-1)) {
+            if (currentCodeName != null && level > options.currentApiLevelOrMaxInt) {
                 currentCodeName
             } else {
                 level.toString()

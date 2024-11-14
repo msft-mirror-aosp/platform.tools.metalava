@@ -614,9 +614,9 @@ class Options(
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
-    /** Get the [ARG_CURRENT_VERSION] or if that was not specified then return [default]. */
-    fun currentApiLevelOrDefault(default: Int): Int =
-        apiLevelsGenerationOptions.currentApiLevel ?: default
+    /** Get the [ARG_CURRENT_VERSION] or if that was not specified then return [Int.MAX_VALUE]. */
+    val currentApiLevelOrMaxInt: Int
+        get() = apiLevelsGenerationOptions.currentApiLevel ?: Int.MAX_VALUE
 
     /**
      * Get the current API level.
