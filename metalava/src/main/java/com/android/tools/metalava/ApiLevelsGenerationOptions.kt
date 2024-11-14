@@ -206,6 +206,7 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .existingDir()
+            .validate { checkSdkJarRootAndSdkInfoFile() }
 
     /**
      * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
@@ -236,6 +237,22 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .existingFile()
+            .validate { checkSdkJarRootAndSdkInfoFile() }
+
+    /**
+     * Check the [sdkJarRoot] and [sdkInfoFile] to make sure that if one is specified they are both
+     * specified
+     *
+     * This is called if either of those is set to a non-null value so all this needs to do is make
+     * sure that neither are `null`.
+     */
+    private fun checkSdkJarRootAndSdkInfoFile() {
+        if ((sdkJarRoot == null) || (sdkInfoFile == null)) {
+            throw MetalavaCliException(
+                stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
+            )
+        }
+    }
 
     /**
      * Get label for [level].

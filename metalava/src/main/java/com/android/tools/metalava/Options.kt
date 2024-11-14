@@ -870,12 +870,6 @@ class Options(
             ++index
         }
 
-        if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
-            throw MetalavaCliException(
-                stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
-            )
-        }
-
         // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
         // so there should be 1 more name than signature file (or both can be null)
         val numVersionNames = apiVersionNames?.size ?: 0
