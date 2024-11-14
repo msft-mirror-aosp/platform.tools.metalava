@@ -204,4 +204,18 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .existingFile()
+
+    /**
+     * Get label for [level].
+     *
+     * If a codename has been specified and [level] is greater than the current API level (which
+     * defaults to `-1` when not set) then use the codename as the label, otherwise use the number
+     * itself.
+     */
+    fun getApiLevelLabel(level: Int): String {
+        val codename = currentCodeName
+        val current = currentApiLevel
+        return if (current == null || codename == null || level <= current) level.toString()
+        else codename
+    }
 }

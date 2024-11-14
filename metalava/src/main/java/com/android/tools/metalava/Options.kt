@@ -42,6 +42,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.Ch
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.config.ConfigParser
+import com.android.tools.metalava.doc.ApiLevelLabelProvider
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -639,6 +640,8 @@ class Options(
 
     val removeMissingClassesInApiLevels by
         apiLevelsGenerationOptions::removeMissingClassReferencesInApiLevels
+
+    val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null

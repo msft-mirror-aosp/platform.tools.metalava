@@ -60,6 +60,9 @@ private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSy
 
 private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 
+/** Lambda that when given an API level will return a string label for it. */
+typealias ApiLevelLabelProvider = (Int) -> String
+
 /**
  * Walk over the API and apply tweaks to the documentation, such as
  * - Looking for annotations and converting them to auxiliary tags that will be processed by the
@@ -76,6 +79,9 @@ class DocAnalyzer(
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
+
+    /** Provides a string label for each API level. */
+    private val apiLevelLabelProvider: ApiLevelLabelProvider,
 
     /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
     private val apiPredicateConfig: ApiPredicate.Config,
@@ -794,7 +800,7 @@ class DocAnalyzer(
                 return
             }
 
-            val apiLevelLabel = getApiLevelLabel(level)
+            val apiLevelLabel = apiLevelLabelProvider(level)
 
             // Also add @since tag, unless already manually entered.
             // TODO: Override it everywhere in case the existing doc is wrong (we know
@@ -850,7 +856,7 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            val apiLevelLabel = getApiLevelLabel(level)
+            val apiLevelLabel = apiLevelLabelProvider(level)
 
             if (!item.documentation.contains("@deprecatedSince")) {
                 item.appendDocumentation(apiLevelLabel, "@deprecatedSince")
@@ -864,23 +870,6 @@ class DocAnalyzer(
             }
         }
     }
-
-    /**
-     * Get the label of [level].
-     *
-     * If a codename has been specified and [level] is greater than the current API level (which
-     * defaults to `-1` when not set) then use the codename as the label, otherwise use the number
-     * itself.
-     */
-    @Suppress("DEPRECATION")
-    private fun getApiLevelLabel(level: Int) =
-        options.currentCodeName.let { currentCodeName ->
-            if (currentCodeName != null && level > options.currentApiLevelOrMaxInt) {
-                currentCodeName
-            } else {
-                level.toString()
-            }
-        }
 }
 
 /** A constraint that will only match for Android Platform SDKs. */
