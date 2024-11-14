@@ -285,6 +285,7 @@ internal fun processFlags(
                 codebase,
                 reporter,
                 options.apiLevelLabelProvider,
+                options.includeApiLevelInDocumentation,
                 options.apiPredicateConfig,
             )
         docAnalyzer.enhance()

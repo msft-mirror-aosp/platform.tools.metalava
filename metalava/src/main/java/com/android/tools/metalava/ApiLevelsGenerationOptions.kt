@@ -222,4 +222,22 @@ class ApiLevelsGenerationOptions :
         return if (current == null || codename == null || level <= current) level.toString()
         else codename
     }
+
+    /**
+     * Check whether [level] should be included in documentation.
+     *
+     * If [isDeveloperPreviewBuild] is `true` then allow any API level as the documentation is not
+     * going to be published outside Android, so it is safe to include all API levels, including the
+     * next one.
+     *
+     * If no [currentApiLevel] has been provided then allow any API level as there is no way to
+     * determine whether the API level is a future API or not.
+     *
+     * Otherwise, it is a release build so ignore any API levels after the current one.
+     */
+    fun includeApiLevelInDocumentation(level: Int): Boolean {
+        if (isDeveloperPreviewBuild) return true
+        val current = currentApiLevel ?: return true
+        return level <= current
+    }
 }

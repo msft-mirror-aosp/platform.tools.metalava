@@ -42,6 +42,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.Ch
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.config.ConfigParser
+import com.android.tools.metalava.doc.ApiLevelFilter
 import com.android.tools.metalava.doc.ApiLevelLabelProvider
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
@@ -615,10 +616,6 @@ class Options(
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
-    /** Get the [ARG_CURRENT_VERSION] or if that was not specified then return [Int.MAX_VALUE]. */
-    val currentApiLevelOrMaxInt: Int
-        get() = apiLevelsGenerationOptions.currentApiLevel ?: Int.MAX_VALUE
-
     /**
      * Get the current API level.
      *
@@ -642,6 +639,9 @@ class Options(
         apiLevelsGenerationOptions::removeMissingClassReferencesInApiLevels
 
     val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
+
+    val includeApiLevelInDocumentation: ApiLevelFilter =
+        apiLevelsGenerationOptions::includeApiLevelInDocumentation
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null

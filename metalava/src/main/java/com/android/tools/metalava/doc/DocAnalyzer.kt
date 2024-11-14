@@ -45,7 +45,6 @@ import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -62,6 +61,12 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 
 /** Lambda that when given an API level will return a string label for it. */
 typealias ApiLevelLabelProvider = (Int) -> String
+
+/**
+ * Lambda that when given an API level will return `true` if it can be referenced from within the
+ * documentation and `false` if it cannot.
+ */
+typealias ApiLevelFilter = (Int) -> Boolean
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
@@ -82,6 +87,9 @@ class DocAnalyzer(
 
     /** Provides a string label for each API level. */
     private val apiLevelLabelProvider: ApiLevelLabelProvider,
+
+    /** Filter that determines whether an API level should be mentioned in the documentation. */
+    private val apiLevelFilter: ApiLevelFilter,
 
     /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
     private val apiPredicateConfig: ApiPredicate.Config,
@@ -785,7 +793,6 @@ class DocAnalyzer(
      *
      * This only applies to classes and class members, i.e. not parameters.
      */
-    @Suppress("DEPRECATION")
     private fun addApiLevelDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
@@ -793,10 +800,9 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            if (!options.isDeveloperPreviewBuild && level > options.currentApiLevelOrMaxInt) {
-                // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
-                // in a dessert (only in an extension), but for release builds, we don't want to
-                // include a "future" SDK_INT
+
+            // Check to see whether an API level should not be included in the documentation.
+            if (!apiLevelFilter(level)) {
                 return
             }
 
