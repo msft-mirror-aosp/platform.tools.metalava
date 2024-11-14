@@ -797,20 +797,14 @@ class DocAnalyzer(
                 return
             }
 
-            val currentCodeName = options.currentCodeName
-            val code: String =
-                if (currentCodeName != null && level > options.currentApiLevelOrDefault(-1)) {
-                    currentCodeName
-                } else {
-                    level.toString()
-                }
+            val apiLevelLabel = getApiLevelLabel(level)
 
             // Also add @since tag, unless already manually entered.
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API levels!
             if (!item.documentation.contains("@apiSince")) {
-                item.appendDocumentation(code, "@apiSince")
+                item.appendDocumentation(apiLevelLabel, "@apiSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -852,7 +846,6 @@ class DocAnalyzer(
      *
      * This only applies to classes and class members, i.e. not parameters.
      */
-    @Suppress("DEPRECATION")
     private fun addDeprecatedDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
@@ -860,16 +853,10 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            val currentCodeName = options.currentCodeName
-            val code: String =
-                if (currentCodeName != null && level > options.currentApiLevelOrDefault(-1)) {
-                    currentCodeName
-                } else {
-                    level.toString()
-                }
+            val apiLevelLabel = getApiLevelLabel(level)
 
             if (!item.documentation.contains("@deprecatedSince")) {
-                item.appendDocumentation(code, "@deprecatedSince")
+                item.appendDocumentation(apiLevelLabel, "@deprecatedSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -880,6 +867,27 @@ class DocAnalyzer(
             }
         }
     }
+
+    /**
+     * Get the label of [level].
+     *
+     * If a codename has been specified and [level] is greater than the current API level (which
+     * defaults to `-1` when not set) then use the codename as the label, otherwise use the number
+     * itself.
+     *
+     * Note: if codename is specified but the current API level is not then this will cause all API
+     * levels to use the codename which is clearly not desirable. However, it seems as though that
+     * never occurs because codename is only specified when the current API level is also specified.
+     */
+    @Suppress("DEPRECATION")
+    private fun getApiLevelLabel(level: Int) =
+        options.currentCodeName.let { currentCodeName ->
+            if (currentCodeName != null && level > options.currentApiLevelOrDefault(-1)) {
+                currentCodeName
+            } else {
+                level.toString()
+            }
+        }
 }
 
 /** A constraint that will only match for Android Platform SDKs. */
