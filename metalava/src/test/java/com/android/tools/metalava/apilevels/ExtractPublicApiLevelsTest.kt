@@ -24,7 +24,6 @@ import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -35,10 +34,6 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     //  current API or stopping it from including the current API.
     @Test
     fun `Extract API levels`() {
-        val output = File.createTempFile("api-info", "xml")
-        output.deleteOnExit()
-        val outputPath = output.path
-
         val currentVersion = 35
 
         check(
