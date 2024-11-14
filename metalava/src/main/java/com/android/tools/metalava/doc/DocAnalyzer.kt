@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
@@ -75,10 +76,10 @@ class DocAnalyzer(
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
+
+    /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) {
-
-    private val apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig
-
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
         // Apply options for packages that should be hidden

@@ -279,7 +279,13 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporter)
+        val docAnalyzer =
+            DocAnalyzer(
+                executionEnvironment,
+                codebase,
+                reporter,
+                options.apiPredicateConfig,
+            )
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
