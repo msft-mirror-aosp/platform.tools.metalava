@@ -793,7 +793,7 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            if (!options.isDeveloperPreviewBuild() && level > options.currentApiLevelOrMaxInt) {
+            if (!options.isDeveloperPreviewBuild && level > options.currentApiLevelOrMaxInt) {
                 // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
                 // in a dessert (only in an extension), but for release builds, we don't want to
                 // include a "future" SDK_INT

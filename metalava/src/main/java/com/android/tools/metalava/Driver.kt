@@ -266,7 +266,7 @@ internal fun processFlags(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
-            options.isDeveloperPreviewBuild(),
+            options.isDeveloperPreviewBuild,
             androidApiLevelXml,
             codebaseFragment,
             sdkExtArgs,

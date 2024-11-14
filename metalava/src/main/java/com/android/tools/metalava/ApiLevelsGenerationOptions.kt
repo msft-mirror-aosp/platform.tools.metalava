@@ -122,7 +122,7 @@ class ApiLevelsGenerationOptions :
      * The codename of the codebase: non-null string if this is a developer preview build, null if
      * this is a release build.
      */
-    val currentCodeName: String? by
+    private val currentCodeName: String? by
         option(
                 ARG_CURRENT_CODENAME,
                 metavar = "<version-codename>",
@@ -133,6 +133,10 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .map { if (it == "REL") null else it }
+
+    /** True if [currentCodeName] is specified, false otherwise. */
+    val isDeveloperPreviewBuild
+        get() = currentCodeName != null
 
     /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
     val androidJarPatterns: List<String> by

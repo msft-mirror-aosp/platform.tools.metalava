@@ -634,7 +634,7 @@ class Options(
 
     val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
 
-    val currentCodeName by apiLevelsGenerationOptions::currentCodeName
+    val isDeveloperPreviewBuild by apiLevelsGenerationOptions::isDeveloperPreviewBuild
 
     val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
 
@@ -884,7 +884,7 @@ class Options(
                 findAndroidJars(
                     patterns,
                     firstApiLevel,
-                    currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
+                    currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0,
                 )
         }
 
@@ -985,8 +985,6 @@ class Options(
             reportableFilter = reportableFilter,
             config = issueReportingOptions.reporterConfig,
         )
-
-    fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
 
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
