@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.xml
@@ -121,5 +122,82 @@ class ProjectDescriptionTest : DriverTest() {
                 }
                 """
         )
+    }
+
+    @Test
+    fun `jvm annotations`() {
+        val standardClasspath = getKotlinStdlibPaths() + getAndroidJar()
+        val standardClasspathXml =
+            standardClasspath.joinToString("\n") { "<classpath file=\"$it\"/>" }
+
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "src/androidMain/some/pkg/Foo.kt",
+                        """
+                            package some.pkg
+
+                            class Foo {
+                                @JvmName("renamed")
+                                fun wrongName() = Unit
+
+                              companion object {
+                                @JvmStatic
+                                public fun foo(x: String): String {
+                                  return x
+                                }
+                              }
+                            }
+                        """
+                    ),
+                ),
+            projectDescription =
+                xml(
+                    "project.xml",
+                    """
+                        <project>
+                          <root dir="src/androidMain"/>
+                          <module name="androidMain" android="true">
+                            <src file="src/androidMain/some/pkg/Foo.kt" />
+                            $standardClasspathXml
+                          </module>
+                        </project>
+                    """
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package some.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public static String foo(String x);
+                    method public void renamed();
+                    field public static final some.pkg.Foo.Companion Companion;
+                  }
+                  public static final class Foo.Companion {
+                    method public String foo(String x);
+                  }
+                }
+                """
+        )
+
+        /*
+           Lint failure with K2:
+           src/androidMain/some/pkg/Foo.kt:9: warning: Companion object methods like foo should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+
+           Signature file with K2 -- foo() is not static, wrongName() is not renamed with JvmName
+           package some.pkg {
+             public final class Foo {
+               ctor public Foo();
+               method public void wrongName();
+               field public static final some.pkg.Foo.Companion Companion;
+             }
+             public static final class Foo.Companion {
+               method public String foo(String x);
+             }
+           }
+        */
     }
 }
