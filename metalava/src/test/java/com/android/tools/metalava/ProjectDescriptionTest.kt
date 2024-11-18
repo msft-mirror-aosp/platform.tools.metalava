@@ -27,6 +27,9 @@ import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN)
 class ProjectDescriptionTest : DriverTest() {
+    private val standardClasspath = getKotlinStdlibPaths() + getAndroidJar()
+    private val standardClasspathXml =
+        standardClasspath.joinToString("\n") { "<classpath file=\"$it\"/>" }
 
     @Test
     fun `conflict declarations`() {
@@ -126,10 +129,6 @@ class ProjectDescriptionTest : DriverTest() {
 
     @Test
     fun `jvm annotations`() {
-        val standardClasspath = getKotlinStdlibPaths() + getAndroidJar()
-        val standardClasspathXml =
-            standardClasspath.joinToString("\n") { "<classpath file=\"$it\"/>" }
-
         check(
             apiLint = "",
             sourceFiles =
@@ -199,5 +198,51 @@ class ProjectDescriptionTest : DriverTest() {
              }
            }
         */
+    }
+
+    @Test
+    fun `delegate property`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "src/androidMain/some/pkg/Foo.kt",
+                        """
+                            package some.pkg
+                            class Foo {
+                                val lazyVal by lazy { 1 }
+                            }
+                        """
+                    )
+                ),
+            projectDescription =
+                xml(
+                    "project.xml",
+                    """
+                        <project>
+                          <root dir="src/androidMain"/>
+                          <module name="androidMain">
+                            <src file="src/androidMain/some/pkg/Foo.kt"/>
+                            $standardClasspathXml
+                          </module>
+                        </project>
+                    """
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package some.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public int getLazyVal();
+                    property public final int lazyVal;
+                  }
+                }
+                """
+        )
+        /*
+        K2 fails with "Invalid type in API surface: PsiType:<ErrorType> for element some.pkg.Foo#lazyVal"
+         */
     }
 }
