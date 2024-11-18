@@ -148,7 +148,7 @@ class ApiXmlPrinter(
             writer.print("\" sdks=\"")
             writer.print(sdks)
         }
-        if (deprecatedIn != 0 && deprecatedIn != parentElement.deprecatedIn) {
+        if (deprecatedIn != null && deprecatedIn != parentElement.deprecatedIn) {
             writer.print("\" deprecated=\"")
             writer.print(deprecatedIn)
         }

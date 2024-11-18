@@ -44,12 +44,7 @@ internal class ApiJsonPrinter(private val apiVersionNames: List<String>) : ApiPr
         mapOf(
             elementType to name,
             "addedIn" to nameForVersion(since),
-            "deprecatedIn" to
-                if (isDeprecated) {
-                    nameForVersion(deprecatedIn)
-                } else {
-                    null
-                }
+            "deprecatedIn" to deprecatedIn?.let { nameForVersion(it) }
         )
 
     // Indexing is offset by 1 because 0 is not a valid API level

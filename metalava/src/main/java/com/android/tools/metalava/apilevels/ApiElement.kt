@@ -43,10 +43,8 @@ open class ApiElement : Comparable<ApiElement> {
     var mainlineModule: String? = null
         private set
 
-    /**
-     * The API level this element was deprecated in, should only be used if [isDeprecated] is true.
-     */
-    var deprecatedIn = 0
+    /** The optional API level this element was deprecated in. */
+    var deprecatedIn: Int? = null
         private set
 
     var lastPresentIn = 0
@@ -96,17 +94,18 @@ open class ApiElement : Comparable<ApiElement> {
         if (lastPresentIn < version) {
             lastPresentIn = version
         }
+        val deprecatedVersion = deprecatedIn
         if (deprecated) {
             // If it was not previously deprecated or was deprecated in a later version than this
             // one then deprecate it in this version.
-            if (deprecatedIn == 0 || deprecatedIn > version) {
+            if (deprecatedVersion == null || deprecatedVersion > version) {
                 deprecatedIn = version
             }
         } else {
             // If it was previously deprecated and was deprecated in an earlier version than this
             // one then treat it as being undeprecated.
-            if (deprecatedIn != 0 && deprecatedIn < version) {
-                deprecatedIn = 0
+            if (deprecatedVersion != null && deprecatedVersion < version) {
+                deprecatedIn = null
             }
         }
     }
@@ -117,7 +116,7 @@ open class ApiElement : Comparable<ApiElement> {
      * @param version an API version for which the API element existed
      */
     fun update(version: Int) {
-        update(version, isDeprecated)
+        update(version, deprecatedIn != null)
     }
 
     /**
@@ -139,10 +138,6 @@ open class ApiElement : Comparable<ApiElement> {
     fun updateMainlineModule(module: String?) {
         mainlineModule = module
     }
-
-    val isDeprecated: Boolean
-        /** Checks whether the API element is deprecated or not. */
-        get() = deprecatedIn != 0
 
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
