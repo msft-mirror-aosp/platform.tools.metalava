@@ -17,7 +17,6 @@ package com.android.tools.metalava.apilevels
 
 import com.google.common.collect.Iterables
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
 import kotlin.math.min
 
 /**
@@ -29,12 +28,8 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     private val mSuperClasses: MutableList<ApiElement> = ArrayList()
     private val mInterfaces: MutableList<ApiElement> = ArrayList()
 
-    /**
-     * If negative, never seen as public. The absolute value is the last api level it is seen as
-     * hidden in. E.g. "-5" means a class that was hidden in api levels 1-5, then it was deleted,
-     * and "8" means a class that was hidden in api levels 1-8 then made public in 9.
-     */
-    var hiddenUntil = 0 // Package private class?
+    /** If `true`, never seen as public. */
+    var alwaysHidden = false // Package private class?
     private val mFields: MutableMap<String, ApiElement> = ConcurrentHashMap()
     private val mMethods: MutableMap<String, ApiElement> = ConcurrentHashMap()
 
@@ -68,12 +63,8 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     val superClasses: List<ApiElement>
         get() = mSuperClasses
 
-    fun updateHidden(api: Int, hidden: Boolean) {
-        hiddenUntil = if (hidden) -api else abs(api)
-    }
-
-    private fun alwaysHidden(): Boolean {
-        return hiddenUntil < 0
+    fun updateHidden(hidden: Boolean) {
+        alwaysHidden = hidden
     }
 
     fun addInterface(interfaceClass: String, since: Int) {
@@ -273,7 +264,7 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
             val next = iterator.next()
             min = min(min, next.since)
             val extendsClass = api[next.name]
-            if (extendsClass != null && extendsClass.alwaysHidden()) {
+            if (extendsClass != null && extendsClass.alwaysHidden) {
                 val since = extendsClass.since
                 iterator.remove()
                 for (other in mSuperClasses) {

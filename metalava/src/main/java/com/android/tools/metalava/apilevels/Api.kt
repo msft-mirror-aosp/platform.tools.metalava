@@ -105,9 +105,8 @@ class Api : ApiElement("Android API") {
     private fun inlineFromHiddenSuperClasses() {
         val hidden: MutableMap<String, ApiClass> = HashMap()
         for (classElement in mClasses.values) {
-            if (
-                classElement.hiddenUntil < 0
-            ) { // hidden in the .jar files? (mMax==codebase, -1: jar files)
+            if (classElement.alwaysHidden) {
+                // hidden in the .jar files? (mMax==codebase, -1: jar files)
                 hidden[classElement.name] = classElement
             }
         }

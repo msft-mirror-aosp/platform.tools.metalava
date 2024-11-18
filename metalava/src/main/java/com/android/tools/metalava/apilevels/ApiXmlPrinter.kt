@@ -100,7 +100,7 @@ class ApiXmlPrinter(
         indent: String,
         writer: PrintWriter
     ) {
-        if (hiddenUntil < 0) {
+        if (alwaysHidden) {
             return
         }
         print(tag, false, parentElement, indent, writer)
