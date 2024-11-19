@@ -381,7 +381,7 @@ class ApiLevelsGenerationOptions(
                 GenerateXmlConfig(
                     apiLevels = apiLevelJars,
                     firstApiLevel = firstApiLevel,
-                    currentApiLevel = currentApiLevel,
+                    currentSdkVersion = ApiVersion.fromLevel(currentApiLevel),
                     isDeveloperPreviewBuild = isDeveloperPreviewBuild,
                     outputFile = outputFile,
                     sdkExtensionsArguments = sdkExtensionsArguments,

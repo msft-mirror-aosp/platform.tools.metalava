@@ -39,9 +39,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         config: GenerateXmlConfig,
     ): Boolean {
         val apiLevels = config.apiLevels
+        val lastApiVersion = ApiVersion.fromLevel(apiLevels.size - 1)
         val firstApiLevel = config.firstApiLevel
-        val currentApiLevel = config.currentApiLevel
-        val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
+        val currentSdkVersion = config.currentSdkVersion
         val notFinalizedSdkVersion = currentSdkVersion + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
@@ -55,7 +55,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
 
                 // There is no prebuilt, finalized jar matching the current API level so use the
                 // current codebase for the current API version.
-                apiLevels.size - 1 < currentApiLevel -> currentSdkVersion
+                lastApiVersion < currentSdkVersion -> currentSdkVersion
 
                 // Else do not include the current codebase.
                 else -> null
