@@ -31,7 +31,6 @@ import java.io.IOException
  * simple text files.
  */
 class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
-    @Throws(IOException::class, IllegalArgumentException::class)
     fun generateXml(
         codebaseFragment: CodebaseFragment,
         config: GenerateXmlConfig,
@@ -147,7 +146,6 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar
      *   files were found
      */
-    @Throws(IOException::class, IllegalArgumentException::class)
     private fun processExtensionSdkApis(
         api: Api,
         apiLevelNotInAndroidSdk: Int,
