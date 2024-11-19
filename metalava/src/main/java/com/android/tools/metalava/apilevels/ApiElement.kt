@@ -19,13 +19,13 @@ package com.android.tools.metalava.apilevels
  * Represents an API element, e.g. class, method or field.
  *
  * @param name the name of the API element
- * @param version an API version for which the API element existed, or -1 if the class does not yet
- *   exist in the Android SDK (only in extension SDKs)
+ * @param sdkVersion an API version for which the API element existed, or -1 if the class does not
+ *   yet exist in the Android SDK (only in extension SDKs)
  * @param deprecated whether the API element was deprecated in the API version in question
  */
 open class ApiElement(
     val name: String,
-    version: Int,
+    sdkVersion: SdkVersion,
     deprecated: Boolean = false,
 ) : Comparable<ApiElement> {
 
@@ -33,7 +33,7 @@ open class ApiElement(
      * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
      * first introduced in.
      */
-    var since = version
+    var since = sdkVersion
         private set
 
     /**
@@ -59,10 +59,10 @@ open class ApiElement(
         private set
 
     /** The optional API level this element was deprecated in. */
-    var deprecatedIn = if (deprecated) version else null
+    var deprecatedIn = if (deprecated) sdkVersion else null
         private set
 
-    var lastPresentIn = version
+    var lastPresentIn = sdkVersion
         private set
 
     /**
@@ -78,28 +78,28 @@ open class ApiElement(
     /**
      * Updates the API element with information for a specific API version.
      *
-     * @param version an API version for which the API element existed
+     * @param sdkVersion an API version for which the API element existed
      * @param deprecated whether the API element was deprecated in the API version in question
      */
-    fun update(version: Int, deprecated: Boolean) {
-        assert(version > 0)
-        if (since > version) {
-            since = version
+    fun update(sdkVersion: SdkVersion, deprecated: Boolean) {
+        assert(sdkVersion.isValid)
+        if (since > sdkVersion) {
+            since = sdkVersion
         }
-        if (lastPresentIn < version) {
-            lastPresentIn = version
+        if (lastPresentIn < sdkVersion) {
+            lastPresentIn = sdkVersion
         }
         val deprecatedVersion = deprecatedIn
         if (deprecated) {
             // If it was not previously deprecated or was deprecated in a later version than this
             // one then deprecate it in this version.
-            if (deprecatedVersion == null || deprecatedVersion > version) {
-                deprecatedIn = version
+            if (deprecatedVersion == null || deprecatedVersion > sdkVersion) {
+                deprecatedIn = sdkVersion
             }
         } else {
             // If it was previously deprecated and was deprecated in an earlier version than this
             // one then treat it as being undeprecated.
-            if (deprecatedVersion != null && deprecatedVersion < version) {
+            if (deprecatedVersion != null && deprecatedVersion < sdkVersion) {
                 deprecatedIn = null
             }
         }
@@ -108,21 +108,21 @@ open class ApiElement(
     /**
      * Updates the API element with information for a specific API version.
      *
-     * @param version an API version for which the API element existed
+     * @param sdkVersion an API version for which the API element existed
      */
-    fun update(version: Int) {
-        update(version, deprecatedIn != null)
+    fun update(sdkVersion: SdkVersion) {
+        update(sdkVersion, deprecatedIn != null)
     }
 
     /**
      * Analogous to update(), but for extensions sdk versions.
      *
-     * @param version an extension SDK version for which the API element existed
+     * @param extVersion an extension SDK version for which the API element existed
      */
-    fun updateExtension(version: Int) {
-        assert(version > 0)
-        if (sinceExtension > version) {
-            sinceExtension = version
+    fun updateExtension(extVersion: ExtVersion) {
+        assert(extVersion.isValid)
+        if (sinceExtension > extVersion) {
+            sinceExtension = extVersion
         }
     }
 
@@ -139,6 +139,6 @@ open class ApiElement(
     }
 
     companion object {
-        const val NEVER = Int.MAX_VALUE
+        val NEVER = EXT_VERSION_HIGHEST
     }
 }

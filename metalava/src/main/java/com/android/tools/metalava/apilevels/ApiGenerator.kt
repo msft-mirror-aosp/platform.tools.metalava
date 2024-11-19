@@ -44,13 +44,15 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val apiLevels = config.apiLevels
         val firstApiLevel = config.firstApiLevel
         val currentApiLevel = config.currentApiLevel
-        val notFinalizedApiLevel = currentApiLevel + 1
+        val currentSdkVersion = sdkVersionFromLevel(currentApiLevel)
+        val notFinalizedSdkVersion = currentSdkVersion + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
         if (isDeveloperPreviewBuild || apiLevels.size - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
-            val apiLevel = if (isDeveloperPreviewBuild) notFinalizedApiLevel else currentApiLevel
-            addApisFromCodebase(api, apiLevel, codebaseFragment, true)
+            val sdkVersion =
+                if (isDeveloperPreviewBuild) notFinalizedSdkVersion else currentSdkVersion
+            addApisFromCodebase(api, sdkVersion, codebaseFragment, true)
         }
         api.backfillHistoricalFixes()
         var sdkIdentifiers = emptySet<SdkIdentifier>()
@@ -59,7 +61,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             sdkIdentifiers =
                 processExtensionSdkApis(
                     api,
-                    notFinalizedApiLevel,
+                    notFinalizedSdkVersion,
                     sdkExtensionsArguments.sdkExtJarRoot,
                     sdkExtensionsArguments.sdkExtInfoFile,
                 )
@@ -89,7 +91,8 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFiles(apiFile))
             val codebaseFragment =
                 CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            addApisFromCodebase(api, apiLevel, codebaseFragment, false)
+            val sdkVersion = sdkVersionFromLevel(apiLevel)
+            addApisFromCodebase(api, sdkVersion, codebaseFragment, false)
             apiLevel += 1
         }
         api.clean()
@@ -114,9 +117,10 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         apiVersionNames: List<String>,
     ) {
         val api = createApiFromSignatureFiles(pastApiVersions)
+        val currentSdkVersion = sdkVersionFromLevel(apiVersionNames.size)
         addApisFromCodebase(
             api,
-            apiVersionNames.size,
+            currentSdkVersion,
             codebaseFragment,
             false,
         )
@@ -128,7 +132,8 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val api = Api()
         for (apiLevel in firstApiLevel until apiLevels.size) {
             val jar = apiLevels[apiLevel]
-            api.readAndroidJar(apiLevel, jar)
+            val sdkVersion = sdkVersionFromLevel(apiLevel)
+            api.readAndroidJar(sdkVersion, jar)
         }
         return api
     }
@@ -144,7 +149,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * which is what non-finalized APIs use.
      *
      * @param api the api to modify
-     * @param apiLevelNotInAndroidSdk fallback API level for APIs not in the Android SDK
+     * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param sdkJarRoot path to directory containing extension SDK jars (usually
      *   $ANDROID_ROOT/prebuilts/sdk/extensions)
      * @param filterPath path to the filter file. @see ApiToExtensionsMap
@@ -154,7 +159,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      */
     private fun processExtensionSdkApis(
         api: Api,
-        apiLevelNotInAndroidSdk: Int,
+        versionNotInAndroidSdk: SdkVersion,
         sdkJarRoot: File,
         filterPath: File,
     ): Set<SdkIdentifier> {
@@ -167,8 +172,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
             moduleMaps[mainlineModule] = moduleMap
-            for ((version, path) in value) {
-                api.readExtensionJar(version, mainlineModule, path, apiLevelNotInAndroidSdk)
+            for ((level, path) in value) {
+                val extVersion = extVersionFromLevel(level)
+                api.readExtensionJar(extVersion, mainlineModule, path, versionNotInAndroidSdk)
             }
         }
         for (clazz in api.classes) {
@@ -177,7 +183,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             var sdks =
                 extensionsMap!!.calculateSdksAttr(
                     clazz.since,
-                    apiLevelNotInAndroidSdk,
+                    versionNotInAndroidSdk,
                     extensionsMap.getExtensions(clazz),
                     clazz.sinceExtension
                 )
@@ -188,7 +194,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 sdks =
                     extensionsMap.calculateSdksAttr(
                         field.since,
-                        apiLevelNotInAndroidSdk,
+                        versionNotInAndroidSdk,
                         extensionsMap.getExtensions(clazz, field),
                         field.sinceExtension
                     )
@@ -200,7 +206,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 sdks =
                     extensionsMap.calculateSdksAttr(
                         method.since,
-                        apiLevelNotInAndroidSdk,
+                        versionNotInAndroidSdk,
                         extensionsMap.getExtensions(clazz, method),
                         method.sinceExtension
                     )

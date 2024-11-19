@@ -25,7 +25,7 @@ class Api :
         "Android API",
         // This has to behave as if it exists since before any specific version (so that every class
         // always specifies its `since` attribute.
-        version = 0,
+        sdkVersion = SDK_VERSION_LOWEST,
     ) {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
@@ -37,7 +37,7 @@ class Api :
      * @param deprecated whether the class was deprecated in the API version
      * @return the newly created or a previously existed class
      */
-    fun addClass(name: String, version: Int, deprecated: Boolean): ApiClass {
+    fun addClass(name: String, version: SdkVersion, deprecated: Boolean): ApiClass {
         var classElement = mClasses[name]
         if (classElement == null) {
             classElement = ApiClass(name, version, deprecated)
@@ -68,6 +68,9 @@ class Api :
     }
 
     private fun backfillSdkExtensions() {
+        val sdk30 = sdkVersionFromLevel(30)
+        val sdk31 = sdkVersionFromLevel(31)
+        val sdk33 = sdkVersionFromLevel(33)
         // SdkExtensions.getExtensionVersion was added in 30/R, but was a SystemApi
         // to avoid publishing the versioning API publicly before there was any
         // valid use for it.
@@ -75,17 +78,17 @@ class Api :
         // The class and its APIs were made public between S and T, but we pretend
         // here like it was always public, for maximum backward compatibility.
         val sdkExtensions = findClass("android/os/ext/SdkExtensions")
-        if (sdkExtensions != null && sdkExtensions.since != 30 && sdkExtensions.since != 33) {
+        if (sdkExtensions != null && sdkExtensions.since != sdk30 && sdkExtensions.since != sdk33) {
             throw AssertionError("Received unexpected historical data")
-        } else if (sdkExtensions == null || sdkExtensions.since == 30) {
+        } else if (sdkExtensions == null || sdkExtensions.since == sdk30) {
             // This is the system API db (30), or module-lib/system-server dbs (null)
             // They don't need patching.
             return
         }
-        sdkExtensions.update(30, false)
-        sdkExtensions.addSuperClass("java/lang/Object", 30)
-        sdkExtensions.getMethod("getExtensionVersion(I)I")!!.update(30, false)
-        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.update(31, false)
+        sdkExtensions.update(sdk30, false)
+        sdkExtensions.addSuperClass("java/lang/Object", sdk30)
+        sdkExtensions.getMethod("getExtensionVersion(I)I")!!.update(sdk30, false)
+        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.update(sdk31, false)
     }
 
     /**

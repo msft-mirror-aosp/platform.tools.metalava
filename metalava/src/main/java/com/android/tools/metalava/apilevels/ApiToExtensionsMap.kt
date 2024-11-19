@@ -123,10 +123,10 @@ private constructor(
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
-        androidSince: Int,
-        notFinalizedValue: Int,
+        androidSince: SdkVersion,
+        notFinalizedValue: SdkVersion,
         extensions: List<String>,
-        extensionsSince: Int
+        extensionsSince: ExtVersion
     ): String {
         // Special case: symbol not finalized anywhere -> "ANDROID_SDK:next_dessert_int"
         if (androidSince == notFinalizedValue && extensionsSince == ApiElement.NEVER) {
