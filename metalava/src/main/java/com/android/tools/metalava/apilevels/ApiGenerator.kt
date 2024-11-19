@@ -31,6 +31,12 @@ import java.io.IOException
  * simple text files.
  */
 class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
+    /**
+     * Generates an XML API version history file based on the API surfaces of the versions provided.
+     *
+     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
+     * @param config Configuration provided from command line options.
+     */
     fun generateXml(
         codebaseFragment: CodebaseFragment,
         config: GenerateXmlConfig,
@@ -91,19 +97,19 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     /**
-     * Generates an API version history file based on the API surfaces of the versions provided.
+     * Generates a JSON API version history file based on the API surfaces of the versions provided.
      *
      * @param pastApiVersions A list of API signature files, ordered from the oldest API version to
      *   newest.
-     * @param currentApiVersion A codebase representing the current API surface.
+     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
      * @param outputFile Path of the JSON file to write output to.
      * @param apiVersionNames The names of the API versions, ordered starting from version 1. This
      *   should include the names of all the [pastApiVersions], then the name of the
-     *   [currentApiVersion].
+     *   [codebaseFragment].
      */
     fun generateJson(
         pastApiVersions: List<File>,
-        currentApiVersion: CodebaseFragment,
+        codebaseFragment: CodebaseFragment,
         outputFile: File,
         apiVersionNames: List<String>,
     ) {
@@ -111,7 +117,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         addApisFromCodebase(
             api,
             apiVersionNames.size,
-            currentApiVersion,
+            codebaseFragment,
             false,
         )
         val printer = ApiJsonPrinter(apiVersionNames)
