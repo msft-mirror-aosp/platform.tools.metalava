@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
@@ -26,6 +25,8 @@ import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -169,7 +170,12 @@ class CompatibilityCheckOptions(
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                         checkCompatibilityOptionForApiType(apiType),
-                        files
+                        files,
+                        apiVariantType =
+                            when (apiType) {
+                                ApiType.REMOVED -> ApiVariantType.REMOVED
+                                else -> ApiVariantType.CORE
+                            },
                     )
                     ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
 

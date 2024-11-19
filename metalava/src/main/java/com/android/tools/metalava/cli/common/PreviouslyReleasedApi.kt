@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 
@@ -53,6 +54,7 @@ sealed interface PreviouslyReleasedApi {
             optionName: String,
             files: List<File>,
             onlyUseLastForMainApiSurface: Boolean = true,
+            apiVariantType: ApiVariantType = ApiVariantType.CORE,
         ): PreviouslyReleasedApi? =
             if (files.isEmpty()) null
             else {
@@ -66,6 +68,7 @@ sealed interface PreviouslyReleasedApi {
                 SignatureBasedApi.fromFiles(
                     files,
                     onlyUseLastForMainApiSurface,
+                    apiVariantType,
                 )
             }
     }
@@ -97,13 +100,18 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
         fun fromFiles(
             files: List<File>,
             onlyUseLastForMainApiSurface: Boolean = true,
+            apiVariantType: ApiVariantType = ApiVariantType.CORE,
         ): SignatureBasedApi {
             val lastIndex = files.size - 1
             return SignatureBasedApi(
-                SignatureFile.fromFiles(files) { index, _ ->
-                    // The last file is assumed to be for the main API surface.
-                    !onlyUseLastForMainApiSurface || index == lastIndex
-                }
+                SignatureFile.fromFiles(
+                    files,
+                    apiVariantTypeChooser = { apiVariantType },
+                    forMainApiSurfacePredicate = { index, _ ->
+                        // The last file is assumed to be for the main API surface.
+                        !onlyUseLastForMainApiSurface || index == lastIndex
+                    },
+                )
             )
         }
     }

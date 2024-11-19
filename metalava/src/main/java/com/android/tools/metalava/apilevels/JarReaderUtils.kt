@@ -58,7 +58,7 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
             extensionVersion?.let { theClass.updateExtension(extensionVersion) }
             module?.let { theClass.updateMainlineModule(module) }
 
-            theClass.updateHidden(apiLevel, (classNode.access and Opcodes.ACC_PUBLIC) == 0)
+            theClass.updateHidden((classNode.access and Opcodes.ACC_PUBLIC) == 0)
 
             // super class
             if (classNode.superName != null) {

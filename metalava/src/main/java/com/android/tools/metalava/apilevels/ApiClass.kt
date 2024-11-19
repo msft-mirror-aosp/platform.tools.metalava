@@ -16,9 +16,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.google.common.collect.Iterables
-import java.io.PrintStream
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
 import kotlin.math.min
 
 /**
@@ -30,12 +28,8 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     private val mSuperClasses: MutableList<ApiElement> = ArrayList()
     private val mInterfaces: MutableList<ApiElement> = ArrayList()
 
-    /**
-     * If negative, never seen as public. The absolute value is the last api level it is seen as
-     * hidden in. E.g. "-5" means a class that was hidden in api levels 1-5, then it was deleted,
-     * and "8" means a class that was hidden in api levels 1-8 then made public in 9.
-     */
-    var hiddenUntil = 0 // Package private class?
+    /** If `true`, never seen as public. */
+    var alwaysHidden = false // Package private class?
     private val mFields: MutableMap<String, ApiElement> = ConcurrentHashMap()
     private val mMethods: MutableMap<String, ApiElement> = ConcurrentHashMap()
 
@@ -66,23 +60,11 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
         return addToArray(mSuperClasses, superClass, since)
     }
 
-    fun removeSuperClass(superClass: String): ApiElement? {
-        val entry = findByName(mSuperClasses, superClass)
-        if (entry != null) {
-            mSuperClasses.remove(entry)
-        }
-        return entry
-    }
-
     val superClasses: List<ApiElement>
         get() = mSuperClasses
 
-    fun updateHidden(api: Int, hidden: Boolean) {
-        hiddenUntil = if (hidden) -api else abs(api)
-    }
-
-    private fun alwaysHidden(): Boolean {
-        return hiddenUntil < 0
+    fun updateHidden(hidden: Boolean) {
+        alwaysHidden = hidden
     }
 
     fun addInterface(interfaceClass: String, since: Int) {
@@ -130,24 +112,6 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
             }
         }
         return null
-    }
-
-    override fun print(
-        tag: String?,
-        parentElement: ApiElement,
-        indent: String,
-        stream: PrintStream
-    ) {
-        if (hiddenUntil < 0) {
-            return
-        }
-        super.print(tag, false, parentElement, indent, stream)
-        val innerIndent = indent + '\t'
-        print(mSuperClasses, "extends", innerIndent, stream)
-        print(mInterfaces, "implements", innerIndent, stream)
-        print(mMethods.values, "method", innerIndent, stream)
-        print(mFields.values, "field", innerIndent, stream)
-        printClosingTag(tag, indent, stream)
     }
 
     /**
@@ -300,7 +264,7 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
             val next = iterator.next()
             min = min(min, next.since)
             val extendsClass = api[next.name]
-            if (extendsClass != null && extendsClass.alwaysHidden()) {
+            if (extendsClass != null && extendsClass.alwaysHidden) {
                 val since = extendsClass.since
                 iterator.remove()
                 for (other in mSuperClasses) {
@@ -323,8 +287,8 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     fun removeMissingClasses(api: Map<String, ApiClass>) {
         val superClassIter = mSuperClasses.iterator()
         while (superClassIter.hasNext()) {
-            val scls = superClassIter.next()
-            if (!api.containsKey(scls.name)) {
+            val superClass = superClassIter.next()
+            if (!api.containsKey(superClass.name)) {
                 superClassIter.remove()
             }
         }
@@ -340,9 +304,9 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     // Returns the set of superclasses or interfaces are not present in the provided api map
     fun findMissingClasses(api: Map<String, ApiClass>): Set<ApiElement> {
         val result: MutableSet<ApiElement> = HashSet()
-        for (scls in mSuperClasses) {
-            if (!api.containsKey(scls.name)) {
-                result.add(scls)
+        for (superClass in mSuperClasses) {
+            if (!api.containsKey(superClass.name)) {
+                result.add(superClass)
             }
         }
         for (intf in mInterfaces) {
