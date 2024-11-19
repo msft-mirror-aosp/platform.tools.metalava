@@ -24,17 +24,17 @@ class SdkVersionTest {
     fun `Test sorting`() {
         val versions =
             listOf(
-                sdkVersionFromLevel(10),
-                sdkVersionFromLevel(1),
-                sdkVersionFromLevel(5),
+                SdkVersion.fromLevel(10),
+                SdkVersion.fromLevel(1),
+                SdkVersion.fromLevel(5),
             )
 
         assertThat(versions.sorted())
             .isEqualTo(
                 listOf(
-                    sdkVersionFromLevel(1),
-                    sdkVersionFromLevel(5),
-                    sdkVersionFromLevel(10),
+                    SdkVersion.fromLevel(1),
+                    SdkVersion.fromLevel(5),
+                    SdkVersion.fromLevel(10),
                 )
             )
     }

@@ -258,7 +258,7 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
         // remove these here and replace with the filtered super classes, updating API levels in the
         // process
         val iterator = mSuperClasses.listIterator()
-        var min = SDK_VERSION_HIGHEST
+        var min = SdkVersion.HIGHEST
         while (iterator.hasNext()) {
             val next = iterator.next()
             min = minOf(min, next.since)

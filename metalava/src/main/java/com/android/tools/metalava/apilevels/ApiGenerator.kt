@@ -44,7 +44,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val apiLevels = config.apiLevels
         val firstApiLevel = config.firstApiLevel
         val currentApiLevel = config.currentApiLevel
-        val currentSdkVersion = sdkVersionFromLevel(currentApiLevel)
+        val currentSdkVersion = SdkVersion.fromLevel(currentApiLevel)
         val notFinalizedSdkVersion = currentSdkVersion + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
@@ -91,7 +91,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFiles(apiFile))
             val codebaseFragment =
                 CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            val sdkVersion = sdkVersionFromLevel(apiLevel)
+            val sdkVersion = SdkVersion.fromLevel(apiLevel)
             addApisFromCodebase(api, sdkVersion, codebaseFragment, false)
             apiLevel += 1
         }
@@ -117,7 +117,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         apiVersionNames: List<String>,
     ) {
         val api = createApiFromSignatureFiles(pastApiVersions)
-        val currentSdkVersion = sdkVersionFromLevel(apiVersionNames.size)
+        val currentSdkVersion = SdkVersion.fromLevel(apiVersionNames.size)
         addApisFromCodebase(
             api,
             currentSdkVersion,
@@ -132,7 +132,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val api = Api()
         for (apiLevel in firstApiLevel until apiLevels.size) {
             val jar = apiLevels[apiLevel]
-            val sdkVersion = sdkVersionFromLevel(apiLevel)
+            val sdkVersion = SdkVersion.fromLevel(apiLevel)
             api.readAndroidJar(sdkVersion, jar)
         }
         return api
@@ -173,7 +173,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
             moduleMaps[mainlineModule] = moduleMap
             for ((level, path) in value) {
-                val extVersion = extVersionFromLevel(level)
+                val extVersion = ExtVersion.fromLevel(level)
                 api.readExtensionJar(extVersion, mainlineModule, path, versionNotInAndroidSdk)
             }
         }

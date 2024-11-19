@@ -24,17 +24,17 @@ class ExtVersionTest {
     fun `Test sorting`() {
         val versions =
             listOf(
-                extVersionFromLevel(10),
-                extVersionFromLevel(1),
-                extVersionFromLevel(5),
+                ExtVersion.fromLevel(10),
+                ExtVersion.fromLevel(1),
+                ExtVersion.fromLevel(5),
             )
 
         assertThat(versions.sorted())
             .isEqualTo(
                 listOf(
-                    extVersionFromLevel(1),
-                    extVersionFromLevel(5),
-                    extVersionFromLevel(10),
+                    ExtVersion.fromLevel(1),
+                    ExtVersion.fromLevel(5),
+                    ExtVersion.fromLevel(10),
                 )
             )
     }

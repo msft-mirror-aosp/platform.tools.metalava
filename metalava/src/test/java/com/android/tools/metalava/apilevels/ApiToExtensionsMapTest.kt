@@ -25,10 +25,10 @@ import org.junit.Assert
 class ApiToExtensionsMapTest {
 
     /** Get an SDK version for [level]. */
-    private fun sdkVersion(level: Int) = sdkVersionFromLevel(level)
+    private fun sdkVersion(level: Int) = SdkVersion.fromLevel(level)
 
     /** Get an extension version for [level]. */
-    private fun extensionVersion(level: Int) = extVersionFromLevel(level)
+    private fun extensionVersion(level: Int) = ExtVersion.fromLevel(level)
 
     @Test
     fun `empty input`() {

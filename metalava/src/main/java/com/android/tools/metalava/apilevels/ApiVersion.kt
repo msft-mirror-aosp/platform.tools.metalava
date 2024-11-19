@@ -16,21 +16,6 @@
 
 package com.android.tools.metalava.apilevels
 
-/** The lowest [SdkVersion], used as the default value when higher versions override lower ones. */
-val SDK_VERSION_LOWEST: SdkVersion = SdkVersion.LOWEST
-
-/** The highest [SdkVersion], used as the default value when lower versions override higher ones. */
-val SDK_VERSION_HIGHEST: SdkVersion = SdkVersion.HIGHEST
-
-/** Get the [SdkVersion] for [level]. */
-fun sdkVersionFromLevel(level: Int): SdkVersion = SdkVersion.fromLevel(level)
-
-/** The highest [ExtVersion], used as the default value when lower versions override higher ones. */
-val EXT_VERSION_HIGHEST: ExtVersion = ExtVersion.HIGHEST
-
-/** Get the [ExtVersion] for [level]. */
-fun extVersionFromLevel(level: Int): ExtVersion = ExtVersion.fromLevel(level)
-
 /** Version of an SDK, e.g. Android or AndroidX. */
 @JvmInline
 value class SdkVersion internal constructor(val level: Int) : Comparable<SdkVersion> {

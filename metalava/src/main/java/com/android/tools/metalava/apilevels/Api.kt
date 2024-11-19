@@ -25,7 +25,7 @@ class Api :
         "Android API",
         // This has to behave as if it exists since before any specific version (so that every class
         // always specifies its `since` attribute.
-        sdkVersion = SDK_VERSION_LOWEST,
+        sdkVersion = SdkVersion.LOWEST,
     ) {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
@@ -68,9 +68,9 @@ class Api :
     }
 
     private fun backfillSdkExtensions() {
-        val sdk30 = sdkVersionFromLevel(30)
-        val sdk31 = sdkVersionFromLevel(31)
-        val sdk33 = sdkVersionFromLevel(33)
+        val sdk30 = SdkVersion.fromLevel(30)
+        val sdk31 = SdkVersion.fromLevel(31)
+        val sdk33 = SdkVersion.fromLevel(33)
         // SdkExtensions.getExtensionVersion was added in 30/R, but was a SystemApi
         // to avoid publishing the versioning API publicly before there was any
         // valid use for it.

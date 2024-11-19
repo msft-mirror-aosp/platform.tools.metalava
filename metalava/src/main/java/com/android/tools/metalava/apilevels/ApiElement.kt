@@ -139,6 +139,6 @@ open class ApiElement(
     }
 
     companion object {
-        val NEVER = EXT_VERSION_HIGHEST
+        val NEVER = ExtVersion.HIGHEST
     }
 }
