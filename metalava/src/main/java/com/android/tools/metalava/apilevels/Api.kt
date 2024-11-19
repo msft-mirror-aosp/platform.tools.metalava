@@ -20,7 +20,13 @@ import java.util.TreeMap
 import java.util.TreeSet
 
 /** Represents the whole Android API. */
-class Api : ApiElement("Android API") {
+class Api :
+    ApiElement(
+        "Android API",
+        // This has to behave as if it exists since before any specific version (so that every class
+        // always specifies its `since` attribute.
+        version = 0,
+    ) {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**

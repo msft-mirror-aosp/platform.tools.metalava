@@ -15,16 +15,31 @@
  */
 package com.android.tools.metalava.apilevels
 
-/** Represents an API element, e.g. class, method or field. */
-open class ApiElement : Comparable<ApiElement> {
-    /** Returns the name of the API element. */
-    val name: String
-    /** The Android API level of this ApiElement. */
-    /** The Android platform SDK version this API was first introduced in. */
-    var since = 0
+/**
+ * Represents an API element, e.g. class, method or field.
+ *
+ * @param name the name of the API element
+ * @param version an API version for which the API element existed, or -1 if the class does not yet
+ *   exist in the Android SDK (only in extension SDKs)
+ * @param deprecated whether the API element was deprecated in the API version in question
+ */
+open class ApiElement(
+    val name: String,
+    version: Int,
+    deprecated: Boolean = false,
+) : Comparable<ApiElement> {
+
+    /**
+     * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
+     * first introduced in.
+     */
+    var since = version
         private set
-    /** The extension version of this ApiElement. */
-    /** The Android extension SDK version this API was first introduced in. */
+
+    /**
+     * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
+     * first introduced in.
+     */
     var sinceExtension = NEVER
         private set
 
@@ -44,31 +59,11 @@ open class ApiElement : Comparable<ApiElement> {
         private set
 
     /** The optional API level this element was deprecated in. */
-    var deprecatedIn: Int? = null
+    var deprecatedIn = if (deprecated) version else null
         private set
 
-    var lastPresentIn = 0
+    var lastPresentIn = version
         private set
-
-    /**
-     * @param name the name of the API element
-     * @param version an API version for which the API element existed, or -1 if the class does not
-     *   yet exist in the Android SDK (only in extension SDKs)
-     * @param deprecated whether the API element was deprecated in the API version in question
-     */
-    internal constructor(name: String, version: Int, deprecated: Boolean = false) {
-        this.name = name
-        since = version
-        lastPresentIn = version
-        if (deprecated) {
-            deprecatedIn = version
-        }
-    }
-
-    /** @param name the name of the API element */
-    internal constructor(name: String) {
-        this.name = name
-    }
 
     /**
      * Checks if this API element was introduced not later than another API element.
