@@ -42,7 +42,7 @@ class ParameterizedSdkVersionTest {
     }
 
     /** Get an [SdkVersion] from [text]. */
-    private fun getSdkVersionFromString(text: String): SdkVersion = text.toInt()
+    private fun getSdkVersionFromString(text: String) = SdkVersion(text.toInt())
 
     @Test
     fun test() {

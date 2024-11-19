@@ -38,7 +38,7 @@ class ParameterizedExtVersionTest {
     }
 
     /** Get an [ExtVersion] from [text]. */
-    private fun getExtVersionFromString(text: String): ExtVersion = text.toInt()
+    private fun getExtVersionFromString(text: String) = ExtVersion(text.toInt())
 
     @Test
     fun test() {

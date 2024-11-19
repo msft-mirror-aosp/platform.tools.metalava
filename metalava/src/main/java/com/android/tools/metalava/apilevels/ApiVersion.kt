@@ -16,31 +16,75 @@
 
 package com.android.tools.metalava.apilevels
 
-/** Version of an SDK, e.g. Android or AndroidX. */
-typealias SdkVersion = Int
-
 /** The lowest [SdkVersion], used as the default value when higher versions override lower ones. */
-const val SDK_VERSION_LOWEST: SdkVersion = 0
+val SDK_VERSION_LOWEST: SdkVersion = SdkVersion.LOWEST
 
 /** The highest [SdkVersion], used as the default value when lower versions override higher ones. */
-const val SDK_VERSION_HIGHEST: SdkVersion = Int.MAX_VALUE
+val SDK_VERSION_HIGHEST: SdkVersion = SdkVersion.HIGHEST
 
 /** Get the [SdkVersion] for [level]. */
-fun sdkVersionFromLevel(level: Int): SdkVersion = level
-
-/** Version of an SDK extension. */
-typealias ExtVersion = Int
+fun sdkVersionFromLevel(level: Int): SdkVersion = SdkVersion.fromLevel(level)
 
 /** The highest [ExtVersion], used as the default value when lower versions override higher ones. */
-const val EXT_VERSION_HIGHEST: ExtVersion = Int.MAX_VALUE
+val EXT_VERSION_HIGHEST: ExtVersion = ExtVersion.HIGHEST
 
 /** Get the [ExtVersion] for [level]. */
-fun extVersionFromLevel(level: Int): ExtVersion = level
+fun extVersionFromLevel(level: Int): ExtVersion = ExtVersion.fromLevel(level)
 
-/**
- * Make sure that this is a valid version.
- *
- * This is intended to be called on [SdkVersion] and [ExtVersion].
- */
-val Int.isValid
-    get() = this > 0
+/** Version of an SDK, e.g. Android or AndroidX. */
+@JvmInline
+value class SdkVersion internal constructor(val level: Int) : Comparable<SdkVersion> {
+    /** Make sure that this is a valid version. */
+    val isValid
+        get() = level > 0
+
+    override fun toString() = level.toString()
+
+    override operator fun compareTo(other: SdkVersion) = level.compareTo(other.level)
+
+    operator fun plus(increment: Int) = fromLevel(level + increment)
+
+    companion object {
+        /** Get the [SdkVersion] for [level], which must be greater than 0. */
+        fun fromLevel(level: Int) =
+            if (level > 0) SdkVersion(level)
+            else error("level must be greater than 0 but was $level")
+
+        /**
+         * The lowest [SdkVersion], used as the default value when higher versions override lower
+         * ones.
+         */
+        val LOWEST = SdkVersion(0)
+
+        /**
+         * The highest [SdkVersion], used as the default value when lower versions override higher
+         * ones.
+         */
+        val HIGHEST = SdkVersion(Int.MAX_VALUE)
+    }
+}
+
+/** Version of an SDK extension. */
+@JvmInline
+value class ExtVersion internal constructor(val level: Int) : Comparable<ExtVersion> {
+    /** Make sure that this is a valid version. */
+    val isValid
+        get() = level > 0
+
+    override fun toString() = level.toString()
+
+    override operator fun compareTo(other: ExtVersion) = level.compareTo(other.level)
+
+    companion object {
+        /** Get the [ExtVersion] for [level], which must be greater than 0. */
+        fun fromLevel(level: Int) =
+            if (level > 0) ExtVersion(level)
+            else error("level must be greater than 0 but was $level")
+
+        /**
+         * The highest [ExtVersion], used as the default value when lower versions override higher
+         * ones.
+         */
+        val HIGHEST = ExtVersion(Int.MAX_VALUE)
+    }
+}
