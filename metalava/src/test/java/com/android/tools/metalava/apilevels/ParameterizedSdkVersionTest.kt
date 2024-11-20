@@ -54,11 +54,40 @@ class ParameterizedSdkVersionTest {
                     expectedString = "1",
                     expectedIncremented = "2",
                 ),
+                TestData(
+                    input = "0.0",
+                    expectedIncremented = "1.0",
+                ),
+                TestData(
+                    input = "0.00",
+                    expectedString = "0.0",
+                    expectedIncremented = "1.0",
+                ),
+                TestData(
+                    input = "0.0.0",
+                    expectedIncremented = "1.0.0",
+                ),
+                TestData(
+                    input = "0.1",
+                    expectedIncremented = "1.1",
+                ),
+                TestData(
+                    input = "1.0",
+                    expectedIncremented = "2.0",
+                ),
+                TestData(
+                    input = "1.0.0",
+                    expectedIncremented = "2.0.0",
+                ),
+                TestData(
+                    input = "1.2.3-good",
+                    expectedIncremented = "2.2.3-good",
+                ),
             )
     }
 
     /** Get an [SdkVersion] from [text]. */
-    private fun getSdkVersionFromString(text: String) = SdkVersion(text.toInt())
+    private fun getSdkVersionFromString(text: String) = SdkVersion.fromString(text)
 
     @Test
     fun test() {
