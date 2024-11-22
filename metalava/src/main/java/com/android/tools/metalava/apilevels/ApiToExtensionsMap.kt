@@ -113,17 +113,17 @@ private constructor(
      *   notFinalizedValue if this symbol has not been finalized in an Android dessert
      * @param notFinalizedValue value used together with the Android SDK ID to indicate that this
      *   symbol has not been finalized at all
-     * @param extensions names of the SDK extensions in which this symbol has been finalized; may be
-     *   non-empty even if extensionsSince is `null`.
+     * @param shortExtensionNames short names of the SDK extensions in which this symbol has been
+     *   finalized; may be non-empty even if extensionsSince is `null`.
      * @param extensionsSince the version of the SDK extensions in which this API was initially
      *   introduced (same value for all SDK extensions), or `null` if this symbol has not been
-     *   finalized in any SDK extension (regardless of the [extensions] argument).
+     *   finalized in any SDK extension (regardless of the [shortExtensionNames] argument)
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
         androidSince: SdkVersion,
         notFinalizedValue: SdkVersion,
-        extensions: List<String>,
+        shortExtensionNames: List<String>,
         extensionsSince: ExtVersion?,
     ): String {
         // Special case: symbol not finalized anywhere -> "ANDROID_SDK:next_dessert_int"
@@ -135,7 +135,7 @@ private constructor(
         val sinceLevel = androidSince.level
         // Only include SDK extensions if the symbol has been finalized in at least one extension.
         if (extensionsSince != null) {
-            for (ext in extensions) {
+            for (ext in shortExtensionNames) {
                 val ident = availableSdkExtensions.retrieveSdkExtension(ext)
                 if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= sinceLevel) {
                     versions.add("${ident.id}:$extensionsSince")
