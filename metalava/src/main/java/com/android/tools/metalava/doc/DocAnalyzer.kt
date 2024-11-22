@@ -21,7 +21,7 @@ import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.metalava.PROGRAM_NAME
-import com.android.tools.metalava.SdkIdentifier
+import com.android.tools.metalava.SdkExtension
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
@@ -1006,7 +1006,7 @@ fun getApiLookup(
 private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
     data class OuterClass(val name: String, val idAndVersionList: List<IdAndVersion>?)
 
-    val sdkIdentifiers = mutableMapOf<Int, SdkIdentifier>()
+    val sdkExtensionsById = mutableMapOf<Int, SdkExtension>()
     var lastSeenClass: OuterClass? = null
     val elementToIdAndVersionMap = mutableMapOf<String, List<IdAndVersion>>()
     val memberTags = listOf("class", "method", "field")
@@ -1035,7 +1035,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     val reference: String =
                         attributes.getValue("reference")
                             ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkIdentifiers[id] = SdkIdentifier(id, shortname, name, reference)
+                    sdkExtensionsById[id] = SdkExtension(id, shortname, name, reference)
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String =
                         attributes.getValue("name")
@@ -1116,7 +1116,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
         elementToSdkExtSinceMap[entry.key] =
             entry.value.map {
                 val name =
-                    sdkIdentifiers[it.first]?.name
+                    sdkExtensionsById[it.first]?.name
                         ?: throw IllegalArgumentException(
                             "SDK reference to unknown <sdk> with id ${it.first}"
                         )

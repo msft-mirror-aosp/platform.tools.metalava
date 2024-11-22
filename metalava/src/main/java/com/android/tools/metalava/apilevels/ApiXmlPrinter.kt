@@ -40,7 +40,7 @@ class ApiXmlPrinter(
         }
         writer.println(">")
         if (availableSdkExtensions != null) {
-            for ((id, shortname, name, reference) in availableSdkExtensions.sdkIdentifiers) {
+            for ((id, shortname, name, reference) in availableSdkExtensions.sdkExtensions) {
                 writer.println(
                     String.format(
                         "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",

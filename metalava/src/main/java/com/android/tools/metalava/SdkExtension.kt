@@ -28,7 +28,7 @@ package com.android.tools.metalava
  * @param reference: Java symbol in the Android SDK with the same numerical value as the id, using a
  *   JVM signature like syntax: "some/clazz$INNER$FIELD"
  */
-data class SdkIdentifier(
+data class SdkExtension(
     val id: Int,
     val shortname: String,
     val name: String,

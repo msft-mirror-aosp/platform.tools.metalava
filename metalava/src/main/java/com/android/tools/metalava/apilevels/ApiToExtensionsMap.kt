@@ -15,7 +15,7 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
+import com.android.tools.metalava.SdkExtension
 import javax.xml.parsers.SAXParserFactory
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
@@ -135,10 +135,13 @@ private constructor(
         val sinceLevel = androidSince.level
         // Only include SDK extensions if the symbol has been finalized in at least one extension.
         if (extensionsSince != null) {
-            for (ext in shortExtensionNames) {
-                val ident = availableSdkExtensions.retrieveSdkExtension(ext)
-                if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= sinceLevel) {
-                    versions.add("${ident.id}:$extensionsSince")
+            for (shortExtensionName in shortExtensionNames) {
+                val sdkExtension = availableSdkExtensions.retrieveSdkExtension(shortExtensionName)
+                if (
+                    sdkExtension.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE ||
+                        sdkExtension.id <= sinceLevel
+                ) {
+                    versions.add("${sdkExtension.id}:$extensionsSince")
                 }
             }
         }
@@ -198,7 +201,7 @@ private constructor(
          */
         fun fromXml(filterByJar: String, xml: String): ApiToExtensionsMap {
             val root = Node("<root>")
-            val sdkIdentifiers = mutableSetOf<SdkIdentifier>()
+            val sdkExtensions = mutableSetOf<SdkExtension>()
             val allSeenExtensions = mutableSetOf<String>()
 
             val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
@@ -220,9 +223,7 @@ private constructor(
                                     val name = attributes.getStringOrThrow(qualifiedName, "name")
                                     val reference =
                                         attributes.getStringOrThrow(qualifiedName, "reference")
-                                    sdkIdentifiers.add(
-                                        SdkIdentifier(id, shortname, name, reference)
-                                    )
+                                    sdkExtensions.add(SdkExtension(id, shortname, name, reference))
                                 }
                                 "symbol" -> {
                                     val jar = attributes.getStringOrThrow(qualifiedName, "jar")
@@ -268,7 +269,7 @@ private constructor(
                 throw IllegalArgumentException("failed to parse xml", e)
             }
 
-            val availableSdkExtensions = AvailableSdkExtensions(sdkIdentifiers)
+            val availableSdkExtensions = AvailableSdkExtensions(sdkExtensions)
 
             // verify: all rules refer to declared SDKs
             for (ext in allSeenExtensions) {
