@@ -22,7 +22,7 @@ import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.SdkIdentifier
-import com.android.tools.metalava.apilevels.ApiToExtensionsMap
+import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
@@ -843,11 +843,11 @@ class DocAnalyzer(
             )
         }
         // Don't emit an @sdkExtSince for every item in sdkExtSince; instead, limit output to the
-        // first non-Android SDK listed for the symbol in sdk-extensions-info.txt (the Android SDK
+        // first extension SDK listed for the symbol in sdk-extensions-info.txt (the Android SDK
         // is already covered by @apiSince and doesn't have to be repeated)
-        sdkExtSince
-            .find { it.sdk != ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID }
-            ?.let { item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince") }
+        sdkExtSince.firstOrNull()?.let {
+            item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince")
+        }
     }
 
     /**
@@ -1006,16 +1006,7 @@ fun getApiLookup(
 private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
     data class OuterClass(val name: String, val idAndVersionList: List<IdAndVersion>?)
 
-    val sdkIdentifiers =
-        mutableMapOf(
-            ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID to
-                SdkIdentifier(
-                    ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID,
-                    "Android",
-                    "Android",
-                    "null"
-                )
-        )
+    val sdkIdentifiers = mutableMapOf<Int, SdkIdentifier>()
     var lastSeenClass: OuterClass? = null
     val elementToIdAndVersionMap = mutableMapOf<String, List<IdAndVersion>>()
     val memberTags = listOf("class", "method", "field")
@@ -1055,9 +1046,13 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                         attributes
                             .getValue("sdks")
                             ?.split(",")
-                            ?.map {
+                            ?.mapNotNull {
                                 val (sdk, version) = it.split(":")
-                                IdAndVersion(sdk.toInt(), version.toInt())
+                                val id = sdk.toInt()
+                                // Ignore any references to the Android Platform SDK as they are
+                                // handled by ApiLookup.
+                                if (id == ANDROID_PLATFORM_SDK_ID) null
+                                else IdAndVersion(id, version.toInt())
                             }
                             ?.toList()
 
@@ -1125,7 +1120,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                         ?: throw IllegalArgumentException(
                             "SDK reference to unknown <sdk> with id ${it.first}"
                         )
-                SdkAndVersion(it.first, name, it.second)
+                SdkAndVersion(name, it.second)
             }
     }
     return elementToSdkExtSinceMap
@@ -1133,4 +1128,4 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
 
 private typealias IdAndVersion = Pair<Int, Int>
 
-private data class SdkAndVersion(val sdk: Int, val name: String, val version: Int)
+private data class SdkAndVersion(val name: String, val version: Int)
