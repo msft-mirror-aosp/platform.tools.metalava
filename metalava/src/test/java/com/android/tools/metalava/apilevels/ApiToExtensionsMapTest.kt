@@ -390,10 +390,7 @@ class ApiToExtensionsMapTest {
         val sdk34 = sdkVersion(34)
         val ext4 = extensionVersion(4)
 
-        Assert.assertEquals(
-            "0:34",
-            filter.calculateSdksAttr(sdk34, sdk34, listOf(), ApiElement.NEVER)
-        )
+        Assert.assertEquals("0:34", filter.calculateSdksAttr(sdk34, sdk34, listOf(), null))
 
         Assert.assertEquals("30:4", filter.calculateSdksAttr(sdk34, sdk34, listOf("R"), ext4))
 

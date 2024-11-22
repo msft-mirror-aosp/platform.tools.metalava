@@ -201,11 +201,5 @@ value class ExtVersion internal constructor(val level: Int) : Comparable<ExtVers
         fun fromLevel(level: Int) =
             if (level > 0) ExtVersion(level)
             else error("level must be greater than 0 but was $level")
-
-        /**
-         * The highest [ExtVersion], used as the default value when lower versions override higher
-         * ones.
-         */
-        val HIGHEST = ExtVersion(Int.MAX_VALUE)
     }
 }

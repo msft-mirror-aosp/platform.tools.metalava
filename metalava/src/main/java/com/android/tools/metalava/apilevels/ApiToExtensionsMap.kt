@@ -116,27 +116,27 @@ private constructor(
      * @param notFinalizedValue value used together with the Android SDK ID to indicate that this
      *   symbol has not been finalized at all
      * @param extensions names of the SDK extensions in which this symbol has been finalized; may be
-     *   non-empty even if extensionsSince is [ApiElement.NEVER].
+     *   non-empty even if extensionsSince is `null`.
      * @param extensionsSince the version of the SDK extensions in which this API was initially
-     *   introduced (same value for all SDK extensions), or [ApiElement.NEVER] if this symbol has
-     *   not been finalized in any SDK extension (regardless of the [extensions] argument)
+     *   introduced (same value for all SDK extensions), or `null` if this symbol has not been
+     *   finalized in any SDK extension (regardless of the [extensions] argument).
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
         androidSince: SdkVersion,
         notFinalizedValue: SdkVersion,
         extensions: List<String>,
-        extensionsSince: ExtVersion
+        extensionsSince: ExtVersion?,
     ): String {
         // Special case: symbol not finalized anywhere -> "ANDROID_SDK:next_dessert_int"
-        if (androidSince == notFinalizedValue && extensionsSince == ApiElement.NEVER) {
+        if (androidSince == notFinalizedValue && extensionsSince == null) {
             return "$ANDROID_PLATFORM_SDK_ID:$notFinalizedValue"
         }
 
         val versions = mutableSetOf<String>()
         val sinceLevel = androidSince.level
-        // Only include SDK extensions if the symbol has been finalized in at least one
-        if (extensionsSince != ApiElement.NEVER) {
+        // Only include SDK extensions if the symbol has been finalized in at least one extension.
+        if (extensionsSince != null) {
             for (ext in extensions) {
                 val ident =
                     sdkIdentifiers.find { it.shortname == ext }
