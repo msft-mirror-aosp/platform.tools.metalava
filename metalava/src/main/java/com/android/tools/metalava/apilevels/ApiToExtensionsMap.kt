@@ -273,13 +273,6 @@ private constructor(
                 throw IllegalArgumentException("failed to parse xml", e)
             }
 
-            // verify: the predefined Android platform SDK ID is not reused as an extension SDK ID
-            if (sdkIdentifiers.any { it.id == ANDROID_PLATFORM_SDK_ID }) {
-                throw IllegalArgumentException(
-                    "bad SDK definition: the ID $ANDROID_PLATFORM_SDK_ID is reserved for the Android platform SDK"
-                )
-            }
-
             // verify: all rules refer to declared SDKs
             val allSdkNames = sdkIdentifiers.map { it.shortname }.toList()
             for (ext in allSeenExtensions) {
