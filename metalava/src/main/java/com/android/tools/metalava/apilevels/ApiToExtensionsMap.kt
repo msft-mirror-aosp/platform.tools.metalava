@@ -268,35 +268,14 @@ private constructor(
                 throw IllegalArgumentException("failed to parse xml", e)
             }
 
+            val availableSdkExtensions = AvailableSdkExtensions(sdkIdentifiers)
+
             // verify: all rules refer to declared SDKs
-            val allSdkNames = sdkIdentifiers.map { it.shortname }.toList()
             for (ext in allSeenExtensions) {
-                if (!allSdkNames.contains(ext)) {
+                if (!availableSdkExtensions.containsSdkExtension(ext)) {
                     throw IllegalArgumentException("bad SDK definitions: undefined SDK $ext")
                 }
             }
-
-            // verify: no duplicate SDK IDs
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.id }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK IDs")
-            }
-
-            // verify: no duplicate SDK names
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.shortname }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK short names")
-            }
-
-            // verify: no duplicate SDK names
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.name }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK names")
-            }
-
-            // verify: no duplicate SDK references
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.reference }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK references")
-            }
-
-            val availableSdkExtensions = AvailableSdkExtensions(sdkIdentifiers)
 
             return ApiToExtensionsMap(availableSdkExtensions, root)
         }

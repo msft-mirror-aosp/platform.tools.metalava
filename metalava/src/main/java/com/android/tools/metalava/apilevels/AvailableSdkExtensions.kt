@@ -17,15 +17,51 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.SdkIdentifier
+import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 
 /** The set of available SDK extensions. */
 class AvailableSdkExtensions(internal val sdkIdentifiers: Set<SdkIdentifier>) {
+
+    init {
+        // verify: the predefined Android platform SDK ID is not reused as an extension SDK ID
+        if (sdkIdentifiers.any { it.id == ANDROID_PLATFORM_SDK_ID }) {
+            throw IllegalArgumentException(
+                "bad SDK definition: the ID $ANDROID_PLATFORM_SDK_ID is reserved for the Android platform SDK"
+            )
+        }
+
+        // verify: no duplicate SDK IDs
+        if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.id }.size) {
+            throw IllegalArgumentException("bad SDK definitions: duplicate SDK IDs")
+        }
+
+        // verify: no duplicate SDK names
+        if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.shortname }.size) {
+            throw IllegalArgumentException("bad SDK definitions: duplicate SDK short names")
+        }
+
+        // verify: no duplicate SDK names
+        if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.name }.size) {
+            throw IllegalArgumentException("bad SDK definitions: duplicate SDK names")
+        }
+
+        // verify: no duplicate SDK references
+        if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.reference }.size) {
+            throw IllegalArgumentException("bad SDK definitions: duplicate SDK references")
+        }
+    }
+
+    private val shortToSdkExtension = sdkIdentifiers.associateBy { it.shortname }
+
+    /** Check to see if this contains an SDK extension with [shortExtensionName]. */
+    fun containsSdkExtension(shortExtensionName: String) = shortExtensionName in shortToSdkExtension
+
     /**
      * Retrieve the SDK extension appropriate for the [shortExtensionName], throwing an exception if
      * it could not be found.
      */
     fun retrieveSdkExtension(shortExtensionName: String): SdkIdentifier {
-        return sdkIdentifiers.find { it.shortname == shortExtensionName }
+        return shortToSdkExtension[shortExtensionName]
             ?: throw IllegalStateException("unknown extension SDK \"$shortExtensionName\"")
     }
 }
