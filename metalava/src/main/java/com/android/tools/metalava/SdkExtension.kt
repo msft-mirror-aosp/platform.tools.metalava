@@ -92,8 +92,14 @@ private constructor(
         reference: String,
     ) : SdkExtension(id, shortname, name, reference) {
 
+        /**
+         * The base [SdkVersion] of this extension. This the version of the Android SDK to which
+         * this extension applies.
+         */
+        private val baseSdkVersion = SdkVersion.fromLevel(id)
+
         override fun supersedesAndroidSdkVersion(androidSdkVersion: SdkVersion) =
-            id <= androidSdkVersion.level
+            baseSdkVersion <= androidSdkVersion
     }
 
     /** An [SdkExtension] that is independent of an Android SDK version. */

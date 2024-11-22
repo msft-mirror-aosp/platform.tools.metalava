@@ -22,7 +22,7 @@ import java.util.regex.Pattern
 /** Version of an SDK, e.g. Android or AndroidX. */
 data class SdkVersion
 internal constructor(
-    /** The major version, identical to [level]. */
+    /** The major version. */
     private val major: Int,
 
     /**
@@ -78,10 +78,6 @@ internal constructor(
             }
         }
     }
-
-    /** [level] and [major] version are identical. */
-    val level
-        get() = major
 
     /**
      * Make sure that this is a valid version.
