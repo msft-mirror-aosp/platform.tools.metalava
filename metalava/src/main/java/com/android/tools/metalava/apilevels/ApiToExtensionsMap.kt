@@ -21,16 +21,6 @@ import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
 /**
- * The base of dessert release independent SDKs.
- *
- * A dessert release independent SDK is one which is not coupled to the Android dessert release
- * numbering. Any SDK greater than or equal to this is not comparable to either each other, or to
- * the Android dessert release. e.g. `1000000` is not the same as, later than, or earlier than
- * SDK 31. Similarly, `1000001` is not the same as, later than, or earlier then `1000000`.
- */
-private const val DESSERT_RELEASE_INDEPENDENT_SDK_BASE = 1000000
-
-/**
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
  * what extension SDK it first appeared in. Also, a mapping between SDK name and numerical ID.
  *
@@ -132,15 +122,13 @@ private constructor(
         }
 
         val versions = mutableSetOf<String>()
-        val sinceLevel = androidSince.level
         // Only include SDK extensions if the symbol has been finalized in at least one extension.
         if (extensionsSince != null) {
             for (shortExtensionName in shortExtensionNames) {
                 val sdkExtension = availableSdkExtensions.retrieveSdkExtension(shortExtensionName)
-                if (
-                    sdkExtension.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE ||
-                        sdkExtension.id <= sinceLevel
-                ) {
+                // Only add the extension version in which a symbol was added for those SDK
+                // extensions that supersede the Android SDK version.
+                if (sdkExtension.supersedesAndroidSdkVersion(androidSince)) {
                     versions.add("${sdkExtension.id}:$extensionsSince")
                 }
             }
