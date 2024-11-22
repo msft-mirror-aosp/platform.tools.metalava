@@ -223,7 +223,14 @@ private constructor(
                                     val name = attributes.getStringOrThrow(qualifiedName, "name")
                                     val reference =
                                         attributes.getStringOrThrow(qualifiedName, "reference")
-                                    sdkExtensions.add(SdkExtension(id, shortname, name, reference))
+                                    sdkExtensions.add(
+                                        SdkExtension.fromXmlAttributes(
+                                            id,
+                                            shortname,
+                                            name,
+                                            reference,
+                                        )
+                                    )
                                 }
                                 "symbol" -> {
                                     val jar = attributes.getStringOrThrow(qualifiedName, "jar")

@@ -28,7 +28,8 @@ package com.android.tools.metalava
  * @param reference: Java symbol in the Android SDK with the same numerical value as the id, using a
  *   JVM signature like syntax: "some/clazz$INNER$FIELD"
  */
-class SdkExtension(
+class SdkExtension
+private constructor(
     val id: Int,
     val shortname: String,
     val name: String,
@@ -36,5 +37,14 @@ class SdkExtension(
 ) {
     init {
         require(id >= 1) { "SDK extensions cannot have an id less than 1 but it is $id" }
+    }
+
+    companion object {
+        /**
+         * Create an [SdkExtension] from the attributes that appear in sdk-extension-info.xml and
+         * api-versions.xml files.
+         */
+        fun fromXmlAttributes(id: Int, shortname: String, name: String, reference: String) =
+            SdkExtension(id, shortname, name, reference)
     }
 }

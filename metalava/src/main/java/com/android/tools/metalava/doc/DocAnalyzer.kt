@@ -1035,7 +1035,13 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     val reference: String =
                         attributes.getValue("reference")
                             ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkExtensionsById[id] = SdkExtension(id, shortname, name, reference)
+                    sdkExtensionsById[id] =
+                        SdkExtension.fromXmlAttributes(
+                            id,
+                            shortname,
+                            name,
+                            reference,
+                        )
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String =
                         attributes.getValue("name")
