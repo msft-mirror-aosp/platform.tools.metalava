@@ -51,7 +51,7 @@ private const val DESSERT_RELEASE_INDEPENDENT_SDK_BASE = 1000000
  */
 class ApiToExtensionsMap
 private constructor(
-    private val sdkIdentifiers: Set<SdkIdentifier>,
+    val availableSdkExtensions: AvailableSdkExtensions,
     private val root: Node,
 ) {
     fun isEmpty(): Boolean = root.children.isEmpty() && root.extensions.isEmpty()
@@ -84,8 +84,6 @@ private constructor(
         }
         return lastSeenExtensions
     }
-
-    fun getSdkIdentifiers(): Set<SdkIdentifier> = sdkIdentifiers.toSet()
 
     /**
      * Construct a `sdks` attribute value
@@ -138,10 +136,7 @@ private constructor(
         // Only include SDK extensions if the symbol has been finalized in at least one extension.
         if (extensionsSince != null) {
             for (ext in extensions) {
-                val ident =
-                    sdkIdentifiers.find { it.shortname == ext }
-                        ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
-                assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
+                val ident = availableSdkExtensions.retrieveSdkExtension(ext)
                 if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= sinceLevel) {
                     versions.add("${ident.id}:$extensionsSince")
                 }
@@ -301,7 +296,9 @@ private constructor(
                 throw IllegalArgumentException("bad SDK definitions: duplicate SDK references")
             }
 
-            return ApiToExtensionsMap(sdkIdentifiers, root)
+            val availableSdkExtensions = AvailableSdkExtensions(sdkIdentifiers)
+
+            return ApiToExtensionsMap(availableSdkExtensions, root)
         }
     }
 }

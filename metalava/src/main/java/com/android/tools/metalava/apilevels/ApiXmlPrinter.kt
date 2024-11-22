@@ -16,17 +16,16 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
 import java.io.PrintWriter
 
 /** Printer that will write an XML representation of an [Api] instance. */
 class ApiXmlPrinter(
-    private val sdkIdentifiers: Set<SdkIdentifier>,
+    private val availableSdkExtensions: AvailableSdkExtensions?,
     private val firstApiLevel: Int,
 ) : ApiPrinter {
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-        api.print(writer, sdkIdentifiers)
+        api.print(writer, availableSdkExtensions)
     }
 
     /**
@@ -34,22 +33,24 @@ class ApiXmlPrinter(
      *
      * @param writer the writer to which the XML elements will be written.
      */
-    private fun Api.print(writer: PrintWriter, sdkIdentifiers: Set<SdkIdentifier>) {
+    private fun Api.print(writer: PrintWriter, availableSdkExtensions: AvailableSdkExtensions?) {
         writer.print("<api version=\"3\"")
         if (firstApiLevel > 1) {
             writer.print(" min=\"$firstApiLevel\"")
         }
         writer.println(">")
-        for ((id, shortname, name, reference) in sdkIdentifiers) {
-            writer.println(
-                String.format(
-                    "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
-                    id,
-                    shortname,
-                    name,
-                    reference
+        if (availableSdkExtensions != null) {
+            for ((id, shortname, name, reference) in availableSdkExtensions.sdkIdentifiers) {
+                writer.println(
+                    String.format(
+                        "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
+                        id,
+                        shortname,
+                        name,
+                        reference
+                    )
                 )
-            )
+            }
         }
         print(classes, "class", "\t", writer)
         printClosingTag("api", "", writer)
