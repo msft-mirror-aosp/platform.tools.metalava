@@ -22,10 +22,10 @@ import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 
 /**
- * Encapsulates an [SdkVersion] and associated API definition, currently represented by a single
+ * Encapsulates an [ApiVersion] and associated API definition, currently represented by a single
  * [file] that contains an API signature.
  */
-class VersionedSignatureApi(val sdkVersion: SdkVersion, private val file: File) {
+class VersionedSignatureApi(val apiVersion: ApiVersion, private val file: File) {
     /** Load the API into a [Codebase] using the [signatureFileCache]. */
     fun load(signatureFileCache: SignatureFileCache) =
         signatureFileCache.load(SignatureFile.fromFiles(file))

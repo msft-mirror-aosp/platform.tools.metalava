@@ -41,7 +41,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val apiLevels = config.apiLevels
         val firstApiLevel = config.firstApiLevel
         val currentApiLevel = config.currentApiLevel
-        val currentSdkVersion = SdkVersion.fromLevel(currentApiLevel)
+        val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
         val notFinalizedSdkVersion = currentSdkVersion + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
@@ -63,7 +63,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
 
         // Get a list of all versions, including the codebase version, if necessary.
         val allVersions = buildList {
-            (firstApiLevel until apiLevels.size).mapTo(this) { SdkVersion.fromLevel(it) }
+            (firstApiLevel until apiLevels.size).mapTo(this) { ApiVersion.fromLevel(it) }
             if (codebaseSdkVersion != null) add(codebaseSdkVersion)
         }
 
@@ -105,8 +105,8 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             val codebase = versionedSignatureFile.load(signatureFileCache)
             val codebaseFragment =
                 CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            val sdkVersion = versionedSignatureFile.sdkVersion
-            addApisFromCodebase(api, sdkVersion, codebaseFragment, false)
+            val apiVersion = versionedSignatureFile.apiVersion
+            addApisFromCodebase(api, apiVersion, codebaseFragment, false)
         }
         api.clean()
         return api
@@ -136,7 +136,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val api = Api()
         for (apiLevel in firstApiLevel until apiLevels.size) {
             val jar = apiLevels[apiLevel]
-            val sdkVersion = SdkVersion.fromLevel(apiLevel)
+            val sdkVersion = ApiVersion.fromLevel(apiLevel)
             api.readAndroidJar(sdkVersion, jar)
         }
         return api
@@ -163,7 +163,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      */
     private fun processExtensionSdkApis(
         api: Api,
-        versionNotInAndroidSdk: SdkVersion,
+        versionNotInAndroidSdk: ApiVersion,
         sdkJarRoot: File,
         filterPath: File,
     ): AvailableSdkExtensions {

@@ -27,7 +27,7 @@ data class GenerateApiVersionsFromSignatureFilesConfig(
     val versionedSignatureApis: List<VersionedSignatureApi>,
 
     /** The version for the current API from sources. */
-    val currentVersion: SdkVersion,
+    val currentVersion: ApiVersion,
 
     /** The api versions file that will be generated. */
     val outputFile: File,
