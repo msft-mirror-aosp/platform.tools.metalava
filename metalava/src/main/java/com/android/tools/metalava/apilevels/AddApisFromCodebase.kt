@@ -36,6 +36,9 @@ fun addApisFromCodebase(
     codebaseFragment: CodebaseFragment,
     useInternalNames: Boolean,
 ) {
+    // Keep track of the versions added to this api.
+    api.update(sdkVersion)
+
     val delegatedVisitor =
         object : DelegatedVisitor {
             val updater = ApiElement.Updater.forSdkVersion(sdkVersion)
