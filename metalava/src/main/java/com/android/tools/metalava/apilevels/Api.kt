@@ -20,14 +20,35 @@ import java.util.TreeMap
 import java.util.TreeSet
 
 /** Represents the whole Android API. */
-class Api :
-    ApiElement(
-        "Android API",
-        // This has to behave as if it exists since before any specific version (so that every class
-        // always specifies its `since` attribute.
-        sdkVersion = SdkVersion.LOWEST,
-    ) {
+class Api : ParentApiElement {
+    /**
+     * This has to behave as if it exists since before any specific version (so that every class
+     * always specifies its `since` attribute.
+     */
+    override val since = SdkVersion.LOWEST
+
+    override var lastPresentIn = since
+        private set
+
+    override val sdks: String? = null
+
+    override val deprecatedIn: SdkVersion? = null
+
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
+
+    /**
+     * Updates this with information for a specific API version.
+     *
+     * @param sdkVersion an API version that this contains.
+     */
+    fun update(sdkVersion: SdkVersion) {
+        // Track the last version added to this.
+        if (lastPresentIn < sdkVersion) {
+            lastPresentIn = sdkVersion
+        }
+    }
+
+    override fun toString() = "Android Api"
 
     /**
      * Adds or updates a class.
