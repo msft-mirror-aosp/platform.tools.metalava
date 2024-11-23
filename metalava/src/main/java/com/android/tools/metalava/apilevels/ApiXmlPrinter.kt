@@ -81,11 +81,11 @@ class ApiXmlPrinter(
      * @param indent the whitespace prefix to insert before each XML element
      * @param writer the writer to which the XML elements will be written.
      */
-    private fun ApiElement.print(
+    private fun ParentApiElement.print(
         elements: Collection<ApiElement>,
         tag: String?,
         indent: String,
-        writer: PrintWriter
+        writer: PrintWriter,
     ) {
         for (element in elements.sorted()) {
             element.print(tag, this, indent, writer)
@@ -97,30 +97,30 @@ class ApiXmlPrinter(
      * Attributes with values matching the parent API element are omitted.
      *
      * @param tag the tag of the XML element
-     * @param parentElement the parent API element
+     * @param parentApiElement the parent API element
      * @param indent the whitespace prefix to insert before the XML element
      * @param writer the writer to which the XML element will be written.
      */
     private fun ApiElement.print(
         tag: String?,
-        parentElement: ApiElement,
+        parentApiElement: ParentApiElement,
         indent: String,
         writer: PrintWriter
     ) {
-        if (this is ApiClass) printClass(tag, parentElement, indent, writer)
-        else print(tag, true, parentElement, indent, writer)
+        if (this is ApiClass) printClass(tag, parentApiElement, indent, writer)
+        else print(tag, true, parentApiElement, indent, writer)
     }
 
     private fun ApiClass.printClass(
         tag: String?,
-        parentElement: ApiElement,
+        parentApiElement: ParentApiElement,
         indent: String,
         writer: PrintWriter
     ) {
         if (alwaysHidden) {
             return
         }
-        print(tag, false, parentElement, indent, writer)
+        print(tag, false, parentApiElement, indent, writer)
         val innerIndent = indent + '\t'
         print(superClasses, "extends", innerIndent, writer)
         print(interfaces, "implements", innerIndent, writer)
@@ -136,7 +136,7 @@ class ApiXmlPrinter(
      * @param tag the tag of the XML element
      * @param closeTag if true the XML element is terminated by "/>", otherwise the closing tag of
      *   the element is not printed
-     * @param parentElement the parent API element
+     * @param parentApiElement the parent API element
      * @param indent the whitespace prefix to insert before the XML element
      * @param writer the writer to which the XML element will be written.
      * @see printClosingTag
@@ -144,7 +144,7 @@ class ApiXmlPrinter(
     private fun ApiElement.print(
         tag: String?,
         closeTag: Boolean,
-        parentElement: ApiElement,
+        parentApiElement: ParentApiElement,
         indent: String?,
         writer: PrintWriter
     ) {
@@ -157,19 +157,19 @@ class ApiXmlPrinter(
             writer.print("\" module=\"")
             writer.print(encodeAttribute(mainlineModule!!))
         }
-        if (since > parentElement.since) {
+        if (since > parentApiElement.since) {
             writer.print("\" since=\"")
             writer.print(since)
         }
-        if (!isEmpty(sdks) && sdks != parentElement.sdks) {
+        if (!isEmpty(sdks) && sdks != parentApiElement.sdks) {
             writer.print("\" sdks=\"")
             writer.print(sdks)
         }
-        if (deprecatedIn != null && deprecatedIn != parentElement.deprecatedIn) {
+        if (deprecatedIn != null && deprecatedIn != parentApiElement.deprecatedIn) {
             writer.print("\" deprecated=\"")
             writer.print(deprecatedIn)
         }
-        if (lastPresentIn < parentElement.lastPresentIn) {
+        if (lastPresentIn < parentApiElement.lastPresentIn) {
             val removedFrom =
                 versionToNext[lastPresentIn]
                     ?: error("could not find next version for $lastPresentIn")

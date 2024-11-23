@@ -15,6 +15,32 @@
  */
 package com.android.tools.metalava.apilevels
 
+/** Represents a parent of [ApiElement]. */
+interface ParentApiElement {
+    /** The API version this API was first introduced in. */
+    val since: SdkVersion
+
+    /**
+     * The version in which this API last appeared, if this is not the latest API then it will be
+     * treated as having been removed in the next API version, i.e. [lastPresentIn] + 1.
+     */
+    val lastPresentIn: SdkVersion
+
+    /**
+     * The SDKs and their versions this API was first introduced in.
+     *
+     * The value is a comma-separated list of &lt;int&gt;:&lt;int&gt; values, where the first
+     * &lt;int&gt; is the integer ID of an SDK, and the second &lt;int&gt; the version of that SDK,
+     * in which this API first appeared.
+     *
+     * This field is a super-set of mSince, and if non-null/non-empty, should be preferred.
+     */
+    val sdks: String?
+
+    /** The optional API level this element was deprecated in. */
+    val deprecatedIn: SdkVersion?
+}
+
 /**
  * Represents an API element, e.g. class, method or field.
  *
@@ -27,13 +53,9 @@ open class ApiElement(
     val name: String,
     sdkVersion: SdkVersion,
     deprecated: Boolean = false,
-) : Comparable<ApiElement> {
+) : ParentApiElement, Comparable<ApiElement> {
 
-    /**
-     * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
-     * first introduced in.
-     */
-    var since = sdkVersion
+    final override var since = sdkVersion
         private set
 
     /**
@@ -43,26 +65,16 @@ open class ApiElement(
     var sinceExtension: ExtVersion? = null
         private set
 
-    /**
-     * The SDKs and their versions this API was first introduced in.
-     *
-     * The value is a comma-separated list of &lt;int&gt;:&lt;int&gt; values, where the first
-     * &lt;int&gt; is the integer ID of an SDK, and the second &lt;int&gt; the version of that SDK,
-     * in which this API first appeared.
-     *
-     * This field is a super-set of mSince, and if non-null/non-empty, should be preferred.
-     */
-    var sdks: String? = null
+    final override var sdks: String? = null
         private set
 
     var mainlineModule: String? = null
         private set
 
-    /** The optional API level this element was deprecated in. */
-    var deprecatedIn = if (deprecated) sdkVersion else null
+    final override var deprecatedIn = if (deprecated) sdkVersion else null
         private set
 
-    var lastPresentIn = sdkVersion
+    final override var lastPresentIn = sdkVersion
         private set
 
     override fun toString(): String {
