@@ -37,13 +37,17 @@ private const val DESSERT_RELEASE_INDEPENDENT_SDK_BASE = 1000000
  * Internally, the filters are represented as a tree, where each node in the tree matches a part of
  * a package, class or member name. For example, given the patterns
  *
+ * ```
  * com.example.Foo -> [A] com.example.Foo#someMethod -> [B] com.example.Bar -> [A, C]
+ * ```
  *
  * (anything prefixed with com.example.Foo is allowed and part of the A extension, except for
  * com.example.Foo#someMethod which is part of B; anything prefixed with com.example.Bar is part of
  * both A and C), the internal tree looks like
  *
+ * ```
  * root -> null com -> null example -> null Foo -> [A] someMethod -> [B] Bar -> [A, C]
+ * ```
  */
 class ApiToExtensionsMap
 private constructor(
@@ -92,7 +96,9 @@ private constructor(
      *
      * The format of `sdks` is
      *
+     * ```
      * sdks="ext:version[,ext:version[,...]]
+     * ```
      *
      * where <ext> is the numerical ID of the SDK, and <version> is the version in which the API was
      * introduced.
@@ -109,18 +115,18 @@ private constructor(
      *   notFinalizedValue if this symbol has not been finalized in an Android dessert
      * @param notFinalizedValue value used together with the Android SDK ID to indicate that this
      *   symbol has not been finalized at all
-     * @param extensions names of the SDK extensions in which this symbol has been finalized (may be
-     *   non-empty even if extensionsSince is ApiElement.NEVER)
+     * @param extensions names of the SDK extensions in which this symbol has been finalized; may be
+     *   non-empty even if extensionsSince is [ApiElement.NEVER].
      * @param extensionsSince the version of the SDK extensions in which this API was initially
-     *   introduced (same value for all SDK extensions), or ApiElement.NEVER if this symbol has not
-     *   been finalized in any SDK extension (regardless of the extensions argument)
+     *   introduced (same value for all SDK extensions), or [ApiElement.NEVER] if this symbol has
+     *   not been finalized in any SDK extension (regardless of the [extensions] argument)
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
-        androidSince: Int,
-        notFinalizedValue: Int,
+        androidSince: SdkVersion,
+        notFinalizedValue: SdkVersion,
         extensions: List<String>,
-        extensionsSince: Int
+        extensionsSince: ExtVersion
     ): String {
         // Special case: symbol not finalized anywhere -> "ANDROID_SDK:next_dessert_int"
         if (androidSince == notFinalizedValue && extensionsSince == ApiElement.NEVER) {
@@ -128,6 +134,7 @@ private constructor(
         }
 
         val versions = mutableSetOf<String>()
+        val sinceLevel = androidSince.level
         // Only include SDK extensions if the symbol has been finalized in at least one
         if (extensionsSince != ApiElement.NEVER) {
             for (ext in extensions) {
@@ -135,7 +142,7 @@ private constructor(
                     sdkIdentifiers.find { it.shortname == ext }
                         ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
                 assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
-                if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= androidSince) {
+                if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= sinceLevel) {
                     versions.add("${ident.id}:$extensionsSince")
                 }
             }
