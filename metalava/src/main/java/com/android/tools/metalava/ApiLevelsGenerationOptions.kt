@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.GenerateJsonConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.apilevels.SdkVersion
@@ -469,6 +470,7 @@ class ApiLevelsGenerationOptions(
                     versionedSignatureApis = versionedSignatureApis,
                     currentVersion = SdkVersion.fromString(apiVersionNames.last()),
                     outputFile = apiVersionsJson,
+                    printer = ApiJsonPrinter(),
                 )
             } else {
                 null

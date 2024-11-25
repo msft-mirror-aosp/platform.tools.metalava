@@ -28,6 +28,8 @@ class ApiXmlPrinter(
         api.print(writer, availableSdkExtensions)
     }
 
+    override fun toString() = "XML"
+
     /**
      * Prints the whole API definition to a writer.
      *

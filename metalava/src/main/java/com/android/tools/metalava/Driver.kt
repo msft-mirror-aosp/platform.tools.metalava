@@ -276,7 +276,7 @@ internal fun processFlags(
 
     options.apiLevelsGenerationOptions.generateJsonConfig?.let { config ->
         progressTracker.progress(
-            "Generating API version history JSON file, ${config.outputFile.name}: "
+            "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
         )
 
         val apiType = ApiType.PUBLIC_API

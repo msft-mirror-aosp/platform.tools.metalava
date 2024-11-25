@@ -28,4 +28,7 @@ data class GenerateJsonConfig(
 
     /** The api versions file that will be generated. */
     val outputFile: File,
+
+    /** The [ApiPrinter] to use to write the API versions to [outputFile]. */
+    val printer: ApiPrinter,
 )
