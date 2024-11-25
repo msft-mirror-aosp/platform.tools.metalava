@@ -19,7 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
-import com.android.tools.metalava.apilevels.GenerateJsonConfig
+import com.android.tools.metalava.apilevels.GenerateApiVersionsFromSignatureFilesConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.apilevels.SdkVersion
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
@@ -446,8 +446,8 @@ class ApiLevelsGenerationOptions(
             )
             .split(" ")
 
-    /** Construct the [GenerateJsonConfig] from the options. */
-    val generateJsonConfig by
+    /** Construct the [GenerateApiVersionsFromSignatureFilesConfig] from the options. */
+    val generateApiVersionsFromSignatureFilesConfig by
         lazy(LazyThreadSafetyMode.NONE) {
             // apiVersionNames will include the current version but apiVersionSignatureFiles will
             // not,
@@ -483,7 +483,7 @@ class ApiLevelsGenerationOptions(
                             )
                     }
 
-                GenerateJsonConfig(
+                GenerateApiVersionsFromSignatureFilesConfig(
                     versionedSignatureApis = versionedSignatureApis,
                     currentVersion = SdkVersion.fromString(apiVersionNames.last()),
                     outputFile = apiVersionsFile,

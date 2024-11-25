@@ -274,7 +274,7 @@ internal fun processFlags(
         }
     }
 
-    options.apiLevelsGenerationOptions.generateJsonConfig?.let { config ->
+    options.apiLevelsGenerationOptions.generateApiVersionsFromSignatureFilesConfig?.let { config ->
         progressTracker.progress(
             "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
         )
@@ -291,7 +291,7 @@ internal fun processFlags(
                 )
             }
 
-        apiGenerator.generateJson(codebaseFragment, config)
+        apiGenerator.generateFromSignatureFiles(codebaseFragment, config)
     }
 
     // Generate the documentation stubs *before* we migrate nullness information.

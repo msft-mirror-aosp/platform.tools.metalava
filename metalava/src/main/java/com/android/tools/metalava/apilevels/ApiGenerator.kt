@@ -94,14 +94,14 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     /**
-     * Generates a JSON API version history file based on the API surfaces of the versions provided.
+     * Generates an API version history file based on the API surfaces of the versions provided.
      *
      * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
      * @param config Configuration provided from command line options.
      */
-    fun generateJson(
+    fun generateFromSignatureFiles(
         codebaseFragment: CodebaseFragment,
-        config: GenerateJsonConfig,
+        config: GenerateApiVersionsFromSignatureFilesConfig,
     ) {
         val api = createApiFromSignatureFiles(config.versionedSignatureApis)
         addApisFromCodebase(
