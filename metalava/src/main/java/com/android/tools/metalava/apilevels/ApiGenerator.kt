@@ -96,20 +96,15 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     /**
      * Generates a JSON API version history file based on the API surfaces of the versions provided.
      *
-     * @param pastApiVersions A list of API signature files, ordered from the oldest API version to
-     *   newest.
      * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
-     * @param outputFile Path of the JSON file to write output to.
-     * @param apiVersionNames The names of the API versions, ordered starting from version 1. This
-     *   should include the names of all the [pastApiVersions], then the name of the
-     *   [codebaseFragment].
+     * @param config Configuration provided from command line options.
      */
     fun generateJson(
-        pastApiVersions: List<File>,
         codebaseFragment: CodebaseFragment,
-        outputFile: File,
-        apiVersionNames: List<String>,
+        config: GenerateJsonConfig,
     ) {
+        val pastApiVersions = config.pastApiVersions
+        val apiVersionNames = config.apiVersionNames
         // Combined the `pastApiVersions` and `apiVersionNames` into a list of
         // `VersionedSignatureApi`s.
         val versionedSignatureApis =
@@ -126,7 +121,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             false,
         )
         val printer = ApiJsonPrinter()
-        createApiLevelsFile(outputFile, printer, api)
+        createApiLevelsFile(config.outputFile, printer, api)
     }
 
     private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {

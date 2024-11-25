@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.GenerateJsonConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -385,7 +386,7 @@ class ApiLevelsGenerationOptions(
             }
 
     /** API version history JSON file to generate */
-    val generateApiVersionsJson by
+    private val generateApiVersionsJson by
         option(
                 ARG_GENERATE_API_VERSION_HISTORY,
                 metavar = "<json-file>",
@@ -400,7 +401,7 @@ class ApiLevelsGenerationOptions(
             .newFile()
 
     /** Ordered list of signatures for each past API version, if generating an API version JSON */
-    val apiVersionSignatureFiles by
+    private val apiVersionSignatureFiles by
         option(
                 ARG_API_VERSION_SIGNATURE_FILES,
                 metavar = "<files>",
@@ -421,7 +422,7 @@ class ApiLevelsGenerationOptions(
      * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
      * of the current API version
      */
-    val apiVersionNames by
+    private val apiVersionNames by
         option(
                 ARG_API_VERSION_NAMES,
                 metavar = "<api-versions>",
@@ -434,4 +435,32 @@ class ApiLevelsGenerationOptions(
                         .trimIndent()
             )
             .split(" ")
+
+    /** Construct the [GenerateJsonConfig] from the options. */
+    val generateJsonConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            // apiVersionNames will include the current version but apiVersionSignatureFiles will
+            // not,
+            // so there should be 1 more name than signature file (or both can be null)
+            val numVersionNames = apiVersionNames?.size ?: 0
+            val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
+            if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
+                throw MetalavaCliException(
+                    "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
+                )
+            }
+
+            val apiVersionsJson = generateApiVersionsJson
+            val apiVersionNames = apiVersionNames
+            if (apiVersionsJson != null && apiVersionNames != null) {
+                GenerateJsonConfig(
+                    // The signature files can be null if the current version is the only version
+                    pastApiVersions = apiVersionSignatureFiles ?: emptyList(),
+                    apiVersionNames = apiVersionNames,
+                    outputFile = apiVersionsJson
+                )
+            } else {
+                null
+            }
+        }
 }

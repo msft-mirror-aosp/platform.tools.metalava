@@ -617,18 +617,6 @@ class Options(
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
 
-    /** API version history JSON file to generate */
-    val generateApiVersionsJson by apiLevelsGenerationOptions::generateApiVersionsJson
-
-    /** Ordered list of signatures for each past API version, if generating an API version JSON */
-    val apiVersionSignatureFiles by apiLevelsGenerationOptions::apiVersionSignatureFiles
-
-    /**
-     * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
-     * of the current API version
-     */
-    val apiVersionNames by apiLevelsGenerationOptions::apiVersionNames
-
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
         get() =
@@ -834,16 +822,6 @@ class Options(
             }
 
             ++index
-        }
-
-        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
-        // so there should be 1 more name than signature file (or both can be null)
-        val numVersionNames = apiVersionNames?.size ?: 0
-        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
-        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw MetalavaCliException(
-                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
-            )
         }
 
         // If the caller has not explicitly requested that unannotated classes and
