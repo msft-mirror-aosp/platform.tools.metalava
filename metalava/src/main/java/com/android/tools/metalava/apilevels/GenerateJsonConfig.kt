@@ -20,14 +20,11 @@ import java.io.File
 
 /** Properties for the [ApiGenerator.generateJson] method that come from comment line options. */
 data class GenerateJsonConfig(
-    /** A list of API signature files, ordered from the oldest API version to newest. */
-    val pastApiVersions: List<File>,
+    /** A list of versioned signature files, ordered from the oldest API version to newest. */
+    val versionedSignatureApis: List<VersionedSignatureApi>,
 
-    /**
-     * The names of the API versions, ordered starting from version 1. This should include the names
-     * of all the [pastApiVersions], then the name of the current API version.
-     */
-    val apiVersionNames: List<String>,
+    /** The version for the current API from sources. */
+    val currentVersion: SdkVersion,
 
     /** The api versions file that will be generated. */
     val outputFile: File,

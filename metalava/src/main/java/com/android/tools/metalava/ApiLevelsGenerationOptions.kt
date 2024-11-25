@@ -19,6 +19,8 @@ package com.android.tools.metalava
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.GenerateJsonConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
+import com.android.tools.metalava.apilevels.SdkVersion
+import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -453,11 +455,20 @@ class ApiLevelsGenerationOptions(
             val apiVersionsJson = generateApiVersionsJson
             val apiVersionNames = apiVersionNames
             if (apiVersionsJson != null && apiVersionNames != null) {
+                // The signature files can be null if the current version is the only version
+                val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
+
+                // Combine the `pastApiVersions` and `apiVersionNames` into a list of
+                // `VersionedSignatureApi`s.
+                val versionedSignatureApis =
+                    pastApiVersions.mapIndexed { index, file ->
+                        VersionedSignatureApi(SdkVersion.fromString(apiVersionNames[index]), file)
+                    }
+
                 GenerateJsonConfig(
-                    // The signature files can be null if the current version is the only version
-                    pastApiVersions = apiVersionSignatureFiles ?: emptyList(),
-                    apiVersionNames = apiVersionNames,
-                    outputFile = apiVersionsJson
+                    versionedSignatureApis = versionedSignatureApis,
+                    currentVersion = SdkVersion.fromString(apiVersionNames.last()),
+                    outputFile = apiVersionsJson,
                 )
             } else {
                 null

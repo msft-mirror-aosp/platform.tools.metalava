@@ -103,20 +103,10 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         codebaseFragment: CodebaseFragment,
         config: GenerateJsonConfig,
     ) {
-        val pastApiVersions = config.pastApiVersions
-        val apiVersionNames = config.apiVersionNames
-        // Combined the `pastApiVersions` and `apiVersionNames` into a list of
-        // `VersionedSignatureApi`s.
-        val versionedSignatureApis =
-            pastApiVersions.mapIndexed { index, file ->
-                VersionedSignatureApi(SdkVersion.fromString(apiVersionNames[index]), file)
-            }
-
-        val api = createApiFromSignatureFiles(versionedSignatureApis)
-        val currentSdkVersion = SdkVersion.fromString(apiVersionNames.last())
+        val api = createApiFromSignatureFiles(config.versionedSignatureApis)
         addApisFromCodebase(
             api,
-            currentSdkVersion,
+            config.currentVersion,
             codebaseFragment,
             false,
         )
