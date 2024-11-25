@@ -173,9 +173,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
-const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
-const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -621,16 +618,16 @@ class Options(
     var applyApiLevelsXml: File? = null
 
     /** API version history JSON file to generate */
-    var generateApiVersionsJson: File? = null
+    val generateApiVersionsJson by apiLevelsGenerationOptions::generateApiVersionsJson
 
     /** Ordered list of signatures for each past API version, if generating an API version JSON */
-    var apiVersionSignatureFiles: List<File>? = null
+    val apiVersionSignatureFiles by apiLevelsGenerationOptions::apiVersionSignatureFiles
 
     /**
      * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
      * of the current API version
      */
-    var apiVersionNames: List<String>? = null
+    val apiVersionNames by apiLevelsGenerationOptions::apiVersionNames
 
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
@@ -792,15 +789,6 @@ class Options(
                         } else {
                             stringToExistingFile(getValue(args, ++index))
                         }
-                }
-                ARG_GENERATE_API_VERSION_HISTORY -> {
-                    generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
-                }
-                ARG_API_VERSION_SIGNATURE_FILES -> {
-                    apiVersionSignatureFiles = stringToExistingFiles(getValue(args, ++index))
-                }
-                ARG_API_VERSION_NAMES -> {
-                    apiVersionNames = getValue(args, ++index).split(' ')
                 }
                 ARG_JAVA_SOURCE -> {
                     val value = getValue(args, ++index)
@@ -1151,21 +1139,6 @@ object OptionsHelp {
                 "$ARG_APPLY_API_LEVELS <api-versions.xml>",
                 "Reads an XML file containing API level descriptions " +
                     "and merges the information into the documentation",
-                "",
-                "Generating API version history:",
-                "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
-                "Reads API signature files and generates a JSON file recording the API version each " +
-                    "class, method, and field was added in and (if applicable) deprecated in. " +
-                    "Required to generate API version JSON.",
-                "$ARG_API_VERSION_SIGNATURE_FILES <files>",
-                "An ordered list of text API signature files. The oldest API version should be " +
-                    "first, the newest last. This should not include a signature file for the " +
-                    "current API version, which will be parsed from the provided source files. Not " +
-                    "required to generate API version JSON if the current version is the only version.",
-                "$ARG_API_VERSION_NAMES <strings>",
-                "An ordered list of strings with the names to use for the API versions from " +
-                    "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
-                    "Required to generate API version JSON.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
