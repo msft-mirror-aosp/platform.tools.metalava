@@ -153,4 +153,35 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
     }
+
+    /**
+     * Encapsulates the process of updating an [ApiElement] to mark it as being included in a
+     * specific API version.
+     */
+    sealed interface Updater {
+        /**
+         * Updates the API element with information for a specific API version.
+         *
+         * @param apiElement the [ApiElement] to update.
+         * @param deprecated whether the API element was deprecated in the API version in question
+         */
+        fun update(
+            apiElement: ApiElement,
+            deprecated: Boolean = apiElement.deprecatedIn != null,
+        )
+
+        /** Updates the [ApiElement] by calling [ApiElement.update]. */
+        private open class SdkVersionUpdater(private val sdkVersion: SdkVersion) : Updater {
+            override fun update(apiElement: ApiElement, deprecated: Boolean) {
+                apiElement.update(sdkVersion, deprecated)
+            }
+        }
+
+        companion object {
+            /** Create an [Updater] for [sdkVersion]. */
+            fun forSdkVersion(sdkVersion: SdkVersion): Updater {
+                return SdkVersionUpdater(sdkVersion)
+            }
+        }
+    }
 }

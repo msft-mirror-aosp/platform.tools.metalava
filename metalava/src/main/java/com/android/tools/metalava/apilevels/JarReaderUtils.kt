@@ -27,7 +27,8 @@ import org.objectweb.asm.tree.MethodNode
 
 fun Api.readAndroidJar(sdkVersion: SdkVersion, jar: File) {
     update(sdkVersion)
-    readJar(sdkVersion, jar)
+    val updater = ApiElement.Updater.forSdkVersion(sdkVersion)
+    readJar(jar, updater = updater)
 }
 
 fun Api.readExtensionJar(
@@ -36,14 +37,15 @@ fun Api.readExtensionJar(
     jar: File,
     nextSdkVersion: SdkVersion
 ) {
-    readJar(nextSdkVersion, jar, extVersion, module)
+    val updater = ApiElement.Updater.forSdkVersion(nextSdkVersion)
+    readJar(jar, extVersion, module, updater)
 }
 
-fun Api.readJar(
-    sdkVersion: SdkVersion,
+private fun Api.readJar(
     jar: File,
     extVersion: ExtVersion? = null,
-    module: String? = null
+    module: String? = null,
+    updater: ApiElement.Updater,
 ) {
     val fis = FileInputStream(jar)
     ZipInputStream(fis).use { zis ->
@@ -62,7 +64,7 @@ fun Api.readJar(
             val theClass =
                 updateClass(
                     classNode.name,
-                    sdkVersion,
+                    updater,
                     classDeprecated,
                 )
             extVersion?.let { theClass.updateExtension(extVersion) }
@@ -72,14 +74,14 @@ fun Api.readJar(
 
             // super class
             if (classNode.superName != null) {
-                theClass.updateSuperClass(classNode.superName, sdkVersion).also { element ->
+                theClass.updateSuperClass(classNode.superName, updater).also { element ->
                     extVersion?.let { element.updateExtension(extVersion) }
                 }
             }
 
             // interfaces
             for (interfaceName in classNode.interfaces) {
-                theClass.updateInterface(interfaceName, sdkVersion).also { element ->
+                theClass.updateInterface(interfaceName, updater).also { element ->
                     extVersion?.let { element.updateExtension(extVersion) }
                 }
             }
@@ -94,7 +96,7 @@ fun Api.readJar(
                     val apiField =
                         theClass.updateField(
                             fieldNode.name,
-                            sdkVersion,
+                            updater,
                             classDeprecated || isDeprecated(fieldNode.access),
                         )
                     extVersion?.let { apiField.updateExtension(extVersion) }
@@ -111,7 +113,7 @@ fun Api.readJar(
                     val apiMethod =
                         theClass.updateMethod(
                             methodNode.name + methodNode.desc,
-                            sdkVersion,
+                            updater,
                             classDeprecated || isDeprecated(methodNode.access),
                         )
                     extVersion?.let { apiMethod.updateExtension(extVersion) }

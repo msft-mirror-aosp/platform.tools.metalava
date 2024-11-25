@@ -54,18 +54,19 @@ class Api : ParentApiElement {
      * Updates the [ApiClass] for the class called [name], creating and adding one if necessary.
      *
      * @param name the name of the class
-     * @param version an API version in which the class existed
+     * @param updater the [ApiElement.Updater] that will update the element with information about
+     *   the version to which it belongs.
      * @param deprecated whether the class was deprecated in the API version
      * @return the newly created or a previously existed class
      */
     fun updateClass(
         name: String,
-        version: SdkVersion,
+        updater: ApiElement.Updater,
         deprecated: Boolean,
     ): ApiClass {
         val existing = mClasses[name]
         val classElement = existing ?: ApiClass(name).apply { mClasses[name] = this }
-        classElement.update(version, deprecated)
+        updater.update(classElement, deprecated)
         return classElement
     }
 
@@ -108,22 +109,27 @@ class Api : ParentApiElement {
             sdkExtensions.update(sdk30, false)
         }
 
+        val sdk30Updater = ApiElement.Updater.forSdkVersion(sdk30)
+        val sdk31Updater = ApiElement.Updater.forSdkVersion(sdk31)
+
         // Remove the sdks attribute from the extends for public and system.
-        sdkExtensions.updateSuperClass("java/lang/Object", sdk30).apply {
+        sdkExtensions.updateSuperClass("java/lang/Object", sdk30Updater).apply {
             // Pretend this was not added in any extension.
             clearSdkExtensionInfo()
         }
 
         // getExtensionVersion was added in 30/R along with the class, and just like the class we
         // pretend it was always public.
-        sdkExtensions.updateMethod("getExtensionVersion(I)I", sdk30, false)
+        sdkExtensions.updateMethod("getExtensionVersion(I)I", sdk30Updater, false)
 
         // getAllExtensionsVersions was added as part of 31/S SystemApi. Just like for the class
         // we pretend it was always public.
-        sdkExtensions.updateMethod("getAllExtensionVersions()Ljava/util/Map;", sdk31, false).apply {
-            // Pretend this was not added in any extension.
-            clearSdkExtensionInfo()
-        }
+        sdkExtensions
+            .updateMethod("getAllExtensionVersions()Ljava/util/Map;", sdk31Updater, false)
+            .apply {
+                // Pretend this was not added in any extension.
+                clearSdkExtensionInfo()
+            }
     }
 
     /**
