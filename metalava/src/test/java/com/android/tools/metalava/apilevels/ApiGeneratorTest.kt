@@ -35,7 +35,6 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import java.io.File
-import kotlin.text.Charsets.UTF_8
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -43,6 +42,21 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 class ApiGeneratorTest : DriverTest() {
+
+    /** Check this `api-versions.xml` file has the correct content. */
+    private fun File.checkApiVersionsXmlContent(expectedContent: String) {
+        assertTrue("$this was expected to be a plain file but is not", isFile)
+        val xml = readText()
+
+        // The generated XML is indented using tabs which do not work well in a raw string as
+        // editors can replace them with normal spaces. So, this replaces all indentation and blank
+        // lines in the expected content and the actual content to make sure they use a consistent
+        // formatting.
+        fun String.trimEachLine(): String =
+            lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
+
+        assertEquals(expectedContent.trimEachLine(), xml.trimEachLine())
+    }
 
     @Test
     fun `Generate API for test prebuilts`() {
@@ -124,9 +138,6 @@ class ApiGeneratorTest : DriverTest() {
                 ),
         )
 
-        assertTrue(apiVersionsXml.isFile)
-        val xml = apiVersionsXml.readText(UTF_8)
-
         val expected =
             """
             <?xml version="1.0" encoding="utf-8"?>
@@ -175,10 +186,7 @@ class ApiGeneratorTest : DriverTest() {
             </api>
         """
 
-        fun String.trimEachLine(): String =
-            lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
-
-        assertEquals(expected.trimEachLine(), xml.trimEachLine())
+        apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
     @Test
@@ -210,9 +218,6 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(apiVersionsXml.isFile)
-        val xml = apiVersionsXml.readText(UTF_8)
-
         val expected =
             """
             <?xml version="1.0" encoding="utf-8"?>
@@ -223,10 +228,7 @@ class ApiGeneratorTest : DriverTest() {
             </api>
         """
 
-        fun String.trimEachLine(): String =
-            lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
-
-        assertEquals(expected.trimEachLine(), xml.trimEachLine())
+        apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
     @Test
