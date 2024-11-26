@@ -59,13 +59,9 @@ class Api : ParentApiElement {
      * @return the newly created or a previously existed class
      */
     fun addClass(name: String, version: SdkVersion, deprecated: Boolean): ApiClass {
-        var classElement = mClasses[name]
-        if (classElement == null) {
-            classElement = ApiClass(name, version, deprecated)
-            mClasses[name] = classElement
-        } else {
-            classElement.update(version, deprecated)
-        }
+        val existing = mClasses[name]
+        val classElement = existing ?: ApiClass(name).apply { mClasses[name] = this }
+        classElement.update(version, deprecated)
         return classElement
     }
 

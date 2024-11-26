@@ -22,8 +22,8 @@ import java.util.concurrent.ConcurrentHashMap
  * Represents a class or an interface and its methods/fields. This is used to write the simplified
  * XML file containing all the public API.
  */
-class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
-    ApiElement(name, sdkVersion, deprecated) {
+class ApiClass(name: String) : ApiElement(name) {
+
     private val mSuperClasses: MutableList<ApiElement> = ArrayList()
     private val mInterfaces: MutableList<ApiElement> = ArrayList()
 
@@ -77,13 +77,9 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
         sdkVersion: SdkVersion,
         deprecated: Boolean
     ): ApiElement {
-        var element = elements[name]
-        if (element == null) {
-            element = ApiElement(name, sdkVersion, deprecated)
-            elements[name] = element
-        } else {
-            element.update(sdkVersion, deprecated)
-        }
+        val existing = elements[name]
+        val element = existing ?: ApiElement(name).apply { elements[name] = this }
+        element.update(sdkVersion, deprecated)
         return element
     }
 
@@ -92,13 +88,9 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
         name: String,
         sdkVersion: SdkVersion
     ): ApiElement {
-        var element = findByName(elements, name)
-        if (element == null) {
-            element = ApiElement(name, sdkVersion)
-            elements.add(element)
-        } else {
-            element.update(sdkVersion)
-        }
+        val existing = findByName(elements, name)
+        val element = existing ?: ApiElement(name).apply { elements.add(this) }
+        element.update(sdkVersion)
         return element
     }
 

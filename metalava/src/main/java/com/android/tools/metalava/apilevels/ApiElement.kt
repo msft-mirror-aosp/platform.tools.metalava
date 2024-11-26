@@ -45,17 +45,14 @@ interface ParentApiElement {
  * Represents an API element, e.g. class, method or field.
  *
  * @param name the name of the API element
- * @param sdkVersion an API version for which the API element existed, or -1 if the class does not
- *   yet exist in the Android SDK (only in extension SDKs)
- * @param deprecated whether the API element was deprecated in the API version in question
  */
-open class ApiElement(
-    val name: String,
-    sdkVersion: SdkVersion,
-    deprecated: Boolean = false,
-) : ParentApiElement, Comparable<ApiElement> {
+open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElement> {
 
-    final override var since = sdkVersion
+    /**
+     * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
+     * first introduced in.
+     */
+    final override lateinit var since: SdkVersion
         private set
 
     /**
@@ -71,10 +68,11 @@ open class ApiElement(
     var mainlineModule: String? = null
         private set
 
-    final override var deprecatedIn = if (deprecated) sdkVersion else null
+    /** The optional API level this element was deprecated in. */
+    final override var deprecatedIn: SdkVersion? = null
         private set
 
-    final override var lastPresentIn = sdkVersion
+    final override lateinit var lastPresentIn: SdkVersion
         private set
 
     override fun toString(): String {
@@ -99,10 +97,10 @@ open class ApiElement(
      */
     fun update(sdkVersion: SdkVersion, deprecated: Boolean = deprecatedIn != null) {
         assert(sdkVersion.isValid)
-        if (since > sdkVersion) {
+        if (!::since.isInitialized || since > sdkVersion) {
             since = sdkVersion
         }
-        if (lastPresentIn < sdkVersion) {
+        if (!::lastPresentIn.isInitialized || lastPresentIn < sdkVersion) {
             lastPresentIn = sdkVersion
         }
         val deprecatedVersion = deprecatedIn
