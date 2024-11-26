@@ -49,13 +49,9 @@ class ApiGeneratorTest : DriverTest() {
         val xml = readText()
 
         // The generated XML is indented using tabs which do not work well in a raw string as
-        // editors can replace them with normal spaces. So, this replaces all indentation and blank
-        // lines in the expected content and the actual content to make sure they use a consistent
-        // formatting.
-        fun String.trimEachLine(): String =
-            lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
-
-        assertEquals(expectedContent.trimEachLine(), xml.trimEachLine())
+        // editors can replace them with normal spaces. So, this replaces all tabs with 4 spaces.
+        val indentedWithSpaces = xml.replace("\t", "    ").trim()
+        assertEquals(expectedContent.trimIndent(), indentedWithSpaces)
     }
 
     @Test
@@ -145,13 +141,13 @@ class ApiGeneratorTest : DriverTest() {
                 <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
                 <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S"/>
                 <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30">
-                <extends name="java/lang/Object"/>
-                <method name="&lt;init>(F)V"/>
-                <method name="&lt;init>(I)V"/>
-                <method name="methodExplicitlyDeprecated()V"/>
-                <method name="methodImplicitlyDeprecated()V"/>
-                <field name="FIELD_EXPLICITLY_DEPRECATED"/>
-                <field name="FIELD_IMPLICITLY_DEPRECATED"/>
+                    <extends name="java/lang/Object"/>
+                    <method name="&lt;init>(F)V"/>
+                    <method name="&lt;init>(I)V"/>
+                    <method name="methodExplicitlyDeprecated()V"/>
+                    <method name="methodImplicitlyDeprecated()V"/>
+                    <field name="FIELD_EXPLICITLY_DEPRECATED"/>
+                    <field name="FIELD_IMPLICITLY_DEPRECATED"/>
                 </class>
                 <class name="android/test/ClassAddedInApi30" since="30">
                     <extends name="java/lang/Object"/>
