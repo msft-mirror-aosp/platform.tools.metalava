@@ -18,11 +18,25 @@ package com.android.tools.metalava.apilevels
 
 import java.io.PrintWriter
 
-/** Printer that will write an XML representation of an [Api] instance. */
+/**
+ * Printer that will write an XML representation of an [Api] instance.
+ *
+ * @param availableSdkExtensions the optional set of [AvailableSdkExtensions].
+ * @param firstApiLevel the first API level which the file contains, used to populate the `<api
+ *   min="..."...>` attribute.
+ * @param allVersions the list of all the versions in order, from earliest to latest.
+ */
 class ApiXmlPrinter(
     private val availableSdkExtensions: AvailableSdkExtensions?,
     private val firstApiLevel: Int,
+    allVersions: List<SdkVersion>,
 ) : ApiPrinter {
+    /**
+     * Map from version to the next version. This is used to compute the version in which an API
+     * element was removed by finding the version after the version it was last present in.
+     */
+    private val versionToNext = allVersions.zipWithNext().toMap()
+
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         api.print(writer, availableSdkExtensions)
@@ -156,8 +170,11 @@ class ApiXmlPrinter(
             writer.print(deprecatedIn)
         }
         if (lastPresentIn < parentElement.lastPresentIn) {
+            val removedFrom =
+                versionToNext[lastPresentIn]
+                    ?: error("could not find next version for $lastPresentIn")
             writer.print("\" removed=\"")
-            writer.print(lastPresentIn + 1)
+            writer.print(removedFrom)
         }
         writer.print('"')
         if (closeTag) {

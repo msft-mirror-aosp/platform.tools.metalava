@@ -466,16 +466,18 @@ class ApiLevelsGenerationOptions(
                 // The signature files can be null if the current version is the only version
                 val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
 
+                val allVersions = apiVersionNames.map { SdkVersion.fromString(it) }
+
                 // Combine the `pastApiVersions` and `apiVersionNames` into a list of
                 // `VersionedSignatureApi`s.
                 val versionedSignatureApis =
                     pastApiVersions.mapIndexed { index, file ->
-                        VersionedSignatureApi(SdkVersion.fromString(apiVersionNames[index]), file)
+                        VersionedSignatureApi(allVersions[index], file)
                     }
 
                 val printer =
                     when (val extension = apiVersionsFile.extension) {
-                        "xml" -> ApiXmlPrinter(null, 1)
+                        "xml" -> ApiXmlPrinter(null, 1, allVersions)
                         "json" -> ApiJsonPrinter()
                         else ->
                             error(
@@ -485,7 +487,7 @@ class ApiLevelsGenerationOptions(
 
                 GenerateApiVersionsFromSignatureFilesConfig(
                     versionedSignatureApis = versionedSignatureApis,
-                    currentVersion = SdkVersion.fromString(apiVersionNames.last()),
+                    currentVersion = allVersions.last(),
                     outputFile = apiVersionsFile,
                     printer = printer,
                 )

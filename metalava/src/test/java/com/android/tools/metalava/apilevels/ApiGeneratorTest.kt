@@ -444,8 +444,8 @@ class ApiGeneratorTest : DriverTest() {
                     <class name="test.pkg.Foo" since="1.1.0">
                         <extends name="java.lang.Object"/>
                         <method name="methodV1&lt;T extends java.lang.String>(T)" deprecated="1.3.0"/>
-                        <method name="methodV2&lt;T>(java.lang.String)" since="1.2.0" removed="2.3.0"/>
-                        <method name="methodV2&lt;T>(java.lang.String,int)" since="1.2.0" deprecated="1.2.0" removed="2.2.0"/>
+                        <method name="methodV2&lt;T>(java.lang.String)" since="1.2.0" removed="1.4.0"/>
+                        <method name="methodV2&lt;T>(java.lang.String,int)" since="1.2.0" deprecated="1.2.0" removed="1.3.0"/>
                         <method name="methodV3()" since="1.3.0"/>
                         <method name="methodV4()" since="1.4.0"/>
                         <field name="fieldV1"/>

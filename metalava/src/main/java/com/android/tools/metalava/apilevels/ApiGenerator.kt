@@ -61,6 +61,12 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 else -> null
             }
 
+        // Get a list of all versions, including the codebase version, if necessary.
+        val allVersions = buildList {
+            (firstApiLevel until apiLevels.size).mapTo(this) { SdkVersion.fromLevel(it) }
+            if (codebaseSdkVersion != null) add(codebaseSdkVersion)
+        }
+
         if (codebaseSdkVersion != null) {
             addApisFromCodebase(api, codebaseSdkVersion, codebaseFragment, true)
         }
@@ -82,7 +88,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         } else {
             api.verifyNoMissingClasses()
         }
-        val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel)
+        val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel, allVersions)
         return createApiLevelsFile(config.outputFile, printer, api)
     }
 
