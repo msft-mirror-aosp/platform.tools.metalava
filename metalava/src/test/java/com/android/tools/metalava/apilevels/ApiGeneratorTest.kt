@@ -54,6 +54,19 @@ class ApiGeneratorTest : DriverTest() {
         assertEquals(expectedContent.trimIndent(), indentedWithSpaces)
     }
 
+    /** Check this `api-versions.json` file has the correct content. */
+    private fun File.checkApiVersionsJsonContent(expectedContent: String) {
+        assertTrue("$this was expected to be a plain file but is not", isFile)
+        val json = readText()
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(json, JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
+
+        assertEquals(expectedContent.trimIndent(), prettyOutput)
+    }
+
     @Test
     fun `Generate API for test prebuilts`() {
         val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
@@ -348,14 +361,14 @@ class ApiGeneratorTest : DriverTest() {
                 }
             """
 
-        val output = temporaryFolder.newFile("api-info.json")
+        val apiVersionsJson = temporaryFolder.newFile("api-info.json")
 
         check(
             signatureSource = currentVersion,
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
+                    apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -363,13 +376,7 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(output.isFile)
-
-        // Read output and reprint with pretty printing enabled to make test failures easier to read
-        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
-        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
-        val prettyOutput = gson.toJson(outputJson)
-        assertEquals(
+        apiVersionsJson.checkApiVersionsJsonContent(
             """
                 [
                   {
@@ -419,8 +426,6 @@ class ApiGeneratorTest : DriverTest() {
                   }
                 ]
             """
-                .trimIndent(),
-            prettyOutput
         )
     }
 
@@ -481,7 +486,7 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `API levels using source as current version does not include inherited methods excluded from signatures`() {
-        val output = temporaryFolder.newFile("api-info.json")
+        val apiVersionsJson = temporaryFolder.newFile("api-info.json")
 
         val pastVersions =
             listOf(
@@ -529,7 +534,7 @@ class ApiGeneratorTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
+                    apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -537,13 +542,7 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(output.isFile)
-
-        // Read output and reprint with pretty printing enabled to make test failures easier to read
-        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
-        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
-        val prettyOutput = gson.toJson(outputJson)
-        assertEquals(
+        apiVersionsJson.checkApiVersionsJsonContent(
             """
                 [
                   {
@@ -574,14 +573,12 @@ class ApiGeneratorTest : DriverTest() {
                   }
                 ]
             """
-                .trimIndent(),
-            prettyOutput
         )
     }
 
     @Test
     fun `APIs annotated with suppress-compatibility-meta-annotations appear in output`() {
-        val output = temporaryFolder.newFile("api-info.json")
+        val apiVersionsJson = temporaryFolder.newFile("api-info.json")
 
         val pastVersions =
             listOf(
@@ -619,7 +616,7 @@ class ApiGeneratorTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
+                    apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -627,13 +624,7 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(output.isFile)
-
-        // Read output and reprint with pretty printing enabled to make test failures easier to read
-        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
-        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
-        val prettyOutput = gson.toJson(outputJson)
-        assertEquals(
+        apiVersionsJson.checkApiVersionsJsonContent(
             """
                 [
                   {
@@ -661,8 +652,6 @@ class ApiGeneratorTest : DriverTest() {
                   }
                 ]
             """
-                .trimIndent(),
-            prettyOutput
         )
     }
 
