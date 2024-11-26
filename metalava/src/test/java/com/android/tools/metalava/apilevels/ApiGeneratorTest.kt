@@ -474,6 +474,68 @@ class ApiGeneratorTest : DriverTest() {
     }
 
     @Test
+    fun `Ensure class missing in current codebase is marked as removed`() {
+        val pastVersions =
+            listOf(
+                createTextFile(
+                    "1.1.0",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                            field public int barField;
+                          }
+                          public class Foo extends test.pkg.Bar {
+                            field public int fooField;
+                          }
+                        }
+                    """
+                ),
+            )
+        val currentVersion =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                  }
+                }
+            """
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            signatureSource = currentVersion,
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    apiVersionsXml.path,
+                    ARG_API_VERSION_SIGNATURE_FILES,
+                    pastVersions.joinToString(":") { it.absolutePath },
+                    ARG_API_VERSION_NAMES,
+                    listOf("1.1.0", "1.2.0").joinToString(" "),
+                ),
+        )
+
+        // TODO(b/379646963): Bar should be marked as removed.
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3">
+                    <class name="test.pkg.Bar" since="1.1.0">
+                        <extends name="java.lang.Object"/>
+                        <field name="barField"/>
+                    </class>
+                    <class name="test.pkg.Foo" since="1.1.0">
+                        <extends name="java.lang.Object" since="1.2.0"/>
+                        <extends name="test.pkg.Bar" removed="1.2.0"/>
+                        <field name="fooField" removed="1.2.0"/>
+                    </class>
+                </api>
+            """
+        )
+    }
+
+    @Test
     fun `Correct error with different number of API signature files and API version names`() {
         val output = temporaryFolder.newFile("api-info.json")
 
