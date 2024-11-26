@@ -45,11 +45,24 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val notFinalizedSdkVersion = currentSdkVersion + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
-        if (isDeveloperPreviewBuild || apiLevels.size - 1 < currentApiLevel) {
-            // Only include codebase if we don't have a prebuilt, finalized jar for it.
-            val sdkVersion =
-                if (isDeveloperPreviewBuild) notFinalizedSdkVersion else currentSdkVersion
-            addApisFromCodebase(api, sdkVersion, codebaseFragment, true)
+
+        // Compute the version to use for the current codebase.
+        val codebaseSdkVersion =
+            when {
+                // The current codebase is a developer preview so use the next, in the process of
+                // being finalized version.
+                isDeveloperPreviewBuild -> notFinalizedSdkVersion
+
+                // There is no prebuilt, finalized jar matching the current API level so use the
+                // current codebase for the current API version.
+                apiLevels.size - 1 < currentApiLevel -> currentSdkVersion
+
+                // Else do not include the current codebase.
+                else -> null
+            }
+
+        if (codebaseSdkVersion != null) {
+            addApisFromCodebase(api, codebaseSdkVersion, codebaseFragment, true)
         }
         api.backfillHistoricalFixes()
         var availableSdkExtensions: AvailableSdkExtensions? = null
