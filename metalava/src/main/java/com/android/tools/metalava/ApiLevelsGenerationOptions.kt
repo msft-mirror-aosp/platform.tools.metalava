@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
+import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.GenerateJsonConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.apilevels.SdkVersion
@@ -388,22 +389,28 @@ class ApiLevelsGenerationOptions(
                 )
             }
 
-    /** API version history JSON file to generate */
-    private val generateApiVersionsJson by
+    /** API version history file to generate */
+    private val generateApiVersionHistory by
         option(
                 ARG_GENERATE_API_VERSION_HISTORY,
-                metavar = "<json-file>",
+                metavar = "<output-file>",
                 help =
                     """
-                        Reads API signature files and generates a JSON file recording the API
-                        version each class, method, and field was added in and (if applicable)
-                        deprecated in. Required to generate API version JSON.
+                        Reads API signature files and generates a JSON or XML file depending on the
+                        extension, which must be one of `json` or `xml` respectively. The JSON file
+                        will record the API version in which each class, method, and field. was
+                        added in and (if applicable) deprecated in. The XML file will include that
+                        information and more but will be optimized to exclude information from
+                        class members which is the same as the containing class.
                     """
                         .trimIndent(),
             )
             .newFile()
 
-    /** Ordered list of signatures for each past API version, if generating an API version JSON */
+    /**
+     * Ordered list of signatures for each past API version, when generating
+     * [generateApiVersionHistory].
+     */
     private val apiVersionSignatureFiles by
         option(
                 ARG_API_VERSION_SIGNATURE_FILES,
@@ -433,7 +440,7 @@ class ApiLevelsGenerationOptions(
                     """
                         An ordered list of strings with the names to use for the API versions from
                         $ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version.
-                        Required to generate API version JSON.
+                        Required for $ARG_GENERATE_API_VERSION_HISTORY.
                     """
                         .trimIndent()
             )
@@ -453,9 +460,9 @@ class ApiLevelsGenerationOptions(
                 )
             }
 
-            val apiVersionsJson = generateApiVersionsJson
+            val apiVersionsFile = generateApiVersionHistory
             val apiVersionNames = apiVersionNames
-            if (apiVersionsJson != null && apiVersionNames != null) {
+            if (apiVersionsFile != null && apiVersionNames != null) {
                 // The signature files can be null if the current version is the only version
                 val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
 
@@ -466,11 +473,21 @@ class ApiLevelsGenerationOptions(
                         VersionedSignatureApi(SdkVersion.fromString(apiVersionNames[index]), file)
                     }
 
+                val printer =
+                    when (val extension = apiVersionsFile.extension) {
+                        "xml" -> ApiXmlPrinter(null, 1)
+                        "json" -> ApiJsonPrinter()
+                        else ->
+                            error(
+                                "unexpected extension for $apiVersionsFile, expected 'xml', or 'json' got '$extension'"
+                            )
+                    }
+
                 GenerateJsonConfig(
                     versionedSignatureApis = versionedSignatureApis,
                     currentVersion = SdkVersion.fromString(apiVersionNames.last()),
-                    outputFile = apiVersionsJson,
-                    printer = ApiJsonPrinter(),
+                    outputFile = apiVersionsFile,
+                    printer = printer,
                 )
             } else {
                 null

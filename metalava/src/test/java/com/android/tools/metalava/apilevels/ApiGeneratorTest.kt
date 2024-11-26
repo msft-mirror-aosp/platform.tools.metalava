@@ -294,7 +294,7 @@ class ApiGeneratorTest : DriverTest() {
     }
 
     @Test
-    fun `Create API levels from signature files`() {
+    fun `Create JSON and XML API versions from signature files`() {
         val pastVersions =
             listOf(
                 createTextFile(
@@ -363,17 +363,19 @@ class ApiGeneratorTest : DriverTest() {
 
         val apiVersionsJson = temporaryFolder.newFile("api-info.json")
 
+        fun createExtraArguments(output: File) =
+            arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                output.path,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                pastVersions.joinToString(":") { it.absolutePath },
+                ARG_API_VERSION_NAMES,
+                listOf("1.1.0", "1.2.0", "1.3.0", "1.4.0").joinToString(" "),
+            )
+
         check(
             signatureSource = currentVersion,
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_VERSION_HISTORY,
-                    apiVersionsJson.path,
-                    ARG_API_VERSION_SIGNATURE_FILES,
-                    pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0", "1.3.0", "1.4.0").joinToString(" "),
-                )
+            extraArguments = createExtraArguments(apiVersionsJson),
         )
 
         apiVersionsJson.checkApiVersionsJsonContent(
@@ -425,6 +427,34 @@ class ApiGeneratorTest : DriverTest() {
                     ]
                   }
                 ]
+            """
+        )
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            signatureSource = currentVersion,
+            extraArguments = createExtraArguments(apiVersionsXml),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3">
+                    <class name="test.pkg.Foo" since="1.1.0">
+                        <extends name="java.lang.Object"/>
+                        <method name="methodV1&lt;T extends java.lang.String>(T)" deprecated="1.3.0"/>
+                        <method name="methodV2&lt;T>(java.lang.String)" since="1.2.0" removed="2.3.0"/>
+                        <method name="methodV2&lt;T>(java.lang.String,int)" since="1.2.0" deprecated="1.2.0" removed="2.2.0"/>
+                        <method name="methodV3()" since="1.3.0"/>
+                        <method name="methodV4()" since="1.4.0"/>
+                        <field name="fieldV1"/>
+                        <field name="fieldV2" since="1.2.0"/>
+                    </class>
+                    <class name="test.pkg.Foo.Bar" since="1.1.0" deprecated="1.3.0">
+                        <extends name="java.lang.Object"/>
+                    </class>
+                </api>
             """
         )
     }
