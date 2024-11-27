@@ -33,10 +33,7 @@ import org.junit.Test
 class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract System API`() {
-        // These are the wrong jar paths but this test doesn't actually care what the
-        // content of the jar files, just checking the logic of starting the database
-        // at some higher number than 1
-        val androidJarPattern = "${platformJars.path}/%/public/android.jar"
+        val androidJarPattern = "${platformJars.path}/%/system/android.jar"
 
         val filter = File.createTempFile("filter", "txt")
         filter.deleteOnExit()
@@ -168,7 +165,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // has the module/sdks attributes
         assertTrue(
             xml.contains(
-                "<class name=\"android/net/CaptivePortalData\" module=\"framework-connectivity\" since=\"34\" sdks=\"30:1\">"
+                "<class name=\"android/net/CaptivePortalData\" module=\"framework-connectivity\" since=\"30\" sdks=\"30:1,0:30\">"
             )
         )
         assertTrue(
