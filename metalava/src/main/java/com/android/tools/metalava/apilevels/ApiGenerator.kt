@@ -45,11 +45,30 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val notFinalizedSdkVersion = currentSdkVersion + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
-        if (isDeveloperPreviewBuild || apiLevels.size - 1 < currentApiLevel) {
-            // Only include codebase if we don't have a prebuilt, finalized jar for it.
-            val sdkVersion =
-                if (isDeveloperPreviewBuild) notFinalizedSdkVersion else currentSdkVersion
-            addApisFromCodebase(api, sdkVersion, codebaseFragment, true)
+
+        // Compute the version to use for the current codebase.
+        val codebaseSdkVersion =
+            when {
+                // The current codebase is a developer preview so use the next, in the process of
+                // being finalized version.
+                isDeveloperPreviewBuild -> notFinalizedSdkVersion
+
+                // There is no prebuilt, finalized jar matching the current API level so use the
+                // current codebase for the current API version.
+                apiLevels.size - 1 < currentApiLevel -> currentSdkVersion
+
+                // Else do not include the current codebase.
+                else -> null
+            }
+
+        // Get a list of all versions, including the codebase version, if necessary.
+        val allVersions = buildList {
+            (firstApiLevel until apiLevels.size).mapTo(this) { SdkVersion.fromLevel(it) }
+            if (codebaseSdkVersion != null) add(codebaseSdkVersion)
+        }
+
+        if (codebaseSdkVersion != null) {
+            addApisFromCodebase(api, codebaseSdkVersion, codebaseFragment, true)
         }
         api.backfillHistoricalFixes()
         var availableSdkExtensions: AvailableSdkExtensions? = null
@@ -69,7 +88,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         } else {
             api.verifyNoMissingClasses()
         }
-        val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel)
+        val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel, allVersions)
         return createApiLevelsFile(config.outputFile, printer, api)
     }
 
@@ -94,14 +113,14 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     /**
-     * Generates a JSON API version history file based on the API surfaces of the versions provided.
+     * Generates an API version history file based on the API surfaces of the versions provided.
      *
      * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
      * @param config Configuration provided from command line options.
      */
-    fun generateJson(
+    fun generateFromSignatureFiles(
         codebaseFragment: CodebaseFragment,
-        config: GenerateJsonConfig,
+        config: GenerateApiVersionsFromSignatureFilesConfig,
     ) {
         val api = createApiFromSignatureFiles(config.versionedSignatureApis)
         addApisFromCodebase(
@@ -110,8 +129,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             codebaseFragment,
             false,
         )
-        val printer = ApiJsonPrinter()
-        createApiLevelsFile(config.outputFile, printer, api)
+        createApiLevelsFile(config.outputFile, config.printer, api)
     }
 
     private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
