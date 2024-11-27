@@ -183,39 +183,33 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         }
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
-            val extensionsMap = moduleMaps[module]
-            var sdks =
-                extensionsMap!!.calculateSdksAttr(
+            val extensionsMap = moduleMaps[module]!!
+
+            /** Update the sdks on each [ApiElement] in [elements]. */
+            fun updateSdks(elements: Collection<ApiElement>) {
+                for (element in elements) {
+                    val sdks =
+                        extensionsMap.calculateSdksAttr(
+                            element.since,
+                            versionNotInAndroidSdk,
+                            extensionsMap.getExtensions(clazz, element),
+                            element.sinceExtension
+                        )
+                    element.updateSdks(sdks)
+                }
+            }
+
+            val sdks =
+                extensionsMap.calculateSdksAttr(
                     clazz.since,
                     versionNotInAndroidSdk,
                     extensionsMap.getExtensions(clazz),
                     clazz.sinceExtension
                 )
             clazz.updateSdks(sdks)
-            var iter = clazz.fieldIterator
-            while (iter.hasNext()) {
-                val field = iter.next()
-                sdks =
-                    extensionsMap.calculateSdksAttr(
-                        field.since,
-                        versionNotInAndroidSdk,
-                        extensionsMap.getExtensions(clazz, field),
-                        field.sinceExtension
-                    )
-                field.updateSdks(sdks)
-            }
-            iter = clazz.methodIterator
-            while (iter.hasNext()) {
-                val method = iter.next()
-                sdks =
-                    extensionsMap.calculateSdksAttr(
-                        method.since,
-                        versionNotInAndroidSdk,
-                        extensionsMap.getExtensions(clazz, method),
-                        method.sinceExtension
-                    )
-                method.updateSdks(sdks)
-            }
+
+            updateSdks(clazz.fields)
+            updateSdks(clazz.methods)
         }
         return fromXml("", rules).availableSdkExtensions
     }

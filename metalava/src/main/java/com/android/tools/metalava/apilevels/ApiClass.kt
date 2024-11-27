@@ -316,12 +316,6 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
         return result
     }
 
-    val fieldIterator: Iterator<ApiElement>
-        get() = mFields.values.iterator()
-
-    val methodIterator: Iterator<ApiElement>
-        get() = mMethods.values.iterator()
-
     fun getMethod(name: String?): ApiElement? {
         return mMethods[name]
     }
