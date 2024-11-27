@@ -71,12 +71,6 @@ class Api :
         val sdk30 = SdkVersion.fromLevel(30)
         val sdk31 = SdkVersion.fromLevel(31)
         val sdk33 = SdkVersion.fromLevel(33)
-        // SdkExtensions.getExtensionVersion was added in 30/R, but was a SystemApi
-        // to avoid publishing the versioning API publicly before there was any
-        // valid use for it.
-        // getAllExtensionsVersions was added as part of 31/S
-        // The class and its APIs were made public between S and T, but we pretend
-        // here like it was always public, for maximum backward compatibility.
         val sdkExtensions = findClass("android/os/ext/SdkExtensions")
         if (sdkExtensions != null && sdkExtensions.since != sdk30 && sdkExtensions.since != sdk33) {
             throw AssertionError("Received unexpected historical data")
@@ -85,10 +79,23 @@ class Api :
             // They don't need patching.
             return
         }
+        // The class was added in 30/R, but was a SystemApi to avoid publishing the versioning
+        // API publicly before there was any valid use for it. It was made public between S and T,
+        // but we pretend here like it was always public, for maximum backward compatibility.
         sdkExtensions.update(sdk30, false)
         sdkExtensions.addSuperClass("java/lang/Object", sdk30)
+
+        // getExtensionVersion was added in 30/R along with the class, and just like the class we
+        // pretend it was always public.
         sdkExtensions.getMethod("getExtensionVersion(I)I")!!.update(sdk30, false)
-        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.update(sdk31, false)
+
+        // getAllExtensionsVersions was added as part of 31/S SystemApi. Just like for the class
+        // we pretend it was always public.
+        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.apply {
+            update(sdk31, false)
+            // Pretend this was not added in any extension.
+            clearSdkExtensionInfo()
+        }
     }
 
     /**

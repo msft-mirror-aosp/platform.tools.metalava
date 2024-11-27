@@ -70,7 +70,6 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         if (codebaseSdkVersion != null) {
             addApisFromCodebase(api, codebaseSdkVersion, codebaseFragment, true)
         }
-        api.backfillHistoricalFixes()
         var availableSdkExtensions: AvailableSdkExtensions? = null
         val sdkExtensionsArguments = config.sdkExtensionsArguments
         if (sdkExtensionsArguments != null) {
@@ -82,6 +81,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                     sdkExtensionsArguments.sdkExtInfoFile,
                 )
         }
+        api.backfillHistoricalFixes()
         api.clean()
         if (config.removeMissingClasses) {
             api.removeMissingClasses()
