@@ -17,7 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.GenerateJsonConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
+import com.android.tools.metalava.apilevels.SdkVersion
+import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -31,11 +34,13 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 import java.io.IOException
 
+// XML API version related arguments.
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 
 const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
@@ -49,6 +54,11 @@ const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
+
+// JSON API version related arguments
+const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
+const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
+const val ARG_API_VERSION_NAMES = "--api-version-names"
 
 class ApiLevelsGenerationOptions(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -376,4 +386,92 @@ class ApiLevelsGenerationOptions(
                     removeMissingClasses = removeMissingClassReferencesInApiLevels,
                 )
             }
+
+    /** API version history JSON file to generate */
+    private val generateApiVersionsJson by
+        option(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                metavar = "<json-file>",
+                help =
+                    """
+                        Reads API signature files and generates a JSON file recording the API
+                        version each class, method, and field was added in and (if applicable)
+                        deprecated in. Required to generate API version JSON.
+                    """
+                        .trimIndent(),
+            )
+            .newFile()
+
+    /** Ordered list of signatures for each past API version, if generating an API version JSON */
+    private val apiVersionSignatureFiles by
+        option(
+                ARG_API_VERSION_SIGNATURE_FILES,
+                metavar = "<files>",
+                help =
+                    """
+                        An ordered list of text API signature files. The oldest API version should
+                        be first, the newest last. This should not include a signature file for the
+                        current API version, which will be parsed from the provided source files.
+                        Not required to generate API version JSON if the current version is the only
+                        version.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+            .split(File.pathSeparator)
+
+    /**
+     * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
+     * of the current API version
+     */
+    private val apiVersionNames by
+        option(
+                ARG_API_VERSION_NAMES,
+                metavar = "<api-versions>",
+                help =
+                    """
+                        An ordered list of strings with the names to use for the API versions from
+                        $ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version.
+                        Required to generate API version JSON.
+                    """
+                        .trimIndent()
+            )
+            .split(" ")
+
+    /** Construct the [GenerateJsonConfig] from the options. */
+    val generateJsonConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            // apiVersionNames will include the current version but apiVersionSignatureFiles will
+            // not,
+            // so there should be 1 more name than signature file (or both can be null)
+            val numVersionNames = apiVersionNames?.size ?: 0
+            val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
+            if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
+                throw MetalavaCliException(
+                    "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
+                )
+            }
+
+            val apiVersionsJson = generateApiVersionsJson
+            val apiVersionNames = apiVersionNames
+            if (apiVersionsJson != null && apiVersionNames != null) {
+                // The signature files can be null if the current version is the only version
+                val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
+
+                // Combine the `pastApiVersions` and `apiVersionNames` into a list of
+                // `VersionedSignatureApi`s.
+                val versionedSignatureApis =
+                    pastApiVersions.mapIndexed { index, file ->
+                        VersionedSignatureApi(SdkVersion.fromString(apiVersionNames[index]), file)
+                    }
+
+                GenerateJsonConfig(
+                    versionedSignatureApis = versionedSignatureApis,
+                    currentVersion = SdkVersion.fromString(apiVersionNames.last()),
+                    outputFile = apiVersionsJson,
+                )
+            } else {
+                null
+            }
+        }
 }

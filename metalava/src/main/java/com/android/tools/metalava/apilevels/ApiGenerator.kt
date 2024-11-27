@@ -15,14 +15,11 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
-import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 import java.io.IOException
 
@@ -55,10 +52,10 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             addApisFromCodebase(api, sdkVersion, codebaseFragment, true)
         }
         api.backfillHistoricalFixes()
-        var sdkIdentifiers = emptySet<SdkIdentifier>()
+        var availableSdkExtensions: AvailableSdkExtensions? = null
         val sdkExtensionsArguments = config.sdkExtensionsArguments
         if (sdkExtensionsArguments != null) {
-            sdkIdentifiers =
+            availableSdkExtensions =
                 processExtensionSdkApis(
                     api,
                     notFinalizedSdkVersion,
@@ -72,7 +69,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         } else {
             api.verifyNoMissingClasses()
         }
-        val printer = ApiXmlPrinter(sdkIdentifiers, firstApiLevel)
+        val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel)
         return createApiLevelsFile(config.outputFile, printer, api)
     }
 
@@ -83,17 +80,14 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @param previousApiFiles A list of API signature files, one for each version of the API, in
      *   order from oldest to newest API version.
      */
-    private fun createApiFromSignatureFiles(previousApiFiles: List<File>): Api {
-        // Starts at level 1 because 0 is not a valid API level.
-        var apiLevel = 1
+    private fun createApiFromSignatureFiles(previousApiFiles: List<VersionedSignatureApi>): Api {
         val api = Api()
-        for (apiFile in previousApiFiles) {
-            val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFiles(apiFile))
+        for (versionedSignatureFile in previousApiFiles) {
+            val codebase = versionedSignatureFile.load(signatureFileCache)
             val codebaseFragment =
                 CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            val sdkVersion = SdkVersion.fromLevel(apiLevel)
+            val sdkVersion = versionedSignatureFile.sdkVersion
             addApisFromCodebase(api, sdkVersion, codebaseFragment, false)
-            apiLevel += 1
         }
         api.clean()
         return api
@@ -102,30 +96,22 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     /**
      * Generates a JSON API version history file based on the API surfaces of the versions provided.
      *
-     * @param pastApiVersions A list of API signature files, ordered from the oldest API version to
-     *   newest.
      * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
-     * @param outputFile Path of the JSON file to write output to.
-     * @param apiVersionNames The names of the API versions, ordered starting from version 1. This
-     *   should include the names of all the [pastApiVersions], then the name of the
-     *   [codebaseFragment].
+     * @param config Configuration provided from command line options.
      */
     fun generateJson(
-        pastApiVersions: List<File>,
         codebaseFragment: CodebaseFragment,
-        outputFile: File,
-        apiVersionNames: List<String>,
+        config: GenerateJsonConfig,
     ) {
-        val api = createApiFromSignatureFiles(pastApiVersions)
-        val currentSdkVersion = SdkVersion.fromLevel(apiVersionNames.size)
+        val api = createApiFromSignatureFiles(config.versionedSignatureApis)
         addApisFromCodebase(
             api,
-            currentSdkVersion,
+            config.currentVersion,
             codebaseFragment,
             false,
         )
-        val printer = ApiJsonPrinter(apiVersionNames)
-        createApiLevelsFile(outputFile, printer, api)
+        val printer = ApiJsonPrinter()
+        createApiLevelsFile(config.outputFile, printer, api)
     }
 
     private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
@@ -162,7 +148,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         versionNotInAndroidSdk: SdkVersion,
         sdkJarRoot: File,
         filterPath: File,
-    ): Set<SdkIdentifier> {
+    ): AvailableSdkExtensions {
         val rules = filterPath.readText()
         val map = findExtensionSdkJarFiles(sdkJarRoot)
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
@@ -213,7 +199,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 method.updateSdks(sdks)
             }
         }
-        return fromXml("", rules).getSdkIdentifiers()
+        return fromXml("", rules).availableSdkExtensions
     }
 
     /**
