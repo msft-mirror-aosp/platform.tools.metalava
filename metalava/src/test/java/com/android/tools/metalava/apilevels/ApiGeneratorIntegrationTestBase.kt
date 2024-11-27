@@ -20,7 +20,10 @@ import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.DriverTest
 import java.io.File
+import java.util.regex.Pattern
 import org.junit.Assert
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 
 abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
@@ -69,6 +72,23 @@ abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
                 .trimIndent()
         )
         return file
+    }
+
+    /**
+     * Extracts the section for the class with [internalName] and compares it against [expected].
+     *
+     * Before comparing it will replace tabs with 4 spaces and trim any indent.
+     */
+    fun String.checkClass(internalName: String, expected: String) {
+        val pattern =
+            Pattern.compile(
+                "^\\s*<class name=\"${internalName}\".*?</class>",
+                Pattern.DOTALL or Pattern.MULTILINE
+            )
+        val matcher = pattern.matcher(this)
+        assertTrue("could not find entry for $internalName", matcher.find())
+        val extract = matcher.group().replace("\t", "    ")
+        assertEquals(expected.trimIndent(), extract.trimIndent())
     }
 
     companion object {

@@ -20,6 +20,8 @@ import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_SDK_INFO_FILE
+import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
 import java.io.File
@@ -44,6 +46,10 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     "${oldSdkJars.path}/android-%/android.jar",
                     ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
+                    ARG_SDK_JAR_ROOT,
+                    extensionSdkJars.path,
+                    ARG_SDK_INFO_FILE,
+                    createSdkExtensionInfoFile().path,
                     ARG_CURRENT_CODENAME,
                     "Z",
                     ARG_CURRENT_VERSION,
@@ -97,5 +103,18 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         val methodVersion =
             apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
+
+        // Verify historical backfill by checking the section for android/os/ext/SdkExtensions
+        xml.checkClass(
+            "android/os/ext/SdkExtensions",
+            """
+                <class name="android/os/ext/SdkExtensions" since="30">
+                    <extends name="java/lang/Object"/>
+                    <method name="getAllExtensionVersions()Ljava/util/Map;" since="31" sdks="30:1,0:31"/>
+                    <method name="getExtensionVersion(I)I"/>
+                    <field name="AD_SERVICES" since="34" sdks="30:4,0:34"/>
+                </class>
+            """
+        )
     }
 }

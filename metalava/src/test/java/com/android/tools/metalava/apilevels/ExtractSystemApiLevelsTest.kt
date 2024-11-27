@@ -23,10 +23,8 @@ import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
-import com.android.tools.metalava.doc.minApiLevel
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -145,28 +143,17 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
             )
         )
 
-        // Verify historical backfill
-        assertEquals(30, apiLookup.getClassVersions("android/os/ext/SdkExtensions").minApiLevel())
-        assertEquals(
-            30,
-            apiLookup
-                .getMethodVersions("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I")
-                .minApiLevel()
+        // Verify historical backfill by checking the section for android/os/ext/SdkExtensions
+        xml.checkClass(
+            "android/os/ext/SdkExtensions",
+            """
+                <class name="android/os/ext/SdkExtensions" since="30">
+                    <extends name="java/lang/Object"/>
+                    <method name="getAllExtensionVersions()Ljava/util/Map;" since="31" sdks="30:1,0:31"/>
+                    <method name="getExtensionVersion(I)I"/>
+                    <field name="AD_SERVICES" since="34" sdks="30:4"/>
+                </class>
+            """
         )
-        assertEquals(
-            31,
-            apiLookup
-                .getMethodVersions(
-                    "android/os/ext/SdkExtensions",
-                    "getAllExtensionVersions",
-                    "()Ljava/util/Map;"
-                )
-                .minApiLevel()
-        )
-
-        // Verify there's no extension versions listed for SdkExtensions
-        val sdkExtClassLine =
-            xml.lines().first { it.contains("<class name=\"android/os/ext/SdkExtensions\"") }
-        assertFalse(sdkExtClassLine.contains("sdks="))
     }
 }
