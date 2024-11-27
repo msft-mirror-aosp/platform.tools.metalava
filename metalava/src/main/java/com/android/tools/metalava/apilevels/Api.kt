@@ -74,16 +74,19 @@ class Api :
         val sdkExtensions = findClass("android/os/ext/SdkExtensions")
         if (sdkExtensions != null && sdkExtensions.since != sdk30 && sdkExtensions.since != sdk33) {
             throw AssertionError("Received unexpected historical data")
-        } else if (sdkExtensions == null || sdkExtensions.since == sdk30) {
-            // This is the system API db (30), or module-lib/system-server dbs (null)
-            // They don't need patching.
+        } else if (sdkExtensions == null) {
+            // This is the module-lib/system-server dbs (null) and so don't need patching.
             return
+        } else if (sdkExtensions.since == sdk30) {
+            // This is the system API db (30). The class does not need patching but the members do.
+            // Drop through.
+        } else {
+            // The class was added in 30/R, but was a SystemApi to avoid publishing the versioning
+            // API publicly before there was any valid use for it. It was made public between S and
+            // T, but we pretend here like it was always public, for maximum backward compatibility.
+            sdkExtensions.update(sdk30, false)
+            sdkExtensions.addSuperClass("java/lang/Object", sdk30)
         }
-        // The class was added in 30/R, but was a SystemApi to avoid publishing the versioning
-        // API publicly before there was any valid use for it. It was made public between S and T,
-        // but we pretend here like it was always public, for maximum backward compatibility.
-        sdkExtensions.update(sdk30, false)
-        sdkExtensions.addSuperClass("java/lang/Object", sdk30)
 
         // getExtensionVersion was added in 30/R along with the class, and just like the class we
         // pretend it was always public.

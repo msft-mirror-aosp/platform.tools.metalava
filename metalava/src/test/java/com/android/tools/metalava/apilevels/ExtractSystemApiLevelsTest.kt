@@ -149,7 +149,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
             """
                 <class name="android/os/ext/SdkExtensions" since="30">
                     <extends name="java/lang/Object"/>
-                    <method name="getAllExtensionVersions()Ljava/util/Map;" since="31" sdks="30:1,0:31"/>
+                    <method name="getAllExtensionVersions()Ljava/util/Map;" since="31"/>
                     <method name="getExtensionVersion(I)I"/>
                     <field name="AD_SERVICES" since="34" sdks="30:4"/>
                 </class>
