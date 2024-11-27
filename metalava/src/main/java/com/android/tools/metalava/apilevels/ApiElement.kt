@@ -40,7 +40,7 @@ open class ApiElement(
      * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
      * first introduced in.
      */
-    var sinceExtension = NEVER
+    var sinceExtension: ExtVersion? = null
         private set
 
     /**
@@ -121,7 +121,8 @@ open class ApiElement(
      */
     fun updateExtension(extVersion: ExtVersion) {
         assert(extVersion.isValid)
-        if (sinceExtension > extVersion) {
+        // Record the earliest extension in which this appeared.
+        if (sinceExtension == null || sinceExtension!! > extVersion) {
             sinceExtension = extVersion
         }
     }
@@ -136,9 +137,5 @@ open class ApiElement(
 
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
-    }
-
-    companion object {
-        val NEVER = ExtVersion.HIGHEST
     }
 }
