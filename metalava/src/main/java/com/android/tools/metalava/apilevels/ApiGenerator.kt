@@ -208,6 +208,8 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 )
             clazz.updateSdks(sdks)
 
+            updateSdks(clazz.superClasses)
+            updateSdks(clazz.interfaces)
             updateSdks(clazz.fields)
             updateSdks(clazz.methods)
         }

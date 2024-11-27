@@ -168,9 +168,9 @@ class ApiGeneratorTest : DriverTest() {
                         <field name="FIELD_IMPLICITLY_DEPRECATED"/>
                     </class>
                     <class name="android/test/ClassAddedInApi30" module="framework-ext" since="30" sdks="30:2,0:30">
-                        <extends name="android/test/MarkerSuperClass" since="33"/>
+                        <extends name="android/test/MarkerSuperClass" since="33" sdks="30:2,31:2"/>
                         <extends name="java/lang/Object" removed="33"/>
-                        <implements name="android/test/MarkerInterface" since="33"/>
+                        <implements name="android/test/MarkerInterface" since="33" sdks="30:2,31:2"/>
                         <method name="methodAddedInApi30()V"/>
                         <method name="methodAddedInApi31()V" since="31" sdks="30:2,31:2,0:31"/>
                     </class>

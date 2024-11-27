@@ -85,7 +85,12 @@ class Api :
             // API publicly before there was any valid use for it. It was made public between S and
             // T, but we pretend here like it was always public, for maximum backward compatibility.
             sdkExtensions.update(sdk30, false)
-            sdkExtensions.addSuperClass("java/lang/Object", sdk30)
+        }
+
+        // Remove the sdks attribute from the extends for public and system.
+        sdkExtensions.addSuperClass("java/lang/Object", sdk30).apply {
+            // Pretend this was not added in any extension.
+            clearSdkExtensionInfo()
         }
 
         // getExtensionVersion was added in 30/R along with the class, and just like the class we
