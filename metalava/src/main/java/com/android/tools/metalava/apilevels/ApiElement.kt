@@ -127,6 +127,16 @@ open class ApiElement(
         }
     }
 
+    /**
+     * Clears the sdk extension information from this [ApiElement].
+     *
+     * This is only intended for use by [Api.backfillSdkExtensions].
+     */
+    fun clearSdkExtensionInfo() {
+        this.sinceExtension = null
+        this.sdks = null
+    }
+
     fun updateSdks(sdks: String?) {
         this.sdks = sdks
     }
