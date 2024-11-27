@@ -35,47 +35,6 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     fun `Extract System API`() {
         val androidJarPattern = "${platformJars.path}/%/system/android.jar"
 
-        val filter = File.createTempFile("filter", "txt")
-        filter.deleteOnExit()
-        filter.writeText(
-            """
-                <sdk-extensions-info>
-                <!-- SDK definitions -->
-                <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
-                <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
-                <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
-
-                <!-- Rules -->
-                <symbol jar="art.module.public.api" pattern="*" sdks="R" />
-                <symbol jar="conscrypt.module.intra.core.api " pattern="" sdks="R" />
-                <symbol jar="conscrypt.module.platform.api" pattern="*" sdks="R" />
-                <symbol jar="conscrypt.module.public.api" pattern="*" sdks="R" />
-                <symbol jar="framework-mediaprovider" pattern="*" sdks="R" />
-                <symbol jar="framework-mediaprovider" pattern="android.provider.MediaStore#canManageMedia" sdks="T" />
-                <symbol jar="framework-permission-s" pattern="*" sdks="R" />
-                <symbol jar="framework-permission" pattern="*" sdks="R" />
-                <symbol jar="framework-sdkextensions" pattern="*" sdks="R" />
-                <symbol jar="framework-scheduling" pattern="*" sdks="R" />
-                <symbol jar="framework-statsd" pattern="*" sdks="R" />
-                <symbol jar="framework-tethering" pattern="*" sdks="R" />
-                <symbol jar="legacy.art.module.platform.api" pattern="*" sdks="R" />
-                <symbol jar="service-media-s" pattern="*" sdks="R" />
-                <symbol jar="service-permission" pattern="*" sdks="R" />
-
-                <!-- use framework-permissions-s to test the order of multiple SDKs is respected -->
-                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapAkaInfo" sdks="R,S,T" />
-                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapInfo" sdks="T,S,R" />
-                <symbol jar="android.net.ipsec.ike" pattern="*" sdks="R" />
-
-                <!-- framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute -->
-                <symbol jar="framework-connectivity" pattern="android.net.CaptivePortalData" sdks="R" />
-
-                <!-- framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute -->
-                </sdk-extensions-info>
-            """
-                .trimIndent()
-        )
-
         val output = File.createTempFile("api-info", "xml")
         output.deleteOnExit()
         val outputPath = output.path
@@ -88,9 +47,9 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     ARG_ANDROID_JAR_PATTERN,
                     androidJarPattern,
                     ARG_SDK_JAR_ROOT,
-                    "$extensionSdkJars",
+                    extensionSdkJars.path,
                     ARG_SDK_INFO_FILE,
-                    filter.path,
+                    createSdkExtensionInfoFile().path,
                     ARG_FIRST_VERSION,
                     "21",
                     ARG_CURRENT_VERSION,

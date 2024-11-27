@@ -24,6 +24,53 @@ import org.junit.Assert
 import org.junit.BeforeClass
 
 abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
+
+    val androidPublicJarsPattern = "${platformJars.path}/%/public/android.jar"
+
+    protected fun createSdkExtensionInfoFile(): File {
+        val file = File.createTempFile("filter", "txt")
+        file.deleteOnExit()
+        file.writeText(
+            """
+                <sdk-extensions-info>
+                <!-- SDK definitions -->
+                <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+
+                <!-- Rules -->
+                <symbol jar="art.module.public.api" pattern="*" sdks="R" />
+                <symbol jar="conscrypt.module.intra.core.api " pattern="" sdks="R" />
+                <symbol jar="conscrypt.module.platform.api" pattern="*" sdks="R" />
+                <symbol jar="conscrypt.module.public.api" pattern="*" sdks="R" />
+                <symbol jar="framework-mediaprovider" pattern="*" sdks="R" />
+                <symbol jar="framework-mediaprovider" pattern="android.provider.MediaStore#canManageMedia" sdks="T" />
+                <symbol jar="framework-permission-s" pattern="*" sdks="R" />
+                <symbol jar="framework-permission" pattern="*" sdks="R" />
+                <symbol jar="framework-sdkextensions" pattern="*" sdks="R" />
+                <symbol jar="framework-scheduling" pattern="*" sdks="R" />
+                <symbol jar="framework-statsd" pattern="*" sdks="R" />
+                <symbol jar="framework-tethering" pattern="*" sdks="R" />
+                <symbol jar="legacy.art.module.platform.api" pattern="*" sdks="R" />
+                <symbol jar="service-media-s" pattern="*" sdks="R" />
+                <symbol jar="service-permission" pattern="*" sdks="R" />
+
+                <!-- use framework-permissions-s to test the order of multiple SDKs is respected -->
+                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapAkaInfo" sdks="R,S,T" />
+                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapInfo" sdks="T,S,R" />
+                <symbol jar="android.net.ipsec.ike" pattern="*" sdks="R" />
+
+                <!-- framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute -->
+                <symbol jar="framework-connectivity" pattern="android.net.CaptivePortalData" sdks="R" />
+
+                <!-- framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute -->
+                </sdk-extensions-info>
+            """
+                .trimIndent()
+        )
+        return file
+    }
+
     companion object {
         // A version higher than SdkVersionInfo.HIGHEST_KNOWN_API.
         // 57 was chosen because previously ApiConstraint used a bit vector requiring that an API
