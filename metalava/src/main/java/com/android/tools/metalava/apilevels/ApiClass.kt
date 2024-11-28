@@ -219,10 +219,6 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
         return false
     }
 
-    override fun toString(): String {
-        return name
-    }
-
     private var haveInlined = false
 
     fun inlineFromHiddenSuperClasses(hidden: Map<String, ApiClass>) {

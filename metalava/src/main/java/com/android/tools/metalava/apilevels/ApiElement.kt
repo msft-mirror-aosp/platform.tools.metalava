@@ -65,6 +65,10 @@ open class ApiElement(
     var lastPresentIn = sdkVersion
         private set
 
+    override fun toString(): String {
+        return name
+    }
+
     /**
      * Checks if this API element was introduced not later than another API element.
      *
