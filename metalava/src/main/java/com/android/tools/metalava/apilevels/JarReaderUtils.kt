@@ -72,12 +72,16 @@ fun Api.readJar(
 
             // super class
             if (classNode.superName != null) {
-                theClass.addSuperClass(classNode.superName, sdkVersion)
+                theClass.addSuperClass(classNode.superName, sdkVersion).also { element ->
+                    extVersion?.let { element.updateExtension(extVersion) }
+                }
             }
 
             // interfaces
             for (interfaceName in classNode.interfaces) {
-                theClass.addInterface(interfaceName, sdkVersion)
+                theClass.addInterface(interfaceName, sdkVersion).also { element ->
+                    extVersion?.let { element.updateExtension(extVersion) }
+                }
             }
 
             // fields

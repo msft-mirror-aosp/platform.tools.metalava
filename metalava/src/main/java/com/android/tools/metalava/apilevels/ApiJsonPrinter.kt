@@ -27,6 +27,8 @@ internal class ApiJsonPrinter : ApiPrinter {
         gson.toJson(json, writer)
     }
 
+    override fun toString() = "JSON"
+
     private fun Api.toJson() = classes.map { it.toJson() }
 
     private fun ApiClass.toJson() =

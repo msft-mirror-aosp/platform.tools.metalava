@@ -55,9 +55,8 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
     val methods: Collection<ApiElement>
         get() = mMethods.values
 
-    fun addSuperClass(superClass: String, since: SdkVersion): ApiElement {
-        return addToArray(mSuperClasses, superClass, since)
-    }
+    fun addSuperClass(superClass: String, since: SdkVersion) =
+        addToArray(mSuperClasses, superClass, since)
 
     val superClasses: List<ApiElement>
         get() = mSuperClasses
@@ -66,9 +65,8 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
         alwaysHidden = hidden
     }
 
-    fun addInterface(interfaceClass: String, since: SdkVersion) {
+    fun addInterface(interfaceClass: String, since: SdkVersion) =
         addToArray(mInterfaces, interfaceClass, since)
-    }
 
     val interfaces: List<ApiElement>
         get() = mInterfaces
@@ -315,12 +313,6 @@ class ApiClass(name: String, sdkVersion: SdkVersion, deprecated: Boolean) :
         }
         return result
     }
-
-    val fieldIterator: Iterator<ApiElement>
-        get() = mFields.values.iterator()
-
-    val methodIterator: Iterator<ApiElement>
-        get() = mMethods.values.iterator()
 
     fun getMethod(name: String?): ApiElement? {
         return mMethods[name]
