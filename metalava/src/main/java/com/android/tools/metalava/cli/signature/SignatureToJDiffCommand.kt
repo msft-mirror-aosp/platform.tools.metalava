@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JDiffXmlWriter
@@ -40,6 +38,8 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -132,9 +132,13 @@ class SignatureToJDiffCommand :
         OptionsDelegate.disallowAccess()
 
         val annotationManager = DefaultAnnotationManager()
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+            )
         val signatureFileLoader =
             SignatureFileLoader(
-                annotationManager = annotationManager,
+                codebaseConfig = codebaseConfig,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
@@ -205,32 +209,32 @@ private fun computeDelta(
     return TextCodebaseBuilder.build(
         location = baseFile,
         description = "Delta between $baseApi and $signatureApi",
-        annotationManager = signatureApi.annotationManager,
+        codebaseConfig = signatureApi.config,
     ) {
         CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
-                    override fun added(new: PackageItem) {
+                    override fun addedPackageItem(new: PackageItem) {
                         addPackage(new)
                     }
 
-                    override fun added(new: ClassItem) {
+                    override fun addedClassItem(new: ClassItem) {
                         addClass(new)
                     }
 
-                    override fun added(new: ConstructorItem) {
+                    override fun addedConstructorItem(new: ConstructorItem) {
                         addConstructor(new)
                     }
 
-                    override fun added(new: MethodItem) {
+                    override fun addedMethodItem(new: MethodItem) {
                         addMethod(new)
                     }
 
-                    override fun added(new: FieldItem) {
+                    override fun addedFieldItem(new: FieldItem) {
                         addField(new)
                     }
 
-                    override fun added(new: PropertyItem) {
+                    override fun addedPropertyItem(new: PropertyItem) {
                         addProperty(new)
                     }
                 },
