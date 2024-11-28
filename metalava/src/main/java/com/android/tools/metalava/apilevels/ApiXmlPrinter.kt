@@ -16,40 +16,57 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
 import java.io.PrintWriter
 
-/** Printer that will write an XML representation of an [Api] instance. */
+/**
+ * Printer that will write an XML representation of an [Api] instance.
+ *
+ * @param availableSdkExtensions the optional set of [AvailableSdkExtensions].
+ * @param firstApiLevel the first API level which the file contains, used to populate the `<api
+ *   min="..."...>` attribute.
+ * @param allVersions the list of all the versions in order, from earliest to latest.
+ */
 class ApiXmlPrinter(
-    private val sdkIdentifiers: Set<SdkIdentifier>,
+    private val availableSdkExtensions: AvailableSdkExtensions?,
     private val firstApiLevel: Int,
+    allVersions: List<SdkVersion>,
 ) : ApiPrinter {
+    /**
+     * Map from version to the next version. This is used to compute the version in which an API
+     * element was removed by finding the version after the version it was last present in.
+     */
+    private val versionToNext = allVersions.zipWithNext().toMap()
+
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-        api.print(writer, sdkIdentifiers)
+        api.print(writer, availableSdkExtensions)
     }
+
+    override fun toString() = "XML"
 
     /**
      * Prints the whole API definition to a writer.
      *
      * @param writer the writer to which the XML elements will be written.
      */
-    private fun Api.print(writer: PrintWriter, sdkIdentifiers: Set<SdkIdentifier>) {
+    private fun Api.print(writer: PrintWriter, availableSdkExtensions: AvailableSdkExtensions?) {
         writer.print("<api version=\"3\"")
         if (firstApiLevel > 1) {
             writer.print(" min=\"$firstApiLevel\"")
         }
         writer.println(">")
-        for ((id, shortname, name, reference) in sdkIdentifiers) {
-            writer.println(
-                String.format(
-                    "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
-                    id,
-                    shortname,
-                    name,
-                    reference
+        if (availableSdkExtensions != null) {
+            for (sdkExtension in availableSdkExtensions.sdkExtensions) {
+                writer.println(
+                    String.format(
+                        "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
+                        sdkExtension.id,
+                        sdkExtension.shortname,
+                        sdkExtension.name,
+                        sdkExtension.reference,
+                    )
                 )
-            )
+            }
         }
         print(classes, "class", "\t", writer)
         printClosingTag("api", "", writer)
@@ -153,8 +170,11 @@ class ApiXmlPrinter(
             writer.print(deprecatedIn)
         }
         if (lastPresentIn < parentElement.lastPresentIn) {
+            val removedFrom =
+                versionToNext[lastPresentIn]
+                    ?: error("could not find next version for $lastPresentIn")
             writer.print("\" removed=\"")
-            writer.print(lastPresentIn + 1)
+            writer.print(removedFrom)
         }
         writer.print('"')
         if (closeTag) {
