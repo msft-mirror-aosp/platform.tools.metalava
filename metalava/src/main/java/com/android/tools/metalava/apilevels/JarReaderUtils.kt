@@ -28,7 +28,7 @@ import org.objectweb.asm.tree.MethodNode
 fun Api.readAndroidJar(sdkVersion: SdkVersion, jar: File) {
     update(sdkVersion)
     val updater = ApiElement.Updater.forSdkVersion(sdkVersion)
-    readJar(jar, updater = updater)
+    readJar(jar, updater)
 }
 
 fun Api.readExtensionJar(
@@ -37,14 +37,12 @@ fun Api.readExtensionJar(
     jar: File,
     nextSdkVersion: SdkVersion
 ) {
-    val updater = ApiElement.Updater.forSdkVersion(nextSdkVersion)
-    readJar(jar, extVersion, module, updater)
+    val updater = ApiElement.Updater.forExtVersion(nextSdkVersion, extVersion, module)
+    readJar(jar, updater)
 }
 
 private fun Api.readJar(
     jar: File,
-    extVersion: ExtVersion? = null,
-    module: String? = null,
     updater: ApiElement.Updater,
 ) {
     val fis = FileInputStream(jar)
@@ -67,23 +65,17 @@ private fun Api.readJar(
                     updater,
                     classDeprecated,
                 )
-            extVersion?.let { theClass.updateExtension(extVersion) }
-            module?.let { theClass.updateMainlineModule(module) }
 
             theClass.updateHidden((classNode.access and Opcodes.ACC_PUBLIC) == 0)
 
             // super class
             if (classNode.superName != null) {
-                theClass.updateSuperClass(classNode.superName, updater).also { element ->
-                    extVersion?.let { element.updateExtension(extVersion) }
-                }
+                theClass.updateSuperClass(classNode.superName, updater)
             }
 
             // interfaces
             for (interfaceName in classNode.interfaces) {
-                theClass.updateInterface(interfaceName, updater).also { element ->
-                    extVersion?.let { element.updateExtension(extVersion) }
-                }
+                theClass.updateInterface(interfaceName, updater)
             }
 
             // fields
@@ -93,13 +85,11 @@ private fun Api.readJar(
                     continue
                 }
                 if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
-                    val apiField =
-                        theClass.updateField(
-                            fieldNode.name,
-                            updater,
-                            classDeprecated || isDeprecated(fieldNode.access),
-                        )
-                    extVersion?.let { apiField.updateExtension(extVersion) }
+                    theClass.updateField(
+                        fieldNode.name,
+                        updater,
+                        classDeprecated || isDeprecated(fieldNode.access),
+                    )
                 }
             }
 
@@ -110,13 +100,11 @@ private fun Api.readJar(
                     continue
                 }
                 if (methodNode.name != "<clinit>") {
-                    val apiMethod =
-                        theClass.updateMethod(
-                            methodNode.name + methodNode.desc,
-                            updater,
-                            classDeprecated || isDeprecated(methodNode.access),
-                        )
-                    extVersion?.let { apiMethod.updateExtension(extVersion) }
+                    theClass.updateMethod(
+                        methodNode.name + methodNode.desc,
+                        updater,
+                        classDeprecated || isDeprecated(methodNode.access),
+                    )
                 }
             }
 

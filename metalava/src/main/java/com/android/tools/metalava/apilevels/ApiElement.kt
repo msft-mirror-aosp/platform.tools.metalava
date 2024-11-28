@@ -177,10 +177,36 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
             }
         }
 
+        /**
+         * Extends [SdkVersionUpdater] to also update the [ApiElement.sinceExtension] and
+         * [ApiElement.mainlineModule] properties.
+         */
+        private class ExtensionUpdater(
+            nextSdkVersion: SdkVersion,
+            private val extVersion: ExtVersion,
+            private val module: String
+        ) : SdkVersionUpdater(nextSdkVersion) {
+            override fun update(apiElement: ApiElement, deprecated: Boolean) {
+                super.update(apiElement, deprecated)
+                apiElement.updateExtension(extVersion)
+                if (apiElement is ApiClass) {
+                    apiElement.updateMainlineModule(module)
+                }
+            }
+        }
+
         companion object {
             /** Create an [Updater] for [sdkVersion]. */
             fun forSdkVersion(sdkVersion: SdkVersion): Updater {
                 return SdkVersionUpdater(sdkVersion)
+            }
+
+            fun forExtVersion(
+                nextSdkVersion: SdkVersion,
+                extVersion: ExtVersion,
+                module: String
+            ): Updater {
+                return ExtensionUpdater(nextSdkVersion, extVersion, module)
             }
         }
     }
