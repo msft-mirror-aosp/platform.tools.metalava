@@ -85,7 +85,7 @@ open class ApiElement(
      * @param sdkVersion an API version for which the API element existed
      * @param deprecated whether the API element was deprecated in the API version in question
      */
-    fun update(sdkVersion: SdkVersion, deprecated: Boolean) {
+    fun update(sdkVersion: SdkVersion, deprecated: Boolean = deprecatedIn != null) {
         assert(sdkVersion.isValid)
         if (since > sdkVersion) {
             since = sdkVersion
@@ -107,15 +107,6 @@ open class ApiElement(
                 deprecatedIn = null
             }
         }
-    }
-
-    /**
-     * Updates the API element with information for a specific API version.
-     *
-     * @param sdkVersion an API version for which the API element existed
-     */
-    fun update(sdkVersion: SdkVersion) {
-        update(sdkVersion, deprecatedIn != null)
     }
 
     /**
