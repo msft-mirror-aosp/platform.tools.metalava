@@ -328,8 +328,4 @@ class ApiClass(name: String) : ApiElement(name) {
         }
         return result
     }
-
-    fun getMethod(name: String?): ApiElement? {
-        return mMethods[name]
-    }
 }

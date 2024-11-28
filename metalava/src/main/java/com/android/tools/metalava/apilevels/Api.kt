@@ -116,12 +116,11 @@ class Api : ParentApiElement {
 
         // getExtensionVersion was added in 30/R along with the class, and just like the class we
         // pretend it was always public.
-        sdkExtensions.getMethod("getExtensionVersion(I)I")!!.update(sdk30, false)
+        sdkExtensions.updateMethod("getExtensionVersion(I)I", sdk30, false)
 
         // getAllExtensionsVersions was added as part of 31/S SystemApi. Just like for the class
         // we pretend it was always public.
-        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.apply {
-            update(sdk31, false)
+        sdkExtensions.updateMethod("getAllExtensionVersions()Ljava/util/Map;", sdk31, false).apply {
             // Pretend this was not added in any extension.
             clearSdkExtensionInfo()
         }
