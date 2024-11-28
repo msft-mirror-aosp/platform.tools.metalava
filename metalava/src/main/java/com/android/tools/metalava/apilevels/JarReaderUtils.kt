@@ -60,7 +60,7 @@ fun Api.readJar(
 
             val classDeprecated = isDeprecated(classNode.access)
             val theClass =
-                addClass(
+                updateClass(
                     classNode.name,
                     sdkVersion,
                     classDeprecated,
@@ -72,14 +72,14 @@ fun Api.readJar(
 
             // super class
             if (classNode.superName != null) {
-                theClass.addSuperClass(classNode.superName, sdkVersion).also { element ->
+                theClass.updateSuperClass(classNode.superName, sdkVersion).also { element ->
                     extVersion?.let { element.updateExtension(extVersion) }
                 }
             }
 
             // interfaces
             for (interfaceName in classNode.interfaces) {
-                theClass.addInterface(interfaceName, sdkVersion).also { element ->
+                theClass.updateInterface(interfaceName, sdkVersion).also { element ->
                     extVersion?.let { element.updateExtension(extVersion) }
                 }
             }
@@ -92,7 +92,7 @@ fun Api.readJar(
                 }
                 if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
                     val apiField =
-                        theClass.addField(
+                        theClass.updateField(
                             fieldNode.name,
                             sdkVersion,
                             classDeprecated || isDeprecated(fieldNode.access),
@@ -109,7 +109,7 @@ fun Api.readJar(
                 }
                 if (methodNode.name != "<clinit>") {
                     val apiMethod =
-                        theClass.addMethod(
+                        theClass.updateMethod(
                             methodNode.name + methodNode.desc,
                             sdkVersion,
                             classDeprecated || isDeprecated(methodNode.access),

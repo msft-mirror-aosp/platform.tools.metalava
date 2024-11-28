@@ -46,34 +46,35 @@ fun addApisFromCodebase(
             }
 
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), sdkVersion, cls.effectivelyDeprecated)
+                val newClass =
+                    api.updateClass(cls.nameInApi(), sdkVersion, cls.effectivelyDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
                     val superClass = cls.superClass()
                     if (superClass != null) {
-                        newClass.addSuperClass(superClass.nameInApi(), sdkVersion)
+                        newClass.updateSuperClass(superClass.nameInApi(), sdkVersion)
                     }
                 } else if (cls.isInterface()) {
                     val superClass = cls.superClass()
                     if (superClass != null && !superClass.isJavaLangObject()) {
-                        newClass.addInterface(superClass.nameInApi(), sdkVersion)
+                        newClass.updateInterface(superClass.nameInApi(), sdkVersion)
                     }
                 } else if (cls.isEnum()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != enumClass) {
-                        newClass.addSuperClass(enumClass, sdkVersion)
+                        newClass.updateSuperClass(enumClass, sdkVersion)
                     }
 
                     // Mimic doclava enum methods
                     enumMethodNames(newClass.name).forEach { name ->
-                        newClass.addMethod(name, sdkVersion, false)
+                        newClass.updateMethod(name, sdkVersion, false)
                     }
                 } else if (cls.isAnnotationType()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != annotationClass) {
-                        newClass.addSuperClass(objectClass, sdkVersion)
-                        newClass.addInterface(annotationClass, sdkVersion)
+                        newClass.updateSuperClass(objectClass, sdkVersion)
+                        newClass.updateInterface(annotationClass, sdkVersion)
                     }
                 }
 
@@ -91,12 +92,12 @@ fun addApisFromCodebase(
                     (cls.isClass() || cls.isInterface()) &&
                         newClass.superClasses.singleOrNull()?.name == objectClass
                 ) {
-                    newClass.addSuperClass(objectClass, sdkVersion)
+                    newClass.updateSuperClass(objectClass, sdkVersion)
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {
                     val interfaceClass = interfaceType.asClass() ?: return
-                    newClass.addInterface(interfaceClass.nameInApi(), sdkVersion)
+                    newClass.updateInterface(interfaceClass.nameInApi(), sdkVersion)
                 }
             }
 
@@ -104,7 +105,7 @@ fun addApisFromCodebase(
                 if (callable.isPrivate || callable.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(
+                currentClass?.updateMethod(
                     callable.nameInApi(),
                     sdkVersion,
                     callable.effectivelyDeprecated
@@ -123,7 +124,11 @@ fun addApisFromCodebase(
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-                currentClass?.addField(field.nameInApi(), sdkVersion, field.effectivelyDeprecated)
+                currentClass?.updateField(
+                    field.nameInApi(),
+                    sdkVersion,
+                    field.effectivelyDeprecated
+                )
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */

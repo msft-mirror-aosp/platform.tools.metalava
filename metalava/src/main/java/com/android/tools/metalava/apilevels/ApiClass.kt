@@ -32,16 +32,39 @@ class ApiClass(name: String) : ApiElement(name) {
     private val mFields = ConcurrentHashMap<String, ApiElement>()
     private val mMethods = ConcurrentHashMap<String, ApiElement>()
 
-    fun addField(name: String, sdkVersion: SdkVersion, deprecated: Boolean): ApiElement {
-        return addToMap(mFields, name, sdkVersion, deprecated)
+    /**
+     * Updates the [ApiElement] for field with [name], creating and adding one if necessary.
+     *
+     * @param name the name of the field.
+     * @param sdkVersion the version to which this belongs.
+     * @param deprecated the deprecated status.
+     */
+    fun updateField(
+        name: String,
+        sdkVersion: SdkVersion,
+        deprecated: Boolean,
+    ): ApiElement {
+        return updateElementInMap(mFields, name, sdkVersion, deprecated)
     }
 
     val fields: Collection<ApiElement>
         get() = mFields.values
 
-    fun addMethod(name: String, sdkVersion: SdkVersion, deprecated: Boolean): ApiElement {
+    /**
+     * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
+     *
+     * @param signature the signature of the method, which includes the name and parameter/return
+     *   types
+     * @param sdkVersion the version to which this belongs.
+     * @param deprecated the deprecated status.
+     */
+    fun updateMethod(
+        signature: String,
+        sdkVersion: SdkVersion,
+        deprecated: Boolean,
+    ): ApiElement {
         // Correct historical mistake in android.jar files
-        var correctedName = name
+        var correctedName = signature
         if (correctedName.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
             correctedName =
                 correctedName.substring(
@@ -49,16 +72,22 @@ class ApiClass(name: String) : ApiElement(name) {
                     correctedName.length - ")Ljava/lang/AbstractStringBuilder;".length
                 ) + ")L" + this.name + ";"
         }
-        return addToMap(mMethods, correctedName, sdkVersion, deprecated)
+        return updateElementInMap(mMethods, correctedName, sdkVersion, deprecated)
     }
 
     val methods: Collection<ApiElement>
         get() = mMethods.values
 
-    fun addSuperClass(superClass: String, since: SdkVersion) =
-        addToMap(
+    /**
+     * Updates an element for [superClassType], creating and adding one if necessary.
+     *
+     * @param superClassType the name of the super class type.
+     * @param since the version to which this belongs.
+     */
+    fun updateSuperClass(superClassType: String, since: SdkVersion) =
+        updateElementInMap(
             mSuperClasses,
-            superClass,
+            superClassType,
             since,
             // References to super classes can never be deprecated.
             false,
@@ -71,10 +100,16 @@ class ApiClass(name: String) : ApiElement(name) {
         alwaysHidden = hidden
     }
 
-    fun addInterface(interfaceClass: String, since: SdkVersion) =
-        addToMap(
+    /**
+     * Updates an element for [interfaceType], creating and adding one if necessary.
+     *
+     * @param interfaceType the interface type.
+     * @param since the version to which this belongs.
+     */
+    fun updateInterface(interfaceType: String, since: SdkVersion) =
+        updateElementInMap(
             mInterfaces,
-            interfaceClass,
+            interfaceType,
             since,
             // References to interfaces can never be deprecated.
             false,
@@ -83,11 +118,11 @@ class ApiClass(name: String) : ApiElement(name) {
     val interfaces: Collection<ApiElement>
         get() = mInterfaces.values
 
-    private fun addToMap(
+    private fun updateElementInMap(
         elements: MutableMap<String, ApiElement>,
         name: String,
         sdkVersion: SdkVersion,
-        deprecated: Boolean
+        deprecated: Boolean,
     ): ApiElement {
         val existing = elements[name]
         val element = existing ?: ApiElement(name).apply { elements[name] = this }

@@ -51,14 +51,18 @@ class Api : ParentApiElement {
     override fun toString() = "Android Api"
 
     /**
-     * Adds or updates a class.
+     * Updates the [ApiClass] for the class called [name], creating and adding one if necessary.
      *
      * @param name the name of the class
      * @param version an API version in which the class existed
      * @param deprecated whether the class was deprecated in the API version
      * @return the newly created or a previously existed class
      */
-    fun addClass(name: String, version: SdkVersion, deprecated: Boolean): ApiClass {
+    fun updateClass(
+        name: String,
+        version: SdkVersion,
+        deprecated: Boolean,
+    ): ApiClass {
         val existing = mClasses[name]
         val classElement = existing ?: ApiClass(name).apply { mClasses[name] = this }
         classElement.update(version, deprecated)
@@ -105,7 +109,7 @@ class Api : ParentApiElement {
         }
 
         // Remove the sdks attribute from the extends for public and system.
-        sdkExtensions.addSuperClass("java/lang/Object", sdk30).apply {
+        sdkExtensions.updateSuperClass("java/lang/Object", sdk30).apply {
             // Pretend this was not added in any extension.
             clearSdkExtensionInfo()
         }
