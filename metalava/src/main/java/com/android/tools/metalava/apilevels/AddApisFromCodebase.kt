@@ -89,8 +89,7 @@ fun addApisFromCodebase(
                 // previously extend object and now extends something else.
                 if (
                     (cls.isClass() || cls.isInterface()) &&
-                        newClass.superClasses.size == 1 &&
-                        newClass.superClasses[0].name == objectClass
+                        newClass.superClasses.singleOrNull()?.name == objectClass
                 ) {
                     newClass.addSuperClass(objectClass, sdkVersion)
                 }

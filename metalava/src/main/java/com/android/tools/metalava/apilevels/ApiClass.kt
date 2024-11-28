@@ -24,13 +24,13 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class ApiClass(name: String) : ApiElement(name) {
 
-    private val mSuperClasses: MutableList<ApiElement> = ArrayList()
-    private val mInterfaces: MutableList<ApiElement> = ArrayList()
+    private val mSuperClasses = mutableMapOf<String, ApiElement>()
+    private val mInterfaces = mutableMapOf<String, ApiElement>()
 
     /** If `true`, never seen as public. */
     var alwaysHidden = false // Package private class?
-    private val mFields: MutableMap<String, ApiElement> = ConcurrentHashMap()
-    private val mMethods: MutableMap<String, ApiElement> = ConcurrentHashMap()
+    private val mFields = ConcurrentHashMap<String, ApiElement>()
+    private val mMethods = ConcurrentHashMap<String, ApiElement>()
 
     fun addField(name: String, sdkVersion: SdkVersion, deprecated: Boolean): ApiElement {
         return addToMap(mFields, name, sdkVersion, deprecated)
@@ -56,20 +56,32 @@ class ApiClass(name: String) : ApiElement(name) {
         get() = mMethods.values
 
     fun addSuperClass(superClass: String, since: SdkVersion) =
-        addToArray(mSuperClasses, superClass, since)
+        addToMap(
+            mSuperClasses,
+            superClass,
+            since,
+            // References to super classes can never be deprecated.
+            false,
+        )
 
-    val superClasses: List<ApiElement>
-        get() = mSuperClasses
+    val superClasses: Collection<ApiElement>
+        get() = mSuperClasses.values
 
     fun updateHidden(hidden: Boolean) {
         alwaysHidden = hidden
     }
 
     fun addInterface(interfaceClass: String, since: SdkVersion) =
-        addToArray(mInterfaces, interfaceClass, since)
+        addToMap(
+            mInterfaces,
+            interfaceClass,
+            since,
+            // References to interfaces can never be deprecated.
+            false,
+        )
 
-    val interfaces: List<ApiElement>
-        get() = mInterfaces
+    val interfaces: Collection<ApiElement>
+        get() = mInterfaces.values
 
     private fun addToMap(
         elements: MutableMap<String, ApiElement>,
@@ -83,26 +95,6 @@ class ApiClass(name: String) : ApiElement(name) {
         return element
     }
 
-    private fun addToArray(
-        elements: MutableCollection<ApiElement>,
-        name: String,
-        sdkVersion: SdkVersion
-    ): ApiElement {
-        val existing = findByName(elements, name)
-        val element = existing ?: ApiElement(name).apply { elements.add(this) }
-        element.update(sdkVersion)
-        return element
-    }
-
-    private fun findByName(collection: Collection<ApiElement>, name: String): ApiElement? {
-        for (element in collection) {
-            if (element.name == name) {
-                return element
-            }
-        }
-        return null
-    }
-
     /**
      * Removes all interfaces that are also implemented by superclasses or extended by interfaces
      * this class implements.
@@ -113,10 +105,10 @@ class ApiClass(name: String) : ApiElement(name) {
         if (mInterfaces.isEmpty() || mSuperClasses.isEmpty()) {
             return
         }
-        val iterator = mInterfaces.iterator()
+        val iterator = mInterfaces.values.iterator()
         while (iterator.hasNext()) {
             val interfaceElement = iterator.next()
-            for (superClass in mSuperClasses) {
+            for (superClass in superClasses) {
                 if (superClass.introducedNotLaterThan(interfaceElement)) {
                     val cls = allClasses[superClass.name]
                     if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
@@ -132,7 +124,7 @@ class ApiClass(name: String) : ApiElement(name) {
         interfaceElement: ApiElement,
         allClasses: Map<String, ApiClass>
     ): Boolean {
-        for (localInterface in mInterfaces) {
+        for (localInterface in interfaces) {
             if (localInterface.introducedNotLaterThan(interfaceElement)) {
                 if (interfaceElement.name == localInterface.name) {
                     return true
@@ -144,7 +136,7 @@ class ApiClass(name: String) : ApiElement(name) {
                 }
             }
         }
-        for (superClass in mSuperClasses) {
+        for (superClass in superClasses) {
             if (superClass.introducedNotLaterThan(interfaceElement)) {
                 val cls = allClasses[superClass.name]
                 if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
@@ -199,7 +191,7 @@ class ApiClass(name: String) : ApiElement(name) {
         allClasses: Map<String, ApiClass>
     ): Boolean {
         // Check this class' parents.
-        for (parent in Iterables.concat(mSuperClasses, mInterfaces)) {
+        for (parent in Iterables.concat(superClasses, interfaces)) {
             // Only check the parent if it was a parent class at the introduction of the method.
             if (parent!!.introducedNotLaterThan(method)) {
                 val cls = allClasses[parent.name]
@@ -243,7 +235,7 @@ class ApiClass(name: String) : ApiElement(name) {
         // android.jar files)
         // remove these here and replace with the filtered super classes, updating API levels in the
         // process
-        val iterator = mSuperClasses.listIterator()
+        val iterator = mSuperClasses.values.iterator()
         var min = SdkVersion.HIGHEST
         while (iterator.hasNext()) {
             val next = iterator.next()
@@ -252,7 +244,7 @@ class ApiClass(name: String) : ApiElement(name) {
             if (extendsClass != null && extendsClass.alwaysHidden) {
                 val since = extendsClass.since
                 iterator.remove()
-                for (other in mSuperClasses) {
+                for (other in superClasses) {
                     if (other.since >= since) {
                         other.update(min)
                     }
@@ -270,14 +262,14 @@ class ApiClass(name: String) : ApiElement(name) {
     // Connectivity apex, but being implemented by NrQosSessionAttributes from
     // frameworks/base/telephony.
     fun removeMissingClasses(api: Map<String, ApiClass>) {
-        val superClassIter = mSuperClasses.iterator()
+        val superClassIter = mSuperClasses.values.iterator()
         while (superClassIter.hasNext()) {
             val superClass = superClassIter.next()
             if (!api.containsKey(superClass.name)) {
                 superClassIter.remove()
             }
         }
-        val interfacesIter = mInterfaces.iterator()
+        val interfacesIter = mInterfaces.values.iterator()
         while (interfacesIter.hasNext()) {
             val intf = interfacesIter.next()
             if (!api.containsKey(intf.name)) {
@@ -289,12 +281,12 @@ class ApiClass(name: String) : ApiElement(name) {
     // Returns the set of superclasses or interfaces are not present in the provided api map
     fun findMissingClasses(api: Map<String, ApiClass>): Set<ApiElement> {
         val result: MutableSet<ApiElement> = HashSet()
-        for (superClass in mSuperClasses) {
+        for (superClass in superClasses) {
             if (!api.containsKey(superClass.name)) {
                 result.add(superClass)
             }
         }
-        for (intf in mInterfaces) {
+        for (intf in interfaces) {
             if (!api.containsKey(intf.name)) {
                 result.add(intf)
             }
