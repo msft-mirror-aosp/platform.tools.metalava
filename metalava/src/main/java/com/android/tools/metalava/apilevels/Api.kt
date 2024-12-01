@@ -20,7 +20,13 @@ import java.util.TreeMap
 import java.util.TreeSet
 
 /** Represents the whole Android API. */
-class Api : ApiElement("Android API") {
+class Api :
+    ApiElement(
+        "Android API",
+        // This has to behave as if it exists since before any specific version (so that every class
+        // always specifies its `since` attribute.
+        sdkVersion = SdkVersion.LOWEST,
+    ) {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
@@ -31,7 +37,7 @@ class Api : ApiElement("Android API") {
      * @param deprecated whether the class was deprecated in the API version
      * @return the newly created or a previously existed class
      */
-    fun addClass(name: String, version: Int, deprecated: Boolean): ApiClass {
+    fun addClass(name: String, version: SdkVersion, deprecated: Boolean): ApiClass {
         var classElement = mClasses[name]
         if (classElement == null) {
             classElement = ApiClass(name, version, deprecated)
@@ -62,24 +68,42 @@ class Api : ApiElement("Android API") {
     }
 
     private fun backfillSdkExtensions() {
-        // SdkExtensions.getExtensionVersion was added in 30/R, but was a SystemApi
-        // to avoid publishing the versioning API publicly before there was any
-        // valid use for it.
-        // getAllExtensionsVersions was added as part of 31/S
-        // The class and its APIs were made public between S and T, but we pretend
-        // here like it was always public, for maximum backward compatibility.
+        val sdk30 = SdkVersion.fromLevel(30)
+        val sdk31 = SdkVersion.fromLevel(31)
+        val sdk33 = SdkVersion.fromLevel(33)
         val sdkExtensions = findClass("android/os/ext/SdkExtensions")
-        if (sdkExtensions != null && sdkExtensions.since != 30 && sdkExtensions.since != 33) {
+        if (sdkExtensions != null && sdkExtensions.since != sdk30 && sdkExtensions.since != sdk33) {
             throw AssertionError("Received unexpected historical data")
-        } else if (sdkExtensions == null || sdkExtensions.since == 30) {
-            // This is the system API db (30), or module-lib/system-server dbs (null)
-            // They don't need patching.
+        } else if (sdkExtensions == null) {
+            // This is the module-lib/system-server dbs (null) and so don't need patching.
             return
+        } else if (sdkExtensions.since == sdk30) {
+            // This is the system API db (30). The class does not need patching but the members do.
+            // Drop through.
+        } else {
+            // The class was added in 30/R, but was a SystemApi to avoid publishing the versioning
+            // API publicly before there was any valid use for it. It was made public between S and
+            // T, but we pretend here like it was always public, for maximum backward compatibility.
+            sdkExtensions.update(sdk30, false)
         }
-        sdkExtensions.update(30, false)
-        sdkExtensions.addSuperClass("java/lang/Object", 30)
-        sdkExtensions.getMethod("getExtensionVersion(I)I")!!.update(30, false)
-        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.update(31, false)
+
+        // Remove the sdks attribute from the extends for public and system.
+        sdkExtensions.addSuperClass("java/lang/Object", sdk30).apply {
+            // Pretend this was not added in any extension.
+            clearSdkExtensionInfo()
+        }
+
+        // getExtensionVersion was added in 30/R along with the class, and just like the class we
+        // pretend it was always public.
+        sdkExtensions.getMethod("getExtensionVersion(I)I")!!.update(sdk30, false)
+
+        // getAllExtensionsVersions was added as part of 31/S SystemApi. Just like for the class
+        // we pretend it was always public.
+        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.apply {
+            update(sdk31, false)
+            // Pretend this was not added in any extension.
+            clearSdkExtensionInfo()
+        }
     }
 
     /**
@@ -105,9 +129,8 @@ class Api : ApiElement("Android API") {
     private fun inlineFromHiddenSuperClasses() {
         val hidden: MutableMap<String, ApiClass> = HashMap()
         for (classElement in mClasses.values) {
-            if (
-                classElement.hiddenUntil < 0
-            ) { // hidden in the .jar files? (mMax==codebase, -1: jar files)
+            if (classElement.alwaysHidden) {
+                // hidden in the .jar files? (mMax==codebase, -1: jar files)
                 hidden[classElement.name] = classElement
             }
         }
