@@ -17,8 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
-import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -29,6 +30,8 @@ class JavadocTest : DriverTest() {
     private fun checkStubs(
         @Language("JAVA") source: String,
         warnings: String? = "",
+        expectedFail: String? = null,
+        apiLint: String? = null,
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
@@ -40,8 +43,10 @@ class JavadocTest : DriverTest() {
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
             stubFiles = arrayOf(java(source)),
+            expectedFail = expectedFail,
             expectedIssues = warnings,
             checkCompilation = true,
+            apiLint = apiLint,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
@@ -152,8 +157,8 @@ class JavadocTest : DriverTest() {
                     import test.pkg2.OtherClass;
                     /**
                      *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass#foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass#bar(int,
+                     *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
                      *   boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
@@ -171,8 +176,8 @@ class JavadocTest : DriverTest() {
                     public SomeClass() { throw new RuntimeException("Stub!"); }
                     /**
                      * My method.
-                     * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass#FOCUS_INPUT} or
-                     *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass#FOCUS_ACCESSIBILITY}.
+                     * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
+                     *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                      * @throws java.io.IOException when blah blah blah
                      * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
                      */
@@ -189,6 +194,18 @@ class JavadocTest : DriverTest() {
         checkStubs(
             extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
             docStubs = false,
+            // Enable API lint to make sure that some issues will be reported.
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            // These warnings prove that lint is enabled and will report MutableBareField and
+            // MissingNullability, issues that would be reported on test.hidden.Hidden if it was not
+            // hidden by the package-info.java.
+            warnings =
+                """
+                    src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
+                    src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -233,7 +250,7 @@ class JavadocTest : DriverTest() {
                     public class OtherClass {
                         public static final int FOCUS_INPUT = 1;
                         public static final int FOCUS_ACCESSIBILITY = 2;
-                        public int foo;
+                        public String foo;
                         public void bar(int baz, boolean bar);
                     }
                     """
@@ -246,9 +263,25 @@ class JavadocTest : DriverTest() {
                     public class LocalClass {
                     }
                     """
+                    ),
+                    // Make sure that hiding a package by using `@hide` in the Javadoc of a
+                    // package-info.java file still works when allowReadingComments = false.
+                    java(
+                        """
+                            /** @hide */
+                            package test.hidden;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.hidden;
+
+                            public class Hidden {
+                                public String bareMutableFieldMissingNullability;
+                            }
+                        """,
                     )
                 ),
-            warnings = "",
             source =
                 """
                     package test.pkg1;
@@ -333,8 +366,8 @@ class JavadocTest : DriverTest() {
                 import test.pkg2.OtherClass;
                 /**
                  *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
-                 *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass#foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass#bar(int,
+                 *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
                  *   boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
@@ -352,8 +385,8 @@ class JavadocTest : DriverTest() {
                 public SomeClass() { throw new RuntimeException("Stub!"); }
                 /**
                  * My method.
-                 * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass#FOCUS_INPUT} or
-                 *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass#FOCUS_ACCESSIBILITY}.
+                 * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
+                 *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                  * @throws java.io.IOException when blah blah blah
                  * @throws {@link java.lang.RuntimeException} when blah blah blah
                  */
@@ -680,13 +713,13 @@ class JavadocTest : DriverTest() {
                 public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
                 /**
-                 * Called if the task was canceled before it was completed.  Gives the class a chance
-                 * to clean up post-cancellation and to properly dispose of the result.
+                 * Sends the result of the load to the registered listener. Should only be called by subclasses.
                  *
-                 * @param data The value that was returned by {@link #loadInBackground}, or null
-                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
+                 * Must be called from the process's main thread.
+                 *
+                 * @param data the result of the load
                  */
-                public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
+                public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
                 /**
                  * Called on a worker thread to perform the actual load and to return
                  * the result of the load operation.
@@ -709,13 +742,13 @@ class JavadocTest : DriverTest() {
                  */
                 public abstract java.lang.Object loadInBackground();
                 /**
-                 * Sends the result of the load to the registered listener. Should only be called by subclasses.
+                 * Called if the task was canceled before it was completed.  Gives the class a chance
+                 * to clean up post-cancellation and to properly dispose of the result.
                  *
-                 * Must be called from the process's main thread.
-                 *
-                 * @param data the result of the load
+                 * @param data The value that was returned by {@link #loadInBackground}, or null
+                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
                  */
-                public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
+                public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
                 }
                 """
         )
@@ -840,16 +873,16 @@ class JavadocTest : DriverTest() {
                 package test.pkg1;
                 import test.pkg2.MyChild;
                 /**
-                 * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild#CONSTANT1},
-                 * {@link test.pkg2.MyChild#CONSTANT2 MyChild#CONSTANT2}, and
-                 * {@link test.pkg2.MyChild#myMethod MyChild#myMethod}.
+                 * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
+                 * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and
+                 * {@link test.pkg2.MyChild#myMethod MyChild.myMethod}.
                  * <p>
                  * Absolute reference:
                  * {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1}
                  * <p>
                  * Inner class reference:
-                 * {@link test.pkg1.Test.TestInner#CONSTANT3 Test.TestInner#CONSTANT3}, again
-                 * {@link test.pkg1.Test.TestInner#CONSTANT3 TestInner#CONSTANT3}
+                 * {@link test.pkg1.Test.TestInner#CONSTANT3 Test.TestInner.CONSTANT3}, again
+                 * {@link test.pkg1.Test.TestInner#CONSTANT3 TestInner.CONSTANT3}
                  *
                  * @see test.pkg2.MyChild#myMethod
                  */
@@ -861,52 +894,6 @@ class JavadocTest : DriverTest() {
                 public TestInner() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT3 = "Hello";
                 }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Handle @attr references`() {
-        checkStubs(
-            docStubs = true,
-            warnings = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg1;
-
-                    @SuppressWarnings("all")
-                    public class Test {
-                        /**
-                         * Returns the drawable that will be drawn between each item in the list.
-                         *
-                         * @return the current drawable drawn between list elements
-                         * This value may be {@code null}.
-                         * @attr ref R.styleable#ListView_divider
-                         */
-                        public Object getFoo() {
-                            return null;
-                        }
-                    }
-                    """
-                    )
-                ),
-            source =
-                """
-                package test.pkg1;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Test {
-                public Test() { throw new RuntimeException("Stub!"); }
-                /**
-                 * Returns the drawable that will be drawn between each item in the list.
-                 *
-                 * @return the current drawable drawn between list elements
-                 * This value may be {@code null}.
-                 * @attr ref android.R.styleable#ListView_divider
-                 */
-                public java.lang.Object getFoo() { throw new RuntimeException("Stub!"); }
                 }
                 """
         )
@@ -963,13 +950,13 @@ class JavadocTest : DriverTest() {
                 package test.pkg1;
                 import test.pkg2.OtherClass2;
                 /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1#myMethod(OtherClass2, int name, OtherClass2[])},
+                 * Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])},
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
                 /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1#myMethod(E, int, OtherClass2 [])},
+                 * Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])},
                  */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
@@ -1069,7 +1056,7 @@ class JavadocTest : DriverTest() {
                 public Test() { throw new RuntimeException("Stub!"); }
                 /**
                  * Reference to {@link SomethingMissing} and
-                 * {@link java.lang.String#randomMethod String#randomMethod}.
+                 * {@link java.lang.String#randomMethod String.randomMethod}.
                  *
                  * @see OtherMissing
                  */
@@ -1148,8 +1135,8 @@ class JavadocTest : DriverTest() {
                      * @param right New right inset in pixels
                      * @param bottom New bottom inset in pixels
                      * @return A modified copy of this WindowInsets
-                     * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder#Builder(WindowInsets)} with
-                     *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder#setSystemWindowInsets(Insets)} instead.
+                     * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder.Builder(WindowInsets)} with
+                     *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder.setSystemWindowInsets(Insets)} instead.
                      */
                     @Deprecated
                     public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }

@@ -22,15 +22,11 @@ package com.android.tools.metalava.model
  * Instances of [AnnotationInfo] will be shared across [AnnotationItem]s that have the same
  * qualified name and (where applicable) the same attributes. That will allow the information in
  * [AnnotationInfo] to be computed once and then reused whenever needed.
- *
- * This class just sets the properties that can be determined simply by looking at the
- * [qualifiedName]. Any other properties are set to the default, usually `false`. Subclasses can
- * change that behavior.
  */
-open class AnnotationInfo(
-    /** The fully qualified and normalized name of the annotation class. */
-    val qualifiedName: String,
-) {
+interface AnnotationInfo {
+
+    /** The applicable targets for this annotation */
+    val targets: Set<AnnotationTarget>
 
     /**
      * Determines whether the annotation is nullability related.
@@ -38,23 +34,24 @@ open class AnnotationInfo(
      * If this is null then the annotation is not a nullability annotation, otherwise this
      * determines whether it is nullable or non-null.
      */
-    internal val typeNullability: TypeNullability? =
-        when {
-            isNullableAnnotation(qualifiedName) -> TypeNullability.NULLABLE
-            isNonNullAnnotation(qualifiedName) -> TypeNullability.NONNULL
-            else -> null
-        }
+    val typeNullability: TypeNullability?
 
     /**
      * Determines whether this annotation affects whether the annotated item is shown or hidden and
      * if so how.
      */
-    open val showability: Showability
-        get() = Showability.NO_EFFECT
+    val showability: Showability
 
-    open val suppressCompatibility: Boolean
-        get() = false
+    val suppressCompatibility: Boolean
 }
+
+/** Compute the [TypeNullability], if any, for the annotation with [qualifiedName]. */
+internal fun computeTypeNullability(qualifiedName: String): TypeNullability? =
+    when {
+        isNullableAnnotation(qualifiedName) -> TypeNullability.NULLABLE
+        isNonNullAnnotation(qualifiedName) -> TypeNullability.NONNULL
+        else -> null
+    }
 
 /**
  * The set of possible effects on whether an `Item` is part of an API.
@@ -81,13 +78,16 @@ enum class ShowOrHide(private val show: Boolean?) {
      * come after [SHOW].
      */
     REVERT_UNSTABLE_API(show = null) {
-        /** If the [revertItem] is not null then reverting will still show this item. */
-        override fun show(revertItem: Item?): Boolean {
-            return revertItem != null
+        /**
+         * If the [revertItem] is not null and `emit = true`, i.e. is for the API surface currently
+         * being generated, then reverting will still show this item.
+         */
+        override fun show(revertItem: SelectableItem?): Boolean {
+            return revertItem != null && revertItem.emit
         }
 
         /** If the [revertItem] is null then reverting will hide this item. */
-        override fun hide(revertItem: Item?): Boolean {
+        override fun hide(revertItem: SelectableItem?): Boolean {
             return revertItem == null
         }
     },
@@ -100,7 +100,7 @@ enum class ShowOrHide(private val show: Boolean?) {
      *   reverted. This is only set for, and only has an effect on, [REVERT_UNSTABLE_API], see
      *   [REVERT_UNSTABLE_API.show] for details.
      */
-    open fun show(revertItem: Item?): Boolean = show == true
+    open fun show(revertItem: SelectableItem?): Boolean = show == true
 
     /**
      * Return true if this hides an `Item` from the API.
@@ -109,30 +109,31 @@ enum class ShowOrHide(private val show: Boolean?) {
      *   reverted. This is only set for, and only has an effect on, [REVERT_UNSTABLE_API], see
      *   [REVERT_UNSTABLE_API.show] for details.
      */
-    open fun hide(revertItem: Item?): Boolean = show == false
+    open fun hide(revertItem: SelectableItem?): Boolean = show == false
 
     /** Return the highest priority between this and another [ShowOrHide]. */
     fun highestPriority(other: ShowOrHide): ShowOrHide = maxOf(this, other)
 }
 
 /**
- * Determines how an annotation will affect whether [Item]s annotated with it are part of the API or
- * not and also determines whether an [Item] is part of the API or not.
+ * Determines how an annotation will affect whether [SelectableItem]s annotated with it are part of
+ * the API or not and also determines whether a [SelectableItem] is part of the API or not.
  */
 data class Showability(
     /**
-     * Determines whether an API [Item] is shown as part of the API or hidden from the API.
+     * Determines whether an API [SelectableItem] is shown as part of the API or hidden from the
+     * API.
      *
-     * If [ShowOrHide.show] is `true` then the annotated [Item] will be shown as part of the API.
-     * That is the case for annotations that match `--show-annotation`, or
+     * If [ShowOrHide.show] is `true` then the annotated [SelectableItem] will be shown as part of
+     * the API. That is the case for annotations that match `--show-annotation`, or
      * `--show-single-annotation`, but not `--show-for-stub-purposes-annotation`.
      *
-     * If [ShowOrHide.hide] is `true` then the annotated [Item] will NOT be shown as part of the
-     * API. That is the case for annotations that match `--hide-annotation`.
+     * If [ShowOrHide.hide] is `true` then the annotated [SelectableItem] will NOT be shown as part
+     * of the API. That is the case for annotations that match `--hide-annotation`.
      *
-     * If neither of the above is then this has no effect on whether an annotated [Item] will be
-     * shown or not, that decision will be determined by its container's [Showability.recursive]
-     * setting.
+     * If neither of the above is then this has no effect on whether an annotated [SelectableItem]
+     * will be shown or not, that decision will be determined by its container's
+     * [Showability.recursive] setting.
      */
     private val show: ShowOrHide,
 
@@ -163,7 +164,7 @@ data class Showability(
     private val forStubsOnly: ShowOrHide,
 
     /** The item to which this item should be reverted. Null if no such item exists. */
-    val revertItem: Item? = null,
+    val revertItem: SelectableItem? = null,
 ) {
     /**
      * Check whether the annotated item should be considered part of the API or not.
@@ -181,6 +182,13 @@ data class Showability(
      * items will be part of an API surface that the API being generated extends.
      */
     fun showForStubsOnly() = forStubsOnly.show(revertItem)
+
+    /**
+     * Check whether the annotations on this item affect nested `Item`s.
+     *
+     * Returns `true` if they do, `false` if they do not affect nested `Item`s.
+     */
+    fun showRecursive() = recursive.show(revertItem) || forStubsOnly.show(revertItem)
 
     /**
      * Check whether the annotations on this item only affect the current `Item`.

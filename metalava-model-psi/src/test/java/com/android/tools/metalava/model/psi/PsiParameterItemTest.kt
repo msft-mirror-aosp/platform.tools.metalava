@@ -77,7 +77,7 @@ class PsiParameterItemTest : BaseModelTest() {
         ) {
             // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
             // classes.
-            val actualFile = codebase.assertClass("ActualKt").getSourceFile()
+            val actualFile = codebase.assertClass("ActualKt").sourceFile()
 
             val functionItem = codebase.assertClass("ActualKt").methods().single()
             with(functionItem) {
@@ -89,20 +89,20 @@ class PsiParameterItemTest : BaseModelTest() {
 
                 val parameter = parameters[1]
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
+                assertEquals("\"\"", parameter.defaultValueAsString())
 
                 // continuation
                 assertFalse(parameters[2].hasDefaultValue())
             }
 
             val classItem = codebase.assertClass("Test")
-            assertEquals(actualFile, classItem.getSourceFile())
+            assertEquals(actualFile, classItem.sourceFile())
 
             val constructorItem = classItem.constructors().single()
             with(constructorItem) {
                 val parameter = parameters().single()
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
+                assertEquals("\"\"", parameter.defaultValueAsString())
             }
 
             val methodItem = classItem.methods().single()
@@ -111,10 +111,10 @@ class PsiParameterItemTest : BaseModelTest() {
                 assertEquals(3, parameters.size)
 
                 assertTrue(parameters[0].hasDefaultValue())
-                assertEquals("\"\"", parameters[0].defaultValue())
+                assertEquals("\"\"", parameters[0].defaultValueAsString())
 
                 assertTrue(parameters[1].hasDefaultValue())
-                assertEquals("param + \"\"", parameters[1].defaultValue())
+                assertEquals("param + \"\"", parameters[1].defaultValueAsString())
 
                 assertFalse(parameters[2].hasDefaultValue())
             }

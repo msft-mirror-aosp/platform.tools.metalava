@@ -49,6 +49,11 @@ fun RawArgument.existingFile(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingFile)
 }
 
+/** Convert the option to a [File] that represents an existing directory. */
+fun RawOption.existingDir(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDir)
+}
+
 /** Convert the argument to a [File] that represents an existing directory. */
 fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)
@@ -72,6 +77,11 @@ fun RawArgument.newFile(): ProcessedArgument<File, File> {
 /** Convert the argument to a [File] that represents a new directory. */
 fun RawArgument.newDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToNewDir)
+}
+
+/** Convert the option to a [File] that represents a new or existing file. */
+fun RawOption.newOrExistingFile(): NullableOption<File, File> {
+    return fileConversion(::stringToNewOrExistingFile)
 }
 
 /** Convert the option to a [File] using the supplied conversion function.. */
@@ -201,6 +211,27 @@ internal fun stringToNewFile(value: String): File {
     }
 
     return output
+}
+
+/**
+ * Convert a string representing a new or existing file to a [File].
+ *
+ * This will fail if:
+ * * the file is a directory.
+ * * the parent directory does not exist, and cannot be created.
+ */
+internal fun stringToNewOrExistingFile(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.exists()) {
+        val parentFile = file.parentFile
+        if (parentFile != null && !parentFile.isDirectory) {
+            val ok = parentFile.mkdirs()
+            if (!ok) {
+                throw MetalavaCliException("Could not create $parentFile")
+            }
+        }
+    }
+    return file
 }
 
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just

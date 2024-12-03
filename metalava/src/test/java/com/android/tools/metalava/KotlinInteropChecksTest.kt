@@ -207,7 +207,7 @@ class KotlinInteropChecksTest : DriverTest() {
                         fun ok(int: Int = 0, int2: Int = 0) { }
                     }
 
-                    class Foo {
+                    class Foo(string: String = "default", long: Long = 0) {
                         fun ok1() { }
                         fun ok2(int: Int) { }
                         fun ok3(int: Int, int2: Int) { }
@@ -364,6 +364,47 @@ class KotlinInteropChecksTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check value classes are banned`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Container.kt:4: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
+                    src/test/pkg/PublicValueClass.kt:3: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline
+                            value class PublicValueClass(val value: Int)
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Container {
+                                @JvmInline
+                                value class PublicNestedValueClass(val value: Int)
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            // This is okay, it isn't public API.
+                            @JvmInline
+                            internal value class InternalValueClass(val value: Int)
+                        """
+                    )
+                ),
         )
     }
 }

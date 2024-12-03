@@ -15,7 +15,7 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
+import com.android.tools.metalava.SdkExtension
 import javax.xml.parsers.SAXParserFactory
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
@@ -24,20 +24,24 @@ import org.xml.sax.helpers.DefaultHandler
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
  * what extension SDK it first appeared in. Also, a mapping between SDK name and numerical ID.
  *
- * Internally, the filers are represented as a tree, where each node in the tree matches a part of a
- * package, class or member name. For example, given the patterns
+ * Internally, the filters are represented as a tree, where each node in the tree matches a part of
+ * a package, class or member name. For example, given the patterns
  *
+ * ```
  * com.example.Foo -> [A] com.example.Foo#someMethod -> [B] com.example.Bar -> [A, C]
+ * ```
  *
  * (anything prefixed with com.example.Foo is allowed and part of the A extension, except for
  * com.example.Foo#someMethod which is part of B; anything prefixed with com.example.Bar is part of
  * both A and C), the internal tree looks like
  *
+ * ```
  * root -> null com -> null example -> null Foo -> [A] someMethod -> [B] Bar -> [A, C]
+ * ```
  */
 class ApiToExtensionsMap
 private constructor(
-    private val sdkIdentifiers: Set<SdkIdentifier>,
+    val availableSdkExtensions: AvailableSdkExtensions,
     private val root: Node,
 ) {
     fun isEmpty(): Boolean = root.children.isEmpty() && root.extensions.isEmpty()
@@ -71,8 +75,6 @@ private constructor(
         return lastSeenExtensions
     }
 
-    fun getSdkIdentifiers(): Set<SdkIdentifier> = sdkIdentifiers.toSet()
-
     /**
      * Construct a `sdks` attribute value
      *
@@ -82,7 +84,9 @@ private constructor(
      *
      * The format of `sdks` is
      *
+     * ```
      * sdks="ext:version[,ext:version[,...]]
+     * ```
      *
      * where <ext> is the numerical ID of the SDK, and <version> is the version in which the API was
      * introduced.
@@ -99,33 +103,34 @@ private constructor(
      *   notFinalizedValue if this symbol has not been finalized in an Android dessert
      * @param notFinalizedValue value used together with the Android SDK ID to indicate that this
      *   symbol has not been finalized at all
-     * @param extensions names of the SDK extensions in which this symbol has been finalized (may be
-     *   non-empty even if extensionsSince is ApiElement.NEVER)
+     * @param shortExtensionNames short names of the SDK extensions in which this symbol has been
+     *   finalized; may be non-empty even if extensionsSince is `null`.
      * @param extensionsSince the version of the SDK extensions in which this API was initially
-     *   introduced (same value for all SDK extensions), or ApiElement.NEVER if this symbol has not
-     *   been finalized in any SDK extension (regardless of the extensions argument)
+     *   introduced (same value for all SDK extensions), or `null` if this symbol has not been
+     *   finalized in any SDK extension (regardless of the [shortExtensionNames] argument)
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
-        androidSince: Int,
-        notFinalizedValue: Int,
-        extensions: List<String>,
-        extensionsSince: Int
+        androidSince: ApiVersion,
+        notFinalizedValue: ApiVersion,
+        shortExtensionNames: List<String>,
+        extensionsSince: ExtVersion?,
     ): String {
         // Special case: symbol not finalized anywhere -> "ANDROID_SDK:next_dessert_int"
-        if (androidSince == notFinalizedValue && extensionsSince == ApiElement.NEVER) {
+        if (androidSince == notFinalizedValue && extensionsSince == null) {
             return "$ANDROID_PLATFORM_SDK_ID:$notFinalizedValue"
         }
 
         val versions = mutableSetOf<String>()
-        // Only include SDK extensions if the symbol has been finalized in at least one
-        if (extensionsSince != ApiElement.NEVER) {
-            for (ext in extensions) {
-                val ident =
-                    sdkIdentifiers.find { it.shortname == ext }
-                        ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
-                assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
-                versions.add("${ident.id}:$extensionsSince")
+        // Only include SDK extensions if the symbol has been finalized in at least one extension.
+        if (extensionsSince != null) {
+            for (shortExtensionName in shortExtensionNames) {
+                val sdkExtension = availableSdkExtensions.retrieveSdkExtension(shortExtensionName)
+                // Only add the extension version in which a symbol was added for those SDK
+                // extensions that supersede the Android SDK version.
+                if (sdkExtension.supersedesAndroidSdkVersion(androidSince)) {
+                    versions.add("${sdkExtension.id}:$extensionsSince")
+                }
             }
         }
 
@@ -184,7 +189,7 @@ private constructor(
          */
         fun fromXml(filterByJar: String, xml: String): ApiToExtensionsMap {
             val root = Node("<root>")
-            val sdkIdentifiers = mutableSetOf<SdkIdentifier>()
+            val sdkExtensions = mutableSetOf<SdkExtension>()
             val allSeenExtensions = mutableSetOf<String>()
 
             val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
@@ -206,8 +211,13 @@ private constructor(
                                     val name = attributes.getStringOrThrow(qualifiedName, "name")
                                     val reference =
                                         attributes.getStringOrThrow(qualifiedName, "reference")
-                                    sdkIdentifiers.add(
-                                        SdkIdentifier(id, shortname, name, reference)
+                                    sdkExtensions.add(
+                                        SdkExtension.fromXmlAttributes(
+                                            id,
+                                            shortname,
+                                            name,
+                                            reference,
+                                        )
                                     )
                                 }
                                 "symbol" -> {
@@ -254,42 +264,16 @@ private constructor(
                 throw IllegalArgumentException("failed to parse xml", e)
             }
 
-            // verify: the predefined Android platform SDK ID is not reused as an extension SDK ID
-            if (sdkIdentifiers.any { it.id == ANDROID_PLATFORM_SDK_ID }) {
-                throw IllegalArgumentException(
-                    "bad SDK definition: the ID $ANDROID_PLATFORM_SDK_ID is reserved for the Android platform SDK"
-                )
-            }
+            val availableSdkExtensions = AvailableSdkExtensions(sdkExtensions)
 
             // verify: all rules refer to declared SDKs
-            val allSdkNames = sdkIdentifiers.map { it.shortname }.toList()
             for (ext in allSeenExtensions) {
-                if (!allSdkNames.contains(ext)) {
+                if (!availableSdkExtensions.containsSdkExtension(ext)) {
                     throw IllegalArgumentException("bad SDK definitions: undefined SDK $ext")
                 }
             }
 
-            // verify: no duplicate SDK IDs
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.id }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK IDs")
-            }
-
-            // verify: no duplicate SDK names
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.shortname }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK short names")
-            }
-
-            // verify: no duplicate SDK names
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.name }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK names")
-            }
-
-            // verify: no duplicate SDK references
-            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.reference }.size) {
-                throw IllegalArgumentException("bad SDK definitions: duplicate SDK references")
-            }
-
-            return ApiToExtensionsMap(sdkIdentifiers, root)
+            return ApiToExtensionsMap(availableSdkExtensions, root)
         }
     }
 }
