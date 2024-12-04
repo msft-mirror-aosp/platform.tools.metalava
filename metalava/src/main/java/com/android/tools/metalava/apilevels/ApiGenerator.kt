@@ -18,7 +18,6 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import java.io.File
 import java.io.IOException
 
@@ -101,11 +100,7 @@ class ApiGenerator {
     private fun createApiFromSignatureFiles(previousApiFiles: List<VersionedSignatureApi>): Api {
         val api = Api()
         for (versionedSignatureFile in previousApiFiles) {
-            val codebase = versionedSignatureFile.load()
-            val codebaseFragment =
-                CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            val apiVersion = versionedSignatureFile.apiVersion
-            addApisFromCodebase(api, apiVersion, codebaseFragment, false)
+            versionedSignatureFile.updateApi(api)
         }
         api.clean()
         return api
