@@ -30,9 +30,6 @@ private data class CacheKey(
 class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) {
     private val map = mutableMapOf<CacheKey, Codebase>()
 
-    fun load(signatureFile: SignatureFile, classResolver: ClassResolver? = null): Codebase =
-        load(listOf(signatureFile), classResolver)
-
     fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase {
         val key = CacheKey(signatureFiles, classResolver)
         return map.computeIfAbsent(key) { k ->
