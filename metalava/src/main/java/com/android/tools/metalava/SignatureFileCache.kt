@@ -33,7 +33,7 @@ class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) {
     fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase {
         val key = CacheKey(signatureFiles, classResolver)
         return map.computeIfAbsent(key) { k ->
-            signatureFileLoader.loadFiles(k.signatureFiles, k.classResolver).apply {
+            signatureFileLoader.load(k.signatureFiles, k.classResolver).apply {
                 // Freeze the classes before caching to avoid any changes being made to cached and
                 // potentially shared objects.
                 freezeClasses()

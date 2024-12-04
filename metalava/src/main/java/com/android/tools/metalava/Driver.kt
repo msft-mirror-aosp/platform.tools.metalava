@@ -192,7 +192,7 @@ internal fun processFlags(
                     )
                 }
             val signatureFileLoader = options.signatureFileLoader
-            signatureFileLoader.loadFiles(
+            signatureFileLoader.load(
                 SignatureFile.fromFiles(sources),
                 classResolverProvider.classResolver,
             )
