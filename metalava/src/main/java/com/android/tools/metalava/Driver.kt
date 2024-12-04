@@ -280,7 +280,7 @@ internal fun processFlags(
         }
     }
 
-    options.apiLevelsGenerationOptions.generateApiVersionsFromSignatureFilesConfig?.let { config ->
+    options.apiLevelsGenerationOptions.fromSignatureFilesConfig()?.let { config ->
         progressTracker.progress(
             "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
         )
