@@ -222,7 +222,13 @@ internal fun processFlags(
     }
 
     val generateXmlConfig = options.apiLevelsGenerationOptions.generateXmlConfig
-    val apiGenerator = ApiGenerator(signatureFileCache)
+    val apiGenerator =
+        ApiGenerator(
+            // Do not use a cache here as each file loaded is only loaded once and the created
+            // Codebase is discarded immediately after use so caching just uses memory for no
+            // performance benefit.
+            options.signatureFileLoader,
+        )
     if (generateXmlConfig != null) {
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "

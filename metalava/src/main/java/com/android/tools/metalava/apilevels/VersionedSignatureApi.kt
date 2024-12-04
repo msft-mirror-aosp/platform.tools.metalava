@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SignatureFileCache
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
@@ -26,7 +26,7 @@ import java.io.File
  * [file] that contains an API signature.
  */
 class VersionedSignatureApi(val apiVersion: ApiVersion, private val file: File) {
-    /** Load the API into a [Codebase] using the [signatureFileCache]. */
-    fun load(signatureFileCache: SignatureFileCache) =
-        signatureFileCache.load(SignatureFile.fromFiles(file))
+    /** Load the API into a [Codebase] using the [signatureFileLoader]. */
+    fun load(signatureFileLoader: SignatureFileLoader) =
+        signatureFileLoader.load(SignatureFile.fromFiles(file))
 }

@@ -15,9 +15,9 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import java.io.File
@@ -27,7 +27,7 @@ import java.io.IOException
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
  * simple text files.
  */
-class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
+class ApiGenerator(private val signatureFileLoader: SignatureFileLoader) {
     /**
      * Generates an XML API version history file based on the API surfaces of the versions provided.
      *
@@ -102,7 +102,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     private fun createApiFromSignatureFiles(previousApiFiles: List<VersionedSignatureApi>): Api {
         val api = Api()
         for (versionedSignatureFile in previousApiFiles) {
-            val codebase = versionedSignatureFile.load(signatureFileCache)
+            val codebase = versionedSignatureFile.load(signatureFileLoader)
             val codebaseFragment =
                 CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
             val apiVersion = versionedSignatureFile.apiVersion
