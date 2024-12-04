@@ -20,6 +20,7 @@ package com.android.tools.metalava
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
@@ -298,7 +299,9 @@ internal fun processFlags(
                     )
                 }
 
-            apiGenerator.generateFromSignatureFiles(codebaseFragment, config)
+            val sourceVersionedApi = VersionedSourceApi(codebaseFragment, config.currentVersion)
+
+            apiGenerator.generateFromSignatureFiles(sourceVersionedApi, config)
         }
 
     // Generate the documentation stubs *before* we migrate nullness information.

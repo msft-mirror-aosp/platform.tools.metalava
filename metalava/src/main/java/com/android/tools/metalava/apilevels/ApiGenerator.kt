@@ -109,20 +109,15 @@ class ApiGenerator {
     /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
-     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
+     * @param sourceVersionedApi A [VersionedSourceApi] representing the current API surface.
      * @param config Configuration provided from command line options.
      */
     fun generateFromSignatureFiles(
-        codebaseFragment: CodebaseFragment,
+        sourceVersionedApi: VersionedSourceApi,
         config: GenerateApiVersionsFromSignatureFilesConfig,
     ) {
         val api = createApiFromSignatureFiles(config.versionedSignatureApis)
-        addApisFromCodebase(
-            api,
-            config.currentVersion,
-            codebaseFragment,
-            false,
-        )
+        sourceVersionedApi.updateApi(api)
         createApiLevelsFile(config.outputFile, config.printer, api)
     }
 
