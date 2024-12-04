@@ -20,9 +20,10 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
-import com.android.tools.metalava.apilevels.GenerateApiVersionsFromSignatureFilesConfig
+import com.android.tools.metalava.apilevels.GenerateApiVersionsFromVersionedApisConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
+import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -32,6 +33,8 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -447,10 +450,22 @@ class ApiLevelsGenerationOptions(
             )
             .split(" ")
 
-    /** Construct the [GenerateApiVersionsFromSignatureFilesConfig] from the options. */
+    /**
+     * Construct the [GenerateApiVersionsFromVersionedApisConfig] from the options.
+     *
+     * If no relevant command line options were provided then this will return `null`, otherwise it
+     * will validate the options and if all is well construct and return a
+     * [GenerateApiVersionsFromVersionedApisConfig] object.
+     *
+     * @param signatureFileLoader used for loading [Codebase]s from signature files.
+     * @param codebaseFragmentProvider provides access to the [CodebaseFragment] for the API defined
+     *   in the sources. This will only be called if a [GenerateApiVersionsFromVersionedApisConfig]
+     *   needs to be created.
+     */
     fun fromSignatureFilesConfig(
-        signatureFileLoader: SignatureFileLoader
-    ): GenerateApiVersionsFromSignatureFilesConfig? {
+        signatureFileLoader: SignatureFileLoader,
+        codebaseFragmentProvider: () -> CodebaseFragment,
+    ): GenerateApiVersionsFromVersionedApisConfig? {
         // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
         // so there should be 1 more name than signature file (or both can be null)
         val numVersionNames = apiVersionNames?.size ?: 0
@@ -469,12 +484,18 @@ class ApiLevelsGenerationOptions(
 
             val allVersions = apiVersionNames.map { ApiVersion.fromString(it) }
 
+            val sourceVersion = allVersions.last()
+
             // Combine the `pastApiVersions` and `apiVersionNames` into a list of
             // `VersionedSignatureApi`s.
-            val versionedSignatureApis =
-                pastApiVersions.mapIndexed { index, file ->
+            val versionedApis = buildList {
+                pastApiVersions.mapIndexedTo(this) { index, file ->
                     VersionedSignatureApi(signatureFileLoader, file, allVersions[index])
                 }
+                // Add a VersionedSourceApi for the source code.
+                val codebaseFragment = codebaseFragmentProvider()
+                add(VersionedSourceApi(codebaseFragment, sourceVersion))
+            }
 
             val printer =
                 when (val extension = apiVersionsFile.extension) {
@@ -486,9 +507,8 @@ class ApiLevelsGenerationOptions(
                         )
                 }
 
-            GenerateApiVersionsFromSignatureFilesConfig(
-                versionedSignatureApis = versionedSignatureApis,
-                currentVersion = allVersions.last(),
+            GenerateApiVersionsFromVersionedApisConfig(
+                versionedApis = versionedApis,
                 outputFile = apiVersionsFile,
                 printer = printer,
             )

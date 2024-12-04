@@ -91,16 +91,15 @@ class ApiGenerator {
     }
 
     /**
-     * Creates an [Api] from a list of past API signature files. In the generated [Api], the oldest
-     * API version will be represented as level 1, the next as level 2, etc.
+     * Creates an [Api] from a list of [VersionedApi]s.
      *
-     * @param previousApiFiles A list of API signature files, one for each version of the API, in
-     *   order from oldest to newest API version.
+     * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
+     *   from oldest to newest API version.
      */
-    private fun createApiFromSignatureFiles(previousApiFiles: List<VersionedSignatureApi>): Api {
+    private fun createApiFromVersionedApis(versionedApis: List<VersionedApi>): Api {
         val api = Api()
-        for (versionedSignatureFile in previousApiFiles) {
-            versionedSignatureFile.updateApi(api)
+        for (versionedApi in versionedApis) {
+            versionedApi.updateApi(api)
         }
         api.clean()
         return api
@@ -109,15 +108,12 @@ class ApiGenerator {
     /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
-     * @param sourceVersionedApi A [VersionedSourceApi] representing the current API surface.
      * @param config Configuration provided from command line options.
      */
-    fun generateFromSignatureFiles(
-        sourceVersionedApi: VersionedSourceApi,
-        config: GenerateApiVersionsFromSignatureFilesConfig,
+    fun generateFromVersionedApis(
+        config: GenerateApiVersionsFromVersionedApisConfig,
     ) {
-        val api = createApiFromSignatureFiles(config.versionedSignatureApis)
-        sourceVersionedApi.updateApi(api)
+        val api = createApiFromVersionedApis(config.versionedApis)
         createApiLevelsFile(config.outputFile, config.printer, api)
     }
 

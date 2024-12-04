@@ -20,7 +20,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
@@ -281,16 +280,12 @@ internal fun processFlags(
             // Codebase is discarded immediately after use so caching just uses memory for no
             // performance benefit.
             options.signatureFileLoader,
-        )
-        ?.let { config ->
-            progressTracker.progress(
-                "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
-            )
+            // Provide a CodebaseFragment from the sources that will be included in the generated
+            // version history.
+            codebaseFragmentProvider = {
+                val apiType = ApiType.PUBLIC_API
+                val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
-            val apiType = ApiType.PUBLIC_API
-            val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
-
-            val codebaseFragment =
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
                         delegate = delegatedVisitor,
@@ -298,10 +293,14 @@ internal fun processFlags(
                         preFiltered = false,
                     )
                 }
+            }
+        )
+        ?.let { config ->
+            progressTracker.progress(
+                "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
+            )
 
-            val sourceVersionedApi = VersionedSourceApi(codebaseFragment, config.currentVersion)
-
-            apiGenerator.generateFromSignatureFiles(sourceVersionedApi, config)
+            apiGenerator.generateFromVersionedApis(config)
         }
 
     // Generate the documentation stubs *before* we migrate nullness information.
