@@ -26,6 +26,7 @@ import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
@@ -447,7 +448,9 @@ class ApiLevelsGenerationOptions(
             .split(" ")
 
     /** Construct the [GenerateApiVersionsFromSignatureFilesConfig] from the options. */
-    fun fromSignatureFilesConfig(): GenerateApiVersionsFromSignatureFilesConfig? {
+    fun fromSignatureFilesConfig(
+        signatureFileLoader: SignatureFileLoader
+    ): GenerateApiVersionsFromSignatureFilesConfig? {
         // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
         // so there should be 1 more name than signature file (or both can be null)
         val numVersionNames = apiVersionNames?.size ?: 0
@@ -470,7 +473,7 @@ class ApiLevelsGenerationOptions(
             // `VersionedSignatureApi`s.
             val versionedSignatureApis =
                 pastApiVersions.mapIndexed { index, file ->
-                    VersionedSignatureApi(allVersions[index], file)
+                    VersionedSignatureApi(signatureFileLoader, file, allVersions[index])
                 }
 
             val printer =

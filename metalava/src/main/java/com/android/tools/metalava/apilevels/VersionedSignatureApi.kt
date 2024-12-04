@@ -24,9 +24,14 @@ import java.io.File
 /**
  * Encapsulates an [ApiVersion] and associated API definition, currently represented by a single
  * [file] that contains an API signature.
+ *
+ * Also, includes a [signatureFileLoader] that is used to load a [Codebase] from [file].
  */
-class VersionedSignatureApi(val apiVersion: ApiVersion, private val file: File) {
+class VersionedSignatureApi(
+    private val signatureFileLoader: SignatureFileLoader,
+    private val file: File,
+    val apiVersion: ApiVersion,
+) {
     /** Load the API into a [Codebase] using the [signatureFileLoader]. */
-    fun load(signatureFileLoader: SignatureFileLoader) =
-        signatureFileLoader.load(SignatureFile.fromFiles(file))
+    fun load() = signatureFileLoader.load(SignatureFile.fromFiles(file))
 }
