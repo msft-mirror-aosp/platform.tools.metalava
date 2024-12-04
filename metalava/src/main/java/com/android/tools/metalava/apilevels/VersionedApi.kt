@@ -16,17 +16,13 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.model.CodebaseFragment
-
 /**
- * Supports updating an [Api] with information from the [apiVersion] of the API that is defined by
- * the [codebaseFragment] of the sources.
+ * Represents a specific [ApiVersion] of an API.
+ *
+ * Supports updating [Api] with information from the [apiVersion] of the API that is defined in
+ * * the signature [file].
  */
-class VersionedSourceApi(
-    private val codebaseFragment: CodebaseFragment,
-    private val apiVersion: ApiVersion,
-) : VersionedApi {
-    override fun updateApi(api: Api) {
-        addApisFromCodebase(api, apiVersion, codebaseFragment, useInternalNames = false)
-    }
+interface VersionedApi {
+    /** Update [api] with information from this version of the API. */
+    fun updateApi(api: Api)
 }

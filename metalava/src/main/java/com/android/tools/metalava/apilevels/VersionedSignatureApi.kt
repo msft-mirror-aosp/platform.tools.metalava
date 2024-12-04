@@ -30,9 +30,8 @@ class VersionedSignatureApi(
     private val signatureFileLoader: SignatureFileLoader,
     private val file: File,
     private val apiVersion: ApiVersion,
-) {
-    /** Update [api] with information from the [apiVersion] of the API defined in [file]. */
-    fun updateApi(api: Api) {
+) : VersionedApi {
+    override fun updateApi(api: Api) {
         val codebase = signatureFileLoader.load(SignatureFile.fromFiles(file))
         val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
         addApisFromCodebase(api, apiVersion, codebaseFragment, false)
