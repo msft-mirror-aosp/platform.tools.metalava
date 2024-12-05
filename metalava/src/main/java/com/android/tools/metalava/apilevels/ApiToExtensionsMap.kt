@@ -41,7 +41,7 @@ import org.xml.sax.helpers.DefaultHandler
  */
 class ApiToExtensionsMap
 private constructor(
-    val availableSdkExtensions: AvailableSdkExtensions,
+    private val availableSdkExtensions: AvailableSdkExtensions,
     private val root: Node,
 ) {
     fun isEmpty(): Boolean = root.children.isEmpty() && root.extensions.isEmpty()
@@ -185,7 +185,7 @@ private constructor(
          * @param xml XML as described above
          * @throws IllegalArgumentException if the XML is malformed
          */
-        fun fromXml(filterByJar: String, xml: String): ApiToExtensionsMap {
+        fun fromXml(filterByJar: String, xml: String): SdkExtensionInfo {
             val root = Node("<root>")
             val sdkExtensions = mutableSetOf<SdkExtension>()
             val allSeenExtensions = mutableSetOf<String>()
@@ -271,7 +271,8 @@ private constructor(
                 }
             }
 
-            return ApiToExtensionsMap(availableSdkExtensions, root)
+            val apiToExtensionsMap = ApiToExtensionsMap(availableSdkExtensions, root)
+            return SdkExtensionInfo(availableSdkExtensions, apiToExtensionsMap)
         }
     }
 }

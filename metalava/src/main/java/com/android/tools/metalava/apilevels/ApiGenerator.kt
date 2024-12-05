@@ -153,7 +153,7 @@ class ApiGenerator {
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
         val moduleMaps: MutableMap<String, ApiToExtensionsMap> = HashMap()
         for ((mainlineModule, value) in map) {
-            val moduleMap = fromXml(mainlineModule, rules)
+            val moduleMap = fromXml(mainlineModule, rules).apiToExtensionsMap
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
             moduleMaps[mainlineModule] = moduleMap
