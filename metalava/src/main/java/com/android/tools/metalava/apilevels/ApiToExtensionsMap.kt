@@ -58,7 +58,7 @@ private constructor(
             return listOf()
         }
 
-        val parts = what.split(REGEX_DELIMITERS)
+        val parts = what.splitIntoBreadcrumbs()
 
         var lastSeenExtensions = root.extensions
         var node = root.children.findNode(parts[0]) ?: return lastSeenExtensions
@@ -147,8 +147,6 @@ private constructor(
         // Hard-coded ID for the Android platform SDK. Used identically as the extension SDK IDs
         // to express when an API first appeared in an SDK.
         const val ANDROID_PLATFORM_SDK_ID = 0
-
-        private val REGEX_DELIMITERS = Regex("[.#$]")
 
         /**
          * Create an ApiToExtensionsMap from a list of text based rules.
@@ -242,11 +240,11 @@ private constructor(
                                         return
                                     }
                                     // add each part of the pattern as separate nodes, e.g. if
-                                    // pattern is
-                                    // com.example.Foo, add nodes, "com" -> "example" -> "Foo"
-                                    val parts = pattern.split(REGEX_DELIMITERS)
-                                    var node = root.children.addNode(parts[0])
-                                    for (name in parts.stream().skip(1)) {
+                                    // pattern is com.example.Foo, add nodes:
+                                    //     "com" -> "example" -> "Foo"
+                                    val parts = pattern.splitIntoBreadcrumbs()
+                                    var node = root
+                                    for (name in parts) {
                                         node = node.children.addNode(name)
                                     }
                                     if (node.extensions.isNotEmpty()) {
@@ -302,3 +300,21 @@ private class Node(val breadcrumb: String) {
     var extensions: List<String> = emptyList()
     val children: MutableSet<Node> = mutableSetOf()
 }
+
+/**
+ * Regular expression used to split an internal symbol name into separate breadcrumbs, i.e. values
+ * that will be used in [Node.breadcrumb].
+ */
+private val REGEX_DELIMITERS = Regex("[.#$]")
+
+/**
+ * Split the string into breadcrumbs, i.e. values that will be used in [Node.breadcrumb].
+ *
+ * e.g. if this is com.example.Foo$Inner#method(I)I then this will split it into:
+ * * "com"
+ * * "example"
+ * * "Foo"
+ * * "Inner"
+ * * "method(I)I"
+ */
+private fun String.splitIntoBreadcrumbs() = split(REGEX_DELIMITERS)
