@@ -73,16 +73,14 @@ class ApiGenerator {
         if (codebaseSdkVersion != null) {
             addApisFromCodebase(api, codebaseSdkVersion, codebaseFragment, true)
         }
-        var availableSdkExtensions: AvailableSdkExtensions? = null
         val sdkExtensionsArguments = config.sdkExtensionsArguments
         if (sdkExtensionsArguments != null) {
-            availableSdkExtensions =
-                processExtensionSdkApis(
-                    api,
-                    notFinalizedSdkVersion,
-                    sdkExtensionsArguments.sdkExtJarRoot,
-                    sdkExtensionsArguments.sdkExtInfoFile,
-                )
+            processExtensionSdkApis(
+                api,
+                notFinalizedSdkVersion,
+                sdkExtensionsArguments.sdkExtJarRoot,
+                sdkExtensionsArguments.sdkExtensionInfo,
+            )
         }
         api.backfillHistoricalFixes()
         api.clean()
@@ -91,6 +89,8 @@ class ApiGenerator {
         } else {
             api.verifyNoMissingClasses()
         }
+        val availableSdkExtensions =
+            sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
         val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel, allVersions)
         return createApiLevelsFile(config.outputFile, printer, api)
     }
@@ -136,7 +136,7 @@ class ApiGenerator {
      * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param sdkJarRoot path to directory containing extension SDK jars (usually
      *   $ANDROID_ROOT/prebuilts/sdk/extensions)
-     * @param filterPath path to the filter file. @see ApiToExtensionsMap
+     * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
      * @throws IOException if the filter file can not be read
      * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar
      *   files were found
@@ -145,11 +145,8 @@ class ApiGenerator {
         api: Api,
         versionNotInAndroidSdk: ApiVersion,
         sdkJarRoot: File,
-        filterPath: File,
-    ): AvailableSdkExtensions {
-        val rules = filterPath.readText()
-        val sdkExtensionInfo = SdkExtensionInfo.fromXml(rules)
-
+        sdkExtensionInfo: SdkExtensionInfo,
+    ) {
         val map = findExtensionSdkJarFiles(sdkJarRoot)
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
 
@@ -201,7 +198,6 @@ class ApiGenerator {
             updateSdks(clazz.fields)
             updateSdks(clazz.methods)
         }
-        return sdkExtensionInfo.availableSdkExtensions
     }
 
     /**
@@ -234,7 +230,11 @@ class ApiGenerator {
     }
 
     data class SdkExtensionsArguments(
-        var sdkExtJarRoot: File,
-        var sdkExtInfoFile: File,
-    )
+        val sdkExtJarRoot: File,
+        private val sdkExtInfoFile: File,
+    ) {
+        /** [SdkExtensionInfo] loaded on demand from [sdkExtInfoFile]. */
+        val sdkExtensionInfo by
+            lazy(LazyThreadSafetyMode.NONE) { SdkExtensionInfo.fromXml(sdkExtInfoFile.readText()) }
+    }
 }
