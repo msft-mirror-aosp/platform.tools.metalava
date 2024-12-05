@@ -41,7 +41,13 @@ class ApiGenerator {
         val firstApiLevel = config.firstApiLevel
         val currentSdkVersion = config.currentSdkVersion
         val notFinalizedSdkVersion = currentSdkVersion + 1
-        val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
+        val versionedApis =
+            (firstApiLevel until apiLevels.size).map { apiLevel ->
+                val jar = apiLevels[apiLevel]
+                val sdkVersion = ApiVersion.fromLevel(apiLevel)
+                VersionedJarApi(jar, sdkVersion)
+            }
+        val api = createApiFromVersionedApis(versionedApis)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
 
         // Compute the version to use for the current codebase.
@@ -101,7 +107,6 @@ class ApiGenerator {
         for (versionedApi in versionedApis) {
             versionedApi.updateApi(api)
         }
-        api.clean()
         return api
     }
 
@@ -114,22 +119,8 @@ class ApiGenerator {
         config: GenerateApiVersionsFromVersionedApisConfig,
     ) {
         val api = createApiFromVersionedApis(config.versionedApis)
+        api.clean()
         createApiLevelsFile(config.outputFile, config.printer, api)
-    }
-
-    private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
-        val versionedApis =
-            (firstApiLevel until apiLevels.size).map { apiLevel ->
-                val jar = apiLevels[apiLevel]
-                val sdkVersion = ApiVersion.fromLevel(apiLevel)
-                VersionedJarApi(jar, sdkVersion)
-            }
-
-        val api = Api()
-        for (versionedApi in versionedApis) {
-            versionedApi.updateApi(api)
-        }
-        return api
     }
 
     /**
