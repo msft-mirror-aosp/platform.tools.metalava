@@ -26,7 +26,7 @@ class ApiToExtensionsMapTest {
 
     /** Get the [ApiToExtensionsMap] instance for [filterByJar] from [xml]. */
     private fun fromXml(filterByJar: String, xml: String) =
-        ApiToExtensionsMap.fromXml(filterByJar, xml).apiToExtensionsMap
+        SdkExtensionInfo.fromXml(filterByJar, xml).apiToExtensionsMap
 
     /** Get an SDK version for [level]. */
     private fun sdkVersion(level: Int) = ApiVersion.fromLevel(level)

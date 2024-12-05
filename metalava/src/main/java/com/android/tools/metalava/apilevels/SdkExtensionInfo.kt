@@ -16,6 +16,11 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.SdkExtension
+import javax.xml.parsers.SAXParserFactory
+import org.xml.sax.Attributes
+import org.xml.sax.helpers.DefaultHandler
+
 /** Encapsulates information read from the `sdk-extension-info.xml` file. */
 class SdkExtensionInfo(
     /** Information retrieved from `<sdk>` elements. */
@@ -23,4 +28,148 @@ class SdkExtensionInfo(
 
     /** Information retrieved from `<symbol>` elements. */
     val apiToExtensionsMap: ApiToExtensionsMap,
-)
+) {
+    companion object {
+        /**
+         * Create an ApiToExtensionsMap from a list of text based rules.
+         *
+         * The input is XML:
+         *
+         *     <?xml version="1.0" encoding="utf-8"?>
+         *     <sdk-extensions-info version="1">
+         *         <sdk name="<name>" shortname="<short-name>" id="<int>" reference="<constant>" />
+         *         <symbol jar="<jar>" pattern="<pattern>" sdks="<sdks>" />
+         *     </sdk-extensions-info>
+         *
+         * The <sdk> and <symbol> tags may be repeated.
+         * - <name> is a long name for the SDK, e.g. "R Extensions".
+         * - <short-name> is a short name for the SDK, e.g. "R-ext".
+         * - <id> is the numerical identifier for the SDK, e.g. 30. It is an error to use the
+         *   Android SDK ID (0).
+         * - <jar> is the jar file symbol belongs to, named after the jar file in
+         *   prebuilts/sdk/extensions/<int>/public, e.g. "framework-sdkextensions".
+         * - <constant> is a Java symbol that can be passed to `SdkExtensions.getExtensionVersion`
+         *   to look up the version of the corresponding SDK, e.g.
+         *   "android/os/Build$VERSION_CODES$R"
+         * - <pattern> is either '*', which matches everything, or a 'com.foo.Bar$Inner#member'
+         *   string (or prefix thereof terminated before . or $), which matches anything with that
+         *   prefix. Note that arguments and return values of methods are omitted (and there is no
+         *   way to distinguish overloaded methods).
+         * - <sdks> is a comma separated list of SDKs in which the symbol defined by <jar> and
+         *   <pattern> appears; the list items are <name> attributes of SDKs defined in the XML.
+         *
+         * It is an error to specify the same <jar> and <pattern> pair twice.
+         *
+         * A more specific <symbol> rule has higher precedence than a less specific rule.
+         *
+         * @param filterByJar jar file to limit lookups to: ignore symbols not present in this jar
+         *   file
+         * @param xml XML as described above
+         * @throws IllegalArgumentException if the XML is malformed
+         */
+        fun fromXml(filterByJar: String, xml: String): SdkExtensionInfo {
+            val root = Node("<root>")
+            val sdkExtensions = mutableSetOf<SdkExtension>()
+            val allSeenExtensions = mutableSetOf<String>()
+
+            val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
+            try {
+                parser.parse(
+                    xml.byteInputStream(),
+                    object : DefaultHandler() {
+                        override fun startElement(
+                            uri: String,
+                            localName: String,
+                            qualifiedName: String,
+                            attributes: Attributes
+                        ) {
+                            when (qualifiedName) {
+                                "sdk" -> {
+                                    val id = attributes.getIntOrThrow(qualifiedName, "id")
+                                    val shortname =
+                                        attributes.getStringOrThrow(qualifiedName, "shortname")
+                                    val name = attributes.getStringOrThrow(qualifiedName, "name")
+                                    val reference =
+                                        attributes.getStringOrThrow(qualifiedName, "reference")
+                                    sdkExtensions.add(
+                                        SdkExtension.fromXmlAttributes(
+                                            id,
+                                            shortname,
+                                            name,
+                                            reference,
+                                        )
+                                    )
+                                }
+                                "symbol" -> {
+                                    val jar = attributes.getStringOrThrow(qualifiedName, "jar")
+                                    if (jar != filterByJar) {
+                                        return
+                                    }
+                                    val sdks =
+                                        attributes
+                                            .getStringOrThrow(qualifiedName, "sdks")
+                                            .split(',')
+                                    if (sdks != sdks.distinct()) {
+                                        throw IllegalArgumentException(
+                                            "symbol lists the same SDK multiple times: '$sdks'"
+                                        )
+                                    }
+                                    allSeenExtensions.addAll(sdks)
+                                    val pattern =
+                                        attributes.getStringOrThrow(qualifiedName, "pattern")
+                                    if (pattern == "*") {
+                                        root.extensions = sdks
+                                        return
+                                    }
+                                    // pattern is com.example.Foo, add nodes:
+                                    //     "com" -> "example" -> "Foo"
+                                    val parts = pattern.splitIntoBreadcrumbs()
+                                    var node = root
+                                    for (name in parts) {
+                                        node = node.children.addNode(name)
+                                    }
+                                    if (node.extensions.isNotEmpty()) {
+                                        throw IllegalArgumentException(
+                                            "duplicate pattern: $pattern"
+                                        )
+                                    }
+                                    node.extensions = sdks
+                                }
+                            }
+                        }
+                    }
+                )
+            } catch (e: Throwable) {
+                throw IllegalArgumentException("failed to parse xml", e)
+            }
+
+            val availableSdkExtensions = AvailableSdkExtensions(sdkExtensions)
+
+            // verify: all rules refer to declared SDKs
+            for (ext in allSeenExtensions) {
+                if (!availableSdkExtensions.containsSdkExtension(ext)) {
+                    throw IllegalArgumentException("bad SDK definitions: undefined SDK $ext")
+                }
+            }
+
+            val apiToExtensionsMap = ApiToExtensionsMap(availableSdkExtensions, root)
+            return SdkExtensionInfo(availableSdkExtensions, apiToExtensionsMap)
+        }
+    }
+}
+
+private fun MutableSet<Node>.addNode(name: String): Node {
+    findNode(name)?.let {
+        return it
+    }
+    val node = Node(name)
+    add(node)
+    return node
+}
+
+private fun Attributes.getStringOrThrow(tag: String, attr: String): String =
+    getValue(attr) ?: throw IllegalArgumentException("<$tag>: missing attribute: $attr")
+
+private fun Attributes.getIntOrThrow(tag: String, attr: String): Int =
+    getStringOrThrow(tag, attr).toIntOrNull()
+        ?: throw IllegalArgumentException("<$tag>: attribute $attr: not an integer")

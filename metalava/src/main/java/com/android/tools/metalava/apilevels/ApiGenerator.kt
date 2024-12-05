@@ -15,7 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.CodebaseFragment
 import java.io.File
@@ -153,7 +152,7 @@ class ApiGenerator {
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
         val moduleMaps: MutableMap<String, ApiToExtensionsMap> = HashMap()
         for ((mainlineModule, value) in map) {
-            val moduleMap = fromXml(mainlineModule, rules).apiToExtensionsMap
+            val moduleMap = SdkExtensionInfo.fromXml(mainlineModule, rules).apiToExtensionsMap
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
             moduleMaps[mainlineModule] = moduleMap
@@ -194,7 +193,7 @@ class ApiGenerator {
             updateSdks(clazz.fields)
             updateSdks(clazz.methods)
         }
-        return fromXml("", rules).availableSdkExtensions
+        return SdkExtensionInfo.fromXml("", rules).availableSdkExtensions
     }
 
     /**
