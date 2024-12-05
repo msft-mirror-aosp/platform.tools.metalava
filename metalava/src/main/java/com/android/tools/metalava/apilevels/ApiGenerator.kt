@@ -118,11 +118,16 @@ class ApiGenerator {
     }
 
     private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
+        val versionedApis =
+            (firstApiLevel until apiLevels.size).map { apiLevel ->
+                val jar = apiLevels[apiLevel]
+                val sdkVersion = ApiVersion.fromLevel(apiLevel)
+                VersionedJarApi(jar, sdkVersion)
+            }
+
         val api = Api()
-        for (apiLevel in firstApiLevel until apiLevels.size) {
-            val jar = apiLevels[apiLevel]
-            val sdkVersion = ApiVersion.fromLevel(apiLevel)
-            api.readAndroidJar(sdkVersion, jar)
+        for (versionedApi in versionedApis) {
+            versionedApi.updateApi(api)
         }
         return api
     }
