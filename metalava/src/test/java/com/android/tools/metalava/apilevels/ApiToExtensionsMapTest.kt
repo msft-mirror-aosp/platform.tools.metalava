@@ -24,9 +24,9 @@ import org.junit.Assert
 
 class ApiToExtensionsMapTest {
 
-    /** Get the [ApiToExtensionsMap] instance for [filterByJar] from [xml]. */
-    private fun fromXml(filterByJar: String, xml: String) =
-        SdkExtensionInfo.fromXml(filterByJar, xml).apiToExtensionsMap
+    /** Get the [ApiToExtensionsMap] instance for [jar] from [xml]. */
+    private fun fromXml(jar: String, xml: String) =
+        SdkExtensionInfo.fromXml(xml).extensionsMapForJarOrEmpty(jar)
 
     /** Get an SDK version for [level]. */
     private fun sdkVersion(level: Int) = ApiVersion.fromLevel(level)

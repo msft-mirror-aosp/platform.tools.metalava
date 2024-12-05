@@ -26,9 +26,24 @@ class SdkExtensionInfo(
     /** Information retrieved from `<sdk>` elements. */
     val availableSdkExtensions: AvailableSdkExtensions,
 
-    /** Information retrieved from `<symbol>` elements. */
-    val apiToExtensionsMap: ApiToExtensionsMap,
+    /** Information retrieved from `<symbol>` elements, organized by jar. */
+    private val extensionsByJar: Map<String, ApiToExtensionsMap>,
 ) {
+    /**
+     * An empty [ApiToExtensionsMap], returned from [extensionsMapForJarOrEmpty] if a jar specific
+     * map could not be found.
+     *
+     * This is given [availableSdkExtensions] as it will be used to check the validity of sdk names
+     * even if there is no information about the symbols.
+     */
+    private val empty = ApiToExtensionsMap(availableSdkExtensions, Node("<empty>"))
+
+    /**
+     * Get the [ApiToExtensionsMap] for [jar], returning an empty map if no specific map for [jar]
+     * could be found.
+     */
+    fun extensionsMapForJarOrEmpty(jar: String) = extensionsByJar[jar] ?: empty
+
     companion object {
         /**
          * Create an ApiToExtensionsMap from a list of text based rules.
@@ -67,10 +82,12 @@ class SdkExtensionInfo(
          * @param xml XML as described above
          * @throws IllegalArgumentException if the XML is malformed
          */
-        fun fromXml(filterByJar: String, xml: String): SdkExtensionInfo {
-            val root = Node("<root>")
+        fun fromXml(xml: String): SdkExtensionInfo {
             val sdkExtensions = mutableSetOf<SdkExtension>()
             val allSeenExtensions = mutableSetOf<String>()
+
+            // Map from jar name to the root node.
+            val jarToRoot = mutableMapOf<String, Node>()
 
             val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
             try {
@@ -102,9 +119,10 @@ class SdkExtensionInfo(
                                 }
                                 "symbol" -> {
                                     val jar = attributes.getStringOrThrow(qualifiedName, "jar")
-                                    if (jar != filterByJar) {
-                                        return
-                                    }
+                                    // Get the root node for the jar, creating one if needed.
+                                    val rootForJar =
+                                        jarToRoot.computeIfAbsent(jar) { Node("<jar $jar>") }
+
                                     val sdks =
                                         attributes
                                             .getStringOrThrow(qualifiedName, "sdks")
@@ -118,13 +136,13 @@ class SdkExtensionInfo(
                                     val pattern =
                                         attributes.getStringOrThrow(qualifiedName, "pattern")
                                     if (pattern == "*") {
-                                        root.extensions = sdks
+                                        rootForJar.extensions = sdks
                                         return
                                     }
                                     // pattern is com.example.Foo, add nodes:
                                     //     "com" -> "example" -> "Foo"
                                     val parts = pattern.splitIntoBreadcrumbs()
-                                    var node = root
+                                    var node = rootForJar
                                     for (name in parts) {
                                         node = node.children.addNode(name)
                                     }
@@ -152,8 +170,12 @@ class SdkExtensionInfo(
                 }
             }
 
-            val apiToExtensionsMap = ApiToExtensionsMap(availableSdkExtensions, root)
-            return SdkExtensionInfo(availableSdkExtensions, apiToExtensionsMap)
+            // Transform the map from jar to root node into a map from jar to ApiToExtensionsMap.
+            val extensionsByJar =
+                jarToRoot.entries.associate { (jar, root) ->
+                    jar to ApiToExtensionsMap(availableSdkExtensions, root)
+                }
+            return SdkExtensionInfo(availableSdkExtensions, extensionsByJar)
         }
     }
 }

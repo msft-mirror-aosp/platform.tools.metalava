@@ -148,14 +148,18 @@ class ApiGenerator {
         filterPath: File,
     ): AvailableSdkExtensions {
         val rules = filterPath.readText()
+        val sdkExtensionInfo = SdkExtensionInfo.fromXml(rules)
+
         val map = findExtensionSdkJarFiles(sdkJarRoot)
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
-        val moduleMaps: MutableMap<String, ApiToExtensionsMap> = HashMap()
+
+        // Iterate over the mainline modules and their different versions.
         for ((mainlineModule, value) in map) {
-            val moduleMap = SdkExtensionInfo.fromXml(mainlineModule, rules).apiToExtensionsMap
+            // Get the extensions information for the mainline module. If no information exists for
+            // a particular module then the module is ignored.
+            val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
-            moduleMaps[mainlineModule] = moduleMap
             for ((level, path) in value) {
                 val extVersion = ExtVersion.fromLevel(level)
                 api.readExtensionJar(extVersion, mainlineModule, path, versionNotInAndroidSdk)
@@ -163,7 +167,11 @@ class ApiGenerator {
         }
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
-            val extensionsMap = moduleMaps[module]!!
+
+            // Get the extensions information for the mainline module. If no information exists for
+            // a particular module then the returned information is empty but can still be used to
+            // calculate sdks attribute.
+            val extensionsMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(module)
 
             /** Update the sdks on each [ApiElement] in [elements]. */
             fun updateSdks(elements: Collection<ApiElement>) {
@@ -193,7 +201,7 @@ class ApiGenerator {
             updateSdks(clazz.fields)
             updateSdks(clazz.methods)
         }
-        return SdkExtensionInfo.fromXml("", rules).availableSdkExtensions
+        return sdkExtensionInfo.availableSdkExtensions
     }
 
     /**
