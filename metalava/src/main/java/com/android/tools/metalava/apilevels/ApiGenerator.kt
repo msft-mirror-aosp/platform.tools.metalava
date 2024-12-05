@@ -39,22 +39,13 @@ class ApiGenerator {
         val firstApiLevel = config.firstApiLevel
         val currentSdkVersion = config.currentSdkVersion
         val notFinalizedSdkVersion = currentSdkVersion + 1
-        val versionedApis =
-            (firstApiLevel until apiLevels.size).map { apiLevel ->
-                val jar = apiLevels[apiLevel]
-                val sdkVersion = ApiVersion.fromLevel(apiLevel)
-                val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
-                VersionedJarApi(jar, updater)
-            }
-        val api = createApiFromVersionedApis(versionedApis)
-        val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
 
         // Compute the version to use for the current codebase.
         val codebaseSdkVersion =
             when {
                 // The current codebase is a developer preview so use the next, in the process of
                 // being finalized version.
-                isDeveloperPreviewBuild -> notFinalizedSdkVersion
+                config.isDeveloperPreviewBuild -> notFinalizedSdkVersion
 
                 // There is no prebuilt, finalized jar matching the current API level so use the
                 // current codebase for the current API version.
@@ -70,9 +61,25 @@ class ApiGenerator {
             if (codebaseSdkVersion != null) add(codebaseSdkVersion)
         }
 
-        if (codebaseSdkVersion != null) {
-            addApisFromCodebase(api, codebaseSdkVersion, codebaseFragment, true)
+        val versionedApis = buildList {
+            for (apiLevel in firstApiLevel until apiLevels.size) {
+                val jar = apiLevels[apiLevel]
+                val sdkVersion = ApiVersion.fromLevel(apiLevel)
+                val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
+                add(VersionedJarApi(jar, updater))
+            }
+            if (codebaseSdkVersion != null)
+                add(
+                    VersionedSourceApi(
+                        codebaseFragment,
+                        codebaseSdkVersion,
+                        useInternalNames = true,
+                    )
+                )
         }
+
+        val api = createApiFromVersionedApis(versionedApis)
+
         val sdkExtensionsArguments = config.sdkExtensionsArguments
         if (sdkExtensionsArguments != null) {
             val versionedExtensionApis =
