@@ -44,7 +44,8 @@ class ApiGenerator {
             (firstApiLevel until apiLevels.size).map { apiLevel ->
                 val jar = apiLevels[apiLevel]
                 val sdkVersion = ApiVersion.fromLevel(apiLevel)
-                VersionedJarApi(jar, sdkVersion)
+                val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
+                VersionedJarApi(jar, updater)
             }
         val api = createApiFromVersionedApis(versionedApis)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
@@ -150,6 +151,9 @@ class ApiGenerator {
         val map = findExtensionSdkJarFiles(sdkJarRoot)
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
 
+        // Create a list of VersionedApis.
+        val versionedExtensionApis = mutableListOf<VersionedApi>()
+
         // Iterate over the mainline modules and their different versions.
         for ((mainlineModule, value) in map) {
             // Get the extensions information for the mainline module. If no information exists for
@@ -165,9 +169,15 @@ class ApiGenerator {
                         extVersion,
                         mainlineModule,
                     )
-                api.readJar(path, updater)
+                versionedExtensionApis.add(VersionedJarApi(path, updater))
             }
         }
+
+        // Apply the list of VersionedApis to Api.
+        for (versionedApi in versionedExtensionApis) {
+            versionedApi.updateApi(api)
+        }
+
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
 
