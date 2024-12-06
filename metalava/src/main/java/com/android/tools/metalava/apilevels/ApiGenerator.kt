@@ -34,12 +34,8 @@ class ApiGenerator {
         codebaseFragment: CodebaseFragment,
         config: GenerateXmlConfig,
     ): Boolean {
-        val apiLevels = config.apiLevels
-        val firstApiLevel = config.firstApiLevel
-        // Get the last API version that was added, or null if there are no valid historical
-        // versions.
-        val lastApiVersion =
-            if (apiLevels.size <= firstApiLevel) null else ApiVersion.fromLevel(apiLevels.size - 1)
+        val versionToJar = config.versionToJar
+        val lastApiVersion = versionToJar.keys.lastOrNull()
         val currentSdkVersion = config.currentSdkVersion
         val notFinalizedSdkVersion = currentSdkVersion + 1
 
@@ -61,7 +57,7 @@ class ApiGenerator {
 
         // Get a list of all versions, including the codebase version, if necessary.
         val allVersions = buildList {
-            (firstApiLevel until apiLevels.size).mapTo(this) { ApiVersion.fromLevel(it) }
+            addAll(versionToJar.keys)
             if (codebaseSdkVersion != null) add(codebaseSdkVersion)
         }
 
@@ -69,9 +65,7 @@ class ApiGenerator {
 
         // Create a list of VersionedApis that need to be incorporated into the Api history.
         val versionedApis = buildList {
-            for (apiLevel in firstApiLevel until apiLevels.size) {
-                val jar = apiLevels[apiLevel]
-                val sdkVersion = ApiVersion.fromLevel(apiLevel)
+            for ((sdkVersion, jar) in versionToJar) {
                 val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
                 add(VersionedJarApi(jar, updater))
             }

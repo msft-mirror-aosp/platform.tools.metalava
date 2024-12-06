@@ -22,19 +22,15 @@ import java.io.File
 /** Properties for the [ApiGenerator.generateXml] method that come from comment line options. */
 data class GenerateXmlConfig(
     /**
-     * The list of jar files from which the API levels file will be populated. One for each API
-     * level, indexed by API level, starting from 1. The 0th element plus any element less than
-     * [firstApiLevel] is a placeholder that is an invalid file and should not be used.
+     * A map from [ApiVersion] to associated jar file for historical APIs versions, i.e. APIs that
+     * have previously been released.
      */
-    val apiLevels: List<File>,
-
-    /** The first API level to include the API levels file. */
-    val firstApiLevel: Int,
+    val versionToJar: Map<ApiVersion, File>,
 
     /**
      * The current version.
      *
-     * If there is no corresponding element in [apiLevels] for this then the API defined in the
+     * If there is no corresponding element in [versionToJar] for this then the API defined in the
      * sources will be added to the API levels file for this API level unless
      * [isDeveloperPreviewBuild] is `true`.
      */

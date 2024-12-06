@@ -305,24 +305,16 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * The list of jar files from which the API levels file will be populated. One for each API
-     * level, indexed by API level, starting from 1. The 0th element plus any element less than
-     * [firstApiLevel] is a placeholder that is an invalid file and should not be used.
+     * The Map from [ApiVersion] to associated jar [File].
+     *
+     * Entries are in order from lowest [ApiVersion] to highest.
      */
-    private val apiLevelJars
+    private val versionToJar
         get() = findAndroidJars()
 
-    /** Find an android stub jar that matches the given criteria. */
-    private fun findAndroidJars(): List<File> {
-        val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed.
-        // (This is here because we want the array index to match
-        // the API level)
-        val element = File("not an api: the starting API index is $firstApiLevel")
-        for (i in 0 until firstApiLevel) {
-            apiLevelFiles.add(element)
-        }
-
+    /** Find all android stub jars that matches the given criteria. */
+    private fun findAndroidJars(): Map<ApiVersion, File> {
+        val versionToJar = mutableMapOf<ApiVersion, File>()
         // Get all the android.jar. They are in platforms-#
         for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
             try {
@@ -346,13 +338,13 @@ class ApiLevelsGenerationOptions(
 
                 verbosePrint { "Found API $apiLevel at ${jar.path}" }
 
-                apiLevelFiles.add(jar)
+                versionToJar[ApiVersion.fromLevel(apiLevel)] = jar
             } catch (e: IOException) {
                 e.printStackTrace()
             }
         }
 
-        return apiLevelFiles.toList()
+        return versionToJar
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -383,8 +375,7 @@ class ApiLevelsGenerationOptions(
         get() =
             generateApiLevelXml?.let { outputFile ->
                 GenerateXmlConfig(
-                    apiLevels = apiLevelJars,
-                    firstApiLevel = firstApiLevel,
+                    versionToJar = versionToJar,
                     currentSdkVersion = ApiVersion.fromLevel(currentApiLevel),
                     isDeveloperPreviewBuild = isDeveloperPreviewBuild,
                     outputFile = outputFile,
