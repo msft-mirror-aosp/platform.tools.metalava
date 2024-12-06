@@ -27,6 +27,7 @@ class VersionedJarApi(
     private val sdkVersion: ApiVersion,
 ) : VersionedApi {
     override fun updateApi(api: Api) {
-        api.readAndroidJar(sdkVersion, jar)
+        val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
+        api.readJar(jar, updater)
     }
 }

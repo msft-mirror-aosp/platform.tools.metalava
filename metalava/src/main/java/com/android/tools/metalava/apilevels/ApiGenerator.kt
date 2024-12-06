@@ -159,7 +159,13 @@ class ApiGenerator {
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
             for ((level, path) in value) {
                 val extVersion = ExtVersion.fromLevel(level)
-                api.readExtensionJar(extVersion, mainlineModule, path, versionNotInAndroidSdk)
+                val updater =
+                    ApiHistoryUpdater.forExtVersion(
+                        versionNotInAndroidSdk,
+                        extVersion,
+                        mainlineModule,
+                    )
+                api.readJar(path, updater)
             }
         }
         for (clazz in api.classes) {
