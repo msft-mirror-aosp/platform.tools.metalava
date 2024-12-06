@@ -15,7 +15,7 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.findExtensionSdkJarFiles
+import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
 import com.android.tools.metalava.model.CodebaseFragment
 import java.io.File
 
@@ -113,48 +113,6 @@ class ApiGenerator {
         val api = createApiFromVersionedApis(config.versionedApis)
         api.clean()
         createApiLevelsFile(config.outputFile, config.printer, api)
-    }
-
-    /**
-     * Find the extension jars and versions for all modules, wrap in a [VersionedApi] and add them
-     * to [list].
-     *
-     * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
-     * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
-     * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
-     *
-     * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
-     * @param sdkJarRoot path to directory containing extension SDK jars (usually
-     *   $ANDROID_ROOT/prebuilts/sdk/extensions)
-     * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
-     */
-    private fun addVersionedExtensionApis(
-        list: MutableList<VersionedApi>,
-        versionNotInAndroidSdk: ApiVersion,
-        sdkJarRoot: File,
-        sdkExtensionInfo: SdkExtensionInfo,
-    ) {
-        val map = findExtensionSdkJarFiles(sdkJarRoot)
-        require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
-
-        // Iterate over the mainline modules and their different versions.
-        for ((mainlineModule, value) in map) {
-            // Get the extensions information for the mainline module. If no information exists for
-            // a particular module then the module is ignored.
-            val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
-            if (moduleMap.isEmpty())
-                continue // TODO(b/259115852): remove this (though it is an optimization too).
-            for ((level, path) in value) {
-                val extVersion = ExtVersion.fromLevel(level)
-                val updater =
-                    ApiHistoryUpdater.forExtVersion(
-                        versionNotInAndroidSdk,
-                        extVersion,
-                        mainlineModule,
-                    )
-                list.add(VersionedJarApi(path, updater))
-            }
-        }
     }
 
     /**
