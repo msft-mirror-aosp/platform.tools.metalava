@@ -400,11 +400,22 @@ class ApiLevelsGenerationOptions(
                         else -> null
                     }
 
+                // Get a list of all versions, including the codebase version, if necessary.
+                val allVersions = buildList {
+                    addAll(versionToJar.keys)
+                    if (codebaseSdkVersion != null) add(codebaseSdkVersion)
+                }
+
+                val availableSdkExtensions =
+                    sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
+                val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
+
                 GenerateXmlConfig(
                     versionToJar = versionToJar,
                     notFinalizedSdkVersion = notFinalizedSdkVersion,
                     codebaseSdkVersion = codebaseSdkVersion,
                     outputFile = outputFile,
+                    printer = printer,
                     sdkExtensionsArguments = sdkExtensionsArguments,
                     removeMissingClasses = removeMissingClassReferencesInApiLevels,
                 )

@@ -38,12 +38,6 @@ class ApiGenerator {
         val notFinalizedSdkVersion = config.notFinalizedSdkVersion
         val codebaseSdkVersion = config.codebaseSdkVersion
 
-        // Get a list of all versions, including the codebase version, if necessary.
-        val allVersions = buildList {
-            addAll(versionToJar.keys)
-            if (codebaseSdkVersion != null) add(codebaseSdkVersion)
-        }
-
         val sdkExtensionsArguments = config.sdkExtensionsArguments
 
         // Create a list of VersionedApis that need to be incorporated into the Api history.
@@ -91,10 +85,7 @@ class ApiGenerator {
         } else {
             api.verifyNoMissingClasses()
         }
-        val availableSdkExtensions =
-            sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-        val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
-        return createApiLevelsFile(config.outputFile, printer, api)
+        return createApiLevelsFile(config.outputFile, config.printer, api)
     }
 
     /**
