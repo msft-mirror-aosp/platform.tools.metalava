@@ -35,25 +35,8 @@ class ApiGenerator {
         config: GenerateXmlConfig,
     ): Boolean {
         val versionToJar = config.versionToJar
-        val lastApiVersion = versionToJar.keys.lastOrNull()
-        val currentSdkVersion = config.currentSdkVersion
-        val notFinalizedSdkVersion = currentSdkVersion + 1
-
-        // Compute the version to use for the current codebase.
-        val codebaseSdkVersion =
-            when {
-                // The current codebase is a developer preview so use the next, in the process of
-                // being finalized version.
-                config.isDeveloperPreviewBuild -> notFinalizedSdkVersion
-
-                // If no historical versions were provided or the last historical version is less
-                // than the current version then use the current version as the version of the
-                // codebase.
-                lastApiVersion == null || lastApiVersion < currentSdkVersion -> currentSdkVersion
-
-                // Else do not include the current codebase.
-                else -> null
-            }
+        val notFinalizedSdkVersion = config.notFinalizedSdkVersion
+        val codebaseSdkVersion = config.codebaseSdkVersion
 
         // Get a list of all versions, including the codebase version, if necessary.
         val allVersions = buildList {

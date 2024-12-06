@@ -17,6 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.apilevels.ApiGenerator.SdkExtensionsArguments
+import com.android.tools.metalava.model.Codebase
 import java.io.File
 
 /** Properties for the [ApiGenerator.generateXml] method that come from comment line options. */
@@ -27,22 +28,14 @@ data class GenerateXmlConfig(
      */
     val versionToJar: Map<ApiVersion, File>,
 
-    /**
-     * The current version.
-     *
-     * If there is no corresponding element in [versionToJar] for this then the API defined in the
-     * sources will be added to the API levels file for this API level unless
-     * [isDeveloperPreviewBuild] is `true`.
-     */
-    val currentSdkVersion: ApiVersion,
+    /** A version that has not yet been finalized. */
+    val notFinalizedSdkVersion: ApiVersion,
 
     /**
-     * True if the [currentSdkVersion] level is for a developer preview build.
-     *
-     * If this is `true` then the API defined in the sources will be added to the API levels file
-     * with an API level of [currentSdkVersion]` - 1`.
+     * The version to use for the current sources [Codebase], or null if the [Codebase] should not
+     * be included in the API history.
      */
-    val isDeveloperPreviewBuild: Boolean,
+    val codebaseSdkVersion: ApiVersion?,
 
     /** The API levels file that will be generated. */
     val outputFile: File,

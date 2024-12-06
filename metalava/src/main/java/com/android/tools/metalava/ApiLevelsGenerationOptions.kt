@@ -180,7 +180,12 @@ class ApiLevelsGenerationOptions(
             )
             .map { if (it == "REL") null else it }
 
-    /** True if [currentCodeName] is specified, false otherwise. */
+    /**
+     * True if [currentCodeName] is specified, false otherwise.
+     *
+     * If this is `true` then the API defined in the sources will be added to the API levels file
+     * with an API level of [currentApiLevel]` - 1`.
+     */
     private val isDeveloperPreviewBuild
         get() = currentCodeName != null
 
@@ -374,10 +379,31 @@ class ApiLevelsGenerationOptions(
     val generateXmlConfig
         get() =
             generateApiLevelXml?.let { outputFile ->
+                val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
+                val notFinalizedSdkVersion = currentSdkVersion + 1
+                val lastApiVersion = versionToJar.keys.lastOrNull()
+
+                // Compute the version to use for the current codebase.
+                val codebaseSdkVersion =
+                    when {
+                        // The current codebase is a developer preview so use the next, in the
+                        // process of being finalized version.
+                        isDeveloperPreviewBuild -> notFinalizedSdkVersion
+
+                        // If no historical versions were provided or the last historical version is
+                        // less than the current version then use the current version as the version
+                        // of the codebase.
+                        lastApiVersion == null || lastApiVersion < currentSdkVersion ->
+                            currentSdkVersion
+
+                        // Else do not include the current codebase.
+                        else -> null
+                    }
+
                 GenerateXmlConfig(
                     versionToJar = versionToJar,
-                    currentSdkVersion = ApiVersion.fromLevel(currentApiLevel),
-                    isDeveloperPreviewBuild = isDeveloperPreviewBuild,
+                    notFinalizedSdkVersion = notFinalizedSdkVersion,
+                    codebaseSdkVersion = codebaseSdkVersion,
                     outputFile = outputFile,
                     sdkExtensionsArguments = sdkExtensionsArguments,
                     removeMissingClasses = removeMissingClassReferencesInApiLevels,
