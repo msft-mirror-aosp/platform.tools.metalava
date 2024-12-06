@@ -35,8 +35,11 @@ class ApiGenerator {
         config: GenerateXmlConfig,
     ): Boolean {
         val apiLevels = config.apiLevels
-        val lastApiVersion = ApiVersion.fromLevel(apiLevels.size - 1)
         val firstApiLevel = config.firstApiLevel
+        // Get the last API version that was added, or null if there are no valid historical
+        // versions.
+        val lastApiVersion =
+            if (apiLevels.size <= firstApiLevel) null else ApiVersion.fromLevel(apiLevels.size - 1)
         val currentSdkVersion = config.currentSdkVersion
         val notFinalizedSdkVersion = currentSdkVersion + 1
 
@@ -47,9 +50,10 @@ class ApiGenerator {
                 // being finalized version.
                 config.isDeveloperPreviewBuild -> notFinalizedSdkVersion
 
-                // There is no prebuilt, finalized jar matching the current API level so use the
-                // current codebase for the current API version.
-                lastApiVersion < currentSdkVersion -> currentSdkVersion
+                // If no historical versions were provided or the last historical version is less
+                // than the current version then use the current version as the version of the
+                // codebase.
+                lastApiVersion == null || lastApiVersion < currentSdkVersion -> currentSdkVersion
 
                 // Else do not include the current codebase.
                 else -> null
