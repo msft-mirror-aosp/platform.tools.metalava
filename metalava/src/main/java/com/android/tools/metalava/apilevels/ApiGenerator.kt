@@ -61,6 +61,9 @@ class ApiGenerator {
             if (codebaseSdkVersion != null) add(codebaseSdkVersion)
         }
 
+        val sdkExtensionsArguments = config.sdkExtensionsArguments
+
+        // Create a list of VersionedApis that need to be incorporated into the Api history.
         val versionedApis = buildList {
             for (apiLevel in firstApiLevel until apiLevels.size) {
                 val jar = apiLevels[apiLevel]
@@ -76,24 +79,24 @@ class ApiGenerator {
                         useInternalNames = true,
                     )
                 )
-        }
 
-        val api = createApiFromVersionedApis(versionedApis)
-
-        val sdkExtensionsArguments = config.sdkExtensionsArguments
-        if (sdkExtensionsArguments != null) {
-            val versionedExtensionApis =
-                createVersionedExtensionApis(
+            // Add any VersionedApis for SDK extensions. These must be added after all VersionedApis
+            // for SDK versions as their behavior depends on whether an API was defined in an SDK
+            // version.
+            if (sdkExtensionsArguments != null) {
+                addVersionedExtensionApis(
+                    this,
                     notFinalizedSdkVersion,
                     sdkExtensionsArguments.sdkExtJarRoot,
                     sdkExtensionsArguments.sdkExtensionInfo,
                 )
-
-            // Apply the list of VersionedApis to Api.
-            for (versionedApi in versionedExtensionApis) {
-                versionedApi.updateApi(api)
             }
+        }
 
+        val api = createApiFromVersionedApis(versionedApis)
+
+        // If necessary, update the sdks properties.
+        if (sdkExtensionsArguments != null) {
             updateSdksAttributes(
                 api,
                 notFinalizedSdkVersion,
@@ -141,8 +144,8 @@ class ApiGenerator {
     }
 
     /**
-     * Find the extension jars and versions for all modules, and create a list of [VersionedApi]s
-     * from them.
+     * Find the extension jars and versions for all modules, wrap in a [VersionedApi] and add them
+     * to [list].
      *
      * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
      * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
@@ -153,16 +156,14 @@ class ApiGenerator {
      *   $ANDROID_ROOT/prebuilts/sdk/extensions)
      * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
      */
-    private fun createVersionedExtensionApis(
+    private fun addVersionedExtensionApis(
+        list: MutableList<VersionedApi>,
         versionNotInAndroidSdk: ApiVersion,
         sdkJarRoot: File,
         sdkExtensionInfo: SdkExtensionInfo,
-    ): List<VersionedApi> {
+    ) {
         val map = findExtensionSdkJarFiles(sdkJarRoot)
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
-
-        // Create a list of VersionedApis.
-        val versionedExtensionApis = mutableListOf<VersionedApi>()
 
         // Iterate over the mainline modules and their different versions.
         for ((mainlineModule, value) in map) {
@@ -179,11 +180,9 @@ class ApiGenerator {
                         extVersion,
                         mainlineModule,
                     )
-                versionedExtensionApis.add(VersionedJarApi(path, updater))
+                list.add(VersionedJarApi(path, updater))
             }
         }
-
-        return versionedExtensionApis.toList()
     }
 
     /**
