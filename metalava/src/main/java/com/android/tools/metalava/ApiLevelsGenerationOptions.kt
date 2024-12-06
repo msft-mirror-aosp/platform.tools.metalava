@@ -499,7 +499,7 @@ class ApiLevelsGenerationOptions(
 
             val printer =
                 when (val extension = apiVersionsFile.extension) {
-                    "xml" -> ApiXmlPrinter(null, 1, allVersions)
+                    "xml" -> ApiXmlPrinter(null, allVersions)
                     "json" -> ApiJsonPrinter()
                     else ->
                         error(

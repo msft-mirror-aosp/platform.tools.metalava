@@ -102,7 +102,7 @@ class ApiGenerator {
         }
         val availableSdkExtensions =
             sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-        val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel, allVersions)
+        val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
         return createApiLevelsFile(config.outputFile, printer, api)
     }
 
