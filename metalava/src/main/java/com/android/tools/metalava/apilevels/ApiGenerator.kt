@@ -15,7 +15,7 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
+import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.CodebaseFragment
 import java.io.File
 
