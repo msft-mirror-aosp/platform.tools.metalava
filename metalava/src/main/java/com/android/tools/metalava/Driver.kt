@@ -21,11 +21,11 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.ActionContext
+import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
@@ -43,15 +43,23 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
@@ -64,7 +72,6 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
-import java.util.function.Predicate
 import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
@@ -131,7 +138,7 @@ internal fun processFlags(
 
     val reporter = options.reporter
 
-    val annotationManager = options.annotationManager
+    val codebaseConfig = options.codebaseConfig
     val modelOptions =
         // If the option was specified on the command line then use [ModelOptions] created from
         // that.
@@ -147,13 +154,13 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = reporter,
-            annotationManager = annotationManager,
+            codebaseConfig = codebaseConfig,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
             allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
+            projectDescription = options.projectDescription,
         )
 
     val signatureFileCache = options.signatureFileCache
@@ -184,8 +191,8 @@ internal fun processFlags(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val signatureFileLoader = SignatureFileLoader(annotationManager)
-            signatureFileLoader.loadFiles(
+            val signatureFileLoader = options.signatureFileLoader
+            signatureFileLoader.load(
                 SignatureFile.fromFiles(sources),
                 classResolverProvider.classResolver,
             )
@@ -197,6 +204,14 @@ internal fun processFlags(
             return
         }
 
+    // If provided by a test, run some additional checks on the internal state of this.
+    executionEnvironment.testEnvironment?.let { testEnvironment ->
+        testEnvironment.postAnalysisChecker?.let { function ->
+            val context = CheckerContext(options, codebase)
+            context.function()
+        }
+    }
+
     progressTracker.progress(
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
@@ -206,37 +221,35 @@ internal fun processFlags(
         actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
-    val androidApiLevelXml = options.generateApiLevelXml
-    val apiLevelJars = options.apiLevelJars
-    val apiGenerator = ApiGenerator(signatureFileCache)
-    if (androidApiLevelXml != null && apiLevelJars != null) {
-        assert(options.currentApiLevel != -1)
-
+    val generateXmlConfig = options.apiLevelsGenerationOptions.generateXmlConfig
+    val apiGenerator = ApiGenerator()
+    if (generateXmlConfig != null) {
         progressTracker.progress(
-            "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
+            "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
         )
-        val sdkJarRoot = options.sdkJarRoot
-        val sdkInfoFile = options.sdkInfoFile
-        val sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
-            if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator.SdkExtensionsArguments(
-                    sdkJarRoot,
-                    sdkInfoFile,
-                    options.latestReleasedSdkExtension
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
+                    preFiltered = false,
                 )
-            } else {
-                null
             }
-        apiGenerator.generateXml(
-            apiLevelJars,
-            options.firstApiLevel,
-            options.currentApiLevel,
-            options.isDeveloperPreviewBuild(),
-            androidApiLevelXml,
-            codebase,
-            sdkExtArgs,
-            options.removeMissingClassesInApiLevels
-        )
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for api-versions.xml files as they only refer to them
+                    // by name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
+
+        apiGenerator.generateXml(codebaseFragment, generateXmlConfig)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {
@@ -244,7 +257,15 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporter)
+        val docAnalyzer =
+            DocAnalyzer(
+                executionEnvironment,
+                codebase,
+                reporter,
+                options.apiLevelLabelProvider,
+                options.includeApiLevelInDocumentation,
+                options.apiPredicateConfig,
+            )
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -253,27 +274,34 @@ internal fun processFlags(
         }
     }
 
-    val apiVersionsJson = options.generateApiVersionsJson
-    val apiVersionNames = options.apiVersionNames
-    if (apiVersionsJson != null && apiVersionNames != null) {
-        progressTracker.progress(
-            "Generating API version history JSON file, ${apiVersionsJson.name}: "
-        )
+    options.apiLevelsGenerationOptions
+        .fromSignatureFilesConfig(
+            // Do not use a cache here as each file loaded is only loaded once and the created
+            // Codebase is discarded immediately after use so caching just uses memory for no
+            // performance benefit.
+            options.signatureFileLoader,
+            // Provide a CodebaseFragment from the sources that will be included in the generated
+            // version history.
+            codebaseFragmentProvider = {
+                val apiType = ApiType.PUBLIC_API
+                val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
-        val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
-
-        apiGenerator.generateJson(
-            // The signature files can be null if the current version is the only version
-            options.apiVersionSignatureFiles ?: emptyList(),
-            codebase,
-            apiVersionsJson,
-            apiVersionNames,
-            apiEmit,
-            apiReference
+                CodebaseFragment.create(codebase) { delegatedVisitor ->
+                    FilteringApiVisitor(
+                        delegate = delegatedVisitor,
+                        apiFilters = apiFilters,
+                        preFiltered = false,
+                    )
+                }
+            }
         )
-    }
+        ?.let { config ->
+            progressTracker.progress(
+                "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
+            )
+
+            apiGenerator.generateFromVersionedApis(config)
+        }
 
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let {
@@ -289,17 +317,30 @@ internal fun processFlags(
     // files
     options.apiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
-            CodebaseFragment(codebase) { delegate ->
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
                     fileFormat = fileFormat,
                     apiType = ApiType.PUBLIC_API,
                     preFiltered = codebase.preFiltered,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
 
         createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
             SignatureWriter(
@@ -311,17 +352,30 @@ internal fun processFlags(
 
     options.removedApiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
-            CodebaseFragment(codebase) { delegate ->
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
                     fileFormat = fileFormat,
                     apiType = ApiType.REMOVED,
                     preFiltered = false,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
 
         createReportFile(
             progressTracker,
@@ -339,18 +393,18 @@ internal fun processFlags(
     }
 
     options.proguard?.let { proguard ->
-        val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+        val apiPredicateConfig = options.apiPredicateConfig
+        val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-        val apiEmit = FilterPredicate(ApiPredicate())
+        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
                 FilteringApiVisitor(
                     proguardWriter,
                     inlineInheritedFields = true,
-                    filterEmit = apiEmit,
-                    filterReference = apiReferenceIgnoreShown,
+                    apiFilters = apiFilters,
                     preFiltered = codebase.preFiltered,
-                    config = options.apiVisitorConfig,
                 )
             }
         }
@@ -368,10 +422,7 @@ internal fun processFlags(
     val previouslyReleasedApi = options.migrateNullsFrom
     if (previouslyReleasedApi != null) {
         val previous =
-            previouslyReleasedApi.load(
-                jarLoader = { jarFile -> actionContext.loadFromJarFile(jarFile) },
-                signatureFileLoader = { signatureFiles -> signatureFileCache.load(signatureFiles) }
-            )
+            previouslyReleasedApi.load { signatureFiles -> signatureFileCache.load(signatureFiles) }
 
         // If configured, checks for newly added nullness information compared
         // to the previous stable API and marks the newly annotated elements
@@ -416,7 +467,7 @@ private fun ActionContext.subtractApi(
     val oldCodebase =
         when {
             path.endsWith(DOT_TXT) ->
-                signatureFileCache.load(SignatureFile.fromFile(subtractApiFile))
+                signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
             path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(
@@ -425,12 +476,10 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator(
-            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-        )
+    CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
-                override fun compare(old: ClassItem, new: ClassItem) {
+                override fun compareClassItems(old: ClassItem, new: ClassItem) {
                     new.emit = false
                 }
             },
@@ -476,12 +525,9 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebase =
-        check.previouslyReleasedApi.load(
-            jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-            signatureFileLoader = { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-            }
-        )
+        check.previouslyReleasedApi.load { signatureFiles ->
+            signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+        }
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
@@ -585,6 +631,7 @@ private fun ActionContext.loadFromSources(
             commonSourceSet,
             "Codebase loaded from source folders",
             classPath = options.classpath,
+            apiPackages = options.apiPackages,
         )
 
     progressTracker.progress("Analyzing API: ")
@@ -609,6 +656,10 @@ private fun ActionContext.loadFromSources(
         options.validateNullabilityFromList
     )
     options.nullabilityAnnotationsValidator?.report()
+
+    // Prevent the codebase from being mutated.
+    codebase.freezeClasses()
+
     analyzer.handleStripping()
 
     // General API checks for Android APIs
@@ -622,19 +673,16 @@ private fun ActionContext.loadFromSources(
 
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedApi =
-            apiLintOptions.previouslyReleasedApi?.load(
-                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-                signatureFileLoader = { signatureFiles ->
-                    signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-                }
-            )
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            }
 
         ApiLint.check(
             codebase,
             previouslyReleasedApi,
             reporter,
             options.manifest,
-            options.apiVisitorConfig,
+            options.apiPredicateConfig,
         )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
@@ -717,20 +765,37 @@ private fun createStubFiles(
             }
         }
 
-    val codebaseFragment =
-        CodebaseFragment(codebase) { delegate ->
+    var codebaseFragment =
+        CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
                 docStubs = docStubs,
                 preFiltered = codebase.preFiltered,
-                apiVisitorConfig = options.apiVisitorConfig,
+                apiPredicateConfig = options.apiPredicateConfig,
             )
         }
+
+    // If reverting some changes then create a snapshot that combines the items from the sources for
+    // any un-reverted changes and items from the previously released API for any reverted changes.
+    if (options.revertAnnotations.isNotEmpty()) {
+        codebaseFragment =
+            codebaseFragment.snapshotIncludingRevertedItems(
+                referenceVisitorFactory = { delegate ->
+                    createFilteringVisitorForStubs(
+                        delegate = delegate,
+                        docStubs = docStubs,
+                        preFiltered = codebase.preFiltered,
+                        apiPredicateConfig = options.apiPredicateConfig,
+                        ignoreEmit = true,
+                    )
+                },
+            )
+    }
 
     // Add additional constructors needed by the stubs.
     val filterEmit =
         if (codebaseFragment.codebase.preFiltered) {
-            Predicate { true }
+            FilterPredicate { true }
         } else {
             val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
             ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)

@@ -16,48 +16,49 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MutableCodebase
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
 
-/**
- * Base class of [Codebase]s for the models that do not incorporate their underlying model, if any,
- * into their [Item] implementations.
- */
+private const val CLASS_ESTIMATE = 15000
+
+/** Base class of [Codebase]s. */
 open class DefaultCodebase(
-    location: File,
+    final override var location: File,
     description: String,
-    preFiltered: Boolean,
-    annotationManager: AnnotationManager,
-    trustedApi: Boolean,
-    supportsDocumentation: Boolean,
-    reporter: Reporter? = null,
+    override val preFiltered: Boolean,
+    final override val config: Codebase.Config,
+    private val trustedApi: Boolean,
+    private val supportsDocumentation: Boolean,
     val assembler: CodebaseAssembler,
-) :
-    AbstractCodebase(
-        location,
-        description,
-        preFiltered,
-        annotationManager,
-        trustedApi,
-        supportsDocumentation,
-    ),
-    MutableCodebase {
+) : Codebase {
 
-    private val optionalReporter = reporter
+    final override val annotationManager: AnnotationManager = config.annotationManager
 
-    override val reporter: Reporter
-        get() = optionalReporter ?: unsupported("reporter is not available")
+    final override val apiSurfaces: ApiSurfaces = config.apiSurfaces
+
+    final override var description: String = description
+        private set
+
+    final override fun trustedApi() = trustedApi
+
+    final override fun supportsDocumentation() = supportsDocumentation
+
+    final override fun toString() = description
+
+    override fun dispose() {
+        description += " [disposed]"
+    }
+
+    override val reporter: Reporter = config.reporter
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
     val packageTracker = PackageTracker(assembler::createPackageItem)
@@ -102,6 +103,12 @@ open class DefaultCodebase(
         topLevelClassesFromSource.add(classItem)
     }
 
+    override fun freezeClasses() {
+        for (classItem in topLevelClassesFromSource) {
+            classItem.freeze()
+        }
+    }
+
     /**
      * Look for classes in this [Codebase].
      *
@@ -116,8 +123,11 @@ open class DefaultCodebase(
     final override fun findClass(className: String): ClassItem? =
         findClassInCodebase(className) ?: externalClassesByName[className]
 
-    /** Register [DefaultClassItem] with this [Codebase]. */
-    final override fun registerClass(classItem: DefaultClassItem): Boolean {
+    /**
+     * Register the class by name, return `true` if the class was registered and `false` if it was
+     * not, i.e. because it is a duplicate.
+     */
+    fun registerClass(classItem: DefaultClassItem): Boolean {
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName[qualifiedName]
