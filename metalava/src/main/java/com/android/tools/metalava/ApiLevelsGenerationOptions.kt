@@ -494,7 +494,7 @@ class ApiLevelsGenerationOptions(
                 }
                 // Add a VersionedSourceApi for the source code.
                 val codebaseFragment = codebaseFragmentProvider()
-                add(VersionedSourceApi(codebaseFragment, sourceVersion))
+                add(VersionedSourceApi(codebaseFragment, sourceVersion, useInternalNames = false))
             }
 
             val printer =
