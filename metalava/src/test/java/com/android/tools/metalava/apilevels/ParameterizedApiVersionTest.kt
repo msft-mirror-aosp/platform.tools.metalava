@@ -22,12 +22,13 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class ParameterizedExtVersionTest {
+class ParameterizedApiVersionTest {
 
     data class TestData(
         val input: String,
         val expectedValid: Boolean = true,
         val expectedString: String = input,
+        val expectedIncremented: String,
     ) {
         override fun toString() = input
     }
@@ -42,25 +43,61 @@ class ParameterizedExtVersionTest {
                 TestData(
                     input = "0",
                     expectedValid = false,
+                    expectedIncremented = "1",
                 ),
                 TestData(
                     input = "1",
+                    expectedIncremented = "2",
                 ),
                 TestData(
                     input = "01",
                     expectedString = "1",
+                    expectedIncremented = "2",
+                ),
+                TestData(
+                    input = "0.0",
+                    expectedIncremented = "1.0",
+                ),
+                TestData(
+                    input = "0.00",
+                    expectedString = "0.0",
+                    expectedIncremented = "1.0",
+                ),
+                TestData(
+                    input = "0.0.0",
+                    expectedIncremented = "1.0.0",
+                ),
+                TestData(
+                    input = "0.1",
+                    expectedIncremented = "1.1",
+                ),
+                TestData(
+                    input = "1.0",
+                    expectedIncremented = "2.0",
+                ),
+                TestData(
+                    input = "1.0.0",
+                    expectedIncremented = "2.0.0",
+                ),
+                TestData(
+                    input = "1.2.3-good",
+                    expectedIncremented = "2.2.3-good",
                 ),
             )
     }
 
-    /** Get an [ExtVersion] from [text]. */
-    private fun getExtVersionFromString(text: String) = ExtVersion(text.toInt())
+    /** Get an [ApiVersion] from [text]. */
+    private fun getSdkVersionFromString(text: String) = ApiVersion.fromString(text)
 
     @Test
     fun test() {
-        val version = getExtVersionFromString(testData.input)
+        val version = getSdkVersionFromString(testData.input)
 
         assertThat(version.isValid).isEqualTo(testData.expectedValid)
         assertThat(version.toString()).isEqualTo(testData.expectedString)
+
+        val incrementedVersion = version + 1
+        val expectedIncrementedVersion = getSdkVersionFromString(testData.expectedIncremented)
+        assertThat(incrementedVersion).isEqualTo(expectedIncrementedVersion)
     }
 }

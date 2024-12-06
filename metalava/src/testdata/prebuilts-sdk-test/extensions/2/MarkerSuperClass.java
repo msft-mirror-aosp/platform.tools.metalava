@@ -14,28 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.apilevels
+package android.test;
 
-import com.google.common.truth.Truth.assertThat
-import org.junit.Test
-
-class SdkVersionTest {
-    @Test
-    fun `Test sorting`() {
-        val versions =
-            listOf(
-                SdkVersion.fromLevel(10),
-                SdkVersion.fromLevel(1),
-                SdkVersion.fromLevel(5),
-            )
-
-        assertThat(versions.sorted())
-            .isEqualTo(
-                listOf(
-                    SdkVersion.fromLevel(1),
-                    SdkVersion.fromLevel(5),
-                    SdkVersion.fromLevel(10),
-                )
-            )
-    }
+public class MarkerSuperClass {
 }
