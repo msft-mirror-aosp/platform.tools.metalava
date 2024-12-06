@@ -18,7 +18,6 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.CodebaseFragment
 import java.io.File
-import java.io.IOException
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
@@ -76,10 +75,21 @@ class ApiGenerator {
         }
         val sdkExtensionsArguments = config.sdkExtensionsArguments
         if (sdkExtensionsArguments != null) {
-            processExtensionSdkApis(
+            val versionedExtensionApis =
+                createVersionedExtensionApis(
+                    notFinalizedSdkVersion,
+                    sdkExtensionsArguments.sdkExtJarRoot,
+                    sdkExtensionsArguments.sdkExtensionInfo,
+                )
+
+            // Apply the list of VersionedApis to Api.
+            for (versionedApi in versionedExtensionApis) {
+                versionedApi.updateApi(api)
+            }
+
+            updateSdksAttributes(
                 api,
                 notFinalizedSdkVersion,
-                sdkExtensionsArguments.sdkExtJarRoot,
                 sdkExtensionsArguments.sdkExtensionInfo,
             )
         }
@@ -124,30 +134,23 @@ class ApiGenerator {
     }
 
     /**
-     * Modify the extension SDK API parts of an API as dictated by a filter.
-     * - remove APIs not listed in the filter
-     * - assign APIs listed in the filter their corresponding extensions
+     * Find the extension jars and versions for all modules, and create a list of [VersionedApi]s
+     * from them.
      *
      * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
      * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
-     * assign such APIs some Android SDK API level. The recommended value is current-api-level + 1,
-     * which is what non-finalized APIs use.
+     * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
      *
-     * @param api the api to modify
      * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param sdkJarRoot path to directory containing extension SDK jars (usually
      *   $ANDROID_ROOT/prebuilts/sdk/extensions)
      * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
-     * @throws IOException if the filter file can not be read
-     * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar
-     *   files were found
      */
-    private fun processExtensionSdkApis(
-        api: Api,
+    private fun createVersionedExtensionApis(
         versionNotInAndroidSdk: ApiVersion,
         sdkJarRoot: File,
         sdkExtensionInfo: SdkExtensionInfo,
-    ) {
+    ): List<VersionedApi> {
         val map = findExtensionSdkJarFiles(sdkJarRoot)
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
 
@@ -173,11 +176,25 @@ class ApiGenerator {
             }
         }
 
-        // Apply the list of VersionedApis to Api.
-        for (versionedApi in versionedExtensionApis) {
-            versionedApi.updateApi(api)
-        }
+        return versionedExtensionApis.toList()
+    }
 
+    /**
+     * Traverses [api] updating the [ApiElement.sdks] properties to list the appropriate extensions.
+     *
+     * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
+     * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
+     * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
+     *
+     * @param api the api to modify
+     * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
+     * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
+     */
+    private fun updateSdksAttributes(
+        api: Api,
+        versionNotInAndroidSdk: ApiVersion,
+        sdkExtensionInfo: SdkExtensionInfo,
+    ) {
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
 
