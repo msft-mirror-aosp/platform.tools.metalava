@@ -22,6 +22,13 @@ package com.android.tools.metalava.apilevels
  */
 sealed interface ApiHistoryUpdater {
     /**
+     * Updates the API with information for a specific API version.
+     *
+     * @param api the [Api] to update.
+     */
+    fun update(api: Api)
+
+    /**
      * Updates the API element with information for a specific API version.
      *
      * @param apiElement the [ApiElement] to update.
@@ -34,6 +41,10 @@ sealed interface ApiHistoryUpdater {
 
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
     private open class ApiVersionUpdater(private val apiVersion: ApiVersion) : ApiHistoryUpdater {
+        override fun update(api: Api) {
+            api.update(apiVersion)
+        }
+
         override fun update(apiElement: ApiElement, deprecated: Boolean) {
             apiElement.update(apiVersion, deprecated)
         }
@@ -48,6 +59,12 @@ sealed interface ApiHistoryUpdater {
         private val extVersion: ExtVersion,
         private val module: String
     ) : ApiVersionUpdater(nextSdkVersion) {
+        override fun update(api: Api) {
+            // Do not update the Api with the next sdk version as that could cause all classes
+            // which are not provided by an extension to be treated as being removed as they
+            // may not have been recorded as being part of the next sdk version.
+        }
+
         override fun update(apiElement: ApiElement, deprecated: Boolean) {
             super.update(apiElement, deprecated)
             apiElement.updateExtension(extVersion)
