@@ -365,17 +365,6 @@ class ApiLevelsGenerationOptions(
             .firstOrNull { it.isFile }
     }
 
-    private val sdkExtensionsArguments
-        get() =
-            if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator.SdkExtensionsArguments(
-                    sdkJarRoot!!,
-                    sdkInfoFile!!,
-                )
-            } else {
-                null
-            }
-
     val generateXmlConfig
         get() =
             generateApiLevelXml?.let { outputFile ->
@@ -398,6 +387,17 @@ class ApiLevelsGenerationOptions(
 
                         // Else do not include the current codebase.
                         else -> null
+                    }
+
+                // Get the optional SDK extension arguments.
+                val sdkExtensionsArguments =
+                    if (sdkJarRoot != null && sdkInfoFile != null) {
+                        ApiGenerator.SdkExtensionsArguments(
+                            sdkJarRoot!!,
+                            sdkInfoFile!!,
+                        )
+                    } else {
+                        null
                     }
 
                 // Get a list of all versions, including the codebase version, if necessary.
