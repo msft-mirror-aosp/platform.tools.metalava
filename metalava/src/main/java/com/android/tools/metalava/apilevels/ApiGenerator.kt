@@ -16,7 +16,6 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
-import com.android.tools.metalava.model.CodebaseFragment
 import java.io.File
 
 /**
@@ -27,16 +26,11 @@ class ApiGenerator {
     /**
      * Generates an XML API version history file based on the API surfaces of the versions provided.
      *
-     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
      * @param config Configuration provided from command line options.
      */
-    fun generateXml(
-        codebaseFragment: CodebaseFragment,
-        config: GenerateXmlConfig,
-    ): Boolean {
+    fun generateXml(config: GenerateXmlConfig): Boolean {
         val versionToJar = config.versionToJar
         val notFinalizedSdkVersion = config.notFinalizedSdkVersion
-        val codebaseSdkVersion = config.codebaseSdkVersion
 
         val sdkExtensionsArguments = config.sdkExtensionsArguments
 
@@ -46,14 +40,9 @@ class ApiGenerator {
                 val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
                 add(VersionedJarApi(jar, updater))
             }
-            if (codebaseSdkVersion != null)
-                add(
-                    VersionedSourceApi(
-                        codebaseFragment,
-                        codebaseSdkVersion,
-                        useInternalNames = true,
-                    )
-                )
+
+            // Add the optional VersionedApi for the current source Codebase.
+            addAll(config.versionedApis)
 
             // Add any VersionedApis for SDK extensions. These must be added after all VersionedApis
             // for SDK versions as their behavior depends on whether an API was defined in an SDK

@@ -23,6 +23,14 @@ import java.io.File
 /** Properties for the [ApiGenerator.generateXml] method that come from comment line options. */
 data class GenerateXmlConfig(
     /**
+     * A list of versioned APIs, ordered from the oldest API version to newest.
+     *
+     * Currently, only contains the optional [VersionedApi] for the current sources [Codebase]. but
+     * will eventually contain all the [VersionedApi]s that contribute to the version history.
+     */
+    val versionedApis: List<VersionedApi>,
+
+    /**
      * A map from [ApiVersion] to associated jar file for historical APIs versions, i.e. APIs that
      * have previously been released.
      */
@@ -30,12 +38,6 @@ data class GenerateXmlConfig(
 
     /** A version that has not yet been finalized. */
     val notFinalizedSdkVersion: ApiVersion,
-
-    /**
-     * The version to use for the current sources [Codebase], or null if the [Codebase] should not
-     * be included in the API history.
-     */
-    val codebaseSdkVersion: ApiVersion?,
 
     /** The API levels file that will be generated. */
     val outputFile: File,

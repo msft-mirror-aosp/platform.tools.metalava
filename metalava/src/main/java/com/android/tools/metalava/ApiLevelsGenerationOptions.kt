@@ -365,61 +365,76 @@ class ApiLevelsGenerationOptions(
             .firstOrNull { it.isFile }
     }
 
-    val generateXmlConfig
-        get() =
-            generateApiLevelXml?.let { outputFile ->
-                val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
-                val notFinalizedSdkVersion = currentSdkVersion + 1
-                val lastApiVersion = versionToJar.keys.lastOrNull()
+    fun forGenerateXmlConfig(
+        codebaseFragmentProvider: () -> CodebaseFragment,
+    ) =
+        generateApiLevelXml?.let { outputFile ->
+            val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
+            val notFinalizedSdkVersion = currentSdkVersion + 1
+            val lastApiVersion = versionToJar.keys.lastOrNull()
 
-                // Compute the version to use for the current codebase.
-                val codebaseSdkVersion =
-                    when {
-                        // The current codebase is a developer preview so use the next, in the
-                        // process of being finalized version.
-                        isDeveloperPreviewBuild -> notFinalizedSdkVersion
+            // Compute the version to use for the current codebase.
+            val codebaseSdkVersion =
+                when {
+                    // The current codebase is a developer preview so use the next, in the
+                    // process of being finalized version.
+                    isDeveloperPreviewBuild -> notFinalizedSdkVersion
 
-                        // If no historical versions were provided or the last historical version is
-                        // less than the current version then use the current version as the version
-                        // of the codebase.
-                        lastApiVersion == null || lastApiVersion < currentSdkVersion ->
-                            currentSdkVersion
+                    // If no historical versions were provided or the last historical version is
+                    // less than the current version then use the current version as the version
+                    // of the codebase.
+                    lastApiVersion == null || lastApiVersion < currentSdkVersion ->
+                        currentSdkVersion
 
-                        // Else do not include the current codebase.
-                        else -> null
-                    }
-
-                // Get the optional SDK extension arguments.
-                val sdkExtensionsArguments =
-                    if (sdkJarRoot != null && sdkInfoFile != null) {
-                        ApiGenerator.SdkExtensionsArguments(
-                            sdkJarRoot!!,
-                            sdkInfoFile!!,
-                        )
-                    } else {
-                        null
-                    }
-
-                // Get a list of all versions, including the codebase version, if necessary.
-                val allVersions = buildList {
-                    addAll(versionToJar.keys)
-                    if (codebaseSdkVersion != null) add(codebaseSdkVersion)
+                    // Else do not include the current codebase.
+                    else -> null
                 }
 
-                val availableSdkExtensions =
-                    sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-                val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
+            // Get the optional SDK extension arguments.
+            val sdkExtensionsArguments =
+                if (sdkJarRoot != null && sdkInfoFile != null) {
+                    ApiGenerator.SdkExtensionsArguments(
+                        sdkJarRoot!!,
+                        sdkInfoFile!!,
+                    )
+                } else {
+                    null
+                }
 
-                GenerateXmlConfig(
-                    versionToJar = versionToJar,
-                    notFinalizedSdkVersion = notFinalizedSdkVersion,
-                    codebaseSdkVersion = codebaseSdkVersion,
-                    outputFile = outputFile,
-                    printer = printer,
-                    sdkExtensionsArguments = sdkExtensionsArguments,
-                    removeMissingClasses = removeMissingClassReferencesInApiLevels,
-                )
+            // Create a list of VersionedApis that need to be incorporated into the Api history.
+            val versionedApis = buildList {
+                // Add a VersionedSourceApi for the current codebase if required.
+                if (codebaseSdkVersion != null) {
+                    add(
+                        VersionedSourceApi(
+                            codebaseFragmentProvider(),
+                            codebaseSdkVersion,
+                            useInternalNames = true,
+                        )
+                    )
+                }
             }
+
+            // Get a list of all versions, including the codebase version, if necessary.
+            val allVersions = buildList {
+                addAll(versionToJar.keys)
+                if (codebaseSdkVersion != null) add(codebaseSdkVersion)
+            }
+
+            val availableSdkExtensions =
+                sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
+            val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
+
+            GenerateXmlConfig(
+                versionedApis = versionedApis,
+                versionToJar = versionToJar,
+                notFinalizedSdkVersion = notFinalizedSdkVersion,
+                outputFile = outputFile,
+                printer = printer,
+                sdkExtensionsArguments = sdkExtensionsArguments,
+                removeMissingClasses = removeMissingClassReferencesInApiLevels,
+            )
+        }
 
     /** API version history file to generate */
     private val generateApiVersionHistory by
