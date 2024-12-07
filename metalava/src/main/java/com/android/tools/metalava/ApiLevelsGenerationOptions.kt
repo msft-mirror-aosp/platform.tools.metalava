@@ -17,11 +17,14 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.ApiHistoryUpdater
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
+import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
 import com.android.tools.metalava.apilevels.GenerateApiVersionsFromVersionedApisConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
+import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
@@ -403,6 +406,11 @@ class ApiLevelsGenerationOptions(
 
             // Create a list of VersionedApis that need to be incorporated into the Api history.
             val versionedApis = buildList {
+                for ((sdkVersion, jar) in versionToJar) {
+                    val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
+                    add(VersionedJarApi(jar, updater))
+                }
+
                 // Add a VersionedSourceApi for the current codebase if required.
                 if (codebaseSdkVersion != null) {
                     add(
@@ -411,6 +419,20 @@ class ApiLevelsGenerationOptions(
                             codebaseSdkVersion,
                             useInternalNames = true,
                         )
+                    )
+                }
+
+                // Add any VersionedApis for SDK extensions. These must be added after all
+                // VersionedApis
+                // for SDK versions as their behavior depends on whether an API was defined in an
+                // SDK
+                // version.
+                if (sdkExtensionsArguments != null) {
+                    addVersionedExtensionApis(
+                        this,
+                        notFinalizedSdkVersion,
+                        sdkExtensionsArguments.sdkExtJarRoot,
+                        sdkExtensionsArguments.sdkExtensionInfo,
                     )
                 }
             }
@@ -427,7 +449,6 @@ class ApiLevelsGenerationOptions(
 
             GenerateXmlConfig(
                 versionedApis = versionedApis,
-                versionToJar = versionToJar,
                 notFinalizedSdkVersion = notFinalizedSdkVersion,
                 outputFile = outputFile,
                 printer = printer,

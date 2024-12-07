@@ -15,7 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
 import java.io.File
 
 /**
@@ -29,41 +28,13 @@ class ApiGenerator {
      * @param config Configuration provided from command line options.
      */
     fun generateXml(config: GenerateXmlConfig): Boolean {
-        val versionToJar = config.versionToJar
-        val notFinalizedSdkVersion = config.notFinalizedSdkVersion
-
-        val sdkExtensionsArguments = config.sdkExtensionsArguments
-
-        // Create a list of VersionedApis that need to be incorporated into the Api history.
-        val versionedApis = buildList {
-            for ((sdkVersion, jar) in versionToJar) {
-                val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
-                add(VersionedJarApi(jar, updater))
-            }
-
-            // Add the optional VersionedApi for the current source Codebase.
-            addAll(config.versionedApis)
-
-            // Add any VersionedApis for SDK extensions. These must be added after all VersionedApis
-            // for SDK versions as their behavior depends on whether an API was defined in an SDK
-            // version.
-            if (sdkExtensionsArguments != null) {
-                addVersionedExtensionApis(
-                    this,
-                    notFinalizedSdkVersion,
-                    sdkExtensionsArguments.sdkExtJarRoot,
-                    sdkExtensionsArguments.sdkExtensionInfo,
-                )
-            }
-        }
-
-        val api = createApiFromVersionedApis(versionedApis)
+        val api = createApiFromVersionedApis(config.versionedApis)
 
         // If necessary, update the sdks properties.
-        if (sdkExtensionsArguments != null) {
+        config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
             updateSdksAttributes(
                 api,
-                notFinalizedSdkVersion,
+                config.notFinalizedSdkVersion,
                 sdkExtensionsArguments.sdkExtensionInfo,
             )
         }
