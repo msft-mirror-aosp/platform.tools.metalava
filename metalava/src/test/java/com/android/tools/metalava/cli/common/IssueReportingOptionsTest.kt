@@ -255,7 +255,10 @@ class IssueReportingOptionsTest :
         // Category names should start with an upper case letter.
         runTest(ARG_HIDE_CATEGORY, "compatibility") {
             assertEquals("", stdout)
-            assertEquals("Unknown category: --hide-category compatibility", stderr)
+            assertEquals(
+                "Option --hide-category is invalid: Unknown category: 'compatibility', expected one of Compatibility, Documentation, ApiLint, Unknown",
+                stderr
+            )
 
             // Make sure that there were no reported issues.
             options.bootstrapReporter.writeSavedReports()
