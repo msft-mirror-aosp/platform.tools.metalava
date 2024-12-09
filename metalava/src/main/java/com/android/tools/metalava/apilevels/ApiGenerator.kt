@@ -38,7 +38,10 @@ class ApiGenerator {
                 sdkExtensionsArguments.sdkExtensionInfo,
             )
         }
-        api.backfillHistoricalFixes()
+
+        // If android.os.ext.SdkExtensions exists in the Api then patch up its history.
+        api.patchSdkExtensionsHistory()
+
         api.clean()
 
         // Apply the appropriate action for missing classes.

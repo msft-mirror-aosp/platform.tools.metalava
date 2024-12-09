@@ -135,7 +135,7 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     /**
      * Clears the sdk extension information from this [ApiElement].
      *
-     * This is only intended for use by [Api.backfillSdkExtensions].
+     * This is only intended for use by [Api.patchSdkExtensionsHistory].
      */
     fun clearSdkExtensionInfo() {
         this.sinceExtension = null
