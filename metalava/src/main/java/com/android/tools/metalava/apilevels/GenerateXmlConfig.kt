@@ -49,10 +49,42 @@ data class GenerateXmlConfig(
     val sdkExtensionsArguments: SdkExtensionsArguments?,
 
     /**
-     * If `true` then any references to undefined classes will be removed from super class and
-     * interface lists; otherwise any such references will be treated as an error.
+     * Determines what to do with If `true` then any references to undefined classes will be removed
+     * from super class and interface lists; otherwise any such references will be treated as an
+     * error.
      *
      * An undefined class is one that is not defined within any of the API versions loaded.
      */
-    val removeMissingClasses: Boolean,
+    val missingClassAction: MissingClassAction,
 )
+
+/**
+ * Possible actions to take when an [Api] object contains references in extends and implements types
+ * to classes which are not defined within the [Api] (i.e. have no corresponding [ApiClass] because
+ * they were not defined within any of the API versions loaded).
+ */
+enum class MissingClassAction {
+    /** Keep the references in the [Api]. */
+    KEEP {
+        override fun apply(api: Api) {
+            // Do nothing.
+        }
+    },
+
+    /** Remove the references from the [Api]. */
+    REMOVE {
+        override fun apply(api: Api) {
+            api.removeMissingClasses()
+        }
+    },
+
+    /** Report the references as errors. */
+    REPORT {
+        override fun apply(api: Api) {
+            api.verifyNoMissingClasses()
+        }
+    };
+
+    /** Apply this action to [api]. */
+    abstract fun apply(api: Api)
+}

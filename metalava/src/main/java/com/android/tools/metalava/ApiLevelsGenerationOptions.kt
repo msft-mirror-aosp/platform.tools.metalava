@@ -24,6 +24,7 @@ import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
 import com.android.tools.metalava.apilevels.GenerateApiVersionsFromVersionedApisConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
+import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
@@ -453,7 +454,9 @@ class ApiLevelsGenerationOptions(
                 outputFile = outputFile,
                 printer = printer,
                 sdkExtensionsArguments = sdkExtensionsArguments,
-                removeMissingClasses = removeMissingClassReferencesInApiLevels,
+                missingClassAction =
+                    if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
+                    else MissingClassAction.REPORT,
             )
         }
 

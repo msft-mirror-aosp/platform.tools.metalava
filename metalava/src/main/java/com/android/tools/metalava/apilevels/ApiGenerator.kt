@@ -40,11 +40,10 @@ class ApiGenerator {
         }
         api.backfillHistoricalFixes()
         api.clean()
-        if (config.removeMissingClasses) {
-            api.removeMissingClasses()
-        } else {
-            api.verifyNoMissingClasses()
-        }
+
+        // Apply the appropriate action for missing classes.
+        config.missingClassAction.apply(api)
+
         return createApiLevelsFile(config.outputFile, config.printer, api)
     }
 
