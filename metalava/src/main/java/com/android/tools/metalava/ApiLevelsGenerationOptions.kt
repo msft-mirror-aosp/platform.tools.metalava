@@ -399,6 +399,7 @@ class ApiLevelsGenerationOptions(
                     ApiGenerator.SdkExtensionsArguments(
                         sdkJarRoot!!,
                         sdkInfoFile!!,
+                        notFinalizedSdkVersion,
                     )
                 } else {
                     null
@@ -449,7 +450,6 @@ class ApiLevelsGenerationOptions(
 
             GenerateXmlConfig(
                 versionedApis = versionedApis,
-                notFinalizedSdkVersion = notFinalizedSdkVersion,
                 outputFile = outputFile,
                 printer = printer,
                 sdkExtensionsArguments = sdkExtensionsArguments,

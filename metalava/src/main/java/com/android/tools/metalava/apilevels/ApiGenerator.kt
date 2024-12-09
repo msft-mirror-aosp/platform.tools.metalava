@@ -34,7 +34,7 @@ class ApiGenerator {
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
             updateSdksAttributes(
                 api,
-                config.notFinalizedSdkVersion,
+                sdkExtensionsArguments.notFinalizedSdkVersion,
                 sdkExtensionsArguments.sdkExtensionInfo,
             )
         }
@@ -159,8 +159,23 @@ class ApiGenerator {
     }
 
     data class SdkExtensionsArguments(
+        /**
+         * Root of the directory containing released versions of the SDK extensions, e.g.
+         * `prebuilts/sdk/extensions/`.
+         */
         val sdkExtJarRoot: File,
+
+        /**
+         * The `sdk-extension-info.xml` file containing information about the available sdk
+         * extensions and the APIs each module contributes to them.
+         */
         private val sdkExtInfoFile: File,
+
+        /**
+         * A version that has not yet been finalized. Used when an API was added in an SDK extension
+         * but not yet part of an SDK release.
+         */
+        val notFinalizedSdkVersion: ApiVersion,
     ) {
         /** [SdkExtensionInfo] loaded on demand from [sdkExtInfoFile]. */
         val sdkExtensionInfo by

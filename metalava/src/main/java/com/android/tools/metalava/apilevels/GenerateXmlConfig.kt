@@ -35,9 +35,6 @@ data class GenerateXmlConfig(
      */
     val versionedApis: List<VersionedApi>,
 
-    /** A version that has not yet been finalized. */
-    val notFinalizedSdkVersion: ApiVersion,
-
     /** The API levels file that will be generated. */
     val outputFile: File,
 
