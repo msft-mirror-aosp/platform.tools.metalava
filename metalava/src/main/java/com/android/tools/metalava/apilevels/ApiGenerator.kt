@@ -17,17 +17,14 @@ package com.android.tools.metalava.apilevels
 
 import java.io.File
 
-/**
- * Main class for command line command to convert the existing API XML/TXT files into diff-based
- * simple text files.
- */
+/** Generates API version history. */
 class ApiGenerator {
     /**
-     * Generates an XML API version history file based on the API surfaces of the versions provided.
+     * Generates an API version history file based on the API surfaces of the versions provided.
      *
      * @param config Configuration provided from command line options.
      */
-    fun generateXml(config: GenerateXmlConfig): Boolean {
+    fun generateApiHistory(config: GenerateApiHistoryConfig): Boolean {
         val api = createApiFromVersionedApis(config.versionedApis)
 
         // If necessary, update the sdks properties.

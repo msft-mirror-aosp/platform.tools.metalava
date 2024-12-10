@@ -20,8 +20,10 @@ import com.android.tools.metalava.apilevels.ApiGenerator.SdkExtensionsArguments
 import com.android.tools.metalava.model.Codebase
 import java.io.File
 
-/** Properties for the [ApiGenerator.generateXml] method that come from comment line options. */
-data class GenerateXmlConfig(
+/**
+ * Properties for the [ApiGenerator.generateApiHistory] method that come from command line options.
+ */
+data class GenerateApiHistoryConfig(
     /**
      * A list of [VersionedApi]s that contribute to the API history.
      *

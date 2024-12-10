@@ -222,7 +222,7 @@ internal fun processFlags(
     }
 
     val generateXmlConfig =
-        options.apiLevelsGenerationOptions.forGenerateXmlConfig {
+        options.apiLevelsGenerationOptions.forAndroidConfig {
             var codebaseFragment =
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
@@ -256,7 +256,7 @@ internal fun processFlags(
             "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
         )
 
-        apiGenerator.generateXml(generateXmlConfig)
+        apiGenerator.generateApiHistory(generateXmlConfig)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {

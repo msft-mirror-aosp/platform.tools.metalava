@@ -22,8 +22,8 @@ import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
+import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.GenerateApiVersionsFromVersionedApisConfig
-import com.android.tools.metalava.apilevels.GenerateXmlConfig
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
@@ -369,7 +369,12 @@ class ApiLevelsGenerationOptions(
             .firstOrNull { it.isFile }
     }
 
-    fun forGenerateXmlConfig(
+    /**
+     * Get the [GenerateApiHistoryConfig] for Android.
+     *
+     * This has some Android specific code, e.g. structure of SDK extensions.
+     */
+    fun forAndroidConfig(
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
@@ -449,7 +454,7 @@ class ApiLevelsGenerationOptions(
                 sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
             val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
 
-            GenerateXmlConfig(
+            GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
                 outputFile = outputFile,
                 printer = printer,
