@@ -313,14 +313,11 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * The Map from [ApiVersion] to associated jar [File].
+     * Find all android stub jars that matches the given criteria.
      *
-     * Entries are in order from lowest [ApiVersion] to highest.
+     * Returns a Map from [ApiVersion] to associated jar [File] whose entries are in order from
+     * lowest [ApiVersion] to highest.
      */
-    private val versionToJar
-        get() = findAndroidJars()
-
-    /** Find all android stub jars that matches the given criteria. */
     private fun findAndroidJars(): Map<ApiVersion, File> {
         val versionToJar = mutableMapOf<ApiVersion, File>()
         // Get all the android.jar. They are in platforms-#
@@ -377,6 +374,8 @@ class ApiLevelsGenerationOptions(
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
+            val versionToJar = findAndroidJars()
+
             val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
             val notFinalizedSdkVersion = currentSdkVersion + 1
             val lastApiVersion = versionToJar.keys.lastOrNull()
