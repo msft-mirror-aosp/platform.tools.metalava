@@ -23,7 +23,6 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
-import com.android.tools.metalava.apilevels.GenerateApiVersionsFromVersionedApisConfig
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
@@ -523,21 +522,21 @@ class ApiLevelsGenerationOptions(
             .split(" ")
 
     /**
-     * Construct the [GenerateApiVersionsFromVersionedApisConfig] from the options.
+     * Construct the [GenerateApiHistoryConfig] from the options.
      *
      * If no relevant command line options were provided then this will return `null`, otherwise it
      * will validate the options and if all is well construct and return a
-     * [GenerateApiVersionsFromVersionedApisConfig] object.
+     * [GenerateApiHistoryConfig] object.
      *
      * @param signatureFileLoader used for loading [Codebase]s from signature files.
      * @param codebaseFragmentProvider provides access to the [CodebaseFragment] for the API defined
-     *   in the sources. This will only be called if a [GenerateApiVersionsFromVersionedApisConfig]
-     *   needs to be created.
+     *   in the sources. This will only be called if a [GenerateApiHistoryConfig] needs to be
+     *   created.
      */
     fun fromSignatureFilesConfig(
         signatureFileLoader: SignatureFileLoader,
         codebaseFragmentProvider: () -> CodebaseFragment,
-    ): GenerateApiVersionsFromVersionedApisConfig? {
+    ): GenerateApiHistoryConfig? {
         // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
         // so there should be 1 more name than signature file (or both can be null)
         val numVersionNames = apiVersionNames?.size ?: 0
@@ -579,10 +578,14 @@ class ApiLevelsGenerationOptions(
                         )
                 }
 
-            GenerateApiVersionsFromVersionedApisConfig(
+            GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
                 outputFile = apiVersionsFile,
                 printer = printer,
+                // None are available when generating from signature files.
+                sdkExtensionsArguments = null,
+                // Keep any references to missing classes.
+                missingClassAction = MissingClassAction.KEEP,
             )
         } else {
             null

@@ -307,7 +307,7 @@ internal fun processFlags(
                 "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
             )
 
-            apiGenerator.generateFromVersionedApis(config)
+            apiGenerator.generateApiHistory(config)
         }
 
     // Generate the documentation stubs *before* we migrate nullness information.

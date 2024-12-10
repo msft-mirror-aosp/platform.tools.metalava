@@ -62,19 +62,6 @@ class ApiGenerator {
     }
 
     /**
-     * Generates an API version history file based on the API surfaces of the versions provided.
-     *
-     * @param config Configuration provided from command line options.
-     */
-    fun generateFromVersionedApis(
-        config: GenerateApiVersionsFromVersionedApisConfig,
-    ) {
-        val api = createApiFromVersionedApis(config.versionedApis)
-        api.clean()
-        createApiLevelsFile(config.outputFile, config.printer, api)
-    }
-
-    /**
      * Traverses [api] updating the [ApiElement.sdks] properties to list the appropriate extensions.
      *
      * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
