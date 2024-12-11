@@ -181,23 +181,6 @@ class ProjectDescriptionTest : DriverTest() {
                 }
                 """
         )
-
-        /*
-           Lint failure with K2:
-           src/androidMain/some/pkg/Foo.kt:9: warning: Companion object methods like foo should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
-
-           Signature file with K2 -- foo() is not static, wrongName() is not renamed with JvmName
-           package some.pkg {
-             public final class Foo {
-               ctor public Foo();
-               method public void wrongName();
-               field public static final some.pkg.Foo.Companion Companion;
-             }
-             public static final class Foo.Companion {
-               method public String foo(String x);
-             }
-           }
-        */
     }
 
     @Test
@@ -241,8 +224,5 @@ class ProjectDescriptionTest : DriverTest() {
                 }
                 """
         )
-        /*
-        K2 fails with "Invalid type in API surface: PsiType:<ErrorType> for element some.pkg.Foo#lazyVal"
-         */
     }
 }
