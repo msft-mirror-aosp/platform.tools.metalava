@@ -291,7 +291,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("version.properties")
+            isolated.rootProject.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {
