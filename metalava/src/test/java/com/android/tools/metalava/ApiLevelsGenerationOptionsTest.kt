@@ -334,17 +334,14 @@ class ApiLevelsGenerationOptionsTest :
             val versionedApisDump =
                 cleanupString(apiHistoryConfig!!.versionedApis.joinToString("\n"))
             assertThat(versionedApisDump)
-                // TODO(b/392565932): When generating the api-versions.xml for a finalized API the
-                //  ExtensionUpdater.nextSdkVersion property should be the current version but it is
-                //  the current version + 1.
                 .isEqualTo(
                     """
                         VersionedJarApi(jar=TESTROOT/31/public/android.jar, updater=ApiVersionUpdater(version=31))
                         VersionedJarApi(jar=TESTROOT/32/public/android.jar, updater=ApiVersionUpdater(version=32))
                         VersionedSourceApi(version=33)
-                        VersionedJarApi(jar=TESTROOT/extensions/1/public/bar.jar, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=34))
-                        VersionedJarApi(jar=TESTROOT/extensions/2/public/bar.jar, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=34))
-                        VersionedJarApi(jar=TESTROOT/extensions/2/public/foo.jar, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=34))
+                        VersionedJarApi(jar=TESTROOT/extensions/1/public/bar.jar, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=33))
+                        VersionedJarApi(jar=TESTROOT/extensions/2/public/bar.jar, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=33))
+                        VersionedJarApi(jar=TESTROOT/extensions/2/public/foo.jar, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=33))
                     """
                         .trimIndent()
                 )
