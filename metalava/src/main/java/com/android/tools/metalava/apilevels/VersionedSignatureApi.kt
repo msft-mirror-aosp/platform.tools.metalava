@@ -16,17 +16,24 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SignatureFileCache
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 
 /**
- * Encapsulates an [SdkVersion] and associated API definition, currently represented by a single
- * [file] that contains an API signature.
+ * Supports updating [Api] with information from the [apiVersion] of the API that is defined in the
+ * signature [file].
  */
-class VersionedSignatureApi(val sdkVersion: SdkVersion, private val file: File) {
-    /** Load the API into a [Codebase] using the [signatureFileCache]. */
-    fun load(signatureFileCache: SignatureFileCache) =
-        signatureFileCache.load(SignatureFile.fromFiles(file))
+class VersionedSignatureApi(
+    private val signatureFileLoader: SignatureFileLoader,
+    private val file: File,
+    private val apiVersion: ApiVersion,
+) : VersionedApi {
+    override fun updateApi(api: Api) {
+        val codebase = signatureFileLoader.load(SignatureFile.fromFiles(file))
+        val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
+        addApisFromCodebase(api, apiVersion, codebaseFragment, false)
+    }
 }
