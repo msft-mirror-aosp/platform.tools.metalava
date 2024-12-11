@@ -63,8 +63,8 @@ class MetalavaBuildPlugin : Plugin<Project> {
                     project.tasks.withType(KotlinCompile::class.java).configureEach { task ->
                         task.compilerOptions.apply {
                             jvmTarget.set(JvmTarget.JVM_17)
-                            apiVersion.set(KotlinVersion.KOTLIN_1_7)
-                            languageVersion.set(KotlinVersion.KOTLIN_1_7)
+                            apiVersion.set(KotlinVersion.KOTLIN_1_9)
+                            languageVersion.set(KotlinVersion.KOTLIN_1_9)
                             allWarningsAsErrors.set(true)
                         }
                     }
