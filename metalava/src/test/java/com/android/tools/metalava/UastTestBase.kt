@@ -1626,4 +1626,54 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `JvmDefaultWithCompatibility as typealias actual`() {
+        val anno = if (isK2) "" else "@kotlin.jvm.JvmDefaultWithCompatibility "
+        val commonSource =
+            kotlin(
+                "commonMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                """
+                    package pkg
+                    internal expect annotation class JvmDefaultWithCompatibility()
+                """
+            )
+        val commonSource2 =
+            kotlin(
+                "commonMain/src/pkg2/TestInterface.kt",
+                """
+                    package pkg2
+
+                    import pkg.JvmDefaultWithCompatibility
+
+                    @JvmDefaultWithCompatibility()
+                    interface TestInterface {
+                      fun foo()
+                    }
+                """
+            )
+        check(
+            commonSourceFiles = arrayOf(commonSource, commonSource2),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                        """
+                            package pkg
+                            internal actual typealias JvmDefaultWithCompatibility = kotlin.jvm.JvmDefaultWithCompatibility
+                        """
+                    ),
+                    commonSource,
+                    commonSource2,
+                ),
+            api =
+                """
+                package pkg2 {
+                  ${anno}public interface TestInterface {
+                    method public void foo();
+                  }
+                }
+                """
+        )
+    }
 }
