@@ -17,18 +17,28 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.apilevels.GenerateJsonConfig
-import com.android.tools.metalava.apilevels.GenerateXmlConfig
-import com.android.tools.metalava.apilevels.SdkVersion
+import com.android.tools.metalava.apilevels.ApiHistoryUpdater
+import com.android.tools.metalava.apilevels.ApiJsonPrinter
+import com.android.tools.metalava.apilevels.ApiVersion
+import com.android.tools.metalava.apilevels.ApiXmlPrinter
+import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
+import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
+import com.android.tools.metalava.apilevels.MissingClassAction
+import com.android.tools.metalava.apilevels.VersionedApi
+import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
+import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -174,7 +184,12 @@ class ApiLevelsGenerationOptions(
             )
             .map { if (it == "REL") null else it }
 
-    /** True if [currentCodeName] is specified, false otherwise. */
+    /**
+     * True if [currentCodeName] is specified, false otherwise.
+     *
+     * If this is `true` then the API defined in the sources will be added to the API levels file
+     * with an API level of [currentApiLevel]` - 1`.
+     */
     private val isDeveloperPreviewBuild
         get() = currentCodeName != null
 
@@ -299,24 +314,12 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * The list of jar files from which the API levels file will be populated. One for each API
-     * level, indexed by API level, starting from 1. The 0th element plus any element less than
-     * [firstApiLevel] is a placeholder that is an invalid file and should not be used.
+     * Find all android stub jars that matches the given criteria.
+     *
+     * Returns a list of [VersionedApi]s from lowest [VersionedApi.apiVersion] to highest.
      */
-    private val apiLevelJars
-        get() = findAndroidJars()
-
-    /** Find an android stub jar that matches the given criteria. */
-    private fun findAndroidJars(): List<File> {
-        val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed.
-        // (This is here because we want the array index to match
-        // the API level)
-        val element = File("not an api: the starting API index is $firstApiLevel")
-        for (i in 0 until firstApiLevel) {
-            apiLevelFiles.add(element)
-        }
-
+    private fun findAndroidJars(): List<VersionedApi> {
+        val versionedHistoricalApis = mutableListOf<VersionedApi>()
         // Get all the android.jar. They are in platforms-#
         for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
             try {
@@ -340,13 +343,16 @@ class ApiLevelsGenerationOptions(
 
                 verbosePrint { "Found API $apiLevel at ${jar.path}" }
 
-                apiLevelFiles.add(jar)
+                val apiVersion = ApiVersion.fromLevel(apiLevel)
+                val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
+                val versionedJar = VersionedJarApi(jar, updater)
+                versionedHistoricalApis += versionedJar
             } catch (e: IOException) {
                 e.printStackTrace()
             }
         }
 
-        return apiLevelFiles.toList()
+        return versionedHistoricalApis.toList()
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -362,47 +368,123 @@ class ApiLevelsGenerationOptions(
             .firstOrNull { it.isFile }
     }
 
-    private val sdkExtensionsArguments
-        get() =
-            if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator.SdkExtensionsArguments(
-                    sdkJarRoot!!,
-                    sdkInfoFile!!,
-                )
-            } else {
-                null
+    /**
+     * Get the [GenerateApiHistoryConfig] for Android.
+     *
+     * This has some Android specific code, e.g. structure of SDK extensions.
+     */
+    fun forAndroidConfig(
+        codebaseFragmentProvider: () -> CodebaseFragment,
+    ) =
+        generateApiLevelXml?.let { outputFile ->
+            val versionedHistoricalApis = findAndroidJars()
+
+            val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
+            val notFinalizedSdkVersion = currentSdkVersion + 1
+            val lastApiVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
+
+            // Compute the version to use for the current codebase.
+            val codebaseSdkVersion =
+                when {
+                    // The current codebase is a developer preview so use the next, in the
+                    // process of being finalized version.
+                    isDeveloperPreviewBuild -> notFinalizedSdkVersion
+
+                    // If no historical versions were provided or the last historical version is
+                    // less than the current version then use the current version as the version
+                    // of the codebase.
+                    lastApiVersion == null || lastApiVersion < currentSdkVersion ->
+                        currentSdkVersion
+
+                    // Else do not include the current codebase.
+                    else -> null
+                }
+
+            // Get the optional SDK extension arguments.
+            val sdkExtensionsArguments =
+                if (sdkJarRoot != null && sdkInfoFile != null) {
+                    ApiGenerator.SdkExtensionsArguments(
+                        sdkJarRoot!!,
+                        sdkInfoFile!!,
+                        notFinalizedSdkVersion,
+                    )
+                } else {
+                    null
+                }
+
+            // Create a list of VersionedApis that need to be incorporated into the Api history.
+            val versionedApis = buildList {
+                addAll(versionedHistoricalApis)
+
+                // Add a VersionedSourceApi for the current codebase if required.
+                if (codebaseSdkVersion != null) {
+                    add(
+                        VersionedSourceApi(
+                            codebaseFragmentProvider(),
+                            codebaseSdkVersion,
+                            useInternalNames = true,
+                        )
+                    )
+                }
+
+                // Add any VersionedApis for SDK extensions. These must be added after all
+                // VersionedApis
+                // for SDK versions as their behavior depends on whether an API was defined in an
+                // SDK
+                // version.
+                if (sdkExtensionsArguments != null) {
+                    addVersionedExtensionApis(
+                        this,
+                        notFinalizedSdkVersion,
+                        sdkExtensionsArguments.sdkExtJarRoot,
+                        sdkExtensionsArguments.sdkExtensionInfo,
+                    )
+                }
             }
 
-    val generateXmlConfig
-        get() =
-            generateApiLevelXml?.let { outputFile ->
-                GenerateXmlConfig(
-                    apiLevels = apiLevelJars,
-                    firstApiLevel = firstApiLevel,
-                    currentApiLevel = currentApiLevel,
-                    isDeveloperPreviewBuild = isDeveloperPreviewBuild,
-                    outputFile = outputFile,
-                    sdkExtensionsArguments = sdkExtensionsArguments,
-                    removeMissingClasses = removeMissingClassReferencesInApiLevels,
-                )
+            // Get a list of all versions, including the codebase version, if necessary.
+            val allVersions = buildList {
+                versionedHistoricalApis.mapTo(this) { it.apiVersion }
+                if (codebaseSdkVersion != null) add(codebaseSdkVersion)
             }
 
-    /** API version history JSON file to generate */
-    private val generateApiVersionsJson by
+            val availableSdkExtensions =
+                sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
+            val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
+
+            GenerateApiHistoryConfig(
+                versionedApis = versionedApis,
+                outputFile = outputFile,
+                printer = printer,
+                sdkExtensionsArguments = sdkExtensionsArguments,
+                missingClassAction =
+                    if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
+                    else MissingClassAction.REPORT,
+            )
+        }
+
+    /** API version history file to generate */
+    private val generateApiVersionHistory by
         option(
                 ARG_GENERATE_API_VERSION_HISTORY,
-                metavar = "<json-file>",
+                metavar = "<output-file>",
                 help =
                     """
-                        Reads API signature files and generates a JSON file recording the API
-                        version each class, method, and field was added in and (if applicable)
-                        deprecated in. Required to generate API version JSON.
+                        Reads API signature files and generates a JSON or XML file depending on the
+                        extension, which must be one of `json` or `xml` respectively. The JSON file
+                        will record the API version in which each class, method, and field. was
+                        added in and (if applicable) deprecated in. The XML file will include that
+                        information and more but will be optimized to exclude information from
+                        class members which is the same as the containing class.
                     """
                         .trimIndent(),
             )
             .newFile()
 
-    /** Ordered list of signatures for each past API version, if generating an API version JSON */
+    /**
+     * Ordered list of signatures for each past API version, when generating
+     * [generateApiVersionHistory].
+     */
     private val apiVersionSignatureFiles by
         option(
                 ARG_API_VERSION_SIGNATURE_FILES,
@@ -432,46 +514,80 @@ class ApiLevelsGenerationOptions(
                     """
                         An ordered list of strings with the names to use for the API versions from
                         $ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version.
-                        Required to generate API version JSON.
+                        Required for $ARG_GENERATE_API_VERSION_HISTORY.
                     """
                         .trimIndent()
             )
             .split(" ")
 
-    /** Construct the [GenerateJsonConfig] from the options. */
-    val generateJsonConfig by
-        lazy(LazyThreadSafetyMode.NONE) {
-            // apiVersionNames will include the current version but apiVersionSignatureFiles will
-            // not,
-            // so there should be 1 more name than signature file (or both can be null)
-            val numVersionNames = apiVersionNames?.size ?: 0
-            val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
-            if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-                throw MetalavaCliException(
-                    "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
-                )
-            }
-
-            val apiVersionsJson = generateApiVersionsJson
-            val apiVersionNames = apiVersionNames
-            if (apiVersionsJson != null && apiVersionNames != null) {
-                // The signature files can be null if the current version is the only version
-                val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
-
-                // Combine the `pastApiVersions` and `apiVersionNames` into a list of
-                // `VersionedSignatureApi`s.
-                val versionedSignatureApis =
-                    pastApiVersions.mapIndexed { index, file ->
-                        VersionedSignatureApi(SdkVersion.fromString(apiVersionNames[index]), file)
-                    }
-
-                GenerateJsonConfig(
-                    versionedSignatureApis = versionedSignatureApis,
-                    currentVersion = SdkVersion.fromString(apiVersionNames.last()),
-                    outputFile = apiVersionsJson,
-                )
-            } else {
-                null
-            }
+    /**
+     * Construct the [GenerateApiHistoryConfig] from the options.
+     *
+     * If no relevant command line options were provided then this will return `null`, otherwise it
+     * will validate the options and if all is well construct and return a
+     * [GenerateApiHistoryConfig] object.
+     *
+     * @param signatureFileLoader used for loading [Codebase]s from signature files.
+     * @param codebaseFragmentProvider provides access to the [CodebaseFragment] for the API defined
+     *   in the sources. This will only be called if a [GenerateApiHistoryConfig] needs to be
+     *   created.
+     */
+    fun fromSignatureFilesConfig(
+        signatureFileLoader: SignatureFileLoader,
+        codebaseFragmentProvider: () -> CodebaseFragment,
+    ): GenerateApiHistoryConfig? {
+        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
+        // so there should be 1 more name than signature file (or both can be null)
+        val numVersionNames = apiVersionNames?.size ?: 0
+        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
+        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
+            throw MetalavaCliException(
+                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
+            )
         }
+
+        val apiVersionsFile = generateApiVersionHistory
+        val apiVersionNames = apiVersionNames
+        return if (apiVersionsFile != null && apiVersionNames != null) {
+            // The signature files can be null if the current version is the only version
+            val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
+
+            val allVersions = apiVersionNames.map { ApiVersion.fromString(it) }
+
+            val sourceVersion = allVersions.last()
+
+            // Combine the `pastApiVersions` and `apiVersionNames` into a list of
+            // `VersionedSignatureApi`s.
+            val versionedApis = buildList {
+                pastApiVersions.mapIndexedTo(this) { index, file ->
+                    VersionedSignatureApi(signatureFileLoader, file, allVersions[index])
+                }
+                // Add a VersionedSourceApi for the source code.
+                val codebaseFragment = codebaseFragmentProvider()
+                add(VersionedSourceApi(codebaseFragment, sourceVersion, useInternalNames = false))
+            }
+
+            val printer =
+                when (val extension = apiVersionsFile.extension) {
+                    "xml" -> ApiXmlPrinter(null, allVersions)
+                    "json" -> ApiJsonPrinter()
+                    else ->
+                        error(
+                            "unexpected extension for $apiVersionsFile, expected 'xml', or 'json' got '$extension'"
+                        )
+                }
+
+            GenerateApiHistoryConfig(
+                versionedApis = versionedApis,
+                outputFile = apiVersionsFile,
+                printer = printer,
+                // None are available when generating from signature files.
+                sdkExtensionsArguments = null,
+                // Keep any references to missing classes.
+                missingClassAction = MissingClassAction.KEEP,
+            )
+        } else {
+            null
+        }
+    }
 }

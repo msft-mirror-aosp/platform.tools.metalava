@@ -15,191 +15,104 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SignatureFileCache
-import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
-import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
-import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import java.io.File
-import java.io.IOException
 
-/**
- * Main class for command line command to convert the existing API XML/TXT files into diff-based
- * simple text files.
- */
-class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
+/** Generates API version history. */
+class ApiGenerator {
     /**
-     * Generates an XML API version history file based on the API surfaces of the versions provided.
+     * Generates an API version history file based on the API surfaces of the versions provided.
      *
-     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
      * @param config Configuration provided from command line options.
      */
-    fun generateXml(
-        codebaseFragment: CodebaseFragment,
-        config: GenerateXmlConfig,
-    ): Boolean {
-        val apiLevels = config.apiLevels
-        val firstApiLevel = config.firstApiLevel
-        val currentApiLevel = config.currentApiLevel
-        val currentSdkVersion = SdkVersion.fromLevel(currentApiLevel)
-        val notFinalizedSdkVersion = currentSdkVersion + 1
-        val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
-        val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
-        if (isDeveloperPreviewBuild || apiLevels.size - 1 < currentApiLevel) {
-            // Only include codebase if we don't have a prebuilt, finalized jar for it.
-            val sdkVersion =
-                if (isDeveloperPreviewBuild) notFinalizedSdkVersion else currentSdkVersion
-            addApisFromCodebase(api, sdkVersion, codebaseFragment, true)
+    fun generateApiHistory(config: GenerateApiHistoryConfig): Boolean {
+        val api = createApiFromVersionedApis(config.versionedApis)
+
+        // If necessary, update the sdks properties.
+        config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
+            updateSdksAttributes(
+                api,
+                sdkExtensionsArguments.notFinalizedSdkVersion,
+                sdkExtensionsArguments.sdkExtensionInfo,
+            )
         }
-        api.backfillHistoricalFixes()
-        var availableSdkExtensions: AvailableSdkExtensions? = null
-        val sdkExtensionsArguments = config.sdkExtensionsArguments
-        if (sdkExtensionsArguments != null) {
-            availableSdkExtensions =
-                processExtensionSdkApis(
-                    api,
-                    notFinalizedSdkVersion,
-                    sdkExtensionsArguments.sdkExtJarRoot,
-                    sdkExtensionsArguments.sdkExtInfoFile,
-                )
-        }
+
+        // If android.os.ext.SdkExtensions exists in the Api then patch up its history.
+        api.patchSdkExtensionsHistory()
+
         api.clean()
-        if (config.removeMissingClasses) {
-            api.removeMissingClasses()
-        } else {
-            api.verifyNoMissingClasses()
-        }
-        val printer = ApiXmlPrinter(availableSdkExtensions, firstApiLevel)
-        return createApiLevelsFile(config.outputFile, printer, api)
+
+        // Apply the appropriate action for missing classes.
+        config.missingClassAction.apply(api)
+
+        return createApiLevelsFile(config.outputFile, config.printer, api)
     }
 
     /**
-     * Creates an [Api] from a list of past API signature files. In the generated [Api], the oldest
-     * API version will be represented as level 1, the next as level 2, etc.
+     * Creates an [Api] from a list of [VersionedApi]s.
      *
-     * @param previousApiFiles A list of API signature files, one for each version of the API, in
-     *   order from oldest to newest API version.
+     * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
+     *   from oldest to newest API version.
      */
-    private fun createApiFromSignatureFiles(previousApiFiles: List<VersionedSignatureApi>): Api {
+    private fun createApiFromVersionedApis(versionedApis: List<VersionedApi>): Api {
         val api = Api()
-        for (versionedSignatureFile in previousApiFiles) {
-            val codebase = versionedSignatureFile.load(signatureFileCache)
-            val codebaseFragment =
-                CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            val sdkVersion = versionedSignatureFile.sdkVersion
-            addApisFromCodebase(api, sdkVersion, codebaseFragment, false)
-        }
-        api.clean()
-        return api
-    }
-
-    /**
-     * Generates a JSON API version history file based on the API surfaces of the versions provided.
-     *
-     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
-     * @param config Configuration provided from command line options.
-     */
-    fun generateJson(
-        codebaseFragment: CodebaseFragment,
-        config: GenerateJsonConfig,
-    ) {
-        val api = createApiFromSignatureFiles(config.versionedSignatureApis)
-        addApisFromCodebase(
-            api,
-            config.currentVersion,
-            codebaseFragment,
-            false,
-        )
-        val printer = ApiJsonPrinter()
-        createApiLevelsFile(config.outputFile, printer, api)
-    }
-
-    private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
-        val api = Api()
-        for (apiLevel in firstApiLevel until apiLevels.size) {
-            val jar = apiLevels[apiLevel]
-            val sdkVersion = SdkVersion.fromLevel(apiLevel)
-            api.readAndroidJar(sdkVersion, jar)
+        for (versionedApi in versionedApis) {
+            versionedApi.updateApi(api)
         }
         return api
     }
 
     /**
-     * Modify the extension SDK API parts of an API as dictated by a filter.
-     * - remove APIs not listed in the filter
-     * - assign APIs listed in the filter their corresponding extensions
+     * Traverses [api] updating the [ApiElement.sdks] properties to list the appropriate extensions.
      *
      * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
      * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
-     * assign such APIs some Android SDK API level. The recommended value is current-api-level + 1,
-     * which is what non-finalized APIs use.
+     * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
      *
      * @param api the api to modify
      * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
-     * @param sdkJarRoot path to directory containing extension SDK jars (usually
-     *   $ANDROID_ROOT/prebuilts/sdk/extensions)
-     * @param filterPath path to the filter file. @see ApiToExtensionsMap
-     * @throws IOException if the filter file can not be read
-     * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar
-     *   files were found
+     * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
      */
-    private fun processExtensionSdkApis(
+    private fun updateSdksAttributes(
         api: Api,
-        versionNotInAndroidSdk: SdkVersion,
-        sdkJarRoot: File,
-        filterPath: File,
-    ): AvailableSdkExtensions {
-        val rules = filterPath.readText()
-        val map = findExtensionSdkJarFiles(sdkJarRoot)
-        require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
-        val moduleMaps: MutableMap<String, ApiToExtensionsMap> = HashMap()
-        for ((mainlineModule, value) in map) {
-            val moduleMap = fromXml(mainlineModule, rules)
-            if (moduleMap.isEmpty())
-                continue // TODO(b/259115852): remove this (though it is an optimization too).
-            moduleMaps[mainlineModule] = moduleMap
-            for ((level, path) in value) {
-                val extVersion = ExtVersion.fromLevel(level)
-                api.readExtensionJar(extVersion, mainlineModule, path, versionNotInAndroidSdk)
-            }
-        }
+        versionNotInAndroidSdk: ApiVersion,
+        sdkExtensionInfo: SdkExtensionInfo,
+    ) {
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
-            val extensionsMap = moduleMaps[module]
-            var sdks =
-                extensionsMap!!.calculateSdksAttr(
+
+            // Get the extensions information for the mainline module. If no information exists for
+            // a particular module then the returned information is empty but can still be used to
+            // calculate sdks attribute.
+            val extensionsMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(module)
+
+            /** Update the sdks on each [ApiElement] in [elements]. */
+            fun updateSdks(elements: Collection<ApiElement>) {
+                for (element in elements) {
+                    val sdks =
+                        extensionsMap.calculateSdksAttr(
+                            element.since,
+                            versionNotInAndroidSdk,
+                            extensionsMap.getExtensions(clazz, element),
+                            element.sinceExtension
+                        )
+                    element.updateSdks(sdks)
+                }
+            }
+
+            val sdks =
+                extensionsMap.calculateSdksAttr(
                     clazz.since,
                     versionNotInAndroidSdk,
                     extensionsMap.getExtensions(clazz),
                     clazz.sinceExtension
                 )
             clazz.updateSdks(sdks)
-            var iter = clazz.fieldIterator
-            while (iter.hasNext()) {
-                val field = iter.next()
-                sdks =
-                    extensionsMap.calculateSdksAttr(
-                        field.since,
-                        versionNotInAndroidSdk,
-                        extensionsMap.getExtensions(clazz, field),
-                        field.sinceExtension
-                    )
-                field.updateSdks(sdks)
-            }
-            iter = clazz.methodIterator
-            while (iter.hasNext()) {
-                val method = iter.next()
-                sdks =
-                    extensionsMap.calculateSdksAttr(
-                        method.since,
-                        versionNotInAndroidSdk,
-                        extensionsMap.getExtensions(clazz, method),
-                        method.sinceExtension
-                    )
-                method.updateSdks(sdks)
-            }
+
+            updateSdks(clazz.superClasses)
+            updateSdks(clazz.interfaces)
+            updateSdks(clazz.fields)
+            updateSdks(clazz.methods)
         }
-        return fromXml("", rules).availableSdkExtensions
     }
 
     /**
@@ -232,7 +145,26 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     data class SdkExtensionsArguments(
-        var sdkExtJarRoot: File,
-        var sdkExtInfoFile: File,
-    )
+        /**
+         * Root of the directory containing released versions of the SDK extensions, e.g.
+         * `prebuilts/sdk/extensions/`.
+         */
+        val sdkExtJarRoot: File,
+
+        /**
+         * The `sdk-extension-info.xml` file containing information about the available sdk
+         * extensions and the APIs each module contributes to them.
+         */
+        private val sdkExtInfoFile: File,
+
+        /**
+         * A version that has not yet been finalized. Used when an API was added in an SDK extension
+         * but not yet part of an SDK release.
+         */
+        val notFinalizedSdkVersion: ApiVersion,
+    ) {
+        /** [SdkExtensionInfo] loaded on demand from [sdkExtInfoFile]. */
+        val sdkExtensionInfo by
+            lazy(LazyThreadSafetyMode.NONE) { SdkExtensionInfo.fromXml(sdkExtInfoFile.readText()) }
+    }
 }

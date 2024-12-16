@@ -15,33 +15,16 @@
  */
 package com.android.tools.metalava.apilevels
 
-/**
- * Represents an API element, e.g. class, method or field.
- *
- * @param name the name of the API element
- * @param sdkVersion an API version for which the API element existed, or -1 if the class does not
- *   yet exist in the Android SDK (only in extension SDKs)
- * @param deprecated whether the API element was deprecated in the API version in question
- */
-open class ApiElement(
-    val name: String,
-    sdkVersion: SdkVersion,
-    deprecated: Boolean = false,
-) : Comparable<ApiElement> {
+/** Represents a parent of [ApiElement]. */
+interface ParentApiElement {
+    /** The API version this API was first introduced in. */
+    val since: ApiVersion
 
     /**
-     * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
-     * first introduced in.
+     * The version in which this API last appeared, if this is not the latest API then it will be
+     * treated as having been removed in the next API version, i.e. [lastPresentIn] + 1.
      */
-    var since = sdkVersion
-        private set
-
-    /**
-     * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
-     * first introduced in.
-     */
-    var sinceExtension: ExtVersion? = null
-        private set
+    val lastPresentIn: ApiVersion
 
     /**
      * The SDKs and their versions this API was first introduced in.
@@ -52,18 +35,49 @@ open class ApiElement(
      *
      * This field is a super-set of mSince, and if non-null/non-empty, should be preferred.
      */
-    var sdks: String? = null
+    val sdks: String?
+
+    /** The optional API level this element was deprecated in. */
+    val deprecatedIn: ApiVersion?
+}
+
+/**
+ * Represents an API element, e.g. class, method or field.
+ *
+ * @param name the name of the API element
+ */
+open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElement> {
+
+    /**
+     * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
+     * first introduced in.
+     */
+    final override lateinit var since: ApiVersion
+        private set
+
+    /**
+     * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
+     * first introduced in.
+     */
+    var sinceExtension: ExtVersion? = null
+        private set
+
+    final override var sdks: String? = null
         private set
 
     var mainlineModule: String? = null
         private set
 
     /** The optional API level this element was deprecated in. */
-    var deprecatedIn = if (deprecated) sdkVersion else null
+    final override var deprecatedIn: ApiVersion? = null
         private set
 
-    var lastPresentIn = sdkVersion
+    final override lateinit var lastPresentIn: ApiVersion
         private set
+
+    override fun toString(): String {
+        return name
+    }
 
     /**
      * Checks if this API element was introduced not later than another API element.
@@ -78,40 +92,31 @@ open class ApiElement(
     /**
      * Updates the API element with information for a specific API version.
      *
-     * @param sdkVersion an API version for which the API element existed
+     * @param apiVersion an API version for which the API element existed
      * @param deprecated whether the API element was deprecated in the API version in question
      */
-    fun update(sdkVersion: SdkVersion, deprecated: Boolean) {
-        assert(sdkVersion.isValid)
-        if (since > sdkVersion) {
-            since = sdkVersion
+    fun update(apiVersion: ApiVersion, deprecated: Boolean = deprecatedIn != null) {
+        assert(apiVersion.isValid)
+        if (!::since.isInitialized || since > apiVersion) {
+            since = apiVersion
         }
-        if (lastPresentIn < sdkVersion) {
-            lastPresentIn = sdkVersion
+        if (!::lastPresentIn.isInitialized || lastPresentIn < apiVersion) {
+            lastPresentIn = apiVersion
         }
         val deprecatedVersion = deprecatedIn
         if (deprecated) {
             // If it was not previously deprecated or was deprecated in a later version than this
             // one then deprecate it in this version.
-            if (deprecatedVersion == null || deprecatedVersion > sdkVersion) {
-                deprecatedIn = sdkVersion
+            if (deprecatedVersion == null || deprecatedVersion > apiVersion) {
+                deprecatedIn = apiVersion
             }
         } else {
             // If it was previously deprecated and was deprecated in an earlier version than this
             // one then treat it as being undeprecated.
-            if (deprecatedVersion != null && deprecatedVersion < sdkVersion) {
+            if (deprecatedVersion != null && deprecatedVersion < apiVersion) {
                 deprecatedIn = null
             }
         }
-    }
-
-    /**
-     * Updates the API element with information for a specific API version.
-     *
-     * @param sdkVersion an API version for which the API element existed
-     */
-    fun update(sdkVersion: SdkVersion) {
-        update(sdkVersion, deprecatedIn != null)
     }
 
     /**
@@ -127,6 +132,16 @@ open class ApiElement(
         }
     }
 
+    /**
+     * Clears the sdk extension information from this [ApiElement].
+     *
+     * This is only intended for use by [Api.patchSdkExtensionsHistory].
+     */
+    fun clearSdkExtensionInfo() {
+        this.sinceExtension = null
+        this.sdks = null
+    }
+
     fun updateSdks(sdks: String?) {
         this.sdks = sdks
     }
@@ -139,3 +154,8 @@ open class ApiElement(
         return name.compareTo(other.name)
     }
 }
+
+operator fun ApiVersion?.compareTo(other: ApiVersion?): Int =
+    if (this == null) {
+        if (other == null) 0 else -1
+    } else if (other == null) +1 else this.compareTo(other)

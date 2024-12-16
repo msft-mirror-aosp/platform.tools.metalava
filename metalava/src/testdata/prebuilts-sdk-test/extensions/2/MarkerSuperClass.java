@@ -14,18 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.apilevels
+package android.test;
 
-import java.io.File
-
-/** Properties for the [ApiGenerator.generateJson] method that come from comment line options. */
-data class GenerateJsonConfig(
-    /** A list of versioned signature files, ordered from the oldest API version to newest. */
-    val versionedSignatureApis: List<VersionedSignatureApi>,
-
-    /** The version for the current API from sources. */
-    val currentVersion: SdkVersion,
-
-    /** The api versions file that will be generated. */
-    val outputFile: File,
-)
+public class MarkerSuperClass {
+}

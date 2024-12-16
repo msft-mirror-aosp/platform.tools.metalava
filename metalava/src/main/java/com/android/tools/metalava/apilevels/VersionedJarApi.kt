@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,23 @@
  * limitations under the License.
  */
 
-package android.test;
+package com.android.tools.metalava.apilevels
 
-public class ClassAddedInExt1 {
-    private ClassAddedInExt1() {}
-    public static final int FIELD_ADDED_IN_EXT_1 = 1;
-    public void methodAddedInExt1() { throw new RuntimeException("Stub!"); }
+import java.io.File
+
+/**
+ * Supports updating [Api] with information from the version of the API that is defined in [jar].
+ *
+ * The [updater] is responsible for updating the [Api].
+ */
+class VersionedJarApi(
+    private val jar: File,
+    private val updater: ApiHistoryUpdater,
+) : VersionedApi {
+    override val apiVersion
+        get() = updater.apiVersion
+
+    override fun updateApi(api: Api) {
+        api.readJar(jar, updater)
+    }
 }

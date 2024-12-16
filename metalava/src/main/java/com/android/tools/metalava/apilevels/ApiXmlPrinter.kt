@@ -18,15 +18,33 @@ package com.android.tools.metalava.apilevels
 
 import java.io.PrintWriter
 
-/** Printer that will write an XML representation of an [Api] instance. */
+/**
+ * Printer that will write an XML representation of an [Api] instance.
+ *
+ * @param availableSdkExtensions the optional set of [AvailableSdkExtensions].
+ * @param allVersions the list of all the versions in order, from earliest to latest. Must include
+ *   at least one version. The first API version is used to populate the `<api min="..."...>`
+ *   attribute, if it is later than version `1`.
+ */
 class ApiXmlPrinter(
     private val availableSdkExtensions: AvailableSdkExtensions?,
-    private val firstApiLevel: Int,
+    allVersions: List<ApiVersion>,
 ) : ApiPrinter {
+    /** Get the first [ApiVersion]. */
+    private val firstApiVersion = allVersions.first()
+
+    /**
+     * Map from version to the next version. This is used to compute the version in which an API
+     * element was removed by finding the version after the version it was last present in.
+     */
+    private val versionToNext = allVersions.zipWithNext().toMap()
+
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         api.print(writer, availableSdkExtensions)
     }
+
+    override fun toString() = "XML"
 
     /**
      * Prints the whole API definition to a writer.
@@ -35,8 +53,8 @@ class ApiXmlPrinter(
      */
     private fun Api.print(writer: PrintWriter, availableSdkExtensions: AvailableSdkExtensions?) {
         writer.print("<api version=\"3\"")
-        if (firstApiLevel > 1) {
-            writer.print(" min=\"$firstApiLevel\"")
+        if (firstApiVersion > DEFAULT_MIN_VERSION) {
+            writer.print(" min=\"$firstApiVersion\"")
         }
         writer.println(">")
         if (availableSdkExtensions != null) {
@@ -65,11 +83,11 @@ class ApiXmlPrinter(
      * @param indent the whitespace prefix to insert before each XML element
      * @param writer the writer to which the XML elements will be written.
      */
-    private fun ApiElement.print(
+    private fun ParentApiElement.print(
         elements: Collection<ApiElement>,
         tag: String?,
         indent: String,
-        writer: PrintWriter
+        writer: PrintWriter,
     ) {
         for (element in elements.sorted()) {
             element.print(tag, this, indent, writer)
@@ -81,30 +99,30 @@ class ApiXmlPrinter(
      * Attributes with values matching the parent API element are omitted.
      *
      * @param tag the tag of the XML element
-     * @param parentElement the parent API element
+     * @param parentApiElement the parent API element
      * @param indent the whitespace prefix to insert before the XML element
      * @param writer the writer to which the XML element will be written.
      */
     private fun ApiElement.print(
         tag: String?,
-        parentElement: ApiElement,
+        parentApiElement: ParentApiElement,
         indent: String,
         writer: PrintWriter
     ) {
-        if (this is ApiClass) printClass(tag, parentElement, indent, writer)
-        else print(tag, true, parentElement, indent, writer)
+        if (this is ApiClass) printClass(tag, parentApiElement, indent, writer)
+        else print(tag, true, parentApiElement, indent, writer)
     }
 
     private fun ApiClass.printClass(
         tag: String?,
-        parentElement: ApiElement,
+        parentApiElement: ParentApiElement,
         indent: String,
         writer: PrintWriter
     ) {
         if (alwaysHidden) {
             return
         }
-        print(tag, false, parentElement, indent, writer)
+        print(tag, false, parentApiElement, indent, writer)
         val innerIndent = indent + '\t'
         print(superClasses, "extends", innerIndent, writer)
         print(interfaces, "implements", innerIndent, writer)
@@ -120,7 +138,7 @@ class ApiXmlPrinter(
      * @param tag the tag of the XML element
      * @param closeTag if true the XML element is terminated by "/>", otherwise the closing tag of
      *   the element is not printed
-     * @param parentElement the parent API element
+     * @param parentApiElement the parent API element
      * @param indent the whitespace prefix to insert before the XML element
      * @param writer the writer to which the XML element will be written.
      * @see printClosingTag
@@ -128,7 +146,7 @@ class ApiXmlPrinter(
     private fun ApiElement.print(
         tag: String?,
         closeTag: Boolean,
-        parentElement: ApiElement,
+        parentApiElement: ParentApiElement,
         indent: String?,
         writer: PrintWriter
     ) {
@@ -141,21 +159,24 @@ class ApiXmlPrinter(
             writer.print("\" module=\"")
             writer.print(encodeAttribute(mainlineModule!!))
         }
-        if (since > parentElement.since) {
+        if (since > parentApiElement.since) {
             writer.print("\" since=\"")
             writer.print(since)
         }
-        if (!isEmpty(sdks) && sdks != parentElement.sdks) {
+        if (!isEmpty(sdks) && sdks != parentApiElement.sdks) {
             writer.print("\" sdks=\"")
             writer.print(sdks)
         }
-        if (deprecatedIn != null && deprecatedIn != parentElement.deprecatedIn) {
+        if (deprecatedIn != null && deprecatedIn != parentApiElement.deprecatedIn) {
             writer.print("\" deprecated=\"")
             writer.print(deprecatedIn)
         }
-        if (lastPresentIn < parentElement.lastPresentIn) {
+        if (lastPresentIn < parentApiElement.lastPresentIn) {
+            val removedFrom =
+                versionToNext[lastPresentIn]
+                    ?: error("could not find next version for $lastPresentIn")
             writer.print("\" removed=\"")
-            writer.print(lastPresentIn + 1)
+            writer.print(removedFrom)
         }
         writer.print('"')
         if (closeTag) {
@@ -165,6 +186,9 @@ class ApiXmlPrinter(
     }
 
     companion object {
+        /** The default minimum [ApiVersion] expected by consumers of `api-versions.xml`. */
+        private val DEFAULT_MIN_VERSION = ApiVersion.fromLevel(1)
+
         /**
          * Prints a closing tag of an XML element terminated by a line break.
          *
