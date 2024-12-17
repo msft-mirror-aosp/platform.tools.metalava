@@ -82,7 +82,6 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             )
         return sourceParser.parseSources(
             sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
-            sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
             apiPackages = testFixture.apiPackages,

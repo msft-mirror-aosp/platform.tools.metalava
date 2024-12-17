@@ -625,16 +625,10 @@ private fun ActionContext.loadFromSources(
             SourceSet(options.sources, options.sourcePath)
         }
 
-    val commonSourceSet =
-        if (options.commonSourcePath.isNotEmpty())
-            SourceSet.createFromSourcePath(options.reporter, options.commonSourcePath)
-        else SourceSet.empty()
-
     progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
             sourceSet,
-            commonSourceSet,
             "Codebase loaded from source folders",
             classPath = options.classpath,
             apiPackages = options.apiPackages,

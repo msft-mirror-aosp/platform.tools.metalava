@@ -88,7 +88,6 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
             )
             .parseSources(
                 createSourceSet(sources, directory),
-                SourceSet.empty(),
                 description = "Test Codebase",
                 classPath = emptyList(),
                 apiPackages = null,
