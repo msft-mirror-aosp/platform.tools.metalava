@@ -160,7 +160,6 @@ internal fun processFlags(
             modelOptions = modelOptions,
             allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
-            projectDescription = options.projectDescription,
         )
 
     val signatureFileCache = options.signatureFileCache
@@ -639,6 +638,7 @@ private fun ActionContext.loadFromSources(
             "Codebase loaded from source folders",
             classPath = options.classpath,
             apiPackages = options.apiPackages,
+            projectDescription = options.projectDescription,
         )
 
     progressTracker.progress("Analyzing API: ")

@@ -186,6 +186,7 @@ abstract class BaseModelTest() :
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
         commonSourcesByInputFormat: Map<InputFormat, InputSet>,
+        projectDescription: TestFile?,
         testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
@@ -194,6 +195,7 @@ abstract class BaseModelTest() :
             .singleOrNull { it.inputFormat == inputFormat }
             ?.let { inputSet ->
                 val mainSourceDir = sourceDir(inputSet)
+                val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
                 val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
 
@@ -210,6 +212,7 @@ abstract class BaseModelTest() :
                         additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
                         testFixture = testFixture,
+                        projectDescription = projectDescriptionFile,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
                     val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
@@ -261,12 +264,14 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
+        projectDescription: TestFile? = null,
         testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = sources,
             commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            projectDescription = projectDescription,
             testFixture = testFixture,
             test = test,
         )
@@ -281,12 +286,14 @@ abstract class BaseModelTest() :
     private fun runCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
+        projectDescription: TestFile? = null,
         testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
+            projectDescription = projectDescription,
             testFixture = testFixture,
             test = test,
         )
@@ -302,6 +309,7 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
         commonSources: Array<TestFile> = emptyArray(),
+        projectDescription: TestFile? = null,
         testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
@@ -309,6 +317,7 @@ abstract class BaseModelTest() :
             sources = testFilesToInputSets(sources),
             commonSourcesByInputFormat =
                 testFilesToInputSets(commonSources).associateBy { it.inputFormat },
+            projectDescription = projectDescription,
             testFixture = testFixture,
             test = test,
         )
@@ -323,12 +332,14 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSources: Array<InputSet> = emptyArray(),
+        projectDescription: TestFile? = null,
         testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = sources,
             commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            projectDescription = projectDescription,
             testFixture = testFixture,
             test = test,
         )
@@ -343,12 +354,14 @@ abstract class BaseModelTest() :
     private fun runSourceCodebaseTest(
         vararg sources: InputSet,
         commonSourcesByInputFormat: Map<InputFormat, InputSet>,
+        projectDescription: TestFile? = null,
         testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
+            projectDescription = projectDescription,
             testFixture = testFixture,
             test = test,
         )

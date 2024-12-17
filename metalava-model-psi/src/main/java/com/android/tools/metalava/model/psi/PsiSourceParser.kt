@@ -62,7 +62,6 @@ internal class PsiSourceParser(
     private val useK2Uast: Boolean,
     private val allowReadingComments: Boolean,
     private val jdkHome: File?,
-    private val projectDescription: File?,
 ) : SourceParser {
 
     private val reporter = codebaseConfig.reporter
@@ -88,6 +87,7 @@ internal class PsiSourceParser(
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?,
     ): Codebase {
         return parseAbsoluteSources(
             sourceSet.absoluteCopy().extractRoots(reporter),
@@ -95,6 +95,7 @@ internal class PsiSourceParser(
             description,
             classPath.map { it.absoluteFile },
             apiPackages,
+            projectDescription,
         )
     }
 
@@ -105,6 +106,7 @@ internal class PsiSourceParser(
         description: String,
         classpath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?,
     ): PsiBasedCodebase {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel

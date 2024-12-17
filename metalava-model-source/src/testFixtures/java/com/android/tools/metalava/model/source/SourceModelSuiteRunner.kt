@@ -86,6 +86,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             description = "Test Codebase",
             classPath = classPath,
             apiPackages = testFixture.apiPackages,
+            projectDescription = inputs.projectDescription,
         )
     }
 

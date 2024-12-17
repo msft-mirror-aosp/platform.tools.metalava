@@ -42,6 +42,8 @@ interface SourceParser {
      * @param apiPackages an optional [PackageFilter] that if specified will result in only
      *   including the source classes that match the filter in the
      *   [Codebase.getTopLevelClassesFromSource] list.
+     * @param projectDescription Lint project model that can describe project structures in detail.
+     *   Only supported by the PSI model.
      *
      * "Common module" is the term used in Kotlin multi-platform projects where platform-agnostic
      * business logic and `expect` declarations are declared. (Counterparts, like platform-specific
@@ -56,6 +58,7 @@ interface SourceParser {
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?,
     ): Codebase
 
     /**

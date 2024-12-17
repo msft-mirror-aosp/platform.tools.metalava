@@ -42,6 +42,7 @@ internal class TurbineSourceParser(
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?
     ): Codebase {
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 

@@ -92,6 +92,7 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
                 description = "Test Codebase",
                 classPath = emptyList(),
                 apiPackages = null,
+                projectDescription = null,
             )
     }
 
