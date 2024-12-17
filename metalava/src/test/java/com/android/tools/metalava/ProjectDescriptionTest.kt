@@ -37,18 +37,8 @@ class ProjectDescriptionTest : DriverTest() {
         // Conflict declarations in Foo.java and Foo.kt are intentional.
         // project.xml will use "androidMain" as root so that it can discard one in jvmMain.
         check(
-            commonSourceFiles =
-                arrayOf(
-                    kotlin(
-                        "commonMain/src/some/common/Bogus.kt",
-                        """
-                            // bogus file to trigger multi-folder structure
-                            package some.common
-
-                            class Bogus
-                        """
-                    )
-                ),
+            expectedIssues =
+                "jvmMain/src/some/pkg/Foo.java:3: warning: Attempted to register some.pkg.Foo twice; once from TESTROOT/androidMain/src/some/pkg/Foo.kt and this one from TESTROOT/jvmMain/src/some/pkg/Foo.java [DuplicateSourceClass]",
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -220,6 +210,59 @@ class ProjectDescriptionTest : DriverTest() {
                     ctor public Foo();
                     method public int getLazyVal();
                     property public final int lazyVal;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `public api in common`() {
+        val commonSrc =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                class Common
+                """
+            )
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Android.kt",
+                        """
+                        package test.pkg
+                        class Android
+                        """
+                    ),
+                    commonSrc,
+                ),
+            projectDescription =
+                xml(
+                    "project.xml",
+                    """
+                    <project>
+                      <module name="androidMain">
+                        <dep module="commonMain" kind="dependsOn"/>
+                        <src file="androidMain/src/test/pkg/Android.kt" />
+                        $standardClasspathXml
+                      </module>
+                      <module name="commonMain">
+                        <src file="commonMain/src/test/pkg/Common.kt" />
+                        $standardClasspathXml
+                      </module>
+                    </project>
+                    """
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Android {
+                    ctor public Android();
+                  }
+                  public final class Common {
+                    ctor public Common();
                   }
                 }
                 """

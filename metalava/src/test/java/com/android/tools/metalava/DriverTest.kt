@@ -1049,10 +1049,7 @@ abstract class DriverTest :
                 ARG_INCLUDE_ANNOTATIONS,
                 ARG_SOURCE_PATH,
                 sourcePath,
-                ARG_CLASS_PATH,
-                androidJar.path,
-                *classpathArgs,
-                *kotlinPathArgs,
+                *sourceList,
                 *configFileArgs,
                 *removedArgs,
                 *apiArgs,
@@ -1094,12 +1091,16 @@ abstract class DriverTest :
             ) +
                 buildList {
                         if (projectDescriptionFile != null) {
+                            // Classpath isn't needed when it is specified through the project xml
                             add(ARG_PROJECT)
                             add(projectDescriptionFile.absolutePath)
                             // When project description is provided,
                             // skip listing (common) sources
                         } else {
-                            addAll(sourceList)
+                            add(ARG_CLASS_PATH)
+                            add(androidJar.path)
+                            addAll(classpathArgs)
+                            addAll(kotlinPathArgs)
                             if (commonSourcePath != null) {
                                 add(ARG_COMMON_SOURCE_PATH)
                                 add(commonSourcePath)
