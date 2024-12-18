@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.apilevels
 
+import java.io.File
+
 /**
  * A node in a tree of path patterns used to select historical API files.
  *
@@ -79,6 +81,81 @@ sealed class PatternNode {
     private fun getExistingOrAdd(child: PatternNode) =
         children.find { it == child } ?: child.also { children.add(child) }
 
+    /** Configuration provided when scanning. */
+    internal data class ScanConfig(
+        /** The root directory from which the scanning will be performed. */
+        val dir: File,
+
+        /**
+         * An optional range which, if specified, will limit the versions that will be returned.
+         * This is provided when scanning, instead of just filtering afterward, to save time when
+         * scanning by ignoring version directories that are not in the range.
+         */
+        val apiVersionRange: ClosedRange<ApiVersion>?,
+    )
+
+    /**
+     * Scan the [ScanConfig.dir] using this pattern node as the guide.
+     *
+     * Returns a list of [MatchedPatternFile] objects, in version order (from the lowest to the
+     * highest), If multiple matching files have the same version then only the first version will
+     * be used.
+     */
+    internal fun scan(config: ScanConfig): List<MatchedPatternFile> {
+        val dir = config.dir
+        val start = PatternFileState(file = dir)
+        return scan(config, start)
+            // Ignore all but the first of each version.
+            .distinctBy { it.apiVersion }
+            // Sort them from the lowest version to the highest version.
+            .sortedBy { it.apiVersion }
+            // Convert the sequence into a list.
+            .toList()
+    }
+
+    /**
+     * Scan the [PatternFileState.file] using this pattern node as the guide to find the matching
+     * files.
+     *
+     * This returns the result as a [Sequence] of [MatchedPatternFile] which have each been
+     * populated with information extracted from matching [File]s.
+     *
+     * The basic idea is that the [PatternNode] will guide the scanning by using information within
+     * the [PatternNode] hierarchy to limit scanning to only those directories that could possibly
+     * match the patterns from which the [PatternNode] hierarchy was created.
+     *
+     * Each implementation of this consumes a [PatternFileState] (whose [PatternFileState.file] is
+     * the directory to scan) and then applies its own rules to select [File]s that match. It then
+     * creates copies of [state] for each [File] (possibly updating other properties too). Those new
+     * [PatternFileState]s are either passed to [children] for further scanning, or if this is a
+     * leaf node then they are converted into a sequence of [MatchedPatternFile]s that are returned
+     * to the caller.
+     */
+    internal abstract fun scan(
+        config: ScanConfig,
+        state: PatternFileState
+    ): Sequence<MatchedPatternFile>
+
+    /**
+     * Pass the [PatternFileState] on for further scanning or return [MatchedPatternFile]s if no
+     * further scanning is necessary.
+     *
+     * If [children] is empty then this just returns a [Sequence] containing the
+     * [MatchedPatternFile] created from [state]. Otherwise, this passes [state] to each of the
+     * [children] to scan, and flattens the resulting [Sequence]s of [MatchedPatternFile]s and
+     * returns that.
+     */
+    internal fun scanChildrenOrReturnMatching(
+        config: ScanConfig,
+        state: PatternFileState
+    ): Sequence<MatchedPatternFile> =
+        if (children.isEmpty())
+            sequenceOf(
+                // Convert the PatternFileState into MatchedPatternFile objects relative to dir.
+                state.matchedPatternFile(config.dir),
+            )
+        else children.asSequence().flatMap { it.scan(config, state) }
+
     /**
      * The root [PatternNode].
      *
@@ -86,6 +163,13 @@ sealed class PatternNode {
      */
     private class RootPatternNode : PatternNode() {
         override fun toString() = "<root>"
+
+        override fun scan(
+            config: ScanConfig,
+            state: PatternFileState
+        ): Sequence<MatchedPatternFile> {
+            return scanChildrenOrReturnMatching(config, state)
+        }
     }
 
     /**
@@ -99,6 +183,25 @@ sealed class PatternNode {
         val name: String,
     ) : PatternNode() {
         override fun toString() = withDirectorySuffixIfHasChildren(name)
+
+        /** Check to see if there i */
+        override fun scan(
+            config: ScanConfig,
+            state: PatternFileState
+        ): Sequence<MatchedPatternFile> {
+            // Resolve this against the file in [properties] to get a new file. If that file does
+            // not exist then ignore it by returning an empty sequence.
+            val newFile = state.file.resolve(name)
+            if (!newFile.exists()) return emptySequence()
+
+            // Create a new set of properties by copying the original properties, replacing the file
+            // with the new file.
+            val newProperties = state.copy(file = newFile)
+
+            // Pass the properties on to the next nodes in the scanning, or return if this is the
+            // last node.
+            return scanChildrenOrReturnMatching(config, newProperties)
+        }
     }
 
     /**
@@ -113,6 +216,37 @@ sealed class PatternNode {
      */
     private data class ApiVersionPatternNode(val pattern: String) : PatternNode() {
         override fun toString() = withDirectorySuffixIfHasChildren(pattern)
+
+        private val regex = Regex(pattern)
+
+        override fun scan(
+            config: ScanConfig,
+            state: PatternFileState
+        ): Sequence<MatchedPatternFile> {
+            val contents = state.file.listFiles() ?: return emptySequence()
+            return contents.asSequence().flatMap { file ->
+                // Match the regex against the file name, if it does not match then ignore this
+                // file and all its contents by returning an empty sequence.
+                val name = file.name
+                val matcher = regex.matchEntire(name) ?: return@flatMap emptySequence()
+
+                // Extract the API version from the file name and make sure that if a range is
+                // specified that it is within the range. If it is not then ignore this file and
+                // all its contents by returning an empty sequence. This relies on the [pattern]
+                // using the first group to match the API version.
+                val level = matcher.groups[1]!!.value.toInt()
+                val apiVersion = ApiVersion.fromLevel(level)
+                config.apiVersionRange?.let { apiVersionRange ->
+                    if (apiVersion !in apiVersionRange) return@flatMap emptySequence()
+                }
+
+                // Create a new set of properties with the file and extracted version and then
+                // pass them on to the next node in the scanning, or return if this is the last
+                // node.
+                val newProperties = state.copy(file = file, apiVersion = apiVersion)
+                scanChildrenOrReturnMatching(config, newProperties)
+            }
+        }
     }
 
     companion object {
@@ -181,3 +315,42 @@ sealed class PatternNode {
         }
     }
 }
+
+/**
+ * Encapsulates the information accrued about a specific [file] that matches a pattern during
+ * scanning.
+ */
+internal data class PatternFileState(
+    /**
+     * The [File] that has been matched so far.
+     *
+     * This could be a directory, e.g. `prebuilts/sdk` after matching
+     */
+    val file: File,
+
+    /** The optional [ApiVersion] that was extracted from the path. */
+    val apiVersion: ApiVersion? = null,
+) {
+    /**
+     * Construct a [MatchedPatternFile] from this.
+     *
+     * This must only be called when this has been matched by a leaf [PatternNode] and so is
+     * guaranteed to have had [apiVersion] set to a non-null value.
+     */
+    fun matchedPatternFile(dir: File) =
+        if (apiVersion == null) error("matching pattern could not extract version from $file")
+        else MatchedPatternFile(file.relativeTo(dir), apiVersion)
+}
+
+/** Represents a [File] that matches a pattern encapsulate in a hierarchy of [PatternNode]s. */
+data class MatchedPatternFile(
+    /**
+     * The matched [File].
+     *
+     * This is relative to the directory supplied in [PatternNode.ScanConfig.dir].
+     */
+    val file: File,
+
+    /** The [ApiVersion] extracted from the [File] path. */
+    val apiVersion: ApiVersion,
+)

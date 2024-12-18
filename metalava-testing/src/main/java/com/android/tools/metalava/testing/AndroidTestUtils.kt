@@ -84,4 +84,4 @@ private fun getMetalavaDir(): File {
  *
  * This is used to retrieve files from the `prebuilts` directory for testing.
  */
-private fun getAndroidDir() = getMetalavaDir().resolve("../../")
+fun getAndroidDir() = getMetalavaDir().resolve("../../")
