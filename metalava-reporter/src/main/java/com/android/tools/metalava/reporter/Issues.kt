@@ -239,6 +239,7 @@ object Issues {
     val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED by Issue(Severity.HIDDEN, Category.API_LINT)
+    val VALUE_CLASS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
@@ -253,7 +254,11 @@ object Issues {
         return null
     }
 
-    fun findCategoryById(id: String?): Category? = Category.values().find { it.id == id }
+    fun findCategoryById(id: String?): Category =
+        Category.values().find { it.id == id }
+            ?: error(
+                "Unknown category: '$id', expected one of ${Category.values().joinToString { it.id }}"
+            )
 
     fun findIssuesByCategory(category: Category?): List<Issue> =
         allIssues.filter { it.category == category }

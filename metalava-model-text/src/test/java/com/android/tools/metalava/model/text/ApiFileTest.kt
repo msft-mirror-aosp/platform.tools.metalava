@@ -22,7 +22,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -104,7 +106,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val throwableSuperClass = throwable.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, throwableSuperClass)
 
@@ -139,7 +141,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val errorSuperClass = error.superClassType()?.asClass()
 
             // Now get the throwable class.
-            val throwable = codebase.assertClass("java.lang.Throwable")
+            val throwable = codebase.assertClass("java.lang.Throwable", expectedEmit = false)
 
             assertSame(throwable, errorSuperClass)
 
@@ -198,7 +200,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // is checked below.
             exceptionType.erasedClass
 
-            val unknownExceptionClass = codebase.assertClass("other.UnknownException")
+            val unknownExceptionClass =
+                codebase.assertClass("other.UnknownException", expectedEmit = false)
             // Make sure the stub UnknownException is initialized correctly.
             assertSame(throwable, unknownExceptionClass.superClass())
 
@@ -216,8 +219,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 "other.UnknownException",
                 "java.lang.Throwable",
             )
-        val codebase =
-            ApiFile.parseApi(
+        val signatureFile =
+            SignatureFile.fromText(
                 "api.txt",
                 """
                     // Signature format: 2.0
@@ -227,7 +230,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         }
                     }
                 """
-                    .trimIndent(),
+            )
+
+        val codebase =
+            ApiFile.parseApi(
+                listOf(signatureFile),
                 classResolver = testClassResolver,
             )
 
@@ -448,7 +455,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Resolve the class. Even though it does not exist, the text model will fabricate an
             // instance.
             val unknownInterfaceClass =
-                codebase.assertResolvedClass("test.pkg.Foo").interfaceTypes().single().asClass()
+                codebase.assertClass("test.pkg.Foo").interfaceTypes().single().asClass()
             assertNotNull(unknownInterfaceClass)
 
             // Make sure that the fabricated instance is of the correct structure.
@@ -480,7 +487,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test for current API surface`() {
+    fun `Test for main API surface`() {
         val testFiles =
             listOf(
                 signature(
@@ -524,17 +531,29 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
         val signatureFiles =
-            files.map { file ->
-                SignatureFile(file, forCurrentApiSurface = file.name == "current.txt")
-            }
+            SignatureFile.fromFiles(
+                files,
+                forMainApiSurfacePredicate = { _, file -> file.name == "current.txt" },
+            )
 
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = noOpAnnotationManager,
+                apiSurfaces = apiSurfaces,
+            )
         val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
-        val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)
+        val codebase =
+            ApiFile.parseApi(
+                signatureFiles,
+                codebaseConfig = codebaseConfig,
+                classResolver = classResolver,
+            )
 
         val current = buildList {
             codebase.accept(
-                object : BaseItemVisitor() {
-                    override fun visitItem(item: Item) {
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
                         if (item.emit) {
                             add(item)
                         }
@@ -548,11 +567,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
-                parameter currentCtorParameter
                 method test.pkg.Foo.extensibleMethod(int)
-                parameter parameter
                 method test.pkg.Foo.currentMethod(int)
-                parameter currentMethodParameter
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
@@ -565,7 +581,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val signatureFile = SignatureFile.fromText("other.txt", "// Signature format: 2.0")
+                val codebase = ApiFile.parseApi(listOf(signatureFile))
                 val delegate = codebase.resolveClass(name)!!
                 return TestClassItem(delegate)
             }

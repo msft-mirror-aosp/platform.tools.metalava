@@ -32,8 +32,12 @@ import com.android.tools.metalava.model.PropertyItem
  * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
  * property.
  */
-class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
-    BaseItemVisitor(preserveClassNesting = delegate.requiresClassNesting) {
+open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
+    BaseItemVisitor(
+        preserveClassNesting = delegate.requiresClassNesting,
+        // [DelegatedVisitor] does not support visiting parameters.
+        visitParameterItems = false,
+    ) {
 
     override fun visitCodebase(codebase: Codebase) {
         delegate.visitCodebase(codebase)

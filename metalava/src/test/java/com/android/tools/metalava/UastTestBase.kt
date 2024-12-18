@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
-import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -192,53 +191,6 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `Kotlin Reified Methods`() {
-        // TODO: once fix for https://youtrack.jetbrains.com/issue/KT-39209 is available (231),
-        //  FE1.0 UAST will have implicit nullability too.
-        //  Put this back to ApiFileTest, before `Kotlin Reified Methods 2`
-        val n = if (isK2) " @Nullable" else ""
-        check(
-            format = FileFormat.V2,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                    )
-                ),
-            api =
-                """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method$n public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Annotation on parameters of data class synthetic copy`() {
         // https://youtrack.jetbrains.com/issue/KT-57003
         check(
@@ -263,7 +215,7 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
                     method public int getP1();
                     method public String getP2();
-                    property public final int p1;
+                    property @test.pkg.MyAnnotation public final int p1;
                     property public final String p2;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyAnnotation {
@@ -278,6 +230,9 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
         val mod = if (isK2) "" else " final"
+        // https://youtrack.jetbrains.com/issue/KT-72078
+        val horizontalType = if (isK2) "test.pkg.Alignment.Horizontal" else "int"
+        val verticalType = if (isK2) "test.pkg.Alignment.Vertical" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -332,7 +287,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment(int horizontal, int vertical);
+                    ctor public Alignment($horizontalType horizontal, $verticalType vertical);
                     method public int getHorizontal();
                     method public int getVertical();
                     property public$mod int horizontal;
@@ -1084,6 +1039,9 @@ abstract class UastTestBase : DriverTest() {
                     field public static final int NO_ERROR = -1; // 0xffffffff
                   }
                   public static final class RemoteAuthClient.Companion {
+                    property public static final int ERROR_PHONE_UNAVAILABLE;
+                    property public static final int ERROR_UNSUPPORTED;
+                    property public static final int NO_ERROR;
                   }
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @test.pkg.MyIntDef({test.pkg.RemoteAuthClient.NO_ERROR, test.pkg.RemoteAuthClient.ERROR_UNSUPPORTED, test.pkg.RemoteAuthClient.ERROR_PHONE_UNAVAILABLE}) public static @interface RemoteAuthClient.Companion.ErrorCode {
                   }
@@ -1151,7 +1109,7 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public final String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property public String? pOld_accessors_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
                         property public final String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
@@ -1166,7 +1124,7 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
                         property public final String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property public String? pOld_getter_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
                         property public final String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
@@ -1231,6 +1189,10 @@ abstract class UastTestBase : DriverTest() {
                         property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property public int pOld_deprecatedOnSetter;
+                        property public int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                        property public int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                        property public int pOld_deprecatedOnSetter_myAnnoOnSetter;
                       }
                       public final class Test_accessors {
                         ctor public Test_accessors();
@@ -1242,7 +1204,8 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public final String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property public String? pOld_accessors_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
+                        property public final String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
                         ctor public Test_getter();
@@ -1254,7 +1217,8 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
                         property public final String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property public String? pOld_getter_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
+                        property public final String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
@@ -1267,6 +1231,7 @@ abstract class UastTestBase : DriverTest() {
                         property public final String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
+                        property public final String pOld_noAccessor_deprecatedOnSetter;
                       }
                       public final class Test_setter {
                         ctor public Test_setter();
@@ -1279,6 +1244,7 @@ abstract class UastTestBase : DriverTest() {
                         property public final String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;
+                        property public final String? pOld_setter_deprecatedOnSetter;
                       }
                     }
                 """
