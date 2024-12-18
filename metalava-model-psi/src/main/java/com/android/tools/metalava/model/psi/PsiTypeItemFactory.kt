@@ -47,6 +47,7 @@ import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeMappingMode
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.uast.kotlin.isKotlin
 
@@ -145,6 +146,27 @@ internal class PsiTypeItemFactory(
             psiTypeParameterItem,
             ContextNullability.forceUndefined,
         )
+    }
+
+    /**
+     * Attempts to create a type for the [ktElement]. Returns null if the Kotlin type for the
+     * element could not be converted to a [PsiType]. This should only be used when the element has
+     * no [PsiElement] with a defined [PsiType].
+     */
+    @OptIn(KaExperimentalApi::class)
+    internal fun getTypeForProperty(
+        ktElement: KtElement,
+    ): PsiTypeItem? {
+        val kotlinTypeInfo = KotlinTypeInfo.fromContext(ktElement)
+        val psiType =
+            kotlinTypeInfo.analysisSession?.run {
+                kotlinTypeInfo.kaType?.asPsiType(
+                    ktElement,
+                    allowErrorTypes = false,
+                    mode = KaTypeMappingMode.DEFAULT_UAST
+                )
+            }
+        return psiType?.let { createTypeItem(it, kotlinTypeInfo, ContextNullability.none) }
     }
 
     // PsiTypeItem factory methods
@@ -262,7 +284,9 @@ internal class PsiTypeItemFactory(
                 throw IllegalStateException(
                     "Invalid type in API surface: $psiType${
                     if (kotlinType != null) {
-                        " in file " + kotlinType.context.containingFile.name
+                        val location = PsiFileLocation.fromPsiElement(kotlinType.context)
+                        " for element ${location.baselineKey?.elementId()}" +
+                            " in file ${location.path}:${location.line}"
                     } else ""
                 }"
                 )
@@ -344,8 +368,6 @@ internal class PsiTypeItemFactory(
                     kotlinType,
                     creatingClassTypeForClass = true,
                 ),
-            // This should be able to use `psiType.name`, but that sometimes returns null.
-            className = ClassTypeItem.computeClassName(qualifiedName),
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
         )
     }
@@ -636,8 +658,6 @@ internal class PsiTypeItemFactory(
             qualifiedName = qualifiedName,
             arguments = typeArguments,
             outerClassType = computeOuterClass(psiType, actualKotlinType),
-            // This should be able to use `psiType.name`, but that sometimes returns null.
-            className = ClassTypeItem.computeClassName(qualifiedName),
             modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             isSuspend = isSuspend,
             receiverType = receiverType,

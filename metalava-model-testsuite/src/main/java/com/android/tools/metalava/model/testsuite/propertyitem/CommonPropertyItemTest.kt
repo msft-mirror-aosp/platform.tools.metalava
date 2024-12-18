@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.propertyitem
 
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -87,7 +88,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            val property = barClass.properties().single()
+            val property = barClass.assertProperty("foo")
             val methods = barClass.methods()
             val getter = methods.single { it.name() == "getFoo" }
             val setter = methods.single { it.name() == "setFoo" }
@@ -148,7 +149,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(fieldItem.name()).isEqualTo("delegatingList\$delegate")
             val fieldType = fieldItem.type()
             fieldType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.reflect.KProperty0<? extends java.util.List<? extends java.lang.String?>>"
                     )
@@ -158,7 +159,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(propertyItem.name()).isEqualTo("delegatingList")
             val propertyType = propertyItem.type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.util.List<java.lang.String?>")
             }
         }
@@ -182,7 +183,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(fieldItem.name()).isEqualTo("delegatingList\$delegate")
             val fieldType = fieldItem.type()
             fieldType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.reflect.KProperty0<? extends kotlin.jvm.functions.Function2<? super java.lang.Integer,? super java.lang.String?,? extends java.lang.Boolean>>"
                     )
@@ -192,7 +193,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(propertyItem.name()).isEqualTo("delegatingList")
             val propertyType = propertyItem.type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.String?,java.lang.Boolean>"
                     )
@@ -216,7 +217,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String")
+                assertThat(testTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String")
             }
 
             val getter = fooClass.methods().single()
@@ -241,7 +242,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String?")
+                assertThat(testTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String?")
             }
 
             val getter = fooClass.methods().single()
@@ -266,7 +267,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.util.List<java.lang.String>")
             }
 
@@ -292,7 +293,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.util.List<java.lang.String?>")
             }
 
@@ -319,7 +320,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String")
+                assertThat(testTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String")
             }
 
             val methods =
@@ -352,7 +353,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String?")
+                assertThat(testTypeString(kotlinStyleNulls = true)).isEqualTo("java.lang.String?")
             }
 
             val methods =
@@ -385,7 +386,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.util.List<java.lang.String>")
             }
 
@@ -419,7 +420,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val propertyType = fooClass.properties().single().type()
             propertyType.assertClassTypeItem {
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.util.List<java.lang.String?>")
             }
 
@@ -535,6 +536,44 @@ class CommonPropertyItemTest : BaseModelTest() {
                     """
                         .trimIndent()
                 )
+        }
+    }
+
+    @Test
+    fun `Test companion property`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        companion object {
+                            val value: Int = 0
+                            const val constant: Int = 1
+                            @JvmField val jvmField: Int = 2
+                        }
+                    }
+                """
+            )
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.methods()).isEmpty()
+            assertThat(foo.properties()).isEmpty()
+            foo.assertField("constant")
+            foo.assertField("jvmField")
+
+            val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
+            assertThat(fooCompanion.fields()).isEmpty()
+            assertThat(fooCompanion.methods()).hasSize(1)
+            val valueGetterOnCompanion = fooCompanion.assertMethod("getValue", "")
+
+            assertThat(fooCompanion.properties()).hasSize(3)
+            val constantPropertyOnCompanion = fooCompanion.assertProperty("constant")
+            val jvmPropertyOnCompanion = fooCompanion.assertProperty("jvmField")
+            val valuePropertyOnCompanion = fooCompanion.assertProperty("value")
+
+            assertThat(jvmPropertyOnCompanion.getter).isNull()
+            assertThat(constantPropertyOnCompanion.getter).isNull()
+            assertThat(valuePropertyOnCompanion.getter).isEqualTo(valueGetterOnCompanion)
         }
     }
 }

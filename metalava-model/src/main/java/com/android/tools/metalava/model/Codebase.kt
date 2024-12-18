@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
@@ -34,11 +35,17 @@ interface Codebase {
      */
     val location: File
 
+    /** Configuration of this [Codebase], typically comes from the command line. */
+    val config: Config
+
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
 
     /** The manager of annotations within this codebase. */
     val annotationManager: AnnotationManager
+
+    /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
+    val apiSurfaces: ApiSurfaces
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
@@ -57,6 +64,14 @@ interface Codebase {
      * sources.
      */
     fun isFromClassPath(): Boolean = false
+
+    /**
+     * Freeze all the classes loaded from sources, along with their super classes.
+     *
+     * This does not prevent adding new classes and does automatically freeze classes added after
+     * this is called.
+     */
+    fun freezeClasses()
 
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
@@ -114,43 +129,30 @@ interface Codebase {
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
     }
-}
 
-sealed class MinSdkVersion
-
-data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
-
-object UnsetMinSdkVersion : MinSdkVersion()
-
-const val CLASS_ESTIMATE = 15000
-
-abstract class AbstractCodebase(
-    final override var location: File,
-    description: String,
-    final override val preFiltered: Boolean,
-    final override val annotationManager: AnnotationManager,
-    private val trustedApi: Boolean,
-    private val supportsDocumentation: Boolean,
-) : Codebase {
-
-    final override var description: String = description
-        private set
-
-    final override fun trustedApi() = trustedApi
-
-    final override fun supportsDocumentation() = supportsDocumentation
-
-    final override fun toString() = description
-
-    override fun dispose() {
-        description += " [disposed]"
-    }
-}
-
-interface MutableCodebase : Codebase {
     /**
-     * Register the class by name, return `true` if the class was registered and `false` if it was
-     * not, i.e. because it is a duplicate.
+     * Contains configuration for [Codebase] that can, or at least could, come from command line
+     * options.
      */
-    fun registerClass(classItem: DefaultClassItem): Boolean
+    data class Config(
+        /** Determines how annotations will affect the [Codebase]. */
+        val annotationManager: AnnotationManager,
+
+        /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The reporter to use for issues found during processing of the [Codebase]. */
+        val reporter: Reporter = BasicReporter.ERR,
+    ) {
+        companion object {
+            /**
+             * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
+             * reporter.
+             */
+            val NOOP =
+                Config(
+                    annotationManager = noOpAnnotationManager,
+                )
+        }
+    }
 }

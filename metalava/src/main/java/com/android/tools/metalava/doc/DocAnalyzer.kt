@@ -21,8 +21,8 @@ import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.metalava.PROGRAM_NAME
-import com.android.tools.metalava.SdkIdentifier
-import com.android.tools.metalava.apilevels.ApiToExtensionsMap
+import com.android.tools.metalava.SdkExtension
+import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
@@ -39,11 +39,12 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -57,6 +58,15 @@ import org.xml.sax.helpers.DefaultHandler
 private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSystemFeature"
 
 private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
+
+/** Lambda that when given an API level will return a string label for it. */
+typealias ApiLevelLabelProvider = (Int) -> String
+
+/**
+ * Lambda that when given an API level will return `true` if it can be referenced from within the
+ * documentation and `false` if it cannot.
+ */
+typealias ApiLevelFilter = (Int) -> Boolean
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
@@ -74,10 +84,16 @@ class DocAnalyzer(
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
+
+    /** Provides a string label for each API level. */
+    private val apiLevelLabelProvider: ApiLevelLabelProvider,
+
+    /** Filter that determines whether an API level should be mentioned in the documentation. */
+    private val apiLevelFilter: ApiLevelFilter,
+
+    /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) {
-
-    private val apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig
-
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
         // Apply options for packages that should be hidden
@@ -106,7 +122,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor(config = apiVisitorConfig) {
+            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -201,7 +217,10 @@ class DocAnalyzer(
                         "androidx.annotation.StringDef" -> handleTypeDef(annotation, item)
                         "android.annotation.RequiresFeature" ->
                             handleRequiresFeature(annotation, item)
-                        "androidx.annotation.RequiresApi" -> handleRequiresApi(annotation, item)
+                        "androidx.annotation.RequiresApi" ->
+                            // The RequiresApi annotation can only be applied to SelectableItems,
+                            // i.e. not ParameterItems, so ignore it on them.
+                            if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
                         "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
                     }
@@ -217,7 +236,7 @@ class DocAnalyzer(
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
                                 "Unbounded recursion, processing annotation ${annotation.toSource()} " +
-                                    "in $item in ${item.sourceFile()} "
+                                    "in $item at ${annotation.fileLocation} "
                             )
                         } else if (nested.qualifiedName !in visitedClasses) {
                             handleAnnotation(nested, item, depth + 1, visitedClasses)
@@ -512,7 +531,11 @@ class DocAnalyzer(
                     appendDocumentation(doc, item, false)
                 }
 
-                private fun handleRequiresApi(annotation: AnnotationItem, item: Item) {
+                /**
+                 * Handle `RequiresApi` annotations which can only be applied to classes, methods,
+                 * constructors, fields and/or properties, i.e. not parameters.
+                 */
+                private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
                     val level = run {
                         val api =
                             annotation.findAttribute("api")?.leafValues()?.firstOrNull()?.value()
@@ -676,8 +699,20 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor(config = apiVisitorConfig) {
-                override fun visitItem(item: Item) {
+            object :
+                ApiVisitor(
+                    // Do not visit [ParameterItem]s as they do not have their own summary line that
+                    // could become truncated.
+                    visitParameterItems = false,
+                    apiPredicateConfig = apiPredicateConfig,
+                ) {
+                /**
+                 * Work around an issue with JavaDoc summary truncation.
+                 *
+                 * This is not called for [ParameterItem]s as they do not have their own summary
+                 * line that could become truncated.
+                 */
+                override fun visitSelectableItem(item: SelectableItem) {
                     item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
             }
@@ -696,7 +731,9 @@ class DocAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    config = apiVisitorConfig,
+                    // Only SelectableItems have documentation associated with them.
+                    visitParameterItems = false,
+                    apiPredicateConfig = apiPredicateConfig,
                 ) {
 
                 override fun visitCallable(callable: CallableItem) {
@@ -751,39 +788,32 @@ class DocAnalyzer(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun addApiLevelDocumentation(level: Int, item: Item) {
+    /**
+     * Add API level documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
+    private fun addApiLevelDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have
                 // accurate historical data
                 return
             }
-            if (
-                !options.isDeveloperPreviewBuild() &&
-                    options.currentApiLevel != -1 &&
-                    level > options.currentApiLevel
-            ) {
-                // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
-                // in a dessert (only in an extension), but for release builds, we don't want to
-                // include a "future" SDK_INT
+
+            // Check to see whether an API level should not be included in the documentation.
+            if (!apiLevelFilter(level)) {
                 return
             }
 
-            val currentCodeName = options.currentCodeName
-            val code: String =
-                if (currentCodeName != null && level > options.currentApiLevel) {
-                    currentCodeName
-                } else {
-                    level.toString()
-                }
+            val apiLevelLabel = apiLevelLabelProvider(level)
 
             // Also add @since tag, unless already manually entered.
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API levels!
             if (!item.documentation.contains("@apiSince")) {
-                item.appendDocumentation(code, "@apiSince")
+                item.appendDocumentation(apiLevelLabel, "@apiSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -795,7 +825,15 @@ class DocAnalyzer(
         }
     }
 
-    private fun addApiExtensionsDocumentation(sdkExtSince: List<SdkAndVersion>, item: Item) {
+    /**
+     * Add API extension documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     *
+     * @param sdkExtSince the first non Android SDK entry in the `sdks` attribute associated with
+     *   [item].
+     */
+    private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
         if (item.documentation.contains("@sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG,
@@ -804,32 +842,26 @@ class DocAnalyzer(
                     "manually; it's computed and injected at build time by $PROGRAM_NAME"
             )
         }
-        // Don't emit an @sdkExtSince for every item in sdkExtSince; instead, limit output to the
-        // first non-Android SDK listed for the symbol in sdk-extensions-info.txt (the Android SDK
-        // is already covered by @apiSince and doesn't have to be repeated)
-        sdkExtSince
-            .find { it.sdk != ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID }
-            ?.let { item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince") }
+
+        item.appendDocumentation("${sdkExtSince.name} ${sdkExtSince.version}", "@sdkExtSince")
     }
 
-    @Suppress("DEPRECATION")
-    private fun addDeprecatedDocumentation(level: Int, item: Item) {
+    /**
+     * Add deprecated documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
+    private fun addDeprecatedDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have
                 // accurate historical data
                 return
             }
-            val currentCodeName = options.currentCodeName
-            val code: String =
-                if (currentCodeName != null && level > options.currentApiLevel) {
-                    currentCodeName
-                } else {
-                    level.toString()
-                }
+            val apiLevelLabel = apiLevelLabelProvider(level)
 
             if (!item.documentation.contains("@deprecatedSince")) {
-                item.appendDocumentation(code, "@deprecatedSince")
+                item.appendDocumentation(apiLevelLabel, "@deprecatedSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -948,7 +980,7 @@ fun getApiLookup(
     val prev = System.getProperty(xmlPathProperty)
     try {
         System.setProperty(xmlPathProperty, xmlFile.path)
-        return ApiLookup.get(client) ?: error("ApiLookup creation failed")
+        return ApiLookup.get(client, null) ?: error("ApiLookup creation failed")
     } finally {
         if (prev != null) {
             System.setProperty(xmlPathProperty, xmlFile.path)
@@ -967,21 +999,12 @@ fun getApiLookup(
  *
  * The symbols are Strings on the format "com.pkg.Foo#MethodOrField", with no method signature.
  */
-private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
-    data class OuterClass(val name: String, val idAndVersionList: List<IdAndVersion>?)
+private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersion> {
+    data class OuterClass(val name: String, val idAndVersion: IdAndVersion?)
 
-    val sdkIdentifiers =
-        mutableMapOf(
-            ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID to
-                SdkIdentifier(
-                    ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID,
-                    "Android",
-                    "Android",
-                    "null"
-                )
-        )
+    val sdkExtensionsById = mutableMapOf<Int, SdkExtension>()
     var lastSeenClass: OuterClass? = null
-    val elementToIdAndVersionMap = mutableMapOf<String, List<IdAndVersion>>()
+    val elementToIdAndVersionMap = mutableMapOf<String, IdAndVersion>()
     val memberTags = listOf("class", "method", "field")
     val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
     parser.parse(
@@ -1008,22 +1031,33 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     val reference: String =
                         attributes.getValue("reference")
                             ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkIdentifiers[id] = SdkIdentifier(id, shortname, name, reference)
+                    sdkExtensionsById[id] =
+                        SdkExtension.fromXmlAttributes(
+                            id,
+                            shortname,
+                            name,
+                            reference,
+                        )
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String =
                         attributes.getValue("name")
                             ?: throw IllegalArgumentException(
                                 "<$qualifiedName>: missing name attribute"
                             )
-                    val idAndVersionList: List<IdAndVersion>? =
-                        attributes
-                            .getValue("sdks")
+                    val sdksList = attributes.getValue("sdks")
+                    val idAndVersion =
+                        sdksList
                             ?.split(",")
-                            ?.map {
+                            // Get the first pair of sdk-id:version where sdk-id is not 0. If no
+                            // such pair exists then use `null`.
+                            ?.firstNotNullOfOrNull {
                                 val (sdk, version) = it.split(":")
-                                IdAndVersion(sdk.toInt(), version.toInt())
+                                val id = sdk.toInt()
+                                // Ignore any references to the Android Platform SDK as they are
+                                // handled by ApiLookup.
+                                if (id == ANDROID_PLATFORM_SDK_ID) null
+                                else IdAndVersion(id, version.toInt())
                             }
-                            ?.toList()
 
                     // Populate elementToIdAndVersionMap. The keys constructed here are derived from
                     // api-versions.xml; when used elsewhere in DocAnalyzer, the keys will be
@@ -1039,12 +1073,9 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     when (qualifiedName) {
                         "class" -> {
                             lastSeenClass =
-                                OuterClass(
-                                    name.replace('/', '.').replace('$', '.'),
-                                    idAndVersionList
-                                )
-                            if (idAndVersionList != null) {
-                                elementToIdAndVersionMap[lastSeenClass!!.name] = idAndVersionList
+                                OuterClass(name.replace('/', '.').replace('$', '.'), idAndVersion)
+                            if (idAndVersion != null) {
+                                elementToIdAndVersionMap[lastSeenClass!!.name] = idAndVersion
                             }
                         }
                         "method",
@@ -1061,11 +1092,12 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                                     name.substringBefore('(')
                                 }
                             val element = "${lastSeenClass!!.name}#$shortName"
-                            if (idAndVersionList != null) {
-                                elementToIdAndVersionMap[element] = idAndVersionList
-                            } else if (lastSeenClass!!.idAndVersionList != null) {
-                                elementToIdAndVersionMap[element] =
-                                    lastSeenClass!!.idAndVersionList!!
+                            if (idAndVersion != null) {
+                                elementToIdAndVersionMap[element] = idAndVersion
+                            } else if (sdksList == null && lastSeenClass!!.idAndVersion != null) {
+                                // The method/field does not have an `sdks` attribute so fall back
+                                // to the idAndVersion from the containing class.
+                                elementToIdAndVersionMap[element] = lastSeenClass!!.idAndVersion!!
                             }
                         }
                     }
@@ -1080,16 +1112,16 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
         }
     )
 
-    val elementToSdkExtSinceMap = mutableMapOf<String, List<SdkAndVersion>>()
+    val elementToSdkExtSinceMap = mutableMapOf<String, SdkAndVersion>()
     for (entry in elementToIdAndVersionMap.entries) {
         elementToSdkExtSinceMap[entry.key] =
-            entry.value.map {
+            entry.value.let {
                 val name =
-                    sdkIdentifiers[it.first]?.name
+                    sdkExtensionsById[it.first]?.name
                         ?: throw IllegalArgumentException(
                             "SDK reference to unknown <sdk> with id ${it.first}"
                         )
-                SdkAndVersion(it.first, name, it.second)
+                SdkAndVersion(name, it.second)
             }
     }
     return elementToSdkExtSinceMap
@@ -1097,4 +1129,4 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
 
 private typealias IdAndVersion = Pair<Int, Int>
 
-private data class SdkAndVersion(val sdk: Int, val name: String, val version: Int)
+private data class SdkAndVersion(val name: String, val version: Int)
