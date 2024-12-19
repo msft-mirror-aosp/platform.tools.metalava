@@ -18,19 +18,18 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.standardProjectXmlClasspath
 import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN)
 class ProjectDescriptionTest : DriverTest() {
-    private val standardClasspath = getKotlinStdlibPaths() + getAndroidJar()
-    private val standardClasspathXml =
-        standardClasspath.joinToString("\n") { "<classpath file=\"$it\"/>" }
-
     @Test
     fun `conflict declarations`() {
         // Example from b/364480872
@@ -118,7 +117,7 @@ class ProjectDescriptionTest : DriverTest() {
     }
 
     @Test
-    fun `jvm annotations`() {
+    fun `jvm annotations with invalid root dir`() {
         check(
             apiLint = "",
             sourceFiles =
@@ -150,7 +149,7 @@ class ProjectDescriptionTest : DriverTest() {
                           <root dir="src/androidMain"/>
                           <module name="androidMain" android="true">
                             <src file="src/androidMain/some/pkg/Foo.kt" />
-                            $standardClasspathXml
+                            $standardProjectXmlClasspath
                           </module>
                         </project>
                     """
@@ -174,7 +173,7 @@ class ProjectDescriptionTest : DriverTest() {
     }
 
     @Test
-    fun `delegate property`() {
+    fun `delegate property with invalid root dir`() {
         check(
             apiLint = "",
             sourceFiles =
@@ -197,7 +196,7 @@ class ProjectDescriptionTest : DriverTest() {
                           <root dir="src/androidMain"/>
                           <module name="androidMain">
                             <src file="src/androidMain/some/pkg/Foo.kt"/>
-                            $standardClasspathXml
+                            $standardProjectXmlClasspath
                           </module>
                         </project>
                     """
@@ -226,34 +225,20 @@ class ProjectDescriptionTest : DriverTest() {
                 class Common
                 """
             )
+        val androidSrc =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android
+                """
+            )
         check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "androidMain/src/test/pkg/Android.kt",
-                        """
-                        package test.pkg
-                        class Android
-                        """
-                    ),
-                    commonSrc,
-                ),
+            sourceFiles = arrayOf(androidSrc, commonSrc),
             projectDescription =
-                xml(
-                    "project.xml",
-                    """
-                    <project>
-                      <module name="androidMain">
-                        <dep module="commonMain" kind="dependsOn"/>
-                        <src file="androidMain/src/test/pkg/Android.kt" />
-                        $standardClasspathXml
-                      </module>
-                      <module name="commonMain">
-                        <src file="commonMain/src/test/pkg/Common.kt" />
-                        $standardClasspathXml
-                      </module>
-                    </project>
-                    """
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSrc)),
+                    createCommonModuleDescription(arrayOf(commonSrc)),
                 ),
             api =
                 """
