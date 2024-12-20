@@ -38,7 +38,7 @@ class PatternNodeTest {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/3/public/android.jar' does not contain '%'",
+            "Pattern 'prebuilts/sdk/3/public/android.jar' does not contain '%' or {version:level}",
             exception.message
         )
     }
@@ -53,7 +53,22 @@ class PatternNodeTest {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/%/public/android-%.jar' contains more than one '%'",
+            "Pattern 'prebuilts/sdk/%/public/android-%.jar' contains more than one '%' or {version:level}",
+            exception.message
+        )
+    }
+
+    @Test
+    fun `Unknown placeholder`() {
+        val patterns =
+            listOf(
+                "prebuilts/sdk/{unknown}/public/android-%.jar",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals(
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-%.jar' contains an unknown placeholder '{unknown}'",
             exception.message
         )
     }
@@ -62,7 +77,7 @@ class PatternNodeTest {
     fun `Parse common Android public patterns`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/%/public/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
                 // This pattern never matches, but it is provided by Soong as it treats all
                 // directories as being the same structure as prebuilts/sdk.
                 "prebuilts/tools/common/api-versions/%/public/android.jar",

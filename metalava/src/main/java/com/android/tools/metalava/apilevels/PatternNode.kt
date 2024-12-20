@@ -253,8 +253,8 @@ sealed class PatternNode {
         /**
          * Parse a list of [patterns] into a tree of [PatternNode]s.
          *
-         * Each pattern in [patterns] must contain a single '%' that is a placeholder for the
-         * version number.
+         * Each pattern in [patterns] must contain a single '%' or a single `{version:level}` that
+         * is a placeholder for the version number.
          */
         fun parsePatterns(patterns: List<String>): PatternNode {
             val root = RootPatternNode()
@@ -272,15 +272,16 @@ sealed class PatternNode {
          * into the [root], reusing existing [PatternNode]s where possible.
          */
         private fun addPattern(root: PatternNode, pathPattern: String) {
-            val versionIndex = pathPattern.indexOf('%')
-            if (versionIndex == -1) error("Pattern '$pathPattern' does not contain '%'")
-            else if (pathPattern.indexOf('%', versionIndex + 1) != -1)
-                error("Pattern '$pathPattern' contains more than one '%'")
+            // Normalize the pattern by replacing % with {version:level}.
+            val normalizedPattern = pathPattern.replace("%", PLACEHOLDER_VERSION_LEVEL)
+
+            // The list of nodes used for the pattern.
+            val nodes = mutableListOf<PatternNode>()
 
             var parent = root
             // Split the pattern using `/` and iterate over each of the parts adding them into the
             // tree structure.
-            for (namePattern in pathPattern.split("/")) {
+            for (namePattern in normalizedPattern.split("/")) {
                 // Create a node for the pattern.
                 val node =
                     when {
@@ -288,30 +289,77 @@ sealed class PatternNode {
                         namePattern == "" -> {
                             FixedNamePatternNode("/")
                         }
-                        '%' in namePattern -> {
-                            parseParameterizedPattern(namePattern)
+                        '{' in namePattern -> {
+                            parseParameterizedPattern(pathPattern, namePattern)
                         }
                         else -> FixedNamePatternNode(namePattern)
                     }
+
+                nodes.add(node)
 
                 // Find a matching node in the parent adding the new node if no existing node
                 // exists. Use the result as the parent for the next node.
                 parent = parent.getExistingOrAdd(node)
             }
+
+            // Check to make sure that exactly one of the nodes will match an API version.
+            val count = nodes.count { it is ApiVersionPatternNode }
+            when {
+                count == 0 ->
+                    error("Pattern '$pathPattern' does not contain '%' or {version:level}")
+                count > 1 ->
+                    error("Pattern '$pathPattern' contains more than one '%' or {version:level}")
+            }
         }
 
+        /** [Regex] to find placeholders in a pattern. */
+        private val PLACEHOLDER_REGEX = Regex("""\{[^}]+}""")
+
+        private const val PLACEHOLDER_VERSION_LEVEL = "{version:level}"
+
         /** Parse a parameterized pattern, i.e. one with '%'. */
-        private fun parseParameterizedPattern(pattern: String): PatternNode {
-            // Generate a regular expression pattern from the name pattern.
-            val regexpPattern =
-                // Replace the % with `\E(\d+)\Q` and wrap the result inside `\Q...\E`. That ensures
-                // that all the text apart from the % will be treated literally in the resulting
-                // regular expression.
-                """\Q${pattern.replace("%", """\E(\d+)\Q""")}\E"""
-                    // Remove any `\Q\E` that are added by the preceding step, e.g. when namePattern
-                    // starts or ends with `%`.
-                    .replace("""\Q\E""", "")
-            return ApiVersionPatternNode(regexpPattern)
+        private fun parseParameterizedPattern(pathPattern: String, pattern: String): PatternNode {
+            val regexBuilder = StringBuilder()
+            var literalStart = 0
+
+            /**
+             * Quote any literal text found between the start of the pattern or last placeholder and
+             * the [firstNonLiteral].
+             */
+            fun quoteLiteralText(firstNonLiteral: Int) {
+                if (firstNonLiteral > literalStart) {
+                    regexBuilder.append(
+                        Regex.escape(pattern.substring(literalStart, firstNonLiteral))
+                    )
+                }
+            }
+
+            // Convert the pattern into a regular expression, quoting any literal text and replacing
+            // placeholders with an appropriate regular expression.
+            for (matchResult in PLACEHOLDER_REGEX.findAll(pattern)) {
+                // Quote any literal text found between the start of the pattern or last
+                // placeholder and this match.
+                quoteLiteralText(matchResult.range.first)
+
+                // The next block of literal text (if any) will start after the match.
+                literalStart = matchResult.range.last + 1
+
+                when (val placeholder = matchResult.value) {
+                    PLACEHOLDER_VERSION_LEVEL -> {
+                        // The level is just one or more digits.
+                        regexBuilder.append("""(\d+)""")
+                    }
+                    else ->
+                        error(
+                            "Pattern '$pathPattern' contains an unknown placeholder '$placeholder'"
+                        )
+                }
+            }
+
+            // Quote any literal text found at the end of the pattern after the last placeholder.
+            quoteLiteralText(pattern.length)
+
+            return ApiVersionPatternNode(regexBuilder.toString())
         }
     }
 }
