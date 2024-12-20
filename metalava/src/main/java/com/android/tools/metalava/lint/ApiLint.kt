@@ -3474,8 +3474,13 @@ private constructor(
         private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z0-9]*")
         private val styleFieldPattern = Regex("[A-Z][A-Za-z0-9]+(_[A-Z][A-Za-z0-9]+?)*")
 
-        private val acronymPattern2 = Regex("([A-Z]){2,}")
-        private val acronymPattern3 = Regex("([A-Z]){3,}")
+        // An acronym is 2 or more capital letters. Following the acronym there can either be a next
+        // word (capital followed by a non-capital), digit, underscore, or word break (digits and
+        // underscores count as word characters).
+        // Including the next character in the regex means the first capture group will contain just
+        // the acronym and not the start of the next word, e.g. for "HTMLWriter" the acronym is
+        // "HTML", not "HTMLW".
+        private val acronymPattern = Regex("([A-Z]{2,})(?:[A-Z][a-z]|[0-9]|_|\\b)")
 
         private val serviceDumpMethodParameterTypes =
             listOf("java.io.FileDescriptor", "java.io.PrintWriter", "java.lang.String[]")
@@ -3495,23 +3500,15 @@ private constructor(
                     serviceDumpMethodParameterTypes
 
         private fun hasAcronyms(name: String): Boolean {
-            // Require 3 capitals, or 2 if it's at the end of a word.
-            val result = acronymPattern2.find(name) ?: return false
-            return result.range.first == name.length - 2 || acronymPattern3.find(name) != null
+            return getFirstAcronym(name) != null
         }
 
         private fun getFirstAcronym(name: String): String? {
-            // Require 3 capitals, or 2 if it's at the end of a word.
-            val result = acronymPattern2.find(name) ?: return null
-            if (result.range.first == name.length - 2) {
-                return name.substring(name.length - 2)
-            }
-            val result2 = acronymPattern3.find(name)
-            return if (result2 != null) {
-                name.substring(result2.range.first, result2.range.last + 1)
-            } else {
-                null
-            }
+            val fullMatch = acronymPattern.find(name) ?: return null
+            // Group 1 is just the acronym.
+            val result = fullMatch.groups[1] ?: return null
+
+            return name.substring(result.range.first, result.range.last + 1)
         }
 
         /** for something like "HTMLWriter", returns "HtmlWriter" */
@@ -3537,21 +3534,9 @@ private constructor(
                 if (index == -1) {
                     return s
                 }
-                // The last character, if not the end of the string, is probably the beginning of
-                // the
-                // next word so capitalize it
-                s =
-                    if (index == s.length - acronym.length) {
-                        // acronym at the end of the word word
-                        val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
-                        s.replace(acronym, decapitalized)
-                    } else {
-                        val replacement =
-                            acronym[0] +
-                                acronym.substring(1, acronym.length - 1).lowercase(Locale.US) +
-                                acronym[acronym.length - 1]
-                        s.replace(acronym, replacement)
-                    }
+                // Convert all but the first character of the acronym to lowercase.
+                val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
+                s = s.replace(acronym, decapitalized)
             }
         }
 

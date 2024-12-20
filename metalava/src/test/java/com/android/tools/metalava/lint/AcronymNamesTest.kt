@@ -135,7 +135,7 @@ class AcronymNamesTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                src/android/pkg/badlyNamedClass.java:8: warning: Acronyms should not be capitalized in method names: was `toXML2`, should this be `toXmL2`? [AcronymName]
+                src/android/pkg/badlyNamedClass.java:8: warning: Acronyms should not be capitalized in method names: was `toXML2`, should this be `toXml2`? [AcronymName]
                 src/android/pkg2/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName]
                 src/android/pkg2/HTMLWriter.java:4: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName]
                 """,
@@ -161,6 +161,50 @@ class AcronymNamesTest : DriverTest() {
 
                             public class HTMLWriter {
                                 public void fromHTMLToHTML() { }
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test long acronym following two letter acronym`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                "src/test/pkg/IHaveTwoThenFOUR.java:2: warning: Acronyms should not be capitalized in class names: was `IHaveTwoThenFOUR`, should this be `IHaveTwoThenFour`? [AcronymName]",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class IHaveTwoThenFOUR {} // IH is okay, FOUR is not
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test acronyms followed by non-letters`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:3: warning: Acronyms should not be capitalized in method names: was `usingNUMBER123`, should this be `usingNumber123`? [AcronymName]
+                src/test/pkg/Foo.java:4: warning: Acronyms should not be capitalized in method names: was `usingUNDERSCORE_`, should this be `usingUnderscore_`? [AcronymName]
+                src/test/pkg/Foo.java:5: warning: Acronyms should not be capitalized in method names: was `usingDOLLAR${'$'}`, should this be `usingDollar${'$'}`? [AcronymName]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                public void usingNUMBER123() {}
+                                public void usingUNDERSCORE_() {}
+                                public void usingDOLLAR$() {}
                             }
                         """
                     )
