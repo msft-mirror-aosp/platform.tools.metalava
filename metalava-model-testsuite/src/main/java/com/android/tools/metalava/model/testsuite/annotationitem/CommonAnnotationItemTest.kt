@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite.annotationitem
 
+import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getAttributeValues
@@ -55,7 +55,7 @@ val sameLine =
         """
     )
 
-/** Common tests for implementations of [ClassItem]. */
+/** Common tests for implementations of [AnnotationItem]. */
 class CommonAnnotationItemTest : BaseModelTest() {
 
     /** Check the location information of the various parts of [item]. */
@@ -66,7 +66,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
         fun addDetails(fileLocation: FileLocation, description: String) {
             val line = fileLocation.line
             if (line == 0) return
-            details.add(line to description)
+            val detail = line to description
+            if (detail !in details) {
+                details.add(detail)
+            }
         }
 
         foo.accept(
@@ -148,7 +151,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         @SameLine("Foo") class Foo {
                             @LineBefore("constructor")
                             @SameLine("constructor") constructor() {}
-                            @LineBefore("field")
+                            @LineBefore("field") @get:LineBefore("getter")
                             @SameLine("field") val field: Int
                             @LineBefore("method")
                             @SameLine("method") fun method(
@@ -169,6 +172,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     5:constructor test.pkg.Foo()
                     6:@test.pkg.SameLine("constructor")
                     7:@test.pkg.LineBefore("field")
+                    7:@test.pkg.LineBefore("getter")
                     8:@test.pkg.SameLine("field")
                     8:field test.pkg.Foo.field
                     8:method test.pkg.Foo.getField()
@@ -1518,6 +1522,91 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 "@test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY, java.lang.Double.NEGATIVE_INFINITY})",
                 anno.toSource()
             )
+        }
+    }
+
+    @Test
+    fun `annotation resolve`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno
+                      public class Test {
+                      }
+
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Test.Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+
+                    @Test.Anno
+                    public class Test {
+                        private Test() {}
+
+                        @Retention(RetentionPolicy.CLASS)
+                        public @interface Anno {
+                        }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            // Check that the annotation can be resolved to a class.
+            val annoClass = anno.resolve()!!
+            assertEquals("test.pkg.Test.Anno", annoClass.qualifiedName(), message = "anno class")
+
+            // Check that the annotation can be resolved to a class.
+            val retentionAnno = annoClass.modifiers.annotations().single()
+            val retentionClass = retentionAnno.resolve()!!
+            assertEquals(
+                "java.lang.annotation.Retention",
+                retentionClass.qualifiedName(),
+                message = "retention class"
+            )
+        }
+    }
+
+    @Test
+    fun `annotation targets - on source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        @SourcePathAnnotation
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public @interface SourcePathAnnotation {}
+                            """
+                        ),
+                    ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annotationItem = testClass.modifiers.annotations().single()
+
+            // Make sure that it correctly computes targets for an annotation class from the
+            // source path.
+            assertEquals(ANNOTATION_IN_ALL_STUBS, annotationItem.targets)
         }
     }
 

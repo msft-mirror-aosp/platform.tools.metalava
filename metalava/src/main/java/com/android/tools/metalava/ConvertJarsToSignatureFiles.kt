@@ -17,23 +17,26 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
-import java.util.function.Predicate
 import java.util.zip.ZipFile
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes
@@ -73,12 +76,13 @@ class ConvertJarsToSignatureFiles(
             progressTracker.progress("Writing signature files $signatureFile for $apiJar")
 
             val annotationManager = DefaultAnnotationManager()
-            val signatureFileLoader = SignatureFileLoader(annotationManager = annotationManager)
+            val codebaseConfig =
+                Codebase.Config(
+                    annotationManager = annotationManager,
+                )
+            val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
             val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
-            val apiPredicateConfig = ApiPredicate.Config()
-            val apiEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
-            val apiReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
 
             if (api >= 28) {
                 // As of API 28 we'll put nullness annotations into the jar but some of them
@@ -87,7 +91,7 @@ class ConvertJarsToSignatureFiles(
                 jarCodebase.accept(
                     object :
                         ApiVisitor(
-                            config = ApiVisitor.Config(),
+                            apiPredicateConfig = ApiPredicate.Config(),
                         ) {
                         override fun visitItem(item: Item) {
                             unmarkRecent(item)
@@ -100,15 +104,14 @@ class ConvertJarsToSignatureFiles(
                             val annotationClass =
                                 if (annotation.isNullable()) ANDROIDX_NULLABLE else ANDROIDX_NONNULL
 
-                            val modifiers = new.mutableModifiers()
-                            modifiers.removeAnnotation(annotation)
-
-                            modifiers.addAnnotation(
-                                new.codebase.createAnnotation(
-                                    "@$annotationClass",
-                                    new,
-                                )
-                            )
+                            val replacementAnnotation =
+                                new.codebase.createAnnotation("@$annotationClass", new)
+                            new.mutateModifiers {
+                                mutateAnnotations {
+                                    remove(annotation)
+                                    replacementAnnotation?.let { add(it) }
+                                }
+                            }
                         }
                     }
                 )
@@ -125,34 +128,36 @@ class ConvertJarsToSignatureFiles(
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
                 try {
-                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFile(oldApiFile))
+                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
-                            override fun compare(old: Item, new: Item) {
+                            override fun compareItems(old: Item, new: Item) {
                                 if (old.originallyDeprecated && old !is PackageItem) {
                                     new.deprecateIfRequired("previous signature file for $old")
                                 }
                             }
                         }
-                    CodebaseComparator(apiVisitorConfig = ApiVisitor.Config())
-                        .compare(visitor, oldCodebase, jarCodebase, null)
+                    CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
                 } catch (e: Exception) {
                     throw IllegalStateException("Could not load $oldApiFile: ${e.message}", e)
                 }
             }
 
             createReportFile(progressTracker, jarCodebase, newApiFile, "API") { printWriter ->
-                SignatureWriter(
+                val signatureWriter =
+                    SignatureWriter(
                         writer = printWriter,
                         fileFormat = fileFormat,
                     )
-                    .createFilteringVisitor(
-                        filterEmit = apiEmit,
-                        filterReference = apiReference,
-                        preFiltered = jarCodebase.preFiltered,
-                        showUnannotated = false,
-                        apiVisitorConfig = ApiVisitor.Config(),
-                    )
+
+                createFilteringVisitorForSignatures(
+                    delegate = signatureWriter,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.PUBLIC_API,
+                    preFiltered = jarCodebase.preFiltered,
+                    showUnannotated = false,
+                    apiPredicateConfig = ApiPredicate.Config()
+                )
             }
 
             // Delete older redundant .xml files
@@ -246,18 +251,18 @@ class ConvertJarsToSignatureFiles(
         this ?: return
         if (!originallyDeprecated) {
             // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
-            mutableModifiers().setDeprecated(true)
+            mutateModifiers { setDeprecated(true) }
             progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }
 
     companion object {
-        val MATCH_ALL: Predicate<Item> = Predicate { true }
+        val MATCH_ALL: FilterPredicate = FilterPredicate { true }
     }
 }
 
 /** Finds the given class by JVM owner */
-private fun Codebase.findClassByOwner(owner: String, apiFilter: Predicate<Item>): ClassItem? {
+private fun Codebase.findClassByOwner(owner: String, apiFilter: FilterPredicate): ClassItem? {
     val className = owner.replace('/', '.').replace('$', '.')
     val cls = findClass(className)
     return if (cls != null && apiFilter.test(cls)) {
@@ -267,14 +272,14 @@ private fun Codebase.findClassByOwner(owner: String, apiFilter: Predicate<Item>)
     }
 }
 
-private fun Codebase.findClass(node: ClassNode, apiFilter: Predicate<Item>): ClassItem? {
+private fun Codebase.findClass(node: ClassNode, apiFilter: FilterPredicate): ClassItem? {
     return findClassByOwner(node.name, apiFilter)
 }
 
 private fun Codebase.findMethod(
     classNode: ClassNode,
     node: MethodNode,
-    apiFilter: Predicate<Item>
+    apiFilter: FilterPredicate
 ): MethodItem? {
     val cls = findClass(classNode, apiFilter) ?: return null
     val types = Type.getArgumentTypes(node.desc)
@@ -303,7 +308,7 @@ private fun Codebase.findMethod(
 private fun Codebase.findField(
     classNode: ClassNode,
     node: FieldNode,
-    apiFilter: Predicate<Item>
+    apiFilter: FilterPredicate
 ): FieldItem? {
     val cls = findClass(classNode, apiFilter) ?: return null
     val field = cls.findField(node.name + 2)

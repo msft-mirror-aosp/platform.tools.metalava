@@ -63,6 +63,14 @@ object KnownSourceFiles {
             """
         )
 
+    val androidAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package android.annotation;
+            """
+        )
+
     val nonNullSource: TestFile =
         TestFiles.java(
             """
@@ -103,6 +111,14 @@ object KnownSourceFiles {
     public @interface Nullable {
     }
     """
+        )
+
+    val libcodeUtilHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package libcore.util;
+            """
         )
 
     val libcoreNonNullSource: TestFile =
@@ -148,6 +164,14 @@ object KnownSourceFiles {
             """
         )
 
+    val androidxAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package androidx.annotation;
+            """
+        )
+
     /** TYPE_USE version of [com.android.tools.metalava.intRangeAnnotationSource] */
     val intRangeTypeUseSource =
         java(
@@ -177,6 +201,46 @@ object KnownSourceFiles {
                 @Target({METHOD, PARAMETER, FIELD})
                 public @interface ParameterName {
                     String value();
+                }
+            """
+        )
+
+    val systemApiSource: TestFile =
+        TestFiles.java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.*;
+                import java.lang.annotation.*;
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface SystemApi {
+                    enum Client {
+                        /**
+                         * Specifies that the intended clients of a SystemApi are privileged apps.
+                         * This is the default value for {@link #client}.
+                         */
+                        PRIVILEGED_APPS,
+
+                        /**
+                         * Specifies that the intended clients of a SystemApi are used by classes in
+                         * <pre>BOOTCLASSPATH</pre> in mainline modules. Mainline modules can also expose
+                         * this type of system APIs too when they're used only by the non-updatable
+                         * platform code.
+                         */
+                        MODULE_LIBRARIES,
+
+                        /**
+                         * Specifies that the system API is available only in the system server process.
+                         * Use this to expose APIs from code loaded by the system server process <em>but</em>
+                         * not in <pre>BOOTCLASSPATH</pre>.
+                         */
+                        SYSTEM_SERVER
+                    }
+
+                    /**
+                     * The intended client of this SystemAPI.
+                     */
+                    Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
                 }
             """
         )

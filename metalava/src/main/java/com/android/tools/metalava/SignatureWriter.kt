@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -27,14 +28,16 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
-import java.util.BitSet
-import java.util.function.Predicate
 
 class SignatureWriter(
     private val writer: PrintWriter,
@@ -47,37 +50,6 @@ class SignatureWriter(
         if (emitHeader == EmitFileHeader.ALWAYS) {
             writer.print(fileFormat.header())
         }
-    }
-
-    /**
-     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
-     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
-     * [SignatureWriter] instance.
-     */
-    fun createFilteringVisitor(
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>,
-        preFiltered: Boolean,
-        showUnannotated: Boolean,
-        apiVisitorConfig: ApiVisitor.Config,
-    ): ApiVisitor {
-        val (interfaceListSorter, interfaceListComparator) =
-            if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
-            else Pair(::getInterfacesInOrder, null)
-        return FilteringApiVisitor(
-            delegate = this,
-            nestInnerClasses = false,
-            inlineInheritedFields = true,
-            methodComparator = fileFormat.overloadedMethodOrder.comparator,
-            interfaceListSorter = interfaceListSorter,
-            interfaceListComparator = interfaceListComparator,
-            filterEmit = filterEmit,
-            filterReference = filterReference,
-            preFiltered = preFiltered,
-            showUnannotated = showUnannotated,
-            config = apiVisitorConfig,
-        )
     }
 
     private val modifierListWriter =
@@ -108,33 +80,13 @@ class SignatureWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        fun writeConstructor(skipMask: BitSet? = null) {
-            write("    ctor ")
-            writeModifiers(constructor)
-            writeTypeParameterList(constructor.typeParameterList, addSpace = true)
-            write(constructor.containingClass().fullName())
-            writeParameterList(constructor, skipMask)
-            writeThrowsList(constructor)
-            write(";\n")
-        }
-
-        // Workaround for https://youtrack.jetbrains.com/issue/KT-57537
-        if (constructor.shouldExpandOverloads()) {
-            val parameters = constructor.parameters()
-            val defaultMask = BitSet(parameters.size)
-
-            // fill the bitmask for all parameters
-            parameters.forEachIndexed { i, item -> defaultMask.set(i, item.hasDefaultValue()) }
-
-            // expand overloads ordered by number of parameters, skipping last parameters first
-            for (i in parameters.indices) {
-                if (!defaultMask.get(i)) continue
-                writeConstructor(defaultMask)
-                defaultMask.clear(i)
-            }
-        }
-
-        writeConstructor()
+        write("    ctor ")
+        writeModifiers(constructor)
+        writeTypeParameterList(constructor.typeParameterList, addSpace = true)
+        write(constructor.containingClass().fullName())
+        writeParameterList(constructor)
+        writeThrowsList(constructor)
+        write(";\n")
     }
 
     override fun visitField(field: FieldItem) {
@@ -241,7 +193,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item.actualItem)
+        modifierListWriter.write(item)
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
@@ -257,14 +209,24 @@ class SignatureWriter(
         writeExtendsOrImplementsType(superClassType)
     }
 
+    /**
+     * Legacy [TypeStringConfiguration] when writing super types in [writeExtendsOrImplementsType].
+     */
+    private val legacySuperTypeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+        )
+
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
-        val superClassString =
-            typeItem.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            )
         write(" ")
-        write(superClassString)
+
+        if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) {
+            writeType(typeItem)
+        } else {
+            val superClassString = typeItem.toTypeString(legacySuperTypeStringConfiguration)
+            write(superClassString)
+        }
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
@@ -293,13 +255,10 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(method: MethodItem, skipMask: BitSet? = null) {
+    private fun writeParameterList(callable: CallableItem) {
         write("(")
         var writtenParams = 0
-        method.parameters().asSequence().forEachIndexed { i, parameter ->
-            // skip over defaults when generating @JvmOverloads permutations
-            if (skipMask != null && skipMask.get(i)) return@forEachIndexed
-
+        callable.parameters().asSequence().forEach { parameter ->
             if (writtenParams > 0) {
                 write(", ")
             }
@@ -328,7 +287,7 @@ class SignatureWriter(
 
             if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
                 write(" = ")
-                val defaultValue = parameter.defaultValue()
+                val defaultValue = parameter.defaultValueAsString()
                 if (defaultValue != null) {
                     write(defaultValue)
                 } else {
@@ -341,30 +300,35 @@ class SignatureWriter(
         write(")")
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeType]. */
+    private val typeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
+        )
+
     private fun writeType(type: TypeItem?) {
         type ?: return
 
-        var typeString =
-            type.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            )
+        var typeString = type.toTypeString(typeStringConfiguration)
 
-        // Strip java.lang. prefix
+        // Strip androidx.annotation. prefix from annotations.
         typeString = TypeItem.shortenTypes(typeString)
 
         write(typeString)
     }
 
-    private fun writeThrowsList(method: MethodItem) {
-        val throws = method.throwsTypes()
+    private fun writeThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             write(" throws ")
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     write(", ")
                 }
-                write(type.toTypeString())
+                if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) writeType(type)
+                else write(type.toTypeString())
             }
         }
     }
@@ -418,4 +382,34 @@ private fun getInterfacesInOrder(
     }
 
     return sortedInterfaces
+}
+
+/**
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
+ * parameters and in a manner appropriate for writing signatures, e.g. flattening nested classes. It
+ * will delegate any visitor calls that pass through its filter to this [SignatureWriter] instance.
+ */
+fun createFilteringVisitorForSignatures(
+    delegate: DelegatedVisitor,
+    fileFormat: FileFormat,
+    apiType: ApiType,
+    preFiltered: Boolean,
+    showUnannotated: Boolean,
+    apiPredicateConfig: ApiPredicate.Config,
+): ApiVisitor {
+    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
+
+    val (interfaceListSorter, interfaceListComparator) =
+        if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
+        else Pair(::getInterfacesInOrder, null)
+    return FilteringApiVisitor(
+        delegate = delegate,
+        inlineInheritedFields = true,
+        callableComparator = fileFormat.overloadedMethodOrder.comparator,
+        interfaceListSorter = interfaceListSorter,
+        interfaceListComparator = interfaceListComparator,
+        apiFilters = apiFilters,
+        preFiltered = preFiltered,
+        showUnannotated = showUnannotated,
+    )
 }

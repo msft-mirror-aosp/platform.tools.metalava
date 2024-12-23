@@ -16,38 +16,32 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.actualItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
-import java.util.function.Predicate
 
 /**
- * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
- * [providedFilterEmit] and [providedFilterReference] are non-null, they are used to determine which
- * [Item]s should be added to the [api]. Otherwise, the [ApiVisitor] default filters are used.
+ * Visits the API codebase and inserts into the [Api] the classes, methods and fields.
+ *
+ * The [Item]s to be visited is determined by the [codebaseFragment].
  */
 fun addApisFromCodebase(
     api: Api,
-    apiLevel: Int,
-    codebase: Codebase,
+    apiVersion: ApiVersion,
+    codebaseFragment: CodebaseFragment,
     useInternalNames: Boolean,
-    providedFilterEmit: Predicate<Item>? = null,
-    providedFilterReference: Predicate<Item>? = null
 ) {
-    codebase.accept(
-        object :
-            ApiVisitor(
-                visitConstructorsAsMethods = true,
-                nestInnerClasses = false,
-                filterEmit = providedFilterEmit,
-                filterReference = providedFilterReference,
-                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
-            ) {
+    // Keep track of the versions added to this api.
+    api.update(apiVersion)
+
+    val delegatedVisitor =
+        object : DelegatedVisitor {
+            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
 
             var currentClass: ApiClass? = null
 
@@ -55,81 +49,35 @@ fun addApisFromCodebase(
                 currentClass = null
             }
 
-            /**
-             * Get the value of [Item.originallyDeprecated] from the [Item.actualItem], i.e. the
-             * item that would actually be written out.
-             */
-            private val Item.actualDeprecated
-                get() = actualItem.effectivelyDeprecated
-
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
+                val newClass = api.updateClass(cls.nameInApi(), updater, cls.effectivelyDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
-                    // The jar files historically contain package private parents instead of
-                    // the real API so we need to correct the data we've already read in
-
-                    val filteredSuperClass = cls.filteredSuperclass(filterReference)
                     val superClass = cls.superClass()
-                    if (filteredSuperClass != superClass && filteredSuperClass != null) {
-                        val existing = newClass.superClasses.firstOrNull()?.name
-                        val superName = superClass?.nameInApi()
-                        if (existing == superName) {
-                            // The bytecode used to point to the old hidden super class. Point
-                            // to the real one (that the signature files referenced) instead.
-                            val removed = superName?.let { newClass.removeSuperClass(it) }
-                            val since = removed?.since ?: apiLevel
-                            val entry =
-                                newClass.addSuperClass(filteredSuperClass.nameInApi(), since)
-                            // Show that it's also seen here
-                            entry.update(apiLevel)
-
-                            // Also inherit the interfaces from that API level, unless it was added
-                            // later
-                            val superClassEntry = api.findClass(superName)
-                            if (superClassEntry != null) {
-                                for (interfaceType in
-                                    superClass!!.filteredInterfaceTypes(filterReference)) {
-                                    val interfaceClass = interfaceType.asClass() ?: return
-                                    var mergedSince = since
-                                    val interfaceName = interfaceClass.nameInApi()
-                                    for (itf in superClassEntry.interfaces) {
-                                        val currentInterface = itf.name
-                                        if (interfaceName == currentInterface) {
-                                            mergedSince = itf.since
-                                            break
-                                        }
-                                    }
-                                    newClass.addInterface(interfaceClass.nameInApi(), mergedSince)
-                                }
-                            }
-                        } else {
-                            newClass.addSuperClass(filteredSuperClass.nameInApi(), apiLevel)
-                        }
-                    } else if (superClass != null) {
-                        newClass.addSuperClass(superClass.nameInApi(), apiLevel)
+                    if (superClass != null) {
+                        newClass.updateSuperClass(superClass.nameInApi(), updater)
                     }
                 } else if (cls.isInterface()) {
                     val superClass = cls.superClass()
                     if (superClass != null && !superClass.isJavaLangObject()) {
-                        newClass.addInterface(superClass.nameInApi(), apiLevel)
+                        newClass.updateInterface(superClass.nameInApi(), updater)
                     }
                 } else if (cls.isEnum()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != enumClass) {
-                        newClass.addSuperClass(enumClass, apiLevel)
+                        newClass.updateSuperClass(enumClass, updater)
                     }
 
                     // Mimic doclava enum methods
                     enumMethodNames(newClass.name).forEach { name ->
-                        newClass.addMethod(name, apiLevel, false)
+                        newClass.updateMethod(name, updater, false)
                     }
                 } else if (cls.isAnnotationType()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != annotationClass) {
-                        newClass.addSuperClass(objectClass, apiLevel)
-                        newClass.addInterface(annotationClass, apiLevel)
+                        newClass.updateSuperClass(objectClass, updater)
+                        newClass.updateInterface(annotationClass, updater)
                     }
                 }
 
@@ -145,30 +93,41 @@ fun addApisFromCodebase(
                 // previously extend object and now extends something else.
                 if (
                     (cls.isClass() || cls.isInterface()) &&
-                        newClass.superClasses.size == 1 &&
-                        newClass.superClasses[0].name == objectClass
+                        newClass.superClasses.singleOrNull()?.name == objectClass
                 ) {
-                    newClass.addSuperClass(objectClass, apiLevel)
+                    newClass.updateSuperClass(objectClass, updater)
                 }
 
-                for (interfaceType in cls.filteredInterfaceTypes(filterReference)) {
+                for (interfaceType in cls.interfaceTypes()) {
                     val interfaceClass = interfaceType.asClass() ?: return
-                    newClass.addInterface(interfaceClass.nameInApi(), apiLevel)
+                    newClass.updateInterface(interfaceClass.nameInApi(), updater)
                 }
             }
 
-            override fun visitMethod(method: MethodItem) {
-                if (method.isPrivate || method.isPackagePrivate) {
+            private fun visitCallable(callable: CallableItem) {
+                if (callable.isPrivate || callable.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(method.nameInApi(), apiLevel, method.actualDeprecated)
+                currentClass?.updateMethod(
+                    callable.nameInApi(),
+                    updater,
+                    callable.effectivelyDeprecated
+                )
+            }
+
+            override fun visitConstructor(constructor: ConstructorItem) {
+                visitCallable(constructor)
+            }
+
+            override fun visitMethod(method: MethodItem) {
+                visitCallable(method)
             }
 
             override fun visitField(field: FieldItem) {
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-                currentClass?.addField(field.nameInApi(), apiLevel, field.actualDeprecated)
+                currentClass?.updateField(field.nameInApi(), updater, field.effectivelyDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */
@@ -181,7 +140,7 @@ fun addApisFromCodebase(
             }
 
             /** The name of the method in this [Api], based on [useInternalNames] */
-            fun MethodItem.nameInApi(): String {
+            fun CallableItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName() +
                         // Use "V" instead of the type of the constructor for backwards
@@ -223,19 +182,20 @@ fun addApisFromCodebase(
                 }
             }
         }
-    )
+
+    codebaseFragment.accept(delegatedVisitor)
 }
 
 /**
- * Like [MethodItem.internalName] but is the desc-portion of the internal signature, e.g. for the
+ * Like [CallableItem.internalName] but is the desc-portion of the internal signature, e.g. for the
  * method "void create(int x, int y)" the internal name of the constructor is "create" and the desc
  * is "(II)V"
  */
-fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
+fun CallableItem.internalDesc(voidConstructorTypes: Boolean = false): String {
     val sb = StringBuilder()
     sb.append("(")
 
-    // Non-static inner classes get an implicit constructor parameter for the
+    // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
     // outer type
     if (
         isConstructor() &&

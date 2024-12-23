@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
@@ -75,8 +76,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertThat(methods).hasSize(3)
@@ -203,7 +209,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     @Target(AnnotationTarget.FUNCTION, AnnotationTarget.TYPE)
                     annotation class A
                 """
-            )
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertThat(methods).hasSize(3)
@@ -2258,12 +2270,12 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val foo = codebase.assertClass("test.pkg.Foo").constructors().single().returnType()
             foo.assertHasNonNullNullability()
-            val f = (foo as ClassTypeItem).arguments.single()
+            val f = foo.arguments.single()
             f.assertHasUndefinedNullability()
 
             val bar = codebase.assertClass("test.pkg.Foo.Bar").constructors().single().returnType()
             bar.assertHasNonNullNullability()
-            val b = (bar as ClassTypeItem).arguments.single()
+            val b = bar.arguments.single()
             b.assertHasUndefinedNullability()
             val outerFoo = bar.outerClassType!!
             outerFoo.assertHasNonNullNullability()

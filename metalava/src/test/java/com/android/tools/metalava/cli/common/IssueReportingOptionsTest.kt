@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.DefaultReporter
-import com.android.tools.metalava.ReporterEnvironment
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -57,7 +56,7 @@ Issue Reporting:
         .trimIndent()
 
 /**
- * JUnit [TestRule] that will intercept calls to [DefaultReporter.reportPrinter], save them into a
+ * JUnit [TestRule] that will intercept calls to [ReporterEnvironment.printReport], save them into a
  * couple of buffers and then allow the test to verify them. If there are any unverified errors then
  * the test will fail. The other issues will only be verified when requested.
  */
@@ -167,6 +166,9 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options with case insensitive names`() {
         runTest("--hide", "arrayreturn") {
+            // Write any saved reports.
+            options.bootstrapReporter.writeSavedReports()
+
             reportCollector.verifyAll(
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
             )
@@ -213,6 +215,9 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options can affect issues related to processing the options`() {
         runTest("--error", "DeprecatedOption", "--hide", "arrayreturn") {
+            // Write any saved reports.
+            options.bootstrapReporter.writeSavedReports()
+
             reportCollector.verifyErrors(
                 "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]\n"
             )
@@ -220,6 +225,44 @@ class IssueReportingOptionsTest :
             val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.DEPRECATED_OPTION))
+        }
+    }
+
+    @Test
+    fun `Test issue category`() {
+        runTest(ARG_HIDE_CATEGORY, "Compatibility") {
+            assertEquals("", stdout)
+            assertEquals("", stderr)
+
+            // Make sure that there were no reported issues.
+            options.bootstrapReporter.writeSavedReports()
+            reportCollector.verifyErrors("")
+
+            // Make sure the two issues both default to warning.
+            val defaults = IssueConfiguration()
+            assertEquals(Severity.ERROR, defaults.getSeverity(Issues.ADD_SEALED))
+            assertEquals(Severity.ERROR, defaults.getSeverity(Issues.CHANGED_CLASS))
+
+            // Now make sure the issues are hidden.
+            val issueConfiguration = options.issueConfiguration
+            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ADD_SEALED))
+            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.CHANGED_CLASS))
+        }
+    }
+
+    @Test
+    fun `Test invalid category`() {
+        // Category names should start with an upper case letter.
+        runTest(ARG_HIDE_CATEGORY, "compatibility") {
+            assertEquals("", stdout)
+            assertEquals(
+                "Option --hide-category is invalid: Unknown category: 'compatibility', expected one of Compatibility, Documentation, ApiLint, Unknown",
+                stderr
+            )
+
+            // Make sure that there were no reported issues.
+            options.bootstrapReporter.writeSavedReports()
+            reportCollector.verifyErrors("")
         }
     }
 }

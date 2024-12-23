@@ -20,6 +20,7 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -36,21 +37,33 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.config.ConfigParser
+import com.android.tools.metalava.doc.ApiLevelFilter
+import com.android.tools.metalava.doc.ApiLevelLabelProvider
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.IssueConfiguration
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
@@ -63,12 +76,11 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
-import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
-import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Optional
+import java.util.function.Predicate
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
@@ -154,7 +166,6 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
-const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
@@ -162,17 +173,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
-const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
-    "--remove-missing-class-references-in-api-levels"
-const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
-const val ARG_CURRENT_VERSION = "--current-version"
-const val ARG_FIRST_VERSION = "--first-version"
-const val ARG_CURRENT_CODENAME = "--current-codename"
-const val ARG_CURRENT_JAR = "--current-jar"
-const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
-const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
-const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -181,18 +181,17 @@ const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_STUB_PACKAGES = "--stub-packages"
-const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
-const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
+const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
+    private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
     private val commonOptions: CommonOptions = CommonOptions(),
     private val sourceOptions: SourceOptions = SourceOptions(),
     private val issueReportingOptions: IssueReportingOptions =
@@ -204,10 +203,9 @@ class Options(
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
+    internal val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
+        ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
-    /** Execution environment; initialized in [parse]. */
-    private lateinit var executionEnvironment: ExecutionEnvironment
-
     /** Writer to direct output to. */
     val stdout: PrintWriter
         get() = executionEnvironment.stdout
@@ -223,14 +221,10 @@ class Options(
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [revertAnnotations] */
     private val revertAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [stubImportPackages] */
-    private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [hidePackages] */
-    private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -290,7 +284,7 @@ class Options(
      * (Copyright notices are not affected by this, they are always included. Documentation stubs
      * (--doc-stubs) are not affected.)
      */
-    var includeDocumentationInStubs = true
+    private var includeDocumentationInStubs = true
 
     /**
      * Enhance documentation in various ways, for example auto-generating documentation based on
@@ -317,6 +311,23 @@ class Options(
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
+    /** Lint project description that describes project's module structure in details */
+    var projectDescription: File? = null
+
+    private val configFiles by
+        option(
+                ARG_CONFIG_FILE,
+                help =
+                    """
+                        A configuration file that can be consumed by Metalava. This can be specified
+                        multiple times in which case later config files will override/merge with
+                        earlier ones.
+                    """,
+                metavar = "<file>",
+            )
+            .existingFile()
+            .multiple(required = false)
+
     val apiClassResolution by
         enumOption(
             help =
@@ -338,26 +349,74 @@ class Options(
      */
     var showUnannotated = false
 
-    /** Packages to include (if null, include all) */
-    private var stubPackages: PackageFilter? = null
+    val apiSurfaces by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ApiSurfaces.create(
+                // A base API surface is needed if and only if the main API surface being generated
+                // extends another API surface. That is not currently explicitly specified on the
+                // command line so has to be inferred from the existing arguments. There are four
+                // main supported cases:
+                //
+                // * Public which does not extend another API surface so does not need a base. This
+                //   happens by default unless one or more `--show*annotation` options were
+                //   specified. In that case it behaves as if `--show-unannotated` was specified.
+                //
+                // * Restricted API in AndroidX which is basically public + other and does not need
+                //   a base. This happens when `--show-unannotated` was provided (the public part)
+                //   as well as `--show-annotation RestrictTo(...)` (the other part).
+                //
+                // * System delta on public in Android build. This happens when --show-unannotated
+                //   was not specified (so the public part is not included in signature files at
+                //   least) but `--show-annotation SystemApi` was.
+                //
+                // * Test API delta on system (or similar) in Android build. This happens when
+                //   `--show-unannotated` was not specified (so the public part is not included),
+                //   `--show-for-stub-purposes-only SystemApi` was (so system API is included in the
+                //   stubs but not the signature files) and `--show-annotation TestApi` was.
+                //
+                // There are other combinations of the `--show*` options which are not used, and it
+                // is not clear whether they make any sense so this does not cover them.
+                //
+                // This does not need a base if --show-unannotated was specified, or it defaulted to
+                // behaving as if it was.
+                needsBase = !showUnannotated,
+            )
+        }
 
-    /** Packages to import (if empty, include all) */
-    private var stubImportPackages: Set<String> = mutableStubImportPackages
+    /** Packages to include in the API (if null, include all) */
+    val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
-    /** Packages to exclude/hide */
-    var hidePackages: List<String> = mutableHidePackages
+    /**
+     * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
+     * [Item]s that do not match the [apiPackages] filter. If no [apiPackages] filter is provided
+     * then this will be `null`.
+     */
+    private val reportableFilter: Predicate<Reportable>? by
+        lazy(LazyThreadSafetyMode.NONE) {
+            apiPackages?.let { packageFilter ->
+                Predicate { reportable ->
+                    // If we are only emitting some packages (--stub-packages), don't report
+                    // issues from other packages
+                    (reportable as? Item)?.let { item ->
+                        val pkg = (item as? PackageItem) ?: item.containingPackage()
+                        pkg == null || packageFilter.matches(pkg)
+                    }
+                        ?: true
+                }
+            }
+        }
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
     val skipEmitPackages
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to hide */
-    val hideAnnotations by lazy(hideAnnotationsBuilder::build)
+    private val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
     /** Annotations to revert */
     val revertAnnotations by lazy(revertAnnotationsBuilder::build)
 
-    val annotationManager: AnnotationManager by lazy {
+    private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
@@ -371,14 +430,29 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebasesProvider = {
-                    compatibilityCheckOptions.previouslyReleasedCodebases(signatureFileCache)
-                },
+                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
             )
         )
     }
 
-    internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
+    /** Make this available for testing purposes. */
+    internal val previouslyReleasedCodebase
+        get() = compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
+
+    internal val codebaseConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            Codebase.Config(
+                annotationManager = annotationManager,
+                apiSurfaces = apiSurfaces,
+                reporter = reporter,
+            )
+        }
+
+    internal val signatureFileLoader by
+        lazy(LazyThreadSafetyMode.NONE) { DefaultSignatureFileLoader(codebaseConfig) }
+
+    internal val signatureFileCache by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     private val suppressCompatibilityMetaAnnotations by
@@ -406,23 +480,13 @@ class Options(
      */
     private var allowClassesFromClasspath = true
 
-    /** The configuration options for the [ApiVisitor] class. */
-    val apiVisitorConfig by lazy {
-        ApiVisitor.Config(
-            packageFilter = stubPackages,
-            apiPredicateConfig = apiPredicateConfig,
-        )
-    }
-
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {
         ApiAnalyzer.Config(
             manifest = manifest,
-            hidePackages = hidePackages,
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = mergeQualifierAnnotations,
             mergeInclusionAnnotations = mergeInclusionAnnotations,
-            stubImportPackages = stubImportPackages,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
         )
@@ -452,7 +516,6 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            apiVisitorConfig = apiVisitorConfig,
             kotlinStubs = kotlinStubs,
             includeDocumentationInStubs = includeDocumentationInStubs,
         )
@@ -470,7 +533,7 @@ class Options(
     var docStubsDir: File? = null
 
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
-    var kotlinStubs = false
+    private var kotlinStubs = false
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -478,9 +541,6 @@ class Options(
     val apiFile by signatureFileOptions::apiFile
     val removedApiFile by signatureFileOptions::removedApiFile
     val signatureFileFormat by signatureFormatOptions::fileFormat
-
-    /** Like [apiFile], but with JDiff xml format. */
-    var apiXmlFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -535,7 +595,7 @@ class Options(
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                     ARG_MIGRATE_NULLNESS,
                     it,
-                    onlyUseLastForCurrentApiSurface = false
+                    onlyUseLastForMainApiSurface = false
                 )
             }
 
@@ -549,68 +609,13 @@ class Options(
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
-    /** mapping from API level to android.jar files, if computing API levels */
-    var apiLevelJars: Array<File>? = null
+    val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
 
-    /** The api level of the codebase, or -1 if not known/specified */
-    var currentApiLevel = -1
-
-    /**
-     * The first api level of the codebase; typically 1 but can be higher for example for the System
-     * API.
-     */
-    var firstApiLevel = 1
-
-    /**
-     * The codename of the codebase: non-null string if this is a developer preview build, null if
-     * this is a release build.
-     */
-    var currentCodeName: String? = null
-
-    /** API level XML file to generate */
-    var generateApiLevelXml: File? = null
-
-    /** Whether references to missing classes should be removed from the api levels file. */
-    var removeMissingClassesInApiLevels: Boolean = false
+    val includeApiLevelInDocumentation: ApiLevelFilter =
+        apiLevelsGenerationOptions::includeApiLevelInDocumentation
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
-
-    /** Directory of prebuilt extension SDK jars that contribute to the API */
-    var sdkJarRoot: File? = null
-
-    /**
-     * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
-     * that are kept
-     */
-    var sdkInfoFile: File? = null
-
-    /**
-     * The latest publicly released SDK extension version. When generating docs for d.android.com,
-     * the SDK extensions that have been finalized but not yet publicly released should be excluded
-     * from the docs.
-     *
-     * If null, the docs will include all SDK extensions.
-     */
-    val latestReleasedSdkExtension by
-        option(
-                "--hide-sdk-extensions-newer-than",
-                help =
-                    "Ignore SDK extensions version INT and above. Used to exclude finalized but not yet released SDK extensions."
-            )
-            .int()
-
-    /** API version history JSON file to generate */
-    var generateApiVersionsJson: File? = null
-
-    /** Ordered list of signatures for each past API version, if generating an API version JSON */
-    var apiVersionSignatureFiles: List<File>? = null
-
-    /**
-     * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
-     * of the current API version
-     */
-    var apiVersionNames: List<String>? = null
 
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
@@ -626,23 +631,9 @@ class Options(
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
-    /** [Reporter] for general use. */
+    /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     lateinit var reporter: Reporter
-
-    /**
-     * [Reporter] for "api-lint".
-     *
-     * Initialized in [parse].
-     */
-    lateinit var reporterApiLint: Reporter
-
-    /**
-     * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
-     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED]).
-     *
-     * Initialized in [parse].
-     */
-    lateinit var reporterCompatibilityReleased: Reporter
+        private set
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -704,15 +695,7 @@ class Options(
                     .trimIndent()
             )
 
-    fun parse(
-        executionEnvironment: ExecutionEnvironment,
-        args: Array<String>,
-    ) {
-        this.executionEnvironment = executionEnvironment
-
-        var androidJarPatterns: MutableList<String>? = null
-        var currentJar: File? = null
-
+    fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -777,25 +760,6 @@ class Options(
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
-                ARG_STUB_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    val filter =
-                        stubPackages
-                            ?: run {
-                                val newFilter = PackageFilter()
-                                stubPackages = newFilter
-                                newFilter
-                            }
-                    filter.addPackages(packages)
-                }
-                ARG_STUB_IMPORT_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    for (pkg in packages.split(File.pathSeparatorChar)) {
-                        mutableStubImportPackages.add(pkg)
-                        mutableHidePackages.add(pkg)
-                    }
-                }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
@@ -804,59 +768,15 @@ class Options(
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
-                ARG_ANDROID_JAR_PATTERN -> {
-                    val list =
-                        androidJarPatterns
-                            ?: run {
-                                val list = arrayListOf<String>()
-                                androidJarPatterns = list
-                                list
-                            }
-                    list.add(getValue(args, ++index))
-                }
-                ARG_CURRENT_VERSION -> {
-                    currentApiLevel = Integer.parseInt(getValue(args, ++index))
-                    if (currentApiLevel <= 26) {
-                        throw MetalavaCliException(
-                            "Suspicious currentApi=$currentApiLevel, expected at least 27"
-                        )
-                    }
-                }
-                ARG_FIRST_VERSION -> {
-                    firstApiLevel = Integer.parseInt(getValue(args, ++index))
-                }
-                ARG_CURRENT_CODENAME -> {
-                    val codeName = getValue(args, ++index)
-                    if (codeName != "REL") {
-                        currentCodeName = codeName
-                    }
-                }
-                ARG_CURRENT_JAR -> {
-                    currentJar = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_GENERATE_API_LEVELS -> {
-                    generateApiLevelXml = stringToNewFile(getValue(args, ++index))
-                }
                 ARG_APPLY_API_LEVELS -> {
                     applyApiLevelsXml =
-                        if (args.contains(ARG_GENERATE_API_LEVELS)) {
+                        if (apiLevelsGenerationOptions.generateApiLevelXml != null) {
                             // If generating the API file at the same time, it doesn't have
                             // to already exist
                             stringToNewFile(getValue(args, ++index))
                         } else {
                             stringToExistingFile(getValue(args, ++index))
                         }
-                }
-                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS ->
-                    removeMissingClassesInApiLevels = true
-                ARG_GENERATE_API_VERSION_HISTORY -> {
-                    generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
-                }
-                ARG_API_VERSION_SIGNATURE_FILES -> {
-                    apiVersionSignatureFiles = stringToExistingFiles(getValue(args, ++index))
-                }
-                ARG_API_VERSION_NAMES -> {
-                    apiVersionNames = getValue(args, ++index).split(' ')
                 }
                 ARG_JAVA_SOURCE -> {
                     val value = getValue(args, ++index)
@@ -876,11 +796,8 @@ class Options(
                     compileSdkVersion = getValue(args, ++index)
                 }
                 ARG_USE_K2_UAST -> useK2Uast = true
-                ARG_SDK_JAR_ROOT -> {
-                    sdkJarRoot = stringToExistingDir(getValue(args, ++index))
-                }
-                ARG_SDK_INFO_FILE -> {
-                    sdkInfoFile = stringToExistingFile(getValue(args, ++index))
+                ARG_PROJECT -> {
+                    projectDescription = stringToExistingFile(getValue(args, ++index))
                 }
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
@@ -907,46 +824,6 @@ class Options(
             ++index
         }
 
-        if (generateApiLevelXml != null) {
-            if (currentApiLevel == -1) {
-                throw MetalavaCliException(
-                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
-                )
-            }
-
-            // <String> is redundant here but while IDE (with newer type inference engine
-            // understands that) the current 1.3.x compiler does not
-            @Suppress("RemoveExplicitTypeArguments")
-            val patterns = androidJarPatterns ?: run { mutableListOf<String>() }
-            // Fallbacks
-            patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
-            patterns.add("prebuilts/sdk/%/public/android.jar")
-            apiLevelJars =
-                findAndroidJars(
-                    args,
-                    patterns,
-                    firstApiLevel,
-                    currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
-                    currentJar
-                )
-        }
-
-        if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
-            throw MetalavaCliException(
-                stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
-            )
-        }
-
-        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
-        // so there should be 1 more name than signature file (or both can be null)
-        val numVersionNames = apiVersionNames?.size ?: 0
-        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
-        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw MetalavaCliException(
-                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
-            )
-        }
-
         // If the caller has not explicitly requested that unannotated classes and
         // members should be shown in the output then only show them if no annotations were
         // provided.
@@ -956,31 +833,38 @@ class Options(
 
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
-        reporter =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+        val reporterUnknown =
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = baseline,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
+                errorMessage = null,
             )
-        reporterApiLint =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+
+        val reporterApiLint =
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
             )
-        reporterCompatibilityReleased =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+
+        // [Reporter] for "check-compatibility:*:released".
+        // i.e.
+        //      [ARG_CHECK_COMPATIBILITY_API_RELEASED] and
+        //      [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED].
+        val reporterCompatibilityReleased =
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
+            )
+
+        // A Reporter that will redirect issues to the appropriate reporter based on the issue's
+        // Category.
+        reporter =
+            CategoryRedirectingReporter(
+                defaultReporter = reporterUnknown,
+                apiLintReporter = reporterApiLint,
+                compatibilityReporter = reporterCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
@@ -990,20 +874,37 @@ class Options(
             listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
 
         // Reporters are non-null.
-        // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
-                    issueReportingOptions.bootstrapReporter,
-                    reporter,
-                    reporterApiLint,
-                    reporterCompatibilityReleased,
-                )
-                .map { it as DefaultReporter }
+                issueReportingOptions.bootstrapReporter,
+                reporterUnknown,
+                reporterApiLint,
+                reporterCompatibilityReleased,
+            )
 
         updateClassPath()
+
+        // Make sure that any config files are processed.
+        ConfigParser.parse(reporter, configFiles)
     }
 
-    fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
+    /**
+     * Create a [Reporter] that checks for known issues in [baseline] and prints [errorMessage], if
+     * provided, when errors have been reported.
+     */
+    private fun createReporter(
+        executionEnvironment: ExecutionEnvironment,
+        baseline: Baseline?,
+        errorMessage: String?,
+    ) =
+        DefaultReporter(
+            environment = executionEnvironment.reporterEnvironment,
+            issueConfiguration = issueConfiguration,
+            baseline = baseline,
+            errorMessage = errorMessage,
+            reportableFilter = reportableFilter,
+            config = issueReportingOptions.reporterConfig,
+        )
 
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
@@ -1035,80 +936,6 @@ class Options(
             val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
         }
-    }
-
-    /**
-     * Find an android stub jar that matches the given criteria.
-     *
-     * Note because the default baseline file is not explicitly set in the command line, this file
-     * would trigger a --strict-input-files violation. To avoid that, use
-     * --strict-input-files-exempt to exempt the jar directory.
-     */
-    private fun findAndroidJars(
-        args: Array<String>,
-        androidJarPatterns: List<String>,
-        minApi: Int,
-        currentApiLevel: Int,
-        currentJar: File?
-    ): Array<File> {
-        val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed.
-        // (This is here because we want the array index to match
-        // the API level)
-        val element = File("not an api: the starting API index is $minApi")
-        for (i in 0 until minApi) {
-            apiLevelFiles.add(element)
-        }
-
-        // Get all the android.jar. They are in platforms-#
-        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
-            try {
-                var jar: File? = null
-                if (apiLevel == currentApiLevel) {
-                    jar = currentJar
-                }
-                if (jar == null) {
-                    jar = getAndroidJarFile(apiLevel, androidJarPatterns)
-                }
-                if (jar == null || !jar.isFile) {
-                    if (verbose) {
-                        stdout.println("Last API level found: ${apiLevel - 1}")
-                    }
-
-                    if (apiLevel < 28) {
-                        // Clearly something is wrong with the patterns; this should result in a
-                        // build error
-                        val argList = mutableListOf<String>()
-                        args.forEachIndexed { index, arg ->
-                            if (arg == ARG_ANDROID_JAR_PATTERN) {
-                                argList.add(args[index + 1])
-                            }
-                        }
-                        throw MetalavaCliException(
-                            stderr =
-                                "Could not find android.jar for API level $apiLevel; the " +
-                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}"
-                        )
-                    }
-
-                    break
-                }
-                if (verbose) {
-                    stdout.println("Found API $apiLevel at ${jar.path}")
-                }
-                apiLevelFiles.add(jar)
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-        }
-
-        return apiLevelFiles.toTypedArray()
-    }
-
-    private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
-        return patterns
-            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
-            .firstOrNull { it.isFile }
     }
 
     private fun getValue(args: Array<String>, index: Int): String {
@@ -1195,6 +1022,8 @@ object OptionsHelp {
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                     "source files",
+                "$ARG_PROJECT <xmlfile>",
+                "Project description written in XML according to Lint's project model.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
                 "An external annotations file to merge and overlay " +
                     "the sources, or a directory of such files. Should be used for annotations intended for " +
@@ -1219,9 +1048,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_HIDE_PACKAGE <package>",
-                "Remove the given packages from the API even if they have not been " +
-                    "marked with @hide",
                 "$ARG_HIDE_ANNOTATION <annotation class>",
                 "Treat any elements annotated with the given annotation " + "as hidden",
                 ARG_SHOW_UNANNOTATED,
@@ -1236,12 +1062,6 @@ object OptionsHelp {
                 "Use the given API level",
                 "$ARG_JDK_HOME <dir>",
                 "If set, add the Java APIs from the given JDK to the classpath",
-                "$ARG_STUB_PACKAGES <package-list>",
-                "List of packages (separated by ${File.pathSeparator}) which will " +
-                    "be used to filter out irrelevant code. If specified, only code in these packages will be " +
-                    "included in signature files, stubs, etc. (This is not limited to just the stubs; the name " +
-                    "is historical.) You can also use \".*\" at the end to match subpackages, so `foo.*` will " +
-                    "match both `foo` and `foo.bar`.",
                 "$ARG_SUBTRACT_API <api file>",
                 "Subtracts the API in the given signature or jar file from the " +
                     "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +
@@ -1297,64 +1117,6 @@ object OptionsHelp {
                 "$ARG_APPLY_API_LEVELS <api-versions.xml>",
                 "Reads an XML file containing API level descriptions " +
                     "and merges the information into the documentation",
-                "",
-                "Extracting API Levels:",
-                "$ARG_GENERATE_API_LEVELS <xmlfile>",
-                "Reads android.jar SDK files and generates an XML file recording " +
-                    "the API level for each class, method and field",
-                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                "Removes references to missing classes when generating the API levels XML file. " +
-                    "This can happen when generating the XML file for the non-updatable portions of " +
-                    "the module-lib sdk, as those non-updatable portions can reference classes that are " +
-                    "part of an updatable apex.",
-                "$ARG_ANDROID_JAR_PATTERN <pattern>",
-                "Patterns to use to locate Android JAR files. The default " +
-                    "is \$ANDROID_HOME/platforms/android-%/android.jar.",
-                ARG_FIRST_VERSION,
-                "Sets the first API level to generate an API database from; usually 1",
-                ARG_CURRENT_VERSION,
-                "Sets the current API level of the current source code",
-                ARG_CURRENT_CODENAME,
-                "Sets the code name for the current source code",
-                ARG_CURRENT_JAR,
-                "Points to the current API jar, if any",
-                ARG_SDK_JAR_ROOT,
-                "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
-                    "contain snapshots of historical extension SDK versions in the form of stub jars. " +
-                    "The paths should be on the format \"<int>/public/<module-name>.jar\", where <int> " +
-                    "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
-                ARG_SDK_INFO_FILE,
-                "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
-                    "and describes, per extension SDK, what APIs from that extension to include in the " +
-                    "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
-                    "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the " +
-                    "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
-                    "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
-                    "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +
-                    "<ext-name> is the name of an SDK, " +
-                    "<ext-id> its numerical ID and <type> is one of " +
-                    "\"platform\" (the Android platform SDK), " +
-                    "\"platform-ext\" (an extension to the Android platform SDK), " +
-                    "\"standalone\" (a separate SDK). " +
-                    "Fields are separated by whitespace. " +
-                    "A mainline module may be listed multiple times. " +
-                    "The special pattern \"*\" refers to all APIs in the given mainline module. " +
-                    "Lines beginning with # are comments.",
-                "",
-                "Generating API version history:",
-                "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
-                "Reads API signature files and generates a JSON file recording the API version each " +
-                    "class, method, and field was added in and (if applicable) deprecated in. " +
-                    "Required to generate API version JSON.",
-                "$ARG_API_VERSION_SIGNATURE_FILES <files>",
-                "An ordered list of text API signature files. The oldest API version should be " +
-                    "first, the newest last. This should not include a signature file for the " +
-                    "current API version, which will be parsed from the provided source files. Not " +
-                    "required to generate API version JSON if the current version is the only version.",
-                "$ARG_API_VERSION_NAMES <strings>",
-                "An ordered list of strings with the names to use for the API versions from " +
-                    "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
-                    "Required to generate API version JSON.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,

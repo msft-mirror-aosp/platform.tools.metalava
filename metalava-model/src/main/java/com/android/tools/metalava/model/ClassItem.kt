@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.LinkedHashSet
-import java.util.function.Predicate
-
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
  *
@@ -26,52 +23,37 @@ import java.util.function.Predicate
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : Item, TypeParameterListOwner {
-    /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
-    fun simpleName(): String
-
-    /** The full name of a class. In class foo.bar.Outer.Inner, the full name is "Outer.Inner" */
-    fun fullName(): String
-
+interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
      */
     @MetalavaApi fun qualifiedName(): String
 
-    /** Is this an innerclass? */
-    @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
+    /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
+    fun simpleName(): String
+
+    /** The full name of a class. In class foo.bar.Outer.Inner, the full name is "Outer.Inner" */
+    fun fullName(): String
+
+    /** Is this a nested class? */
+    @MetalavaApi fun isNestedClass() = containingClass() != null
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
-    /** This [ClassItem] and all of its inner classes, recursively */
+    /** The origin of this class. */
+    override val origin: ClassOrigin
+
+    /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
-        return sequenceOf(this).plus(innerClasses().asSequence().flatMap { it.allClasses() })
+        return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
     }
 
-    override fun parent(): Item? = containingClass() ?: containingPackage()
+    override fun parent(): SelectableItem? = containingClass() ?: containingPackage()
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
-
-    /**
-     * The qualified name where inner classes use $ as a separator. In class foo.bar.Outer.Inner,
-     * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
-     * files for example.)
-     */
-    fun qualifiedNameWithDollarInnerClasses(): String {
-        var curr: ClassItem? = this
-        while (curr?.containingClass() != null) {
-            curr = curr.containingClass()
-        }
-
-        if (curr == null) {
-            return fullName().replace('.', '$')
-        }
-
-        return curr.containingPackage().qualifiedName() + "." + fullName().replace('.', '$')
-    }
 
     /** Returns the internal name of the class, as seen in bytecode */
     fun internalName(): String {
@@ -158,8 +140,11 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     fun allInterfaces(): Sequence<ClassItem>
 
-    /** Any inner classes of this class */
-    fun innerClasses(): List<ClassItem>
+    /**
+     * Any classes nested in this class, that includes inner classes which are just non-static
+     * nested classes.
+     */
+    fun nestedClasses(): List<ClassItem>
 
     /** The constructors in this class */
     @MetalavaApi fun constructors(): List<ConstructorItem>
@@ -195,7 +180,13 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Whether this class is a regular class (not an interface, not an enum, etc) */
     fun isClass() = classKind == ClassKind.CLASS
 
-    /** The containing class, for inner classes */
+    /**
+     * Whether this class is a File Facade class, i.e. a `*Kt` class that contains declarations
+     * which do not belong to a Kotlin class, e.g. top-level functions, properties, etc.
+     */
+    fun isFileFacade() = false
+
+    /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */
@@ -206,6 +197,19 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     override fun setType(type: TypeItem) =
         error("Cannot call setType(TypeItem) on PackageItem: $this")
+
+    /** True if [freeze] has been called on this, false otherwise. */
+    val frozen: Boolean
+
+    /**
+     * Freeze this [ClassItem] so it cannot be mutated.
+     *
+     * A frozen [ClassItem] cannot have new members (including nested classes) added or its
+     * modifiers mutated.
+     *
+     * Freezing a [ClassItem] will also freeze its super types.
+     */
+    fun freeze()
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -225,22 +229,25 @@ interface ClassItem : Item, TypeParameterListOwner {
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
-    var hasPrivateConstructor: Boolean
-
     /** The primary constructor for this class in Kotlin, if present. */
     val primaryConstructor: ConstructorItem?
         get() = constructors().singleOrNull { it.isPrimary }
-
-    /**
-     * Maven artifact of this class, if any. (Not used for the Android SDK, but used in for example
-     * support libraries.
-     */
-    var artifact: String?
 
     override fun baselineElementId() = qualifiedName()
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ClassItem) return false
+
+        return qualifiedName() == other.qualifiedName()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return qualifiedName().hashCode()
     }
 
     override fun toStringForItem() = "class ${qualifiedName()}"
@@ -294,10 +301,6 @@ interface ClassItem : Item, TypeParameterListOwner {
         includeSuperClasses: Boolean = false,
         includeInterfaces: Boolean = false
     ): MethodItem? {
-        if (template.isConstructor()) {
-            return findConstructor(template as ConstructorItem)
-        }
-
         methods()
             .asSequence()
             .filter { it.matches(template) }
@@ -326,7 +329,7 @@ interface ClassItem : Item, TypeParameterListOwner {
      * Finds a method matching the given method that satisfies the given predicate, considering all
      * methods defined on this class and its super classes
      */
-    fun findPredicateMethodWithSuper(template: MethodItem, filter: Predicate<Item>?): MethodItem? {
+    fun findPredicateMethodWithSuper(template: MethodItem, filter: FilterPredicate?): MethodItem? {
         val method = findMethod(template, true, true)
         if (method == null) {
             return null
@@ -377,12 +380,11 @@ interface ClassItem : Item, TypeParameterListOwner {
     /**
      * Find the [MethodItem] in this.
      *
-     * If [methodName] is the same as [simpleName] then this will look for [ConstructorItem]s,
-     * otherwise it will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
+     * It will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
      *
-     * Out of those matching items it will select the first [MethodItem] (or [ConstructorItem]
-     * subclass) whose parameters match the supplied parameters string. Parameters are matched
-     * against a candidate [MethodItem] as follows:
+     * Out of those matching items it will select the first [MethodItem] whose parameters match the
+     * supplied parameters string. Parameters are matched against a candidate [MethodItem] as
+     * follows:
      * * The [parameters] string is split on `,` and trimmed and then each item in the list is
      *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
      * * Everything after `<` is removed.
@@ -395,29 +397,41 @@ interface ClassItem : Item, TypeParameterListOwner {
      * @param methodName the name of the method or [simpleName] if looking for constructors.
      * @param parameters the comma separated erased types of the parameters.
      */
-    fun findMethod(methodName: String, parameters: String): MethodItem? {
-        if (methodName == simpleName()) {
-            // Constructor
-            constructors()
-                .filter { parametersMatch(it, parameters) }
-                .forEach {
-                    return it
-                }
-        } else {
-            methods()
-                .filter { it.name() == methodName && parametersMatch(it, parameters) }
-                .forEach {
-                    return it
-                }
-        }
+    fun findMethod(methodName: String, parameters: String) =
+        methods().firstOrNull { it.name() == methodName && parametersMatch(it, parameters) }
 
-        return null
-    }
+    /**
+     * Find the [ConstructorItem] in this.
+     *
+     * Out of those matching items it will select the first [ConstructorItem] whose parameters match
+     * the supplied parameters string. Parameters are matched against a candidate [ConstructorItem]
+     * as follows:
+     * * The [parameters] string is split on `,` and trimmed and then each item in the list is
+     *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
+     * * Everything after `<` is removed.
+     * * The result is compared to the result of calling [TypeItem.toErasedTypeString]`(candidate)`
+     *   on the [ParameterItem.type].
+     *
+     * If every parameter matches then the matched [ConstructorItem] is returned. If no `candidate`
+     * matches then it returns 'null`.
+     *
+     * @param parameters the comma separated erased types of the parameters.
+     */
+    fun findConstructor(parameters: String) =
+        constructors().firstOrNull { parametersMatch(it, parameters) }
 
-    private fun parametersMatch(method: MethodItem, description: String): Boolean {
+    /**
+     * Find the [CallableItem] in this.
+     *
+     * If [name] is [simpleName] then call [findConstructor] else call [findMethod].
+     */
+    fun findCallable(name: String, parameters: String) =
+        if (name == simpleName()) findConstructor(parameters) else findMethod(name, parameters)
+
+    private fun parametersMatch(callable: CallableItem, description: String): Boolean {
         val parameterStrings =
             description.splitToSequence(",").map(String::trim).filter(String::isNotEmpty).toList()
-        val parameters = method.parameters()
+        val parameters = callable.parameters()
         if (parameters.size != parameterStrings.size) {
             return false
         }
@@ -437,7 +451,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     }
 
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFile? = null
+    fun sourceFile(): SourceFile?
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention
@@ -446,7 +460,7 @@ interface ClassItem : Item, TypeParameterListOwner {
      * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep
      * crawling up the tree until we find someone who matches.
      */
-    fun filteredSuperclass(predicate: Predicate<Item>): ClassItem? {
+    fun filteredSuperclass(predicate: FilterPredicate): ClassItem? {
         val superClass = superClass() ?: return null
         return if (predicate.test(superClass)) {
             superClass
@@ -455,7 +469,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         }
     }
 
-    fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
+    fun filteredSuperClassType(predicate: FilterPredicate): ClassTypeItem? {
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
@@ -485,7 +499,7 @@ interface ClassItem : Item, TypeParameterListOwner {
      * matching method in an ancestor class.
      */
     fun filteredMethods(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         includeSuperClassMethods: Boolean = false
     ): Collection<MethodItem> {
         val methods = LinkedHashSet<MethodItem>()
@@ -506,7 +520,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     }
 
     /** Returns the constructors that match the given predicate */
-    fun filteredConstructors(predicate: Predicate<Item>): Sequence<ConstructorItem> {
+    fun filteredConstructors(predicate: FilterPredicate): Sequence<ConstructorItem> {
         return constructors().asSequence().filter { predicate.test(it) }
     }
 
@@ -514,7 +528,7 @@ interface ClassItem : Item, TypeParameterListOwner {
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
      */
-    fun filteredFields(predicate: Predicate<Item>, showUnannotated: Boolean): List<FieldItem> {
+    fun filteredFields(predicate: FilterPredicate, showUnannotated: Boolean): List<FieldItem> {
         val fields = LinkedHashSet<FieldItem>()
         if (showUnannotated) {
             for (clazz in allInterfaces()) {
@@ -574,7 +588,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<ClassTypeItem> {
+    fun filteredInterfaceTypes(predicate: FilterPredicate): Collection<ClassTypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -587,7 +601,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         return interfaceTypes
     }
 
-    fun allInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
+    fun allInterfaceTypes(predicate: FilterPredicate): Collection<TypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -604,7 +618,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     }
 
     private fun filteredInterfaceTypes(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         types: LinkedHashSet<ClassTypeItem>,
         includeSelf: Boolean,
         includeParents: Boolean,
@@ -657,14 +671,6 @@ interface ClassItem : Item, TypeParameterListOwner {
         }
         return types
     }
-
-    /**
-     * The default constructor to invoke on this class from subclasses; initially null but may be
-     * updated during use. (Note that in some cases [stubConstructor] may not be in [constructors],
-     * e.g. when we need to create a constructor to match a public parent class with a non-default
-     * constructor and the one in the code is not a match, e.g. is marked @hide etc.)
-     */
-    var stubConstructor: ConstructorItem?
 
     /**
      * Creates a map of type parameters of the target class to the type variables substituted for
@@ -746,21 +752,22 @@ interface ClassItem : Item, TypeParameterListOwner {
         return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }
 
-    /** Creates a constructor in this class */
-    fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
-
     /**
-     * Creates a method corresponding to the given method signature in this class.
+     * Creates a default constructor in this class.
      *
-     * This is used to inherit a [MethodItem] from a super class that will not be part of the API
-     * into a class that will be part of the API.
+     * Default constructors that are added by Java have the same visibility as their class which is
+     * the default behavior of this method if no [visibility] is provided. However, this is also
+     * used to create default constructors in order for stub classes to compile and as they do not
+     * appear in the API they need to be marked as package private so this method allows the
+     * [visibility] to be explicitly specified by the caller.
      *
-     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
-     * [MethodItem.containingClass] of the [template].
+     * @param visibility the visibility of the constructor, defaults to the same as this class.
      */
-    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
+    fun createDefaultConstructor(
+        visibility: VisibilityLevel = modifiers.getVisibilityLevel()
+    ): ConstructorItem
 
-    fun addMethod(method: MethodItem): Unit = codebase.unsupported()
+    fun addMethod(method: MethodItem)
 
     /**
      * Return true if a [ClassItem] could be subclassed, i.e. is not final or sealed and has at

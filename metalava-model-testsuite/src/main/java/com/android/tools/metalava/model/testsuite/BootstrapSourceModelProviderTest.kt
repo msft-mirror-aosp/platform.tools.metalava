@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -54,7 +55,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                     }
                 """
             ),
@@ -71,7 +72,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                     }
                 """
             ),
@@ -89,7 +90,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                         int field;
                     }
                 """
@@ -109,7 +110,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                         void method();
                     }
                 """
@@ -128,7 +129,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                         public Test() {}
                     }
                 """
@@ -147,7 +148,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                       class InnerTestClass {}
                     }
                 """
@@ -159,7 +160,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("Test.InnerTestClass", innerClassItem.fullName())
             assertEquals("InnerTestClass", innerClassItem.simpleName())
             assertEquals(classItem, innerClassItem.containingClass())
-            assertEquals(1, classItem.innerClasses().count(), message = "")
+            assertEquals(1, classItem.nestedClasses().count(), message = "")
         }
     }
 
@@ -173,12 +174,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                         import test.parent.SuperInterface;
 
-                        abstract class SuperClass implements SuperInterface {}
+                        public abstract class SuperClass implements SuperInterface {}
 
-                        interface SuperChildInterface {}
-                        interface ChildInterface extends SuperChildInterface,SuperInterface {}
+                        public interface SuperChildInterface {}
+                        public interface ChildInterface extends SuperChildInterface,SuperInterface {}
 
-                        class Test extends SuperClass implements ChildInterface {}
+                        public class Test extends SuperClass implements ChildInterface {}
                     """
                 ),
                 java(
@@ -214,9 +215,9 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                   package test.pkg;
 
-                  interface TestInterface {}
-                  enum TestEnum {}
-                  @interface TestAnnotation {}
+                  public interface TestInterface {}
+                  public enum TestEnum {}
+                  public @interface TestAnnotation {}
                 """
             ),
         ) {
@@ -237,7 +238,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     """
                         package test.pkg;
 
-                        class Test {
+                        public class Test {
                             class Inner {}
                         }
                     """
@@ -282,11 +283,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val fieldItem1 = classItem1.assertField("var1")
             val fieldItem2 = classItem1.assertField("var2")
             val fieldItem3 = classItem1.assertField("var3")
-            val packageMod = packageItem.mutableModifiers()
-            val classMod1 = classItem1.mutableModifiers()
-            val fieldMod1 = fieldItem1.mutableModifiers()
-            val fieldMod2 = fieldItem2.mutableModifiers()
-            val fieldMod3 = fieldItem3.mutableModifiers()
+            val packageMod = packageItem.modifiers
+            val classMod1 = classItem1.modifiers
+            val fieldMod1 = fieldItem1.modifiers
+            val fieldMod2 = fieldItem2.modifiers
+            val fieldMod3 = fieldItem3.modifiers
             assertEquals(true, packageMod.isPublic())
             assertEquals(true, classMod1.isPublic())
             assertEquals(false, classMod1.isSynchronized())
@@ -295,11 +296,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(false, fieldMod2.isPrivate())
             assertEquals(true, fieldMod2.asAccessibleAs(fieldMod1))
             assertEquals(true, fieldMod3.isPackagePrivate())
-            assertEquals(packageItem, packageMod.owner())
-            assertEquals(classItem1, classMod1.owner())
-            assertEquals(fieldItem1, fieldMod1.owner())
-            assertEquals(fieldItem2, fieldMod2.owner())
-            assertEquals(fieldItem3, fieldMod3.owner())
         }
     }
 
@@ -319,7 +315,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                     import java.util.Date;
 
-                    class Test extends Date {}
+                    public class Test extends Date {}
                 """
             ),
         ) {
@@ -336,7 +332,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             // Check that the class and package have been loaded but will not be emitted.
             val utilPkgItem = codebase.assertPackage("java.util")
             assertEquals(false, utilPkgItem.emit)
-            val utilClassItem = codebase.assertClass("java.util.Date")
+            val utilClassItem = codebase.assertClass("java.util.Date", expectedEmit = false)
             assertEquals(false, utilClassItem.emit)
 
             // Check that the Test super class is expected.
@@ -348,7 +344,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             // Check that the class and package have been loaded but will not be emitted.
             val langPkgItem = codebase.assertPackage("java.lang")
             assertEquals(false, langPkgItem.emit)
-            val objectClassItem = codebase.assertClass("java.lang.Object")
+            val objectClassItem = codebase.assertClass("java.lang.Object", expectedEmit = false)
             assertEquals(false, objectClassItem.emit)
 
             // Check that the Date super class is expected.
@@ -366,7 +362,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     package test.pkg;
 
                     interface Interface {}
-                    class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
+                    public class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
                 """
             ),
         ) {
@@ -394,7 +390,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         import anno.FieldValue;
                         import test.SimpleClass;
 
-                        class Test {
+                        public class Test {
                             @test.Nullable
                             @FieldInfo(children = {"child1","child2"}, val = 5, cls = SimpleClass.class)
                             @FieldValue(testInt1+testInt2)
@@ -442,6 +438,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("myString")
@@ -506,18 +508,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    interface Interface1 {
+                    public interface Interface1 {
                         public void method1();
                         public <T> void method2(T value);
                     }
 
-                    interface Interface2 extends Interface1 {
+                    public interface Interface2 extends Interface1 {
                         public void method1();
                     }
 
-                    interface Interface3 extends Interface1,Interface2 {}
+                    public interface Interface3 extends Interface1,Interface2 {}
 
-                    abstract class Test1 implements Interface2 {
+                    public abstract class Test1 implements Interface2 {
                         @Override
                         public void method1(){}
 
@@ -525,12 +527,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         public <Integer> void method2(Integer value){}
                     }
 
-                    class Test2 implements Interface3 {
+                    public class Test2 implements Interface3 {
                         @Override
                         public void method1(){}
                     }
 
-                    class Test3 implements Interface2,Interface1 {
+                    public class Test3 implements Interface2,Interface1 {
                         @Override
                         public void method1(){}
                     }
@@ -645,7 +647,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Test {}
-                    class Test1<S> {
+                    public class Test1<S> {
                         class Test2<T extends Test> {}
                     }
 
@@ -732,7 +734,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     import java.util.Map;
                     import java.io.Serializable;
 
-                    class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
+                    public class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
                         public <Q, R extends Outer<? super U>.Inner<? extends Comparable >,S extends  Comparable & Serializable> void foo1(Q a, R b, S c) {}
                         public <A extends Object, B extends Object> void foo2() {}
                     }
@@ -740,7 +742,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     class Outer<O> {
                         class Inner<P> {}
                     }
-                    @interface Nullable {}
+                    public @interface Nullable {}
                 """
             ),
         ) {
@@ -810,7 +812,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
 
             // This must be available after resolving throwable types.
-            val ioExceptionClass = codebase.assertClass("java.io.IOException")
+            val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
             assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
         }
@@ -900,11 +902,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val paramItem = methodItem.parameters().single()
 
             assertEquals("parameter", paramItem.name())
-            assertEquals(methodItem, paramItem.containingMethod())
+            assertEquals(methodItem, paramItem.containingCallable())
             assertEquals("TestParam", paramItem.publicName())
             assertEquals(true, paramItem.hasDefaultValue())
             assertEquals(true, paramItem.isDefaultValueKnown())
-            assertEquals("5", paramItem.defaultValue())
+            assertEquals("5", paramItem.defaultValueAsString())
         }
     }
 
@@ -936,7 +938,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                          class Inner {}
                     }
-                    class Test1 {}
+                    public class Test1 {}
                 """
             ),
         ) {
@@ -968,13 +970,17 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                          */
                 """
                     .trimIndent()
-            assertEquals(null, innerClassItem.getSourceFile())
+            assertEquals(
+                sourceFile,
+                innerClassItem.sourceFile(),
+                message = "inner class sourceFile"
+            )
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation)
-            assertEquals("/** Class documentation */", classItem.documentation)
-            assertEquals("/** Field Doc */", fieldItem.documentation)
-            assertEquals("", fieldItem1.documentation)
-            assertEquals("", pkgItem.documentation)
+            assertEquals(methodComment, methodItem.documentation.text)
+            assertEquals("/** Class documentation */", classItem.documentation.text)
+            assertEquals("/** Field Doc */", fieldItem.documentation.text)
+            assertEquals("", fieldItem1.documentation.text)
+            assertEquals("", pkgItem.documentation.text)
             assertEquals(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
@@ -999,9 +1005,9 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         public int valueOf(Test a, String b) {return 7;}
                     }
 
-                    enum Test1 {}
+                    public enum Test1 {}
 
-                    class Test2 {
+                    public class Test2 {
                         static final Test field = Test.ENUM2;
                     }
                 """
@@ -1043,14 +1049,16 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
+            val classSelectors = classItem.variantSelectors
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val fieldItem = classItem.assertField("Field")
-            val innerFieldItem = innerClassItem.assertField("InnerField")
+            val innerClassSelectors = innerClassItem.variantSelectors
+            val fieldSelectors = classItem.assertField("Field").variantSelectors
+            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
 
-            assertEquals(false, classItem.docOnly)
-            assertEquals(true, innerClassItem.docOnly)
-            assertEquals(false, innerFieldItem.docOnly)
-            assertEquals(true, fieldItem.docOnly)
+            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
+            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
+            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
+            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }

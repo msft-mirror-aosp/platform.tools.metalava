@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -23,18 +24,40 @@ import kotlin.test.assertNotNull
 
 interface Assertions {
 
-    /** Get the class from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertClass(qualifiedName: String): ClassItem {
+    /**
+     * Get the class from the [Codebase], failing if it does not exist.
+     *
+     * Checks to make sure that returned [ClassItem]'s [ClassItem.emit] property matches
+     * [expectedEmit]. That defaults to `true` as this is usually used to retrieve a class that is
+     * present in the source which have `emit = true` by default.
+     */
+    fun Codebase.assertClass(qualifiedName: String, expectedEmit: Boolean = true): ClassItem {
         val classItem = findClass(qualifiedName)
         assertNotNull(classItem, message = "Expected $qualifiedName to be defined")
+        assertEquals(
+            expectedEmit,
+            classItem.emit,
+            message = "Expected $qualifiedName to have emit=$expectedEmit"
+        )
         return classItem
     }
 
-    /** Resolve the class from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertResolvedClass(qualifiedName: String): ClassItem {
-        val classItem = resolveClass(qualifiedName)
-        assertNotNull(classItem, message = "Expected $qualifiedName to be defined")
-        return classItem
+    /**
+     * Resolve the class from the [Codebase], failing if it does not exist.
+     *
+     * Checks to make sure that returned [ClassItem]'s [ClassItem.emit] property matches
+     * [expectedEmit]. That defaults to `true` as this is usually used to retrieve a class that is
+     * present in the source which have `emit = true` by default.
+     */
+    fun Codebase.assertResolvedClass(
+        qualifiedName: String,
+        expectedEmit: Boolean = false
+    ): ClassItem {
+        // Resolve the class which should make it available to assertClass(...) if it could be
+        // found.
+        resolveClass(qualifiedName)
+        // Assert that the class exists and has correct setting of `emit`.
+        return assertClass(qualifiedName, expectedEmit)
     }
 
     /** Get the package from the [Codebase], failing if it does not exist. */
@@ -42,6 +65,35 @@ interface Assertions {
         val packageItem = findPackage(pkgName)
         assertNotNull(packageItem, message = "Expected $pkgName to be defined")
         return packageItem
+    }
+
+    /**
+     * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
+     */
+    private fun Codebase.dumpSelectedApiVariants() = buildString {
+        accept(
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                ) {
+                private var indent = ""
+
+                override fun visitSelectableItem(item: SelectableItem) {
+                    append("$indent${item.describe()} - ${item.selectedApiVariants}\n")
+                    indent += "  "
+                }
+
+                override fun afterVisitSelectableItem(item: SelectableItem) {
+                    indent = indent.substring(2)
+                }
+            }
+        )
+    }
+
+    /** Assert that the [dumpSelectedApiVariants] matches [expected]. */
+    fun Codebase.assertSelectedApiVariants(expected: String, message: String? = null) {
+        val actual = dumpSelectedApiVariants()
+        assertEquals(expected.trimIndent(), actual.trimEnd(), message)
     }
 
     /** Get the field from the [ClassItem], failing if it does not exist. */
@@ -60,9 +112,12 @@ interface Assertions {
 
     /** Get the constructor from the [ClassItem], failing if it does not exist. */
     fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
-        val methodItem = findMethod(simpleName(), parameters)
-        assertNotNull(methodItem, message = "Expected ${simpleName()}($parameters) to be defined")
-        return assertIs(methodItem)
+        val constructorItem = findConstructor(parameters)
+        assertNotNull(
+            constructorItem,
+            message = "Expected ${simpleName()}($parameters) to be defined"
+        )
+        return assertIs(constructorItem)
     }
 
     /** Get the property from the [ClassItem], failing if it does not exist. */
@@ -124,7 +179,7 @@ interface Assertions {
      * Create a Kotlin like method description. It uses Kotlin structure for a method and Kotlin
      * style nulls but not Kotlin types.
      */
-    fun MethodItem.kotlinLikeDescription(): String = buildString {
+    fun CallableItem.kotlinLikeDescription(): String = buildString {
         if (isConstructor()) {
             append("constructor ")
         } else {
@@ -133,10 +188,10 @@ interface Assertions {
         append(name())
         append("(")
         parameters().joinTo(this) {
-            "${it.name()}: ${it.type().toTypeString(kotlinStyleNulls = true)}"
+            "${it.name()}: ${it.type().testTypeString(kotlinStyleNulls = true)}"
         }
         append("): ")
-        append(returnType().toTypeString(kotlinStyleNulls = true))
+        append(returnType().testTypeString(kotlinStyleNulls = true))
     }
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */

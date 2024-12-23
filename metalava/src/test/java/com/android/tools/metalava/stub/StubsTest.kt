@@ -621,8 +621,8 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     public MyClass() { throw new RuntimeException("Stub!"); }
-                    protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                    protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface PublicInterface<A, B> {
@@ -927,7 +927,7 @@ class StubsTest : AbstractStubsTest() {
                     public Properties() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class IntProperty<T> extends test.pkg.Properties.Property<T,java.lang.Integer> {
-                    public IntProperty(java.lang.String name) { super((java.lang.Class)null, (java.lang.String)null); throw new RuntimeException("Stub!"); }
+                    public IntProperty(java.lang.String name) { super((java.lang.Class)null, ""); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Property<T, V> {
@@ -1405,6 +1405,7 @@ class StubsTest : AbstractStubsTest() {
                     package android.util;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class ArrayMapKt {
+                    ArrayMapKt() { throw new RuntimeException("Stub!"); }
                     /**
                      * @deprecated Use android.Manifest.permission.ACCESS_FINE_LOCATION instead
                      */
@@ -1520,7 +1521,7 @@ class StubsTest : AbstractStubsTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Child extends test.pkg.Parent {
-                    protected Child(java.lang.String arg1) { super(null); throw new RuntimeException("Stub!"); }
+                    protected Child(java.lang.String arg1) { super(""); throw new RuntimeException("Stub!"); }
                     }
                     """
                     ),
@@ -1567,7 +1568,7 @@ class StubsTest : AbstractStubsTest() {
                     protected Format() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Field extends java.text.AttributedCharacterIterator.Attribute {
-                    protected Field(java.lang.String arg1) { super(null); throw new RuntimeException("Stub!"); }
+                    protected Field(java.lang.String arg1) { super(""); throw new RuntimeException("Stub!"); }
                     }
                     }
                     """

@@ -49,6 +49,9 @@ Usage: metalava main [options] [flags]...
   The default sub-command that is run if no sub-command is specified.
 
 Options:
+  --config-file <file>                       A configuration file that can be consumed by Metalava. This can be
+                                             specified multiple times in which case later config files will
+                                             override/merge with earlier ones.
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
                                              files. Any classes that cannot be found will be treated as empty.",
@@ -64,8 +67,6 @@ Options:
                                              min_sdk_version. (default: no manifest)
   --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
-  --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
-                                             not yet released SDK extensions.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 
@@ -106,6 +107,8 @@ $SIGNATURE_FORMAT_OPTIONS_HELP
 
 $STUB_GENERATION_OPTIONS_HELP
 
+$API_LEVELS_GENERATION_OPTIONS_HELP
+
 Arguments:
   flags                                      See below.
 
@@ -118,6 +121,8 @@ API sources:
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
+--project <xmlfile>
+                                             Project description written in XML according to Lint's project model.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -142,9 +147,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---hide-package <package>
-                                             Remove the given packages from the API even if they have not been marked
-                                             with @hide
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
 --show-unannotated
@@ -159,12 +161,6 @@ API sources:
                                              Use the given API level
 --jdk-home <dir>
                                              If set, add the Java APIs from the given JDK to the classpath
---stub-packages <package-list>
-                                             List of packages (separated by :) which will be used to filter out
-                                             irrelevant code. If specified, only code in these packages will be included
-                                             in signature files, stubs, etc. (This is not limited to just the stubs; the
-                                             name is historical.) You can also use ".*" at the end to match subpackages,
-                                             so `foo.*` will match both `foo` and `foo.bar`.
 --subtract-api <api file>
                                              Subtracts the API in the given signature or jar file from the current API
                                              being emitted via --api, --stubs, --doc-stubs, etc. Note that the
@@ -227,66 +223,6 @@ Injecting API Levels:
                                              information into the documentation
 
 
-Extracting API Levels:
---generate-api-levels <xmlfile>
-                                             Reads android.jar SDK files and generates an XML file recording the API
-                                             level for each class, method and field
---remove-missing-class-references-in-api-levels
-                                             Removes references to missing classes when generating the API levels XML
-                                             file. This can happen when generating the XML file for the non-updatable
-                                             portions of the module-lib sdk, as those non-updatable portions can
-                                             reference classes that are part of an updatable apex.
---android-jar-pattern <pattern>
-                                             Patterns to use to locate Android JAR files. The default is
-                                             ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
---first-version
-                                             Sets the first API level to generate an API database from; usually 1
---current-version
-                                             Sets the current API level of the current source code
---current-codename
-                                             Sets the code name for the current source code
---current-jar
-                                             Points to the current API jar, if any
---sdk-extensions-root
-                                             Points to root of prebuilt extension SDK jars, if any. This directory is
-                                             expected to contain snapshots of historical extension SDK versions in the
-                                             form of stub jars. The paths should be on the format
-                                             "<int>/public/<module-name>.jar", where <int> corresponds to the extension
-                                             SDK version, and <module-name> to the name of the mainline module.
---sdk-extensions-info
-                                             Points to map of extension SDK APIs to include, if any. The file is a plain
-                                             text file and describes, per extension SDK, what APIs from that extension
-                                             to include in the file created via --generate-api-levels. The format of
-                                             each line is one of the following: "<module-name> <pattern> <ext-name>
-                                             [<ext-name> [...]]", where <module-name> is the name of the mainline module
-                                             this line refers to, <pattern> is a common Java name prefix of the APIs
-                                             this line refers to, and <ext-name> is a list of extension SDK names in
-                                             which these SDKs first appeared, or "<ext-name> <ext-id> <type>", where
-                                             <ext-name> is the name of an SDK, <ext-id> its numerical ID and <type> is
-                                             one of "platform" (the Android platform SDK), "platform-ext" (an extension
-                                             to the Android platform SDK), "standalone" (a separate SDK). Fields are
-                                             separated by whitespace. A mainline module may be listed multiple times.
-                                             The special pattern "*" refers to all APIs in the given mainline module.
-                                             Lines beginning with # are comments.
-
-
-Generating API version history:
---generate-api-version-history <jsonfile>
-                                             Reads API signature files and generates a JSON file recording the API
-                                             version each class, method, and field was added in and (if applicable)
-                                             deprecated in. Required to generate API version JSON.
---api-version-signature-files <files>
-                                             An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. This should not include a signature file for the
-                                             current API version, which will be parsed from the provided source files.
-                                             Not required to generate API version JSON if the current version is the
-                                             only version.
---api-version-names <strings>
-                                             An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files, and the name of the current API version.
-                                             Required to generate API version JSON.
-
-
 Environment Variables:
 METALAVA_DUMP_ARGV
                                              Set to true to have metalava emit all the arguments it was invoked with.
@@ -325,11 +261,6 @@ $EXPECTED_HELP
 
     @Test
     fun `Test deprecated lowercase matching in issue configuration options`() {
-        // Temporarily set [options] as it is needed by the [ReporterOptions.reporter] when
-        // reporting [Issues.DEPRECATED_OPTION].
-        @Suppress("DEPRECATION")
-        options = Options()
-
         commandTest {
             args +=
                 listOf(

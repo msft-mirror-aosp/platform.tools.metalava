@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import java.io.File
 
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
@@ -31,13 +32,18 @@ interface SourceParser {
     fun getClassResolver(classPath: List<File>): ClassResolver
 
     /**
-     * Parse a set of sources into a [SourceCodebase].
+     * Parse a set of sources into a [Codebase].
      *
      * @param sourceSet the list of source files and root directories.
      * @param commonSourceSet the list of source files and root directories in the common module.
      * @param description the description to use for [Codebase.description].
      * @param classPath the possibly empty list of jar files which may provide additional classes
      *   referenced by the sources.
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
+     * @param projectDescription Lint project model that can describe project structures in detail.
+     *   Only supported by the PSI model.
      *
      * "Common module" is the term used in Kotlin multi-platform projects where platform-agnostic
      * business logic and `expect` declarations are declared. (Counterparts, like platform-specific
@@ -51,12 +57,14 @@ interface SourceParser {
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-    ): SourceCodebase
+        apiPackages: PackageFilter?,
+        projectDescription: File?,
+    ): Codebase
 
     /**
-     * Load a [SourceCodebase] from a single jar.
+     * Load a [Codebase] from a single jar.
      *
-     * @param apiJar the jar file from which the [SourceCodebase] will be loaded.
+     * @param apiJar the jar file from which the [Codebase] will be loaded.
      */
-    fun loadFromJar(apiJar: File): SourceCodebase
+    fun loadFromJar(apiJar: File): Codebase
 }

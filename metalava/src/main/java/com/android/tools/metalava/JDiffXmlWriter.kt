@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -30,11 +31,11 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.CodePrinter
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.utils.XmlUtils
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 /**
  * Writes out an XML format in the JDiff schema: See $ANDROID/external/jdiff/src/api.xsd (though
@@ -259,8 +260,8 @@ class JDiffXmlWriter(
         }
     }
 
-    private fun writeParameterList(method: MethodItem) {
-        method.parameters().asSequence().forEach { parameter ->
+    private fun writeParameterList(callable: CallableItem) {
+        callable.parameters().asSequence().forEach { parameter ->
             // NOTE: We report parameter name as "null" rather than the real name to match
             // doclava's behavior
             writer.print("<parameter name=\"null\" type=\"")
@@ -278,8 +279,8 @@ class JDiffXmlWriter(
         return typeString.replace(",", ", ").replace(",  ", ", ")
     }
 
-    private fun writeThrowsList(method: MethodItem) {
-        val throws = method.throwsTypes()
+    private fun writeThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
@@ -295,24 +296,22 @@ class JDiffXmlWriter(
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
      * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * classes. It will delegate any visitor calls that pass through its filter to this
      * [JDiffXmlWriter] instance.
      */
     fun createFilteringVisitor(
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>,
+        apiFilters: ApiFilters,
         preFiltered: Boolean,
         showUnannotated: Boolean,
+        filterSuperClassType: Boolean = true,
     ): ApiVisitor =
         FilteringApiVisitor(
             this,
-            nestInnerClasses = false,
             inlineInheritedFields = true,
             interfaceListComparator = TypeItem.totalComparator,
-            filterEmit = filterEmit,
-            filterReference = filterReference,
+            apiFilters = apiFilters,
             preFiltered = preFiltered,
+            filterSuperClassType = filterSuperClassType,
             showUnannotated = showUnannotated,
-            config = ApiVisitor.Config(),
         )
 }

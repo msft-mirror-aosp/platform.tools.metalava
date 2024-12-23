@@ -16,139 +16,73 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.model.item.ResourceFile
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
-class PsiPackageItem
+internal class PsiPackageItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
-    private val qualifiedName: String,
-    modifiers: DefaultModifierList,
-    documentation: String,
-    override val overviewDocumentation: String?,
-    /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
+    fileLocation: FileLocation,
+    modifiers: BaseModifierList,
+    documentationFactory: ItemDocumentationFactory,
+    qualifiedName: String,
+    containingPackage: PackageItem?,
+    overviewDocumentation: ResourceFile?,
 ) :
-    PsiItem(
+    DefaultPackageItem(
         codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = psiPackage.itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiPackage
+        documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        qualifiedName = qualifiedName,
+        containingPackage = containingPackage,
+        overviewDocumentation = overviewDocumentation,
     ),
-    PackageItem {
-
-    // Note - top level classes only
-    private val classes: MutableList<ClassItem> = mutableListOf()
-
-    override fun topLevelClasses(): List<ClassItem> =
-        // Return a copy to avoid a ConcurrentModificationException.
-        classes.toList()
-
-    lateinit var containingPackageField: PsiPackageItem
-
-    override fun containingClass(): ClassItem? = null
+    PackageItem,
+    PsiItem {
 
     override fun psi() = psiPackage
 
-    override fun containingPackage(): PackageItem? {
-        return if (qualifiedName.isEmpty()) null
-        else {
-            if (!::containingPackageField.isInitialized) {
-                var parentPackage = qualifiedName
-                while (true) {
-                    val index = parentPackage.lastIndexOf('.')
-                    if (index == -1) {
-                        containingPackageField = codebase.findPackage("")!!
-                        return containingPackageField
-                    }
-                    parentPackage = parentPackage.substring(0, index)
-                    val pkg = codebase.findPackage(parentPackage)
-                    if (pkg != null) {
-                        containingPackageField = pkg
-                        return pkg
-                    }
-                }
-
-                @Suppress("UNREACHABLE_CODE") null
-            } else {
-                containingPackageField
-            }
-        }
-    }
-
-    fun addClass(cls: PsiClassItem) {
-        if (!cls.isTopLevelClass()) {
-            // TODO: Stash in a list somewhere to make allClasses() faster?
-            return
-        }
-
-        /*
-        // Temp debugging:
-        val q = cls.qualifiedName()
-        for (c in classes) {
-            if (q == c.qualifiedName()) {
-                assert(false, { "Unexpectedly found class $q already listed in $this" })
-                return
-            }
-        }
-        */
-
-        classes.add(cls)
-        cls.containingPackage = this
-    }
-
-    fun addClasses(classList: List<PsiClassItem>) {
-        for (cls in classList) {
-            addClass(cls)
-        }
-    }
-
-    override fun qualifiedName(): String = qualifiedName
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is PackageItem && qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int = qualifiedName.hashCode()
-
-    override fun isFromClassPath(): Boolean = fromClassPath
+    // N.A. a package cannot be contained in a class
+    override fun containingClass(): ClassItem? = null
 
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
-            extraDocs: String?,
-            overviewHtml: String?,
-            fromClassPath: Boolean,
+            packageDoc: PackageDoc,
+            containingPackage: PackageItem?,
         ): PsiPackageItem {
-            val commentText =
-                javadoc(psiPackage, codebase.allowReadingComments) +
-                    if (extraDocs != null) "\n$extraDocs" else ""
-            val modifiers = modifiers(codebase, psiPackage, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
             }
             val qualifiedName = psiPackage.qualifiedName
 
-            val pkg =
-                PsiPackageItem(
-                    codebase = codebase,
-                    psiPackage = psiPackage,
-                    qualifiedName = qualifiedName,
-                    documentation = commentText,
-                    overviewDocumentation = overviewHtml,
-                    modifiers = modifiers,
-                    fromClassPath = fromClassPath
-                )
-            return pkg
+            return PsiPackageItem(
+                codebase = codebase,
+                psiPackage = psiPackage,
+                fileLocation = packageDoc.fileLocation,
+                modifiers = modifiers,
+                documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
+                qualifiedName = qualifiedName,
+                containingPackage = containingPackage,
+                overviewDocumentation = packageDoc.overview,
+            )
         }
     }
 }
