@@ -683,4 +683,39 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(valueClassExtension.constructorParameter).isNull()
         }
     }
+
+    fun `Test final modifier for properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class FinalClass {
+                        val propertyInFinalClass = 0
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    open class OpenClass {
+                        val finalPropertyInOpenClass = 0
+                        open val openPropertyInOpenClass = 0
+                    }
+                """
+            )
+        ) {
+            val finalClass = codebase.assertClass("test.pkg.FinalClass")
+            assertThat(finalClass.modifiers.isFinal()).isTrue()
+            // Properties in final classes are final, so using the modifier would be redundant.
+            assertThat(finalClass.assertProperty("propertyInFinalClass").modifiers.isFinal())
+                .isFalse()
+
+            val openClass = codebase.assertClass("test.pkg.OpenClass")
+            assertThat(openClass.modifiers.isFinal()).isFalse()
+            assertThat(openClass.assertProperty("finalPropertyInOpenClass").modifiers.isFinal())
+                .isTrue()
+            assertThat(openClass.assertProperty("openPropertyInOpenClass").modifiers.isFinal())
+                .isFalse()
+        }
+    }
 }

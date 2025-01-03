@@ -102,6 +102,11 @@ private constructor(
                 getter?.returnType()
                     ?: typeItemFactory.getTypeForKtElement(ktDeclaration) ?: return null
             val modifiers = PsiModifierItem.createForProperty(codebase, ktDeclaration, getter)
+            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
+                // The containing class is final, so it is implied that every property is final as
+                // well. No need to apply 'final' to each property. (This is done for methods too.)
+                modifiers.setFinal(false)
+            }
 
             val property =
                 PsiPropertyItem(
