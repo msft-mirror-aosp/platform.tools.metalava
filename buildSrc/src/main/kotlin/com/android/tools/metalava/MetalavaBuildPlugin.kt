@@ -17,17 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.build.api.dsl.Lint
-import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask
-import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
-import com.android.tools.metalava.buildinfo.addTaskToAggregateBuildInfoFileTask
 import com.android.tools.metalava.buildinfo.configureBuildInfoTask
-import java.io.File
-import java.io.StringReader
-import java.util.Properties
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
 import org.gradle.api.plugins.JavaPlugin
@@ -44,8 +37,13 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinBasePluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.File
+import java.io.StringReader
+import java.util.Properties
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -59,11 +57,11 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 }
                 is KotlinBasePluginWrapper -> {
                     project.tasks.withType(KotlinCompile::class.java).configureEach { task ->
-                        task.kotlinOptions.apply {
-                            jvmTarget = "17"
-                            apiVersion = "1.7"
-                            languageVersion = "1.7"
-                            allWarningsAsErrors = true
+                        task.compilerOptions.apply {
+                            jvmTarget.set(JvmTarget.JVM_17)
+                            apiVersion.set(KotlinVersion.KOTLIN_1_9)
+                            languageVersion.set(KotlinVersion.KOTLIN_1_9)
+                            allWarningsAsErrors.set(true)
                         }
                     }
                 }
@@ -80,7 +78,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         project.group = "com.android.tools.metalava"
     }
 
-    fun configureLint(project: Project) {
+    private fun configureLint(project: Project) {
         project.apply(mapOf("plugin" to "com.android.lint"))
         project.extensions.getByType<Lint>().apply {
             fatal.add("UastImplementation") // go/hide-uast-impl
@@ -92,7 +90,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         }
     }
 
-    fun configureTestTasks(project: Project) {
+    private fun configureTestTasks(project: Project) {
         val testTask = project.tasks.named("test", Test::class.java)
 
         val zipTask: TaskProvider<Zip> =
@@ -179,7 +177,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         }
     }
 
-    fun configurePublishing(project: Project) {
+    private fun configurePublishing(project: Project) {
         val projectRepo = project.layout.buildDirectory.dir("repo")
         val archiveTaskProvider =
             configurePublishingArchive(
@@ -225,15 +223,13 @@ class MetalavaBuildPlugin : Plugin<Project> {
                         }
                     }
 
-                    val buildInfoTask =
-                        configureBuildInfoTask(
-                            project,
-                            this,
-                            isBuildingOnServer(),
-                            getDistributionDirectory(project),
-                            archiveTaskProvider
-                        )
-                    project.addTaskToAggregateBuildInfoFileTask(buildInfoTask)
+                    configureBuildInfoTask(
+                        project,
+                        this,
+                        isBuildingOnServer(),
+                        getDistributionDirectory(project),
+                        archiveTaskProvider
+                    )
                 }
             }
             repositories { handler ->
@@ -275,7 +271,6 @@ class MetalavaBuildPlugin : Plugin<Project> {
 }
 
 internal fun Project.version(): Provider<String> {
-    @Suppress("UNCHECKED_CAST") // version is a VersionProviderWrapper set in MetalavaBuildPlugin
     return (version as VersionProviderWrapper).versionProvider
 }
 
@@ -289,7 +284,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("version.properties")
+            isolated.rootProject.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {

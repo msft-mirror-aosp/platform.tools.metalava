@@ -27,8 +27,27 @@ Api Lint:
 
   Options controlling API linting.
 
-  --api-lint-previous-api <file>             An API signature file that defines a previously released API. API Lint
-                                             issues found in that API will be ignored.
+  --api-lint                                 Check API for Android API best practices.
+  --api-lint-previous-api <file>             An API signature file that defines, albeit maybe only partially, a
+                                             previously released API.
+
+                                             If the API surface extends another API surface then this must include all
+                                             the corresponding signature files in order from the outermost API surface
+                                             that does not extend any API surface to the innermost one that represents
+                                             the API surface being generated.
+
+                                             API Lint issues found in the previously released API will be ignored.
+  --error-message:api-lint <message>         If set, this is output when errors are detected in --api-lint.
+  --baseline:api-lint <file>                 An optional baseline file that contains a list of known API lint issues
+                                             which should be ignored. If this does not exist and
+                                             --update-baseline:api-lint is not specified then it will be created and
+                                             populated with all the known API lint issues.
+  --update-baseline:api-lint <file>          An optional file into which a list of the latest API lint issues found will
+                                             be written. If --baseline:api-lint is specified then any issues listed in
+                                             there will be copied into this file; that minimizes the amount of churn in
+                                             the baseline file when updating by not removing legacy issues that have
+                                             been fixed. If --delete-empty-baselines is specified and this baseline is
+                                             empty then the file will be deleted.
     """
         .trimIndent()
 
@@ -44,7 +63,7 @@ class ApiLintOptionsTest :
         val file =
             signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
         runTest(ARG_API_LINT_PREVIOUS_API, file.path) {
-            assertThat(options.apiLintPreviousApi).isEqualTo(file)
+            assertThat(options.apiLintPreviousApis).isEqualTo(listOf(file))
         }
     }
 }

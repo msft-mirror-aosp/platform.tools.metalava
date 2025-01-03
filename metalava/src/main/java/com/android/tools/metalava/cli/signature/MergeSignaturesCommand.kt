@@ -23,11 +23,13 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
+import com.android.tools.metalava.createFilteringVisitorForSignatures
 import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -84,14 +86,20 @@ class MergeSignaturesCommand :
         try {
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
             createReportFile(progressTracker, codebase, out, description = "Merged file") {
-                SignatureWriter(
-                    writer = it,
-                    filterEmit = { true },
-                    filterReference = { true },
+                val fileFormat = signatureFormat.fileFormat
+                val signatureWriter =
+                    SignatureWriter(
+                        writer = it,
+                        fileFormat = fileFormat,
+                    )
+
+                createFilteringVisitorForSignatures(
+                    delegate = signatureWriter,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.ALL,
                     preFiltered = true,
-                    fileFormat = signatureFormat.fileFormat,
                     showUnannotated = false,
-                    apiVisitorConfig = ApiVisitor.Config(),
+                    apiPredicateConfig = ApiPredicate.Config(),
                 )
             }
         } catch (e: ApiParseException) {
