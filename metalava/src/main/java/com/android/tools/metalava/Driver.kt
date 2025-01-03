@@ -684,6 +684,7 @@ private fun ActionContext.loadFromSources(
             reporter,
             options.manifest,
             options.apiPredicateConfig,
+            options.apiLintOptions.allowedAcronyms,
         )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"

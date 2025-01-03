@@ -18,6 +18,7 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.cli.lint.ARG_ALLOWED_ACRONYM
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
@@ -206,6 +207,39 @@ class AcronymNamesTest : DriverTest() {
                                 public void usingUNDERSCORE_() {}
                                 public void usingDOLLAR$() {}
                             }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test allowed acronyms`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                "src/test/pkg/NOTSQL.java:2: warning: Acronyms should not be capitalized in class names: was `NOTSQL`, should this be `Notsql`? [AcronymName]",
+            extraArguments = arrayOf(ARG_ALLOWED_ACRONYM, "SQL", ARG_ALLOWED_ACRONYM, "SQ"),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class SQLException {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class SupportSQLiteProgram {
+                                public void execSQL() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class NOTSQL {}
                         """
                     )
                 )

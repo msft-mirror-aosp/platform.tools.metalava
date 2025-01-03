@@ -198,6 +198,7 @@ private constructor(
     reporter: Reporter,
     private val manifest: Manifest,
     apiPredicateConfig: ApiPredicate.Config,
+    private val allowedAcronyms: List<String>,
 ) :
     ApiVisitor(
         // ApiLint does not visit ParameterItems.
@@ -570,14 +571,15 @@ private constructor(
                     method,
                     "Method name must start with lowercase char: $name"
                 )
-            hasAcronyms(name) -> {
+            hasAcronyms(name, allowedAcronyms) -> {
                 report(
                     ACRONYM_NAME,
                     method,
                     "Acronyms should not be capitalized in method names: was `$name`, should this be `${
                         decapitalizeAcronyms(
-                        name
-                    )
+                            name,
+                            allowedAcronyms
+                        )
                     }`?"
                 )
             }
@@ -602,14 +604,15 @@ private constructor(
             first !in 'A'..'Z' -> {
                 report(START_WITH_UPPER, cls, "Class must start with uppercase char: $name")
             }
-            hasAcronyms(name) -> {
+            hasAcronyms(name, allowedAcronyms) -> {
                 report(
                     ACRONYM_NAME,
                     cls,
                     "Acronyms should not be capitalized in class names: was `$name`, should this be `${
                         decapitalizeAcronyms(
-                        name
-                    )
+                            name,
+                            allowedAcronyms
+                        )
                     }`?"
                 )
             }
@@ -3351,8 +3354,17 @@ private constructor(
             reporter: Reporter,
             manifest: Manifest,
             apiPredicateConfig: ApiPredicate.Config,
+            allowedAcronyms: List<String>,
         ) {
-            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, apiPredicateConfig)
+            val apiLint =
+                ApiLint(
+                    codebase,
+                    oldCodebase,
+                    reporter,
+                    manifest,
+                    apiPredicateConfig,
+                    allowedAcronyms,
+                )
             apiLint.check()
         }
 
@@ -3499,20 +3511,28 @@ private constructor(
                 item.parameters().map { it.type().toTypeString() } ==
                     serviceDumpMethodParameterTypes
 
-        private fun hasAcronyms(name: String): Boolean {
-            return getFirstAcronym(name) != null
+        private fun hasAcronyms(name: String, allowedAcronyms: List<String>): Boolean {
+            return getFirstAcronym(name, allowedAcronyms) != null
         }
 
-        private fun getFirstAcronym(name: String): String? {
+        private fun getFirstAcronym(name: String, allowedAcronyms: List<String>): String? {
             val fullMatch = acronymPattern.find(name) ?: return null
             // Group 1 is just the acronym.
             val result = fullMatch.groups[1] ?: return null
 
-            return name.substring(result.range.first, result.range.last + 1)
+            val acronym = name.substring(result.range.first, result.range.last + 1)
+            return if (acronym !in allowedAcronyms) {
+                acronym
+            } else if (fullMatch.range.last < name.length) {
+                // Keep searching from the end of the last match, if possible.
+                getFirstAcronym(name.substring(result.range.last + 1), allowedAcronyms)
+            } else {
+                null
+            }
         }
 
         /** for something like "HTMLWriter", returns "HtmlWriter" */
-        private fun decapitalizeAcronyms(name: String): String {
+        private fun decapitalizeAcronyms(name: String, allowedAcronyms: List<String>): String {
             var s = name
 
             if (s.none { it.isLowerCase() }) {
@@ -3529,7 +3549,7 @@ private constructor(
             }
 
             while (true) {
-                val acronym = getFirstAcronym(s) ?: return s
+                val acronym = getFirstAcronym(s, allowedAcronyms) ?: return s
                 val index = s.indexOf(acronym)
                 if (index == -1) {
                     return s
