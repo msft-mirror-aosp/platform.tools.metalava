@@ -545,19 +545,23 @@ fun createMutableModifiers(
  *   provided.
  */
 private fun useVisibilityFromVisibleForTesting(otherwiseValue: String, flags: Int): Int {
-    /** Check to see if this matches [visibility]. */
-    fun String.matchesVisibility(visibility: String) = endsWith(visibility)
+    /** Check to see if this matches [visibility] or numeric [value]. */
+    fun String.matchesVisibility(visibility: String, value: Int) =
+        endsWith(visibility) || equals(value.toString())
 
     val visibilityFlags =
         when {
-            otherwiseValue.matchesVisibility("PROTECTED") -> {
+            otherwiseValue.matchesVisibility("PROTECTED", VisibleForTesting.PROTECTED) -> {
                 PROTECTED
             }
-            otherwiseValue.matchesVisibility("PACKAGE_PRIVATE") -> {
+            otherwiseValue.matchesVisibility(
+                "PACKAGE_PRIVATE",
+                VisibleForTesting.PACKAGE_PRIVATE
+            ) -> {
                 PACKAGE_PRIVATE
             }
-            otherwiseValue.matchesVisibility("PRIVATE") ||
-                otherwiseValue.matchesVisibility("NONE") -> {
+            otherwiseValue.matchesVisibility("PRIVATE", VisibleForTesting.PRIVATE) ||
+                otherwiseValue.matchesVisibility("NONE", VisibleForTesting.NONE) -> {
                 PRIVATE
             }
             else -> {
@@ -591,3 +595,14 @@ fun createMutableModifiers(
 
 private const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
 private const val ATTR_OTHERWISE = "otherwise"
+
+/** Defines the numeric values of the symbols used in tests that use numbers instead of symbols. */
+// TODO(b/387992791): Use a real VisibleForTesting annotation.
+interface VisibleForTesting {
+    companion object {
+        const val PRIVATE = 2
+        const val PACKAGE_PRIVATE = 3
+        const val PROTECTED = 4
+        const val NONE = 5
+    }
+}

@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.VisibleForTesting
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -234,18 +235,5 @@ class VisibleForTestingTest : DriverTest() {
                     }
                 """,
         )
-    }
-
-    /**
-     * Fake annotation, used to define the numeric values of the symbols used in above tests that
-     * use numbers instead of symbols.
-     */
-    annotation class VisibleForTesting {
-        companion object {
-            const val PRIVATE = 2
-            const val PACKAGE_PRIVATE = 3
-            const val PROTECTED = 4
-            const val NONE = 5
-        }
     }
 }
