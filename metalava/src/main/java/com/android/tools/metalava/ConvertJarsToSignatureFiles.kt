@@ -17,7 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
@@ -31,6 +31,8 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.File
 import java.io.IOException
@@ -78,7 +80,7 @@ class ConvertJarsToSignatureFiles(
                 Codebase.Config(
                     annotationManager = annotationManager,
                 )
-            val signatureFileLoader = SignatureFileLoader(codebaseConfig)
+            val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
             val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
 
@@ -126,8 +128,7 @@ class ConvertJarsToSignatureFiles(
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
                 try {
-                    val oldCodebase =
-                        signatureFileLoader.loadFiles(SignatureFile.fromFiles(oldApiFile))
+                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compareItems(old: Item, new: Item) {
