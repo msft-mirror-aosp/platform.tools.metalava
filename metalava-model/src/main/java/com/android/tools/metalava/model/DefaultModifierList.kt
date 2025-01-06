@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
 import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
@@ -537,11 +539,55 @@ fun createMutableModifiers(
 }
 
 /**
+ * Modifies the modifier flags based on the `VisibleForTesting` annotation's `otherwise` value.
+ *
+ * @param otherwiseValue the value of the `otherwise` attribute, or `""` if no attribute is
+ *   provided.
+ */
+private fun useVisibilityFromVisibleForTesting(otherwiseValue: String, flags: Int): Int {
+    /** Check to see if this matches [visibility]. */
+    fun String.matchesVisibility(visibility: String) = endsWith(visibility)
+
+    val visibilityFlags =
+        when {
+            otherwiseValue.matchesVisibility("PROTECTED") -> {
+                PROTECTED
+            }
+            otherwiseValue.matchesVisibility("PACKAGE_PRIVATE") -> {
+                PACKAGE_PRIVATE
+            }
+            otherwiseValue.matchesVisibility("PRIVATE") ||
+                otherwiseValue.matchesVisibility("NONE") -> {
+                PRIVATE
+            }
+            else -> {
+                // Return the flags without changes.
+                return flags
+            }
+        }
+
+    return (flags and VISIBILITY_MASK.inv()) or visibilityFlags
+}
+
+/**
  * Create a [MutableModifierList] from a set of [flags] and an optional list of [AnnotationItem]s.
  */
 fun createMutableModifiers(
     flags: Int,
     annotations: List<AnnotationItem> = emptyList(),
 ): MutableModifierList {
-    return DefaultMutableModifierList(flags, annotations)
+    val actualFlags =
+        annotations
+            .find { it.qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING }
+            ?.let { visibleForTesting ->
+                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.value?.let { otherwiseValue ->
+                    useVisibilityFromVisibleForTesting(otherwiseValue.toSource(), flags)
+                }
+            }
+            ?: flags
+
+    return DefaultMutableModifierList(actualFlags, annotations)
 }
+
+private const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
+private const val ATTR_OTHERWISE = "otherwise"
