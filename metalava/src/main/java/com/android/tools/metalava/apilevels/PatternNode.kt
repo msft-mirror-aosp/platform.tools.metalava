@@ -299,19 +299,33 @@ sealed class PatternNode {
     }
 
     /**
-     * Matches any file name containing an API version number.
+     * Matches any file name containing one or more placeholders.
      *
-     * [pattern] the regular expression pattern that will match the file name and whose 1st group
-     * will contain the API version number.
+     * The [pattern] is used to create a [regex] which is matched against each file name that could
+     * match. If it matches then for each placeholder at position `i` in the list of [placeholders]
+     * the `i+1`th group is retrieved from the [MatchResult] and passed to the [Placeholder]'s
+     * [Property]'s [Property.track] method. That will then process the value and update a property
+     * in [PatternFileState].
      *
-     * e.g. if [pattern] is `android-(\d+)` then when scanning/matching directory `bar`, this will
-     * scan/match any file in that directory called `android-<version>`, e.g. `bar/android-1`,
-     * `bar/android-2`, etc.
+     * e.g. assume [pattern] is `android-(\d+)` and [placeholders] contains a single instance of
+     * [Placeholder.VERSION_LEVEL]. When scanning/matching directory `bar`, this will scan any file
+     * in that directory called `android-<version>`, e.g. `bar/android-1`, `bar/android-2`, etc. The
+     * 1st group will be retrieved and passed to the [Property.track] method for the
+     * [Property.VERSION] which will create an [ApiVersion] and if appropriate store it in the
+     * [PatternFileState.version] property.
      *
      * This is a data class as it needs to implement [equals] and [hashCode] so that instances can
-     * be de-duped by [PatternNode.getExistingOrAdd].
+     * be dedup-ed by [PatternNode.getExistingOrAdd].
+     *
+     * @param pattern the regular expression pattern that will match the file name and which has a
+     *   capturing group for each [Placeholder] in [placeholders] in the same order.
+     * @param placeholders the list of [Placeholder]s that will extract information from a matching
+     *   file name and track it in a [PatternFileState].
      */
-    private data class ApiVersionPatternNode(val pattern: String) : PatternNode() {
+    private data class PlaceholderPatternNode(
+        private val pattern: String,
+        private val placeholders: List<Placeholder>,
+    ) : PatternNode() {
         override fun toString() = withDirectorySuffixIfHasChildren(pattern)
 
         private val regex = Regex(pattern)
@@ -327,22 +341,119 @@ sealed class PatternNode {
                 val name = file.name
                 val matcher = regex.matchEntire(name) ?: return@flatMap emptySequence()
 
-                // Extract the API version from the file name and make sure that if a range is
-                // specified that it is within the range. If it is not then ignore this file and
-                // all its contents by returning an empty sequence. This relies on the [pattern]
-                // using the first group to match the API version.
-                val level = matcher.groups[1]!!.value.toInt()
-                val version = ApiVersion.fromLevel(level)
-                config.apiVersionRange?.let { apiVersionRange ->
-                    if (version !in apiVersionRange) return@flatMap emptySequence()
+                var newState = state.copy(file = file)
+                for ((index, placeholder) in placeholders.withIndex()) {
+                    // There is a one-to-one correspondence between each capturing group in the
+                    // [pattern] and each placeholder in [placeholders] and each placeholder is
+                    // associated with the groups index is one more than the index of the
+                    // placeholder in the placeholders list. It is one more because group indices
+                    // are one based as group 0 corresponds to the text that matches the whole
+                    // pattern.
+                    val groupIndex = index + 1
+
+                    // Retrieve the value of the group for the placeholder. Throws an error if it
+                    // could not be found as that should never happen.
+                    val matchGroup =
+                        matcher.groups[groupIndex]
+                            ?: error("No matching group found for placeholder $placeholder")
+
+                    // Extract the value and store it in the appropriate [PatternFileState]
+                    // property.
+                    newState =
+                        placeholder.property.track(config, newState, matchGroup.value)
+                            ?: return@flatMap emptySequence()
                 }
 
-                // Create a new set of properties with the file and extracted version and then
-                // pass them on to the next node in the scanning, or return if this is the last
-                // node.
-                val newProperties = state.copy(file = file, version = version)
-                scanChildrenOrReturnMatching(config, newProperties)
+                scanChildrenOrReturnMatching(config, newState)
             }
+        }
+    }
+
+    /** The properties for which placeholders can be provided. */
+    private enum class Property(val propertyName: String) {
+        /**
+         * Corresponds to the [PatternFileState.version] and [MatchedPatternFile.version]
+         * properties.
+         */
+        VERSION("version") {
+            override fun track(
+                config: ScanConfig,
+                state: PatternFileState,
+                value: String
+            ): PatternFileState? {
+                // Extract the API version from the value and make sure that it is within the
+                // allowable
+                // range (if one was specified). If it is not then ignore this file and all its
+                // contents
+                // by returning an empty sequence.
+                val version = ApiVersion.fromString(value)
+                config.apiVersionRange?.let { apiVersionRange ->
+                    if (version !in apiVersionRange) return null
+                }
+
+                return state.copy(version = version)
+            }
+        },
+        ;
+
+        /**
+         * Tracks the placeholder value by extracting it from [value] and creating a copy of [state]
+         * with the value stored in the appropriate property.
+         *
+         * If the placeholder value is invalid for some reason then returns `null` to indicate that
+         * the [state] should be ignored.
+         *
+         * @param config configuration that affects the matching.
+         * @param state the input [PatternFileState].
+         * @param value the
+         */
+        abstract fun track(
+            config: ScanConfig,
+            state: PatternFileState,
+            value: String,
+        ): PatternFileState?
+
+        override fun toString() = propertyName
+    }
+
+    /**
+     * Enumeration of all possible placeholders.
+     *
+     * @param property the name of the property in [PatternFileState] that will be updated by the
+     *   placeholder.
+     * @param format the format of the property. This differentiates between placeholders with the
+     *   same [property] but which have different [pattern]s.
+     * @param pattern the pattern that determines which part of a file name will be matched by the
+     *   placeholder. This must not contain any capturing groups.
+     */
+    private enum class Placeholder(
+        val property: Property,
+        private val format: String,
+        val pattern: String,
+    ) {
+        /** The {version:level} placeholder. */
+        VERSION_LEVEL(
+            property = Property.VERSION,
+            format = "level",
+            pattern = """\d+""",
+        ),
+        ;
+
+        /** The label for this that will be used in a path pattern, e.g. `{version:level}`. */
+        val label = "{$property:$format}"
+
+        override fun toString() = label
+
+        companion object {
+            fun placeholderForLabel(label: String, pathPattern: String): Placeholder {
+                return placeholderByLabel[label]
+                    ?: error(
+                        "Pattern '$pathPattern' contains an unknown placeholder '$label', expected one of ${placeholderByLabel.keys.joinToString {"'$it'"}}"
+                    )
+            }
+
+            /** Map from [Placeholder.label] to [Placeholder]. */
+            internal val placeholderByLabel = Placeholder.entries.associateBy { it.label }
         }
     }
 
@@ -397,7 +508,7 @@ sealed class PatternNode {
             }
 
             // Check to make sure that exactly one of the nodes will match an API version.
-            val count = nodes.count { it is ApiVersionPatternNode }
+            val count = nodes.count { it is PlaceholderPatternNode }
             when {
                 count == 0 -> error("Pattern '$pathPattern' does not contain {version:level}")
                 count > 1 -> error("Pattern '$pathPattern' contains more than one {version:level}")
@@ -407,12 +518,25 @@ sealed class PatternNode {
         /** [Regex] to find placeholders in a pattern. */
         private val PLACEHOLDER_REGEX = Regex("""\{[^}]+}""")
 
-        private const val PLACEHOLDER_VERSION_LEVEL = "{version:level}"
-
-        /** Parse a parameterized pattern, i.e. one with a placeholder like '{version:level}'. */
+        /**
+         * Parse a parameterized pattern, i.e. one with a placeholder like '{version:level}'.
+         *
+         * The basic approach is to convert the [pattern] into a standard regular expression and a
+         * list of [Placeholder]s such that each placeholder in [pattern] has a corresponding
+         * capture group in the regular expression and a [Placeholder] in the list. The list is in
+         * the same order as the groups. Together they are used to create a [PlaceholderPatternNode]
+         * that will use that information to update a [PatternFileState] with information extracted
+         * from a matching file.
+         *
+         * @param pathPattern the pattern for the whole file path, used for error reporting.
+         * @param pattern the pattern for one file name in the path. This is the pattern that this
+         *   method will parse.
+         */
         private fun parseParameterizedPattern(pathPattern: String, pattern: String): PatternNode {
             val regexBuilder = StringBuilder()
             var literalStart = 0
+
+            val placeholders = mutableListOf<Placeholder>()
 
             /**
              * Quote any literal text found between the start of the pattern or last placeholder and
@@ -436,22 +560,26 @@ sealed class PatternNode {
                 // The next block of literal text (if any) will start after the match.
                 literalStart = matchResult.range.last + 1
 
-                when (val placeholder = matchResult.value) {
-                    PLACEHOLDER_VERSION_LEVEL -> {
-                        // The level is just one or more digits.
-                        regexBuilder.append("""(\d+)""")
-                    }
-                    else ->
-                        error(
-                            "Pattern '$pathPattern' contains an unknown placeholder '$placeholder'"
-                        )
-                }
+                // Extract the text representation of the placeholder from the pattern.
+                val placeholderText = matchResult.value
+
+                // Find the corresponding [Placeholder], failing if it could not be found.
+                val placeholder = Placeholder.placeholderForLabel(placeholderText, pathPattern)
+
+                // Add a capturing group to the pattern for the placeholder. This requires that the
+                // placeholder pattern does not contain any capturing groups of its own.
+                regexBuilder.append("""(${placeholder.pattern})""")
+
+                // Add a placeholder. As placeholder patterns do not contain capturing groups the
+                // combined pattern has a single group for each placeholder and in the same order as
+                // the placeholders.
+                placeholders.add(placeholder)
             }
 
             // Quote any literal text found at the end of the pattern after the last placeholder.
             quoteLiteralText(pattern.length)
 
-            return ApiVersionPatternNode(regexBuilder.toString())
+            return PlaceholderPatternNode(regexBuilder.toString(), placeholders.toList())
         }
     }
 }
