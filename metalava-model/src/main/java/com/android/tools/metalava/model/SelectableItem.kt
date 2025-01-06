@@ -92,7 +92,7 @@ interface SelectableItem : Item, ReferencableNameScope {
     val removed: Boolean
 
     /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
+    fun isHiddenOrRemoved(): Boolean = hidden() || removed
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
