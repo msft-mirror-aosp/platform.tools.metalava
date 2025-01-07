@@ -324,7 +324,7 @@ sealed class PatternNode {
      */
     private data class PlaceholderPatternNode(
         private val pattern: String,
-        private val placeholders: List<Placeholder>,
+        val placeholders: List<Placeholder>,
     ) : PatternNode() {
         override fun toString() = withDirectorySuffixIfHasChildren(pattern)
 
@@ -437,6 +437,14 @@ sealed class PatternNode {
             format = "level",
             pattern = """\d+""",
         ),
+
+        /** The {version:major.minor?} placeholder. */
+        VERSION_MAJOR_MINOR(
+            property = Property.VERSION,
+            format = "major.minor?",
+            // Match either a single major version or a major and minor version together.
+            pattern = """\d+(?:\.\d+)?""",
+        ),
         ;
 
         /** The label for this that will be used in a path pattern, e.g. `{version:level}`. */
@@ -508,10 +516,33 @@ sealed class PatternNode {
             }
 
             // Check to make sure that exactly one of the nodes will match an API version.
-            val count = nodes.count { it is PlaceholderPatternNode }
-            when {
-                count == 0 -> error("Pattern '$pathPattern' does not contain {version:level}")
-                count > 1 -> error("Pattern '$pathPattern' contains more than one {version:level}")
+            val placeholdersByProperty =
+                nodes
+                    .mapNotNull { it as? PlaceholderPatternNode }
+                    .flatMap { it.placeholders }
+                    .groupBy { it.property }
+
+            // Do some basic validation of the placeholders in the pattern.
+            for (property in Property.entries) {
+                val placeholders = placeholdersByProperty[property] ?: emptyList()
+                val count = placeholders.size
+                when {
+                    count == 0 ->
+                        // At least one placeholder that will set the version property must be
+                        // provided.
+                        if (property == Property.VERSION) {
+                            error(
+                                "Pattern '$pathPattern' does not contain placeholder for $property"
+                            )
+                        }
+                    count > 1 ->
+                        // No property can have multiple placeholders for it as that could lead to a
+                        // conflict over which value will be used and/or complicate the logic to
+                        // make sure that all the values are the same.
+                        error(
+                            "Pattern '$pathPattern' contains multiple placeholders for $property; found ${placeholders.joinToString()}"
+                        )
+                }
             }
         }
 

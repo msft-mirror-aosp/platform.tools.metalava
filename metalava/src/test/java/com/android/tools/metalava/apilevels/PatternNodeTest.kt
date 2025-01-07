@@ -16,13 +16,18 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.testing.DirectoryBuilder
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidDir
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
-class PatternNodeTest {
+class PatternNodeTest : TemporaryFolderOwner {
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     fun PatternNode.assertStructure(expected: String) {
         assertEquals(expected.trimIndent(), dump().trimIndent())
@@ -38,7 +43,7 @@ class PatternNodeTest {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/3/public/android.jar' does not contain {version:level}",
+            "Pattern 'prebuilts/sdk/3/public/android.jar' does not contain placeholder for version",
             exception.message
         )
     }
@@ -47,13 +52,13 @@ class PatternNodeTest {
     fun `Invalid multiple API placeholders`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/{version:level}/public/android-{version:level}.jar",
+                "prebuilts/sdk/{version:level}/public/android-{version:major.minor?}.jar",
             )
 
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{version:level}/public/android-{version:level}.jar' contains more than one {version:level}",
+            "Pattern 'prebuilts/sdk/{version:level}/public/android-{version:major.minor?}.jar' contains multiple placeholders for version; found {version:level}, {version:major.minor?}",
             exception.message
         )
     }
@@ -68,7 +73,7 @@ class PatternNodeTest {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}'",
             exception.message
         )
     }
@@ -364,6 +369,40 @@ class PatternNodeTest {
                     File("prebuilts/sdk/32/public/android.jar"),
                     ApiVersion.fromLevel(32)
                 ),
+            )
+        assertEquals(expected, files)
+    }
+
+    /** Create a structure of versioned API files for testing. */
+    private fun createApiFileStructure(): File {
+        fun DirectoryBuilder.apiFile() = emptyFile("api.txt")
+        val rootDir = buildFileStructure {
+            dir("1") { apiFile() }
+            dir("1.1") { apiFile() }
+            dir("1.1.1") { apiFile() }
+            dir("2") { apiFile() }
+            dir("2.2") { apiFile() }
+            dir("2.2.3") { apiFile() }
+        }
+        return rootDir
+    }
+
+    @Test
+    fun `Scan for major minor`() {
+        val rootDir = createApiFileStructure()
+
+        val patterns =
+            listOf(
+                "{version:major.minor?}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val expected =
+            listOf(
+                MatchedPatternFile(File("1/api.txt"), ApiVersion.fromString("1")),
+                MatchedPatternFile(File("1.1/api.txt"), ApiVersion.fromString("1.1")),
+                MatchedPatternFile(File("2/api.txt"), ApiVersion.fromString("2")),
+                MatchedPatternFile(File("2.2/api.txt"), ApiVersion.fromString("2.2")),
             )
         assertEquals(expected, files)
     }
