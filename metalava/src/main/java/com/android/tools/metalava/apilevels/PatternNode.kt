@@ -45,7 +45,7 @@ sealed class PatternNode {
      *
      * Nodes are added in the order in which they should be checked.
      */
-    protected val children = mutableListOf<PatternNode>()
+    private val children = mutableListOf<PatternNode>()
 
     /**
      * Dump the contents of this node and return as a string.
@@ -78,8 +78,11 @@ sealed class PatternNode {
     /**
      * Get an existing child node that matches [child] or if none exist add [child] and return it.
      */
-    private fun getExistingOrAdd(child: PatternNode) =
-        children.find { it == child } ?: child.also { children.add(child) }
+    private fun getExistingOrAdd(child: PatternNode): PatternNode {
+        // The child node must be new without any children of its own.
+        require(child.children.isEmpty()) { "Cannot add $child as it has children of its own" }
+        return children.find { it == child } ?: child.also { children.add(child) }
+    }
 
     /** Configuration provided when scanning. */
     internal data class ScanConfig(
@@ -157,6 +160,18 @@ sealed class PatternNode {
         else children.asSequence().flatMap { it.scan(config, state) }
 
     /**
+     * Used by [getExistingOrAdd] to allow duplicate nodes to be ignored.
+     *
+     * This must not include [children] in the check as in [getExistingOrAdd] the existing
+     * [PatternNode]s being compared are likely to have a non-empty [children] list but the new
+     * [PatternNode] will have an empty [children] list.
+     */
+    abstract override fun equals(other: Any?): Boolean
+
+    /** Not currently used but should be implemented consistent with [equals]. */
+    abstract override fun hashCode(): Int
+
+    /**
      * The root [PatternNode].
      *
      * Just acts as a container for other [PatternNode]s.
@@ -169,6 +184,16 @@ sealed class PatternNode {
             state: PatternFileState
         ): Sequence<MatchedPatternFile> {
             return scanChildrenOrReturnMatching(config, state)
+        }
+
+        /** Root nodes are unique. */
+        override fun equals(other: Any?): Boolean {
+            return this === other
+        }
+
+        /** Root nodes are unique. */
+        override fun hashCode(): Int {
+            return System.identityHashCode(this)
         }
     }
 
@@ -213,6 +238,9 @@ sealed class PatternNode {
      * e.g. if [pattern] is `android-(\d+)` then when scanning/matching directory `bar`, this will
      * scan/match any file in that directory called `android-<version>`, e.g. `bar/android-1`,
      * `bar/android-2`, etc.
+     *
+     * This is a data class as it needs to implement [equals] and [hashCode] so that instances can
+     * be de-duped by [PatternNode.getExistingOrAdd].
      */
     private data class ApiVersionPatternNode(val pattern: String) : PatternNode() {
         override fun toString() = withDirectorySuffixIfHasChildren(pattern)
