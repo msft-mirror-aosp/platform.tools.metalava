@@ -23,6 +23,17 @@ import kotlin.test.assertTrue
 import org.junit.Assert
 
 class ApiToExtensionsMapTest {
+
+    /** Get the [ApiToExtensionsMap] instance for [jar] from [xml]. */
+    private fun fromXml(jar: String, xml: String) =
+        SdkExtensionInfo.fromXml(xml).extensionsMapForJarOrEmpty(jar)
+
+    /** Get an SDK version for [level]. */
+    private fun sdkVersion(level: Int) = ApiVersion.fromLevel(level)
+
+    /** Get an extension version for [level]. */
+    private fun extensionVersion(level: Int) = ExtVersion.fromLevel(level)
+
     @Test
     fun `empty input`() {
         val xml =
@@ -36,7 +47,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("no-module", xml)
+        val map = fromXml("no-module", xml)
 
         assertTrue(map.getExtensions("com.foo.Bar").isEmpty())
     }
@@ -53,7 +64,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
         assertEquals(map.getExtensions("com.foo.SomeOtherBar"), listOf("A"))
@@ -72,7 +83,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
         assertEquals(map.getExtensions("com.foo.Bar#FIELD"), listOf("A"))
@@ -80,8 +91,11 @@ class ApiToExtensionsMapTest {
         assertEquals(map.getExtensions("com.foo.Bar\$Inner"), listOf("A"))
         assertEquals(map.getExtensions("com.foo.Bar\$Inner\$InnerInner"), listOf("A"))
 
-        val clazz = ApiClass("com/foo/Bar", 1, false)
-        val method = ApiElement("method(Ljava.lang.String;I)V", 2, false)
+        val sdk1 = sdkVersion(1)
+        val sdk2 = sdkVersion(2)
+
+        val clazz = ApiClass("com/foo/Bar").apply { update(sdk1, false) }
+        val method = ApiElement("method(Ljava.lang.String;I)V").apply { update(sdk2, false) }
         assertEquals(map.getExtensions(clazz), listOf("A"))
         assertEquals(map.getExtensions(clazz, method), listOf("A"))
 
@@ -103,7 +117,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(listOf("A", "B", "FOO", "BAR"), map.getExtensions("com.foo.Bar"))
     }
@@ -126,7 +140,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(map.getExtensions("anything"), listOf("A"))
 
@@ -154,9 +168,9 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val allowListA = ApiToExtensionsMap.fromXml("foo", xml)
-        val allowListB = ApiToExtensionsMap.fromXml("bar", xml)
-        val allowListC = ApiToExtensionsMap.fromXml("baz", xml)
+        val allowListA = fromXml("foo", xml)
+        val allowListB = fromXml("bar", xml)
+        val allowListC = fromXml("baz", xml)
 
         assertEquals(allowListA.getExtensions("anything"), listOf("A"))
         assertEquals(allowListB.getExtensions("anything"), listOf("B"))
@@ -176,7 +190,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("foo", xml)
+        val map = fromXml("foo", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A", "B"))
     }
@@ -184,7 +198,7 @@ class ApiToExtensionsMapTest {
     @Test
     fun `bad input`() {
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -197,7 +211,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -214,7 +228,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -229,7 +243,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -244,7 +258,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -260,7 +274,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -275,7 +289,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -291,7 +305,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -307,7 +321,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -323,7 +337,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -339,7 +353,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -365,29 +379,77 @@ class ApiToExtensionsMapTest {
                 <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
                 <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
                 <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
-                <sdk shortname="FOO" name="FOO Extensions" id="1000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
-                <sdk shortname="BAR" name="BAR Extensions" id="1001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
+                <sdk shortname="FOO" name="FOO Extensions" id="1000000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
+                <sdk shortname="BAR" name="BAR Extensions" id="1000001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val filter = ApiToExtensionsMap.fromXml("mod", xml)
+        val filter = fromXml("mod", xml)
 
-        Assert.assertEquals("0:34", filter.calculateSdksAttr(34, 34, listOf(), ApiElement.NEVER))
+        val sdk21 = sdkVersion(21)
+        val sdk30 = sdkVersion(30)
+        val sdk31 = sdkVersion(31)
+        val sdk32 = sdkVersion(32)
+        val sdk33 = sdkVersion(33)
+        val sdk34 = sdkVersion(34)
+        val ext4 = extensionVersion(4)
 
-        Assert.assertEquals("30:4", filter.calculateSdksAttr(34, 34, listOf("R"), 4))
+        Assert.assertEquals("0:34", filter.calculateSdksAttr(sdk34, sdk34, listOf(), null))
 
-        Assert.assertEquals("30:4,31:4", filter.calculateSdksAttr(34, 34, listOf("R", "S"), 4))
-
-        Assert.assertEquals("30:4,31:4,0:33", filter.calculateSdksAttr(33, 34, listOf("R", "S"), 4))
+        Assert.assertEquals("30:4", filter.calculateSdksAttr(sdk34, sdk34, listOf("R"), ext4))
 
         Assert.assertEquals(
-            "30:4,31:4,1000:4,0:33",
-            filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO"), 4)
+            "30:4,31:4",
+            filter.calculateSdksAttr(sdk34, sdk34, listOf("R", "S"), ext4)
         )
 
         Assert.assertEquals(
-            "30:4,31:4,1000:4,1001:4,0:33",
-            filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO", "BAR"), 4)
+            "30:4,31:4,0:33",
+            filter.calculateSdksAttr(sdk33, sdk34, listOf("R", "S"), ext4)
         )
+
+        Assert.assertEquals(
+            "30:4,31:4,1000000:4,0:33",
+            filter.calculateSdksAttr(sdk33, sdk34, listOf("R", "S", "FOO"), ext4)
+        )
+
+        Assert.assertEquals(
+            "30:4,31:4,1000000:4,1000001:4,0:33",
+            filter.calculateSdksAttr(sdk33, sdk34, listOf("R", "S", "FOO", "BAR"), ext4)
+        )
+
+        // Make sure that if it was released in dessert released R (30) that it is reported as being
+        // in both the extension SDK included in R (30:4) and in R itself (0:30) but not in S or T.
+        Assert.assertEquals(
+            "30:4,0:30",
+            filter.calculateSdksAttr(sdk30, sdk34, listOf("R", "S"), ext4)
+        )
+
+        // Make sure that if it was released in dessert released S (31) that it is reported as being
+        // in both the extension SDK included in R (30:4), S (31:4) and in S itself (0:30) but not
+        // in T.
+        Assert.assertEquals(
+            "30:4,31:4,0:31",
+            filter.calculateSdksAttr(sdk31, sdk34, listOf("R", "S", "T"), ext4)
+        )
+
+        // Make sure that if it was released in dessert released S+ (32) that it is reported as
+        // being in both the extension SDK included in R (30:4), S (31:4) and in S itself (0:30) but
+        // not in T.
+        Assert.assertEquals(
+            "30:4,31:4,0:32",
+            filter.calculateSdksAttr(sdk32, sdk34, listOf("R", "S", "T"), ext4)
+        )
+
+        // Make sure that if it was released in dessert released T (33) that it is reported as being
+        // in both the extension SDK included in R (30:4), S (31:4), T (33:4) and T itself.
+        Assert.assertEquals(
+            "30:4,31:4,33:4,0:33",
+            filter.calculateSdksAttr(sdk33, sdk34, listOf("R", "S", "T"), ext4)
+        )
+
+        // Make sure that if it was released in dessert release before R (21) that it is not
+        // reported as being in any sdks; it will just have `since="21"`.
+        Assert.assertEquals("", filter.calculateSdksAttr(sdk21, sdk34, listOf("R", "S"), ext4))
     }
 }

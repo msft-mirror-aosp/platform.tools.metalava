@@ -16,93 +16,90 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.VisitCandidate
-import com.intellij.util.containers.Stack
-import java.util.function.Predicate
 
 /**
  * Visitor which visits all items in two matching codebases and matches up the items and invokes
- * [compare] on each pair, or [added] or [removed] when items are not matched
+ * [compareItems] on each pair, or [addedItem] or [removedItem] when items are not matched
  */
-open class ComparisonVisitor(
-    /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
-     */
-    val visitConstructorsAsMethods: Boolean = true,
-    /**
-     * Normally if a new item is found, the visitor will only visit the top level newly added item,
-     * not all of its children. This flags enables you to request all individual items to also be
-     * visited.
-     */
-    val visitAddedItemsRecursively: Boolean = false
-) {
-    open fun compare(old: Item, new: Item) {}
+open class ComparisonVisitor {
+    open fun compareItems(old: Item, new: Item) {}
 
-    open fun added(new: Item) {}
+    open fun addedItem(new: SelectableItem) {}
 
-    open fun removed(old: Item, from: Item?) {}
+    open fun removedItem(old: SelectableItem, from: SelectableItem?) {}
 
-    open fun compare(old: PackageItem, new: PackageItem) {}
+    open fun comparePackageItems(old: PackageItem, new: PackageItem) {}
 
-    open fun compare(old: ClassItem, new: ClassItem) {}
+    open fun compareClassItems(old: ClassItem, new: ClassItem) {}
 
-    open fun compare(old: ConstructorItem, new: ConstructorItem) {}
+    open fun compareCallableItems(old: CallableItem, new: CallableItem) {}
 
-    open fun compare(old: MethodItem, new: MethodItem) {}
+    open fun compareConstructorItems(old: ConstructorItem, new: ConstructorItem) {}
 
-    open fun compare(old: FieldItem, new: FieldItem) {}
+    open fun compareMethodItems(old: MethodItem, new: MethodItem) {}
 
-    open fun compare(old: PropertyItem, new: PropertyItem) {}
+    open fun compareFieldItems(old: FieldItem, new: FieldItem) {}
 
-    open fun compare(old: ParameterItem, new: ParameterItem) {}
+    open fun comparePropertyItems(old: PropertyItem, new: PropertyItem) {}
 
-    open fun added(new: PackageItem) {}
+    open fun compareParameterItems(old: ParameterItem, new: ParameterItem) {}
 
-    open fun added(new: ClassItem) {}
+    open fun addedPackageItem(new: PackageItem) {}
 
-    open fun added(new: ConstructorItem) {}
+    open fun addedClassItem(new: ClassItem) {}
 
-    open fun added(new: MethodItem) {}
+    open fun addedCallableItem(new: CallableItem) {}
 
-    open fun added(new: FieldItem) {}
+    open fun addedConstructorItem(new: ConstructorItem) {}
 
-    open fun added(new: PropertyItem) {}
+    open fun addedMethodItem(new: MethodItem) {}
 
-    open fun added(new: ParameterItem) {}
+    open fun addedFieldItem(new: FieldItem) {}
 
-    open fun removed(old: PackageItem, from: Item?) {}
+    open fun addedPropertyItem(new: PropertyItem) {}
 
-    open fun removed(old: ClassItem, from: Item?) {}
+    open fun removedPackageItem(old: PackageItem, from: PackageItem?) {}
 
-    open fun removed(old: ConstructorItem, from: ClassItem?) {}
+    open fun removedClassItem(old: ClassItem, from: SelectableItem) {}
 
-    open fun removed(old: MethodItem, from: ClassItem?) {}
+    open fun removedCallableItem(old: CallableItem, from: ClassItem) {}
 
-    open fun removed(old: FieldItem, from: ClassItem?) {}
+    open fun removedConstructorItem(old: ConstructorItem, from: ClassItem) {}
 
-    open fun removed(old: PropertyItem, from: ClassItem?) {}
+    open fun removedMethodItem(old: MethodItem, from: ClassItem) {}
 
-    open fun removed(old: ParameterItem, from: MethodItem?) {}
+    open fun removedFieldItem(old: FieldItem, from: ClassItem) {}
+
+    open fun removedPropertyItem(old: PropertyItem, from: ClassItem) {}
 }
 
-class CodebaseComparator(
-    @Suppress("DEPRECATION")
-    private val apiVisitorConfig: ApiVisitor.Config = options.apiVisitorConfig,
-) {
+/** Simple stack type built on top of an [ArrayList]. */
+private typealias Stack<E> = ArrayList<E>
+
+private fun <E> Stack<E>.push(e: E) {
+    add(e)
+}
+
+private fun <E> Stack<E>.pop(): E = removeAt(lastIndex)
+
+private fun <E> Stack<E>.peek(): E = last()
+
+class CodebaseComparator {
     /**
      * Visits this codebase and compares it with another codebase, informing the visitors about the
      * correlations and differences that it finds
@@ -111,7 +108,7 @@ class CodebaseComparator(
         visitor: ComparisonVisitor,
         old: Codebase,
         new: Codebase,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ) {
         // Algorithm: build up two trees (by nesting level); then visit the
         // two trees
@@ -130,7 +127,7 @@ class CodebaseComparator(
         visitor: ComparisonVisitor,
         old: MergedCodebase,
         new: MergedCodebase,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ) {
         // Algorithm: build up two trees (by nesting level); then visit the
         // two trees
@@ -149,9 +146,9 @@ class CodebaseComparator(
         visitor: ComparisonVisitor,
         oldList: List<ItemTree>,
         newList: List<ItemTree>,
-        newParent: Item?,
-        oldParent: Item?,
-        filter: Predicate<Item>?
+        newParent: SelectableItem?,
+        oldParent: SelectableItem?,
+        filter: FilterPredicate?
     ) {
         // Debugging tip: You can print out a tree like this: ItemTree.prettyPrint(list)
         var index1 = 0
@@ -173,25 +170,43 @@ class CodebaseComparator(
                         compare > 0 -> {
                             index2++
                             if (new.emit) {
-                                visitAdded(new, oldParent, visitor, newTree, filter)
+                                dispatchToAddedOrCompareIfItemWasMoved(
+                                    new,
+                                    oldParent,
+                                    visitor,
+                                )
                             }
                         }
                         compare < 0 -> {
                             index1++
                             if (old.emit) {
-                                visitRemoved(old, oldTree, visitor, newParent, filter)
+                                dispatchToRemovedOrCompareIfItemWasMoved(
+                                    old,
+                                    visitor,
+                                    newParent,
+                                    filter,
+                                )
                             }
                         }
                         else -> {
                             if (new.emit) {
                                 if (old.emit) {
-                                    visitCompare(visitor, old, new)
+                                    dispatchToCompare(visitor, old, new)
                                 } else {
-                                    visitAdded(new, oldParent, visitor, newTree, filter)
+                                    dispatchToAddedOrCompareIfItemWasMoved(
+                                        new,
+                                        oldParent,
+                                        visitor,
+                                    )
                                 }
                             } else {
                                 if (old.emit) {
-                                    visitRemoved(old, oldTree, visitor, newParent, filter)
+                                    dispatchToRemovedOrCompareIfItemWasMoved(
+                                        old,
+                                        visitor,
+                                        newParent,
+                                        filter,
+                                    )
                                 }
                             }
 
@@ -214,7 +229,12 @@ class CodebaseComparator(
                     while (index1 < length1) {
                         val oldTree = oldList[index1++]
                         val old = oldTree.item()
-                        visitRemoved(old, oldTree, visitor, newParent, filter)
+                        dispatchToRemovedOrCompareIfItemWasMoved(
+                            old,
+                            visitor,
+                            newParent,
+                            filter,
+                        )
                     }
                 }
             } else if (index2 < length2) {
@@ -223,7 +243,7 @@ class CodebaseComparator(
                     val newTree = newList[index2++]
                     val new = newTree.item()
 
-                    visitAdded(new, oldParent, visitor, newTree, filter)
+                    dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor)
                 }
             } else {
                 break
@@ -231,12 +251,33 @@ class CodebaseComparator(
         }
     }
 
-    private fun visitAdded(
-        new: Item,
-        oldParent: Item?,
+    /**
+     * Dispatch calls to [ComparisonVisitor.compareParameterItems] for each pair of [ParameterItem]s
+     * in [oldParameters] and [newParameters].
+     *
+     * The [oldParameters] and [newParameters] are guaranteed to have the same number of parameters
+     * as they come from two [MethodItem]s that compare equal according to [comparator].
+     */
+    private fun dispatchCompareParameters(
         visitor: ComparisonVisitor,
-        newTree: ItemTree,
-        filter: Predicate<Item>?
+        oldParameters: List<ParameterItem>,
+        newParameters: List<ParameterItem>,
+    ) {
+        require(oldParameters.size == newParameters.size)
+        for ((oldParameter, newParameter) in oldParameters.zip(newParameters)) {
+            visitor.compareItems(oldParameter, newParameter)
+            visitor.compareParameterItems(oldParameter, newParameter)
+        }
+    }
+
+    /**
+     * Checks to see whether [new] has actually been added or if it was just moved from elsewhere
+     * and dispatch to the appropriate method.
+     */
+    private fun dispatchToAddedOrCompareIfItemWasMoved(
+        new: SelectableItem,
+        oldParent: SelectableItem?,
+        visitor: ComparisonVisitor,
     ) {
         // If it's a method, we may not have added a new method,
         // we may simply have inherited it previously and overriding
@@ -256,63 +297,40 @@ class CodebaseComparator(
             }
 
         if (inherited != null) {
-            visitCompare(visitor, inherited, new)
-            // Compare the children (recurse)
-            if (inherited.parameters().isNotEmpty()) {
-                val parameters = inherited.parameters().map { ItemTree(it) }.toList()
-                compare(visitor, parameters, newTree.children, newTree.item(), inherited, filter)
-            }
+            dispatchToCompare(visitor, inherited, new)
         } else {
-            visitAdded(visitor, new)
+            dispatchToAdded(visitor, new)
         }
     }
 
-    private fun visitAdded(visitor: ComparisonVisitor, new: Item) {
-        if (visitor.visitAddedItemsRecursively) {
-            new.accept(
-                object : ApiVisitor() {
-                    override fun visitItem(item: Item) {
-                        doVisitAdded(visitor, item)
-                    }
-                }
-            )
-        } else {
-            doVisitAdded(visitor, new)
-        }
-    }
+    /** Dispatch to the [Item] specific `added(...)` method. */
+    private fun dispatchToAdded(visitor: ComparisonVisitor, item: SelectableItem) {
+        visitor.addedItem(item)
 
-    @Suppress(
-        "USELESS_CAST"
-    ) // Overloaded visitor methods: be explicit about which one is being invoked
-    private fun doVisitAdded(visitor: ComparisonVisitor, item: Item) {
-        visitor.added(item)
+        if (item is CallableItem) {
+            visitor.addedCallableItem(item)
+        }
 
         when (item) {
-            is PackageItem -> visitor.added(item)
-            is ClassItem -> visitor.added(item)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.added(item)
-                } else {
-                    if (item is ConstructorItem) {
-                        visitor.added(item as ConstructorItem)
-                    } else {
-                        visitor.added(item as MethodItem)
-                    }
-                }
-            }
-            is FieldItem -> visitor.added(item)
-            is ParameterItem -> visitor.added(item)
-            is PropertyItem -> visitor.added(item)
+            is PackageItem -> visitor.addedPackageItem(item)
+            is ClassItem -> visitor.addedClassItem(item)
+            is ConstructorItem -> visitor.addedConstructorItem(item)
+            is MethodItem -> visitor.addedMethodItem(item)
+            is FieldItem -> visitor.addedFieldItem(item)
+            is PropertyItem -> visitor.addedPropertyItem(item)
+            else -> error("unexpected addition of $item")
         }
     }
 
-    private fun visitRemoved(
-        old: Item,
-        oldTree: ItemTree,
+    /**
+     * Checks to see whether [old] has actually been removed or if it was just moved from elsewhere
+     * and dispatch to the appropriate method.
+     */
+    private fun dispatchToRemovedOrCompareIfItemWasMoved(
+        old: SelectableItem,
         visitor: ComparisonVisitor,
-        newParent: Item?,
-        filter: Predicate<Item>?
+        newParent: SelectableItem?,
+        filter: FilterPredicate?
     ) {
         // If it's a method, we may not have removed the method, we may have simply
         // removed an override and are now inheriting the method from a superclass.
@@ -320,7 +338,7 @@ class CodebaseComparator(
         // class was hidden then the signature file may have listed the method as being
         // declared on the subclass
         val inheritedMethod =
-            if (old is MethodItem && !old.isConstructor() && newParent is ClassItem) {
+            if (old is MethodItem && newParent is ClassItem) {
                 val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
 
                 if (superMethod != null && (filter == null || filter.test(superMethod))) {
@@ -333,19 +351,7 @@ class CodebaseComparator(
             }
 
         if (inheritedMethod != null) {
-            visitCompare(visitor, old, inheritedMethod)
-            // Compare the children (recurse)
-            if (inheritedMethod.parameters().isNotEmpty()) {
-                val parameters = inheritedMethod.parameters().map { ItemTree(it) }.toList()
-                compare(
-                    visitor,
-                    oldTree.children,
-                    parameters,
-                    oldTree.item(),
-                    inheritedMethod,
-                    filter
-                )
-            }
+            dispatchToCompare(visitor, old, inheritedMethod)
             return
         }
 
@@ -369,82 +375,81 @@ class CodebaseComparator(
             }
 
         if (inheritedField != null) {
-            visitCompare(visitor, old, inheritedField)
+            dispatchToCompare(visitor, old, inheritedField)
             return
         }
-        visitRemoved(visitor, old, newParent)
+        dispatchToRemoved(visitor, old, newParent)
     }
 
-    @Suppress(
-        "USELESS_CAST"
-    ) // Overloaded visitor methods: be explicit about which one is being invoked
-    private fun visitRemoved(visitor: ComparisonVisitor, item: Item, from: Item?) {
-        visitor.removed(item, from)
+    /** Dispatch to the [Item] specific `removed(...)` method. */
+    private fun dispatchToRemoved(
+        visitor: ComparisonVisitor,
+        item: SelectableItem,
+        from: SelectableItem?
+    ) {
+        visitor.removedItem(item, from)
+
+        if (item is CallableItem) {
+            visitor.removedCallableItem(item, from as ClassItem)
+        }
 
         when (item) {
-            is PackageItem -> visitor.removed(item, from)
-            is ClassItem -> visitor.removed(item, from)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.removed(item, from as ClassItem?)
-                } else {
-                    if (item is ConstructorItem) {
-                        visitor.removed(item as ConstructorItem, from as ClassItem?)
-                    } else {
-                        visitor.removed(item as MethodItem, from as ClassItem?)
-                    }
-                }
-            }
-            is FieldItem -> visitor.removed(item, from as ClassItem?)
-            is ParameterItem -> visitor.removed(item, from as MethodItem?)
-            is PropertyItem -> visitor.removed(item, from as ClassItem?)
+            is PackageItem -> visitor.removedPackageItem(item, from as PackageItem?)
+            is ClassItem -> visitor.removedClassItem(item, from as SelectableItem)
+            is ConstructorItem -> visitor.removedConstructorItem(item, from as ClassItem)
+            is MethodItem -> visitor.removedMethodItem(item, from as ClassItem)
+            is FieldItem -> visitor.removedFieldItem(item, from as ClassItem)
+            is PropertyItem -> visitor.removedPropertyItem(item, from as ClassItem)
+            else -> error("unexpected removal of $item")
         }
     }
 
-    @Suppress(
-        "USELESS_CAST"
-    ) // Overloaded visitor methods: be explicit about which one is being invoked
-    private fun visitCompare(visitor: ComparisonVisitor, old: Item, new: Item) {
-        visitor.compare(old, new)
+    /** Dispatch to the [Item] specific `compare(...)` method. */
+    private fun dispatchToCompare(
+        visitor: ComparisonVisitor,
+        old: SelectableItem,
+        new: SelectableItem
+    ) {
+        visitor.compareItems(old, new)
+
+        if (old is CallableItem) {
+            visitor.compareCallableItems(old, new as CallableItem)
+        }
 
         when (old) {
-            is PackageItem -> visitor.compare(old, new as PackageItem)
-            is ClassItem -> visitor.compare(old, new as ClassItem)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.compare(old, new as MethodItem)
-                } else {
-                    if (old is ConstructorItem) {
-                        visitor.compare(old as ConstructorItem, new as MethodItem)
-                    } else {
-                        visitor.compare(old as MethodItem, new as MethodItem)
-                    }
-                }
-            }
-            is FieldItem -> visitor.compare(old, new as FieldItem)
-            is ParameterItem -> visitor.compare(old, new as ParameterItem)
-            is PropertyItem -> visitor.compare(old, new as PropertyItem)
+            is PackageItem -> visitor.comparePackageItems(old, new as PackageItem)
+            is ClassItem -> visitor.compareClassItems(old, new as ClassItem)
+            is ConstructorItem -> visitor.compareConstructorItems(old, new as ConstructorItem)
+            is MethodItem -> visitor.compareMethodItems(old, new as MethodItem)
+            is FieldItem -> visitor.compareFieldItems(old, new as FieldItem)
+            is PropertyItem -> visitor.comparePropertyItems(old, new as PropertyItem)
+            else -> error("unexpected comparison of $old and $new")
+        }
+
+        // If this is comparing two [CallableItem]s then compare their [ParameterItem]s too.
+        if (old is CallableItem) {
+            dispatchCompareParameters(visitor, old.parameters(), (new as CallableItem).parameters())
         }
     }
 
-    private fun compare(item1: Item, item2: Item): Int = comparator.compare(item1, item2)
+    private fun compare(item1: SelectableItem, item2: SelectableItem): Int =
+        comparator.compare(item1, item2)
 
     companion object {
         /** Sorting rank for types */
         private fun typeRank(item: Item): Int {
             return when (item) {
                 is PackageItem -> 0
-                is MethodItem -> if (item.isConstructor()) 1 else 2
+                is ConstructorItem -> 1
+                is MethodItem -> 2
                 is FieldItem -> 3
                 is ClassItem -> 4
-                is ParameterItem -> 5
-                is AnnotationItem -> 6
-                is PropertyItem -> 7
-                else -> 8
+                is PropertyItem -> 5
+                else -> error("Unexpected item $item of ${item.javaClass}")
             }
         }
 
-        val comparator: Comparator<Item> = Comparator { item1, item2 ->
+        val comparator: Comparator<SelectableItem> = Comparator { item1, item2 ->
             val typeSort = typeRank(item1) - typeRank(item2)
             when {
                 typeSort != 0 -> typeSort
@@ -457,13 +462,13 @@ class CodebaseComparator(
                         is ClassItem -> {
                             item1.qualifiedName().compareTo((item2 as ClassItem).qualifiedName())
                         }
-                        is MethodItem -> {
+                        is CallableItem -> {
                             // Try to incrementally match aspects of the method until you can
                             // conclude
                             // whether they are the same or different.
                             // delta is 0 when the methods are the same, else not 0
                             // Start by comparing the names
-                            var delta = item1.name().compareTo((item2 as MethodItem).name())
+                            var delta = item1.name().compareTo((item2 as CallableItem).name())
                             if (delta == 0) {
                                 // If the names are the same then compare the number of parameters
                                 val parameters1 = item1.parameters()
@@ -477,10 +482,8 @@ class CodebaseComparator(
                                     for (i in 0 until parameterCount1) {
                                         val parameter1 = parameters1[i]
                                         val parameter2 = parameters2[i]
-                                        val type1 =
-                                            parameter1.type().toTypeString(context = parameter1)
-                                        val type2 =
-                                            parameter2.type().toTypeString(context = parameter2)
+                                        val type1 = parameter1.type().toTypeString()
+                                        val type2 = parameter2.type().toTypeString()
                                         delta = type1.compareTo(type2)
                                         if (delta != 0) {
                                             // If the parameter types aren't the same, try a little
@@ -491,10 +494,8 @@ class CodebaseComparator(
                                             //      signatures since older signature files may have
                                             // removed
                                             //      those
-                                            val simpleType1 =
-                                                parameter1.type().toCanonicalType(parameter1)
-                                            val simpleType2 =
-                                                parameter2.type().toCanonicalType(parameter2)
+                                            val simpleType1 = parameter1.type().toCanonicalType()
+                                            val simpleType2 = parameter2.type().toCanonicalType()
                                             delta = simpleType1.compareTo(simpleType2)
                                             if (delta != 0) {
                                                 // If still not the same, check the special case for
@@ -536,20 +537,10 @@ class CodebaseComparator(
                         is FieldItem -> {
                             item1.name().compareTo((item2 as FieldItem).name())
                         }
-                        is ParameterItem -> {
-                            item1.parameterIndex.compareTo((item2 as ParameterItem).parameterIndex)
-                        }
-                        is AnnotationItem -> {
-                            (item1.qualifiedName ?: "").compareTo(
-                                (item2 as AnnotationItem).qualifiedName ?: ""
-                            )
-                        }
                         is PropertyItem -> {
                             item1.name().compareTo((item2 as PropertyItem).name())
                         }
-                        else -> {
-                            error("Unexpected item type ${item1.javaClass}")
-                        }
+                        else -> error("Unexpected item $item1 of ${item1.javaClass}")
                     }
             }
         }
@@ -600,18 +591,18 @@ class CodebaseComparator(
 
     private fun createTree(
         codebase: MergedCodebase,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ): List<ItemTree> {
         return createTree(codebase.children, filter)
     }
 
-    private fun createTree(codebase: Codebase, filter: Predicate<Item>? = null): List<ItemTree> {
+    private fun createTree(codebase: Codebase, filter: FilterPredicate? = null): List<ItemTree> {
         return createTree(listOf(codebase), filter)
     }
 
     private fun createTree(
         codebases: List<Codebase>,
-        filter: Predicate<Item>? = null
+        filter: FilterPredicate? = null
     ): List<ItemTree> {
         val stack = Stack<ItemTree>()
         val root = ItemTree(null)
@@ -619,14 +610,17 @@ class CodebaseComparator(
 
         for (codebase in codebases) {
             val acceptAll = codebase.preFiltered || filter == null
-            val predicate = if (acceptAll) Predicate { true } else filter!!
+            val predicate = if (acceptAll) FilterPredicate { true } else filter!!
+            val apiFilters = ApiFilters(emit = predicate, reference = predicate)
             codebase.accept(
                 object :
                     ApiVisitor(
-                        nestInnerClasses = true,
+                        preserveClassNesting = true,
+                        // Do not visit [ParameterItem]s, as they will be compared in
+                        // [dispatchToCompare].
+                        visitParameterItems = false,
                         inlineInheritedFields = true,
-                        filterEmit = predicate,
-                        filterReference = predicate,
+                        apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
                         // --check-compatibility:api:released $oldApi",
                         // really what they mean is:
@@ -641,9 +635,15 @@ class CodebaseComparator(
                         // So, when doing compatibility checking we want to consider public APIs
                         // even if the caller didn't explicitly pass --show-unannotated
                         showUnannotated = true,
-                        config = apiVisitorConfig,
                     ) {
-                    override fun visitItem(item: Item) {
+
+                    /**
+                     * Construct an [ItemTree] for [item] and push it onto the stack.
+                     *
+                     * This will not be called for [ParameterItem]s as it is not a [SelectableItem]
+                     * and they are compared when comparing callables in [dispatchToCompare].
+                     */
+                    override fun visitSelectableItem(item: SelectableItem) {
                         val node = ItemTree(item)
                         val parent = stack.peek()
                         parent.children += node
@@ -655,12 +655,13 @@ class CodebaseComparator(
                         if (acceptAll) true else super.include(cls)
 
                     /**
-                     * Include all classes in the tree, even implicitly defined classes (such as
-                     * containing classes)
+                     * Pop the [ItemTree] for [item] constructed in [visitSelectableItem] off the
+                     * stack.
+                     *
+                     * This will not be called for [ParameterItem]s as it is not a [SelectableItem]
+                     * and they are compared when comparing callables in [dispatchToCompare].
                      */
-                    override fun shouldEmitClass(vc: VisitCandidate): Boolean = true
-
-                    override fun afterVisitItem(item: Item) {
+                    override fun afterVisitSelectableItem(item: SelectableItem) {
                         stack.pop()
                     }
                 }
@@ -677,10 +678,10 @@ class CodebaseComparator(
         return root.children
     }
 
-    data class ItemTree(val item: Item?) : Comparable<ItemTree> {
+    data class ItemTree(val item: SelectableItem?) : Comparable<ItemTree> {
         val children: MutableList<ItemTree> = mutableListOf()
 
-        fun item(): Item =
+        fun item(): SelectableItem =
             item!! // Only the root note can be null, and this method should never be called on it
 
         override fun compareTo(other: ItemTree): Int {

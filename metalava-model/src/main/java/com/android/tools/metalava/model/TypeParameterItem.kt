@@ -17,16 +17,58 @@
 package com.android.tools.metalava.model
 
 @MetalavaApi
-interface TypeParameterItem : ClassItem {
-    @Deprecated(
-        message = "Please use typeBounds() instead.",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
-    )
-    @MetalavaApi
-    fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
+interface TypeParameterItem {
+    val codebase: Codebase
 
-    fun typeBounds(): List<TypeItem>
+    /** Return the modifiers of this class */
+    @MetalavaApi val modifiers: ModifierList
+
+    /** The name of the type parameter. */
+    fun name(): String
+
+    /** The [VariableTypeItem] representing the type of this type parameter. */
+    fun type(): VariableTypeItem
+
+    fun typeBounds(): List<BoundsTypeItem>
+
+    /**
+     * Get the erased type of this, i.e. the type that would be used at runtime to represent
+     * something of this type. That is either the first bound (the super class) or
+     * `java.lang.Object` if there are no bounds.
+     */
+    fun asErasedType(): BoundsTypeItem? =
+        typeBounds().firstOrNull() ?: codebase.resolveClass(JAVA_LANG_OBJECT)?.type()
 
     fun isReified(): Boolean
+
+    fun toSource(): String {
+        return buildString {
+            if (isReified()) {
+                append("reified ")
+            }
+            append(name())
+            // If the only bound is Object, omit it because it is implied.
+            if (
+                typeBounds().isNotEmpty() && typeBounds().singleOrNull()?.isJavaLangObject() != true
+            ) {
+                append(" extends ")
+                var first = true
+                for (bound in typeBounds()) {
+                    if (!first) {
+                        append(" ")
+                        append("&")
+                        append(" ")
+                    }
+                    first = false
+                    append(bound.toTypeString(SOURCE_TYPE_STRING_CONFIGURATION))
+                }
+            }
+        }
+    }
+
+    companion object {
+        /** [TypeStringConfiguration] for use by [toSource]. */
+        private val SOURCE_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(spaceBetweenParameters = true)
+    }
 }

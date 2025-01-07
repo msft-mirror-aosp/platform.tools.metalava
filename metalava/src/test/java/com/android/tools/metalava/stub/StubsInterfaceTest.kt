@@ -16,11 +16,9 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
-import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -277,12 +275,12 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass extends test.pkg.PublicSuperParent implements test.pkg.PublicInterface, test.pkg.PublicInterface2 {
                 public MyClass() { throw new RuntimeException("Stub!"); }
+                public void inheritedMethod2() { throw new RuntimeException("Stub!"); }
                 public void myMethod() { throw new RuntimeException("Stub!"); }
+                public void publicInterfaceMethod() { throw new RuntimeException("Stub!"); }
                 public void publicInterfaceMethod2() { throw new RuntimeException("Stub!"); }
                 public void publicMethod() { throw new RuntimeException("Stub!"); }
                 public void publicMethod2() { throw new RuntimeException("Stub!"); }
-                public void publicInterfaceMethod() { throw new RuntimeException("Stub!"); }
-                public void inheritedMethod2() { throw new RuntimeException("Stub!"); }
                 public static final int MY_CONSTANT = 5; // 0x5
                 }
                 """
@@ -305,10 +303,12 @@ class StubsInterfaceTest : AbstractStubsTest() {
 
                     @SuppressWarnings({"RedundantThrows", "WeakerAccess"})
                     public class Generics {
+                        @SuppressWarnings("HiddenSuperclass") // HiddenParent is not public
                         public class MyClass<X, Y extends Number> extends HiddenParent<X, Y> implements PublicInterface<X, Y> {
                         }
 
                         class HiddenParent<M, N extends Number> extends PublicParent<M, N> {
+                            @SuppressWarnings("ReferencesHidden") // MyThrowable is not public
                             public Map<M, Map<N, String>> createMap(List<M> list) throws MyThrowable {
                                 return null;
                             }
@@ -387,8 +387,8 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static interface PublicInterface<A, B> {
@@ -454,7 +454,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         """
                     package android.content.res;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser,  android.util.AttributeSet, java.lang.AutoCloseable {
+                    public interface XmlResourceParser extends android.util.AttributeSet, java.lang.AutoCloseable, org.xmlpull.v1.XmlPullParser {
                     public void close();
                     }
                     """
@@ -491,38 +491,6 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 }
                 """,
             checkTextStubEquivalence = true
-        )
-    }
-
-    @Test
-    fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
-        check(
-            extraArguments = arrayOf(ARG_KOTLIN_STUBS),
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    class MainClass: MyParentClass(), MyInterface1, MyInterface2
-
-                    open class MyParentClass
-                    interface MyInterface1
-                    interface MyInterface2
-                """
-                    )
-                ),
-            stubFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        @file:Suppress("ALL")
-                        class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                        open fun MainClass(): test.pkg.MainClass! = error("Stub!")
-                        }
-                    """
-                    )
-                )
         )
     }
 

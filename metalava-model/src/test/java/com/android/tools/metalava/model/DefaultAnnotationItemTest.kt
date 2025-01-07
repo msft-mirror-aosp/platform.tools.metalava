@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.CodebaseAssembler
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.PackageDoc
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -25,29 +28,32 @@ import org.junit.Test
 class DefaultAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
-        object : DefaultCodebase(File("").canonicalFile, "", false, noOpAnnotationManager) {
-            override fun supportsDocumentation(): Boolean = false
+        DefaultCodebase(
+            location = File("").canonicalFile,
+            description = "",
+            preFiltered = false,
+            config = Codebase.Config.NOOP,
+            trustedApi = false,
+            supportsDocumentation = false,
+            assembler =
+                object : CodebaseAssembler {
+                    override fun createPackageItem(
+                        packageName: String,
+                        packageDoc: PackageDoc,
+                        containingPackage: PackageItem?,
+                    ) = error("unsupported")
 
-            override fun getPackages(): PackageList = unsupported()
+                    override fun createClassFromUnderlyingModel(qualifiedName: String) = null
+                },
+        )
 
-            override fun size(): Int = unsupported()
-
-            override fun findClass(className: String): ClassItem? = unsupported()
-
-            override fun findPackage(pkgName: String): PackageItem? = unsupported()
-
-            override fun trustedApi(): Boolean = false
-
-            override fun createAnnotation(
-                source: String,
-                context: Item?,
-            ): AnnotationItem = unsupported()
-        }
+    private fun createDefaultAnnotationItem(source: String) =
+        DefaultAnnotationItem.create(placeholderCodebase, source)
+            ?: error("Could not create annotation from: '$source'")
 
     @Test
     fun testSimple() {
-        val annotation =
-            DefaultAnnotationItem.create(placeholderCodebase, "@androidx.annotation.Nullable")
+        val annotation = createDefaultAnnotationItem("@androidx.annotation.Nullable")
         assertEquals("@androidx.annotation.Nullable", annotation.toSource())
         assertEquals("androidx.annotation.Nullable", annotation.qualifiedName)
         assertTrue(annotation.attributes.isEmpty())
@@ -56,10 +62,7 @@ class DefaultAnnotationItemTest {
     @Test
     fun testIntRange() {
         val annotation =
-            DefaultAnnotationItem.create(
-                placeholderCodebase,
-                "@androidx.annotation.IntRange(from = 20, to = 40)"
-            )
+            createDefaultAnnotationItem("@androidx.annotation.IntRange(from = 20, to = 40)")
         assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
@@ -72,8 +75,7 @@ class DefaultAnnotationItemTest {
     @Test
     fun testIntDef() {
         val annotation =
-            DefaultAnnotationItem.create(
-                placeholderCodebase,
+            createDefaultAnnotationItem(
                 "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})"
             )
         assertEquals(

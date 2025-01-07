@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.DefaultReporter
-import com.android.tools.metalava.ReporterEnvironment
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -38,20 +37,26 @@ Issue Reporting:
   See `metalava help issues` for more help including a table of the available issues and their category and default
   severity.
 
-  --error <id>                               Report issues of the given id as errors
-  --warning <id>                             Report issues of the given id as warnings
-  --lint <id>                                Report issues of the given id as having lint-severity
-  --hide <id>                                Hide/skip issues of the given id
-  --error-category <name>                    Report all issues in the given category as errors
-  --warning-category <name>                  Report all issues in the given category as warnings
-  --lint-category <name>                     Report all issues in the given category as having lint-severity
-  --hide-category <name>                     Hide/skip all issues in the given category
+  --error <id>                               Report issues of the given id as errors.
+  --error-when-new <id>                      Report issues of the given id as warnings in existing code and errors in
+                                             new code. The latter behavior relies on infrastructure that handles
+                                             checking changes to the code detecting the (ErrorWhenNew) text in the
+                                             output and preventing the change from being made.
+  --warning <id>                             Report issues of the given id as warnings.
+  --hide <id>                                Hide/skip issues of the given id.
+  --error-category <name>                    Report all issues in the given category as errors.
+  --error-when-new-category <name>           Report all issues in the given category as errors-when-new.
+  --warning-category <name>                  Report all issues in the given category as warnings.
+  --hide-category <name>                     Hide/skip all issues in the given category.
+  --warnings-as-errors                       Promote all warnings to errors.
+  --report-even-if-suppressed <file>         Write all issues into the given file, even if suppressed (via annotation or
+                                             baseline) but not if hidden (by '--hide' or '--hide-category').
   --repeat-errors-max <n>                    When specified, repeat at most N errors before finishing. (default: 0)
     """
         .trimIndent()
 
 /**
- * JUnit [TestRule] that will intercept calls to [DefaultReporter.reportPrinter], save them into a
+ * JUnit [TestRule] that will intercept calls to [ReporterEnvironment.printReport], save them into a
  * couple of buffers and then allow the test to verify them. If there are any unverified errors then
  * the test will fail. The other issues will only be verified when requested.
  */
@@ -122,8 +127,6 @@ class IssueReportingOptionsTest :
         runTest(
             "--hide",
             "StartWithLower",
-            "--lint",
-            "EndsWithImpl",
             "--warning",
             "StartWithUpper",
             "--error",
@@ -132,7 +135,6 @@ class IssueReportingOptionsTest :
             val issueConfiguration = options.issueConfiguration
 
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
-            assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
             assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
         }
@@ -164,6 +166,9 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options with case insensitive names`() {
         runTest("--hide", "arrayreturn") {
+            // Write any saved reports.
+            options.bootstrapReporter.writeSavedReports()
+
             reportCollector.verifyAll(
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
             )
@@ -210,6 +215,9 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options can affect issues related to processing the options`() {
         runTest("--error", "DeprecatedOption", "--hide", "arrayreturn") {
+            // Write any saved reports.
+            options.bootstrapReporter.writeSavedReports()
+
             reportCollector.verifyErrors(
                 "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]\n"
             )
@@ -217,6 +225,44 @@ class IssueReportingOptionsTest :
             val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.DEPRECATED_OPTION))
+        }
+    }
+
+    @Test
+    fun `Test issue category`() {
+        runTest(ARG_HIDE_CATEGORY, "Compatibility") {
+            assertEquals("", stdout)
+            assertEquals("", stderr)
+
+            // Make sure that there were no reported issues.
+            options.bootstrapReporter.writeSavedReports()
+            reportCollector.verifyErrors("")
+
+            // Make sure the two issues both default to warning.
+            val defaults = IssueConfiguration()
+            assertEquals(Severity.ERROR, defaults.getSeverity(Issues.ADD_SEALED))
+            assertEquals(Severity.ERROR, defaults.getSeverity(Issues.CHANGED_CLASS))
+
+            // Now make sure the issues are hidden.
+            val issueConfiguration = options.issueConfiguration
+            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ADD_SEALED))
+            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.CHANGED_CLASS))
+        }
+    }
+
+    @Test
+    fun `Test invalid category`() {
+        // Category names should start with an upper case letter.
+        runTest(ARG_HIDE_CATEGORY, "compatibility") {
+            assertEquals("", stdout)
+            assertEquals(
+                "Option --hide-category is invalid: Unknown category: 'compatibility', expected one of Compatibility, Documentation, ApiLint, Unknown",
+                stderr
+            )
+
+            // Make sure that there were no reported issues.
+            options.bootstrapReporter.writeSavedReports()
+            reportCollector.verifyErrors("")
         }
     }
 }

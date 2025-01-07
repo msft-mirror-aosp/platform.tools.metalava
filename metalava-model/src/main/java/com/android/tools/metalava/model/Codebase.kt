@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /**
@@ -32,23 +35,55 @@ interface Codebase {
      */
     val location: File
 
+    /** Configuration of this [Codebase], typically comes from the command line. */
+    val config: Config
+
+    /** [Reporter] to which any issues found within the [Codebase] can be reported. */
+    val reporter: Reporter
+
     /** The manager of annotations within this codebase. */
     val annotationManager: AnnotationManager
+
+    /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
+    val apiSurfaces: ApiSurfaces
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
 
-    /**
-     * The package documentation, if any - this returns overview.html files for each package that
-     * provided one. Not all codebases provide this.
-     */
-    fun getPackageDocs(): PackageDocs?
-
     /** The rough size of the codebase (package count) */
     fun size(): Int
 
+    /**
+     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    fun getTopLevelClassesFromSource(): List<ClassItem>
+
+    /**
+     * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
+     * sources.
+     */
+    fun isFromClassPath(): Boolean = false
+
+    /**
+     * Freeze all the classes loaded from sources, along with their super classes.
+     *
+     * This does not prevent adding new classes and does automatically freeze classes added after
+     * this is called.
+     */
+    fun freezeClasses()
+
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
+
+    /**
+     * Resolve a class identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable class, e.g. searching classpath (if
+     * available). That may include fabricating the [ClassItem] from nothing in the case of models
+     * that work with a partial set of classes (like text model).
+     */
+    fun resolveClass(className: String): ClassItem?
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
@@ -64,27 +99,29 @@ interface Codebase {
     fun trustedApi(): Boolean
 
     fun accept(visitor: ItemVisitor) {
-        getPackages().accept(visitor)
+        visitor.visit(this)
     }
 
-    fun acceptTypes(visitor: TypeVisitor) {
-        getPackages().acceptTypes(visitor)
-    }
-
-    /** Creates an annotation item for the given (fully qualified) Java source */
+    /**
+     * Creates an annotation item for the given (fully qualified) Java source.
+     *
+     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
+     */
     fun createAnnotation(
         source: String,
         context: Item? = null,
-    ): AnnotationItem
+    ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
-    fun unsupported(desc: String? = null): Nothing
+    fun unsupported(desc: String? = null): Nothing {
+        error(
+            desc
+                ?: "This operation is not available on this type of codebase (${javaClass.simpleName})"
+        )
+    }
 
     /** Discards this model */
     fun dispose()
-
-    /** If this codebase was filtered from another codebase, this points to the original */
-    val original: Codebase?
 
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
@@ -92,32 +129,30 @@ interface Codebase {
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
     }
-}
 
-sealed class MinSdkVersion
+    /**
+     * Contains configuration for [Codebase] that can, or at least could, come from command line
+     * options.
+     */
+    data class Config(
+        /** Determines how annotations will affect the [Codebase]. */
+        val annotationManager: AnnotationManager,
 
-data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
+        /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
 
-object UnsetMinSdkVersion : MinSdkVersion()
-
-abstract class DefaultCodebase(
-    final override var location: File,
-    final override var description: String,
-    final override var preFiltered: Boolean,
-    final override val annotationManager: AnnotationManager,
-) : Codebase {
-    final override var original: Codebase? = null
-
-    override fun getPackageDocs(): PackageDocs? = null
-
-    override fun unsupported(desc: String?): Nothing {
-        error(
-            desc
-                ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
-        )
-    }
-
-    override fun dispose() {
-        description += " [disposed]"
+        /** The reporter to use for issues found during processing of the [Codebase]. */
+        val reporter: Reporter = BasicReporter.ERR,
+    ) {
+        companion object {
+            /**
+             * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
+             * reporter.
+             */
+            val NOOP =
+                Config(
+                    annotationManager = noOpAnnotationManager,
+                )
+        }
     }
 }

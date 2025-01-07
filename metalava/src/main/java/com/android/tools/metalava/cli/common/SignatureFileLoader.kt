@@ -16,37 +16,41 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.TextCodebase
-import java.io.File
+import com.android.tools.metalava.model.text.SignatureFile
+
+/** Supports loading [SignatureFile]s into a [Codebase] using an optional [ClassResolver]. */
+interface SignatureFileLoader {
+    /** Load [signatureFiles] into a [Codebase] using the optional [classResolver]. */
+    fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase
+}
 
 /**
  * Helper object to load signature files and rethrow any [ApiParseException] as a
  * [MetalavaCliException].
  */
-class SignatureFileLoader(
-    private val annotationManager: AnnotationManager,
+class DefaultSignatureFileLoader(
+    private val codebaseConfig: Codebase.Config,
     private val formatForLegacyFiles: FileFormat? = null,
-) {
-    fun load(
-        file: File,
-        classResolver: ClassResolver? = null,
-    ): TextCodebase {
-        return loadFiles(listOf(file), classResolver)
-    }
+) : SignatureFileLoader {
 
-    fun loadFiles(
-        files: List<File>,
-        classResolver: ClassResolver? = null,
-    ): TextCodebase {
-        require(files.isNotEmpty()) { "files must not be empty" }
+    override fun load(
+        signatureFiles: List<SignatureFile>,
+        classResolver: ClassResolver?,
+    ): Codebase {
+        require(signatureFiles.isNotEmpty()) { "files must not be empty" }
 
         try {
-            return ApiFile.parseApi(files, annotationManager, classResolver, formatForLegacyFiles)
+            return ApiFile.parseApi(
+                signatureFiles = signatureFiles,
+                codebaseConfig = codebaseConfig,
+                classResolver = classResolver,
+                formatForLegacyFiles = formatForLegacyFiles,
+            )
         } catch (ex: ApiParseException) {
             throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
         }

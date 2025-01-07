@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -29,36 +32,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * The abstraction also lets us back the model by an alternative implementation read from signature
  * files, to do compatibility checks.
  */
-interface Item {
+interface Item : Reportable {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
     @MetalavaApi val modifiers: ModifierList
 
-    /**
-     * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
-     * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
-     */
-    var originallyHidden: Boolean
-
-    /**
-     * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
-     * containing class/pkg)
-     */
-    var hidden: Boolean
-
-    /** Whether this element will be printed in the signature file */
-    var emit: Boolean
-
-    fun parent(): Item?
-
-    /**
-     * Recursive check to see if this item or any of its parents (containing class, containing
-     * package) are hidden
-     */
-    fun hidden(): Boolean {
-        return hidden || parent()?.hidden() ?: false
-    }
+    fun parent(): SelectableItem?
 
     /**
      * Recursive check to see if compatibility checks should be suppressed for this item or any of
@@ -69,49 +49,34 @@ interface Item {
             parent()?.isCompatibilitySuppressed() ?: false
     }
 
-    /**
-     * Whether this element has been removed with @removed/@Remove (or after propagation, in some
-     * containing class)
-     */
-    var removed: Boolean
-
-    /** True if this element has been marked deprecated */
-    var deprecated: Boolean
-
-    /** True if this element is only intended for documentation */
-    var docOnly: Boolean
+    /** True if this item has been marked deprecated. */
+    val originallyDeprecated: Boolean
 
     /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
-     * enums
+     * True if this item has been marked as deprecated or is a descendant of a non-package item that
+     * has been marked as deprecated.
      */
-    val synthetic: Boolean
-
-    /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
+    val effectivelyDeprecated: Boolean
 
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
 
-    /** Visits all types in this item hierarchy */
-    fun acceptTypes(visitor: TypeVisitor)
-
-    /** Get a mutable version of modifiers for this item */
-    fun mutableModifiers(): MutableModifierList
+    /**
+     * Mutate the [modifiers] list.
+     *
+     * Provides a [MutableModifierList] of the [modifiers] that can be modified by [mutator]. Once
+     * the mutator exits the [modifiers] will be updated. The [MutableModifierList] must not be
+     * accessed from outside [mutator].
+     */
+    fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
      * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
-     * references to classes.
+     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
+     * qualified references to classes.
      */
-    var documentation: String
-
-    /**
-     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
-     * provided value (e.g. parameter name).
-     */
-    fun findTagDocumentation(tag: String, value: String? = null): String?
+    val documentation: ItemDocumentation
 
     /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
@@ -126,11 +91,13 @@ interface Item {
      * Add the given text to the documentation.
      *
      * If the [tagSection] is null, add the comment to the initial text block of the description.
-     * Otherwise if it is "@return", add the comment to the return value. Otherwise the [tagSection]
-     * is taken to be the parameter name, and the comment added as parameter documentation for the
-     * given parameter.
+     *
+     * If it is "@return", add the comment to the return value.
+     *
+     * Otherwise, the [tagSection] is taken to be the parameter name, and the comment added as
+     * parameter documentation for the given parameter.
      */
-    fun appendDocumentation(comment: String, tagSection: String? = null, append: Boolean = true)
+    fun appendDocumentation(comment: String, tagSection: String? = null)
 
     val isPublic: Boolean
     val isProtected: Boolean
@@ -138,131 +105,71 @@ interface Item {
     val isPackagePrivate: Boolean
     val isPrivate: Boolean
 
-    // make sure these are implemented so we can place in maps:
+    /** Calls [equalsToItem]. */
     override fun equals(other: Any?): Boolean
 
+    /** Calls [hashCodeForItem]. */
     override fun hashCode(): Int
 
-    /** Whether this member was cloned in from a super class or interface */
-    fun isCloned(): Boolean
+    /** Calls [toStringForItem]. */
+    override fun toString(): String
 
     /**
-     * Returns true if this item requires nullness information (e.g. for a method where either the
-     * return value or any of the parameters are non-primitives. Note that it doesn't consider
-     * whether it already has nullness annotations; for that see [hasNullnessInfo].
-     */
-    fun requiresNullnessInfo(): Boolean = false
-
-    /**
-     * Returns true if this item requires nullness information and supplies it (for all items, e.g.
-     * if a method is partially annotated this method would still return false)
-     */
-    fun hasNullnessInfo(): Boolean = false
-
-    /**
-     * Get this element's *implicit* nullness, if any.
+     * Whether this [Item] is equal to [other].
      *
-     * This returns true for implicitly nullable elements, such as the parameter to the
-     * [Object.equals] method, false for implicitly non-null elements (such as annotation type
-     * members), and null if there is no implicit nullness.
+     * This is implemented instead of [equals] because interfaces are not allowed to implement
+     * [equals]. Implementations of this will implement [equals] by calling this.
      */
-    fun implicitNullness(): Boolean? = null
+    fun equalsToItem(other: Any?): Boolean
 
     /**
-     * Returns true if this item has generic type whose nullability is determined at subclass
-     * declaration site.
-     */
-    fun hasInheritedGenericType(): Boolean = false
-
-    /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
-     * declared as source
-     */
-    fun isFromClassPath(): Boolean = false
-
-    /** Is this element declared in Java (rather than Kotlin) ? */
-    fun isJava(): Boolean = true
-
-    /** Is this element declared in Kotlin (rather than Java) ? */
-    fun isKotlin() = !isJava()
-
-    /** Determines whether this item will be shown as part of the API or not. */
-    val showability: Showability
-
-    /**
-     * Returns true if this item has any show annotations.
+     * Hashcode for this [Item].
      *
-     * See [Showability.show]
+     * This is implemented instead of [hashCode] because interfaces are not allowed to implement
+     * [hashCode]. Implementations of this will implement [hashCode] by calling this.
      */
-    fun hasShowAnnotation(): Boolean = showability.show()
+    fun hashCodeForItem(): Int
+
+    /** Provides a string representation of the item, suitable for use while debugging. */
+    fun toStringForItem(): String
 
     /**
-     * Returns true if this has any show single annotations.
-     *
-     * See [Showability.recursive]
+     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * created from a signature file.
      */
-    fun hasShowSingleAnnotation(): Boolean = showability.showNonRecursive()
+    val itemLanguage: ItemLanguage
 
     /**
-     * Returns true if this item has any show for stub purposes annotations and that is the only
-     * show annotation.
+     * Is this element declared in Java (rather than Kotlin) ?
      *
-     * See [Showability.forStubsOnly]
+     * See [itemLanguage].
      */
-    fun onlyShowForStubPurposes(): Boolean = showability.showForStubsOnly()
+    fun isJava() = itemLanguage.isJava()
 
-    /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotation(): Boolean =
-        modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
+    /**
+     * Is this element declared in Kotlin (rather than Java) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isKotlin() = itemLanguage.isKotlin()
 
+    /**
+     * Returns true if this [Item]'s modifier list contains any suppress compatibility
+     * meta-annotations.
+     *
+     * Metalava will suppress compatibility checks for APIs which are within the scope of a
+     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
+     * JARs.
+     *
+     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
+     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
+     * feature sets with unstable APIs.
+     */
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
-        modifiers.hasSuppressCompatibilityMetaAnnotations()
+        codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
-    /**
-     * Same as [hasShowAnnotation], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun hasShowAnnotationInherited(): Boolean = hasShowAnnotation()
-
-    /**
-     * Same as [onlyShowForStubPurposes], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun onlyShowForStubPurposesInherited(): Boolean = onlyShowForStubPurposes()
-
-    fun sourceFile(): SourceFileItem? {
-        var curr: Item? = this
-        while (curr != null) {
-            if (curr is ClassItem && curr.isTopLevelClass()) {
-                return curr.getSourceFile()
-            }
-            curr = curr.parent()
-        }
-
-        return null
-    }
-
-    /** Returns the [Location] for this item, if any. */
-    fun location(): Location = Location.unknownLocationAndBaselineKey
-
-    /**
-     * Returns the [documentation], but with fully qualified links (except for the same package, and
-     * when turning a relative reference into a fully qualified reference, use the javadoc syntax
-     * for continuing to display the relative text, e.g. instead of {@link java.util.List}, use
-     * {@link java.util.List List}.
-     */
-    fun fullyQualifiedDocumentation(): String = documentation
-
-    /** Expands the given documentation comment in the current name context */
-    fun fullyQualifiedDocumentation(documentation: String): String = documentation
+    override val fileLocation: FileLocation
+        get() = FileLocation.UNKNOWN
 
     /**
      * Produces a user visible description of this item, including a label such as "class" or
@@ -277,11 +184,81 @@ interface Item {
     fun containingClass(): ClassItem?
 
     /**
-     * Returns the associated type if any. For example, for a field, property or parameter, this is
-     * the type of the variable; for a method, it's the return type. For packages, classes and
-     * files, it's null.
+     * Returns the associated type, if any.
+     *
+     * i.e.
+     * * For a field, property or parameter, this is the type of the variable.
+     * * For a method, it's the return type.
+     * * For classes it's the declared class type, i.e. a class type using the type parameter types
+     *   as the type arguments.
+     * * For type parameters it's a [VariableTypeItem] reference the type parameter.
+     * * For packages and files, it's null.
      */
     fun type(): TypeItem?
+
+    /**
+     * Set the type of this.
+     *
+     * The [type] parameter must be of the same concrete type as returned by the [Item.type] method.
+     */
+    fun setType(type: TypeItem)
+
+    /**
+     * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
+     * item.
+     *
+     * If [superMethods] is true and this is a [MethodItem] then the returned [MethodItem], if any,
+     * could be in a [ClassItem] that does not correspond to the [MethodItem.containingClass], it
+     * could be from a super class or super interface. e.g. if the [codebase] contains something
+     * like:
+     * ```
+     *     public class Super {
+     *         public void method() {...}
+     *     }
+     *     public class Foo extends Super {}
+     * ```
+     *
+     * And this is called on `Foo.method()` then:
+     * * if [superMethods] is false this will return `null`.
+     * * if [superMethods] is true and [duplicate] is false, then this will return `Super.method()`.
+     * * if both [superMethods] and [duplicate] are true then this will return a duplicate of
+     *   `Super.method()` that has been added to `Foo` so it will be essentially `Foo.method()`.
+     *
+     * @param codebase the [Codebase] to search for a corresponding item.
+     * @param superMethods if true and this is a [MethodItem] then this method will search for super
+     *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
+     *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
+     *   the [ParameterItem.containingCallable].
+     * @param duplicate if true, and this is a [MemberItem] (or [ParameterItem]) then the returned
+     *   [Item], if any, will be in the [ClassItem] that corresponds to the [Item.containingClass].
+     *   This should be `true` if the returned [Item] is going to be compared to the original [Item]
+     *   as the [Item.containingClass] can affect that comparison, e.g. the meaning of certain
+     *   modifiers.
+     */
+    fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean = false,
+        duplicate: Boolean = false,
+    ): Item?
+
+    /**
+     * Get the set of suppressed issues for this [Item].
+     *
+     * These are the values supplied to any of the [SUPPRESS_ANNOTATIONS] on this item. It DOES not
+     * include suppressed issues from the [parent].
+     */
+    override fun suppressedIssues(): Set<String>
+
+    /** The [BaselineKey] for this. */
+    override val baselineKey
+        get() = BaselineKey.forElementId(baselineElementId())
+
+    /**
+     * Get the baseline element id from which [baselineKey] is constructed.
+     *
+     * See [BaselineKey.forElementId] for more details.
+     */
+    fun baselineElementId(): String
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -289,7 +266,7 @@ interface Item {
                 is PackageItem -> describe(item, capitalize = capitalize)
                 is ClassItem -> describe(item, capitalize = capitalize)
                 is FieldItem -> describe(item, capitalize = capitalize)
-                is MethodItem ->
+                is CallableItem ->
                     describe(
                         item,
                         includeParameterNames = false,
@@ -308,7 +285,7 @@ interface Item {
         }
 
         fun describe(
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
             includeReturnValue: Boolean = false,
@@ -325,7 +302,7 @@ interface Item {
                 builder.append(item.returnType().toSimpleType())
                 builder.append(' ')
             }
-            appendMethodSignature(builder, item, includeParameterNames, includeParameterTypes)
+            appendCallableSignature(builder, item, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
@@ -340,14 +317,14 @@ interface Item {
             builder.append(' ')
             builder.append(item.name())
             builder.append(" in ")
-            val method = item.containingMethod()
-            appendMethodSignature(builder, method, includeParameterNames, includeParameterTypes)
+            val callable = item.containingCallable()
+            appendCallableSignature(builder, callable, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
-        private fun appendMethodSignature(
+        private fun appendCallableSignature(
             builder: StringBuilder,
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean,
             includeParameterTypes: Boolean
         ) {
@@ -395,34 +372,127 @@ interface Item {
         }
 
         private fun describe(item: PackageItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Package" else "package"} ${item.qualifiedName()}"
+            val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+            return "${if (capitalize) "Package" else "package"} $suffix"
         }
     }
 }
 
-abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
-    override val isPublic: Boolean
+/** Base [Item] implementation that is common to all models. */
+abstract class DefaultItem(
+    override val codebase: Codebase,
+    final override val fileLocation: FileLocation,
+    final override val itemLanguage: ItemLanguage,
+    modifiers: BaseModifierList,
+    documentationFactory: ItemDocumentationFactory,
+) : Item {
+
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
+
+    /**
+     * The immutable [modifiers].
+     *
+     * The supplied `modifiers` parameter could be either [MutableModifierList] or [ModifierList]
+     * but this requires a [ModifierList] so get one using [BaseModifierList.toImmutable].
+     *
+     * The [ModifierList] that this references is immutable but the [mutateModifiers] method can be
+     * used to change the [ModifierList] to which this refers.
+     */
+    final override var modifiers: ModifierList = modifiers.toImmutable()
+        private set
+
+    init {
+        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
+            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
+        }
+    }
+
+    final override val sortingRank: Int = nextRank.getAndIncrement()
+
+    final override val originallyDeprecated
+        // Delegate to the [ModifierList.isDeprecated] method so that changes to that will affect
+        // the value of this and [Item.effectivelyDeprecated] which delegates to this.
+        get() = modifiers.isDeprecated()
+
+    override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+        val mutable = modifiers.toMutable()
+        mutable.mutator()
+        modifiers = mutable.toImmutable()
+    }
+
+    final override val isPublic: Boolean
         get() = modifiers.isPublic()
 
-    override val isProtected: Boolean
+    final override val isProtected: Boolean
         get() = modifiers.isProtected()
 
-    override val isInternal: Boolean
+    final override val isInternal: Boolean
         get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
 
-    override val isPackagePrivate: Boolean
+    final override val isPackagePrivate: Boolean
         get() = modifiers.isPackagePrivate()
 
-    override val isPrivate: Boolean
+    final override val isPrivate: Boolean
         get() = modifiers.isPrivate()
-
-    override var emit = true
 
     companion object {
         private var nextRank = AtomicInteger()
     }
 
-    override val showability: Showability by lazy {
-        codebase.annotationManager.getShowabilityForItem(this)
+    final override fun suppressedIssues(): Set<String> {
+        return buildSet {
+            for (annotation in modifiers.annotations()) {
+                val annotationName = annotation.qualifiedName
+                if (annotationName in SUPPRESS_ANNOTATIONS) {
+                    for (attribute in annotation.attributes) {
+                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                        // one attribute such as value/names that is varargs of String
+                        val value = attribute.value
+                        if (value is AnnotationArrayAttributeValue) {
+                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                            for (innerValue in value.values) {
+                                innerValue.value()?.toString()?.let { add(it) }
+                            }
+                        } else {
+                            // Example: @SuppressLint("RequiresFeature")
+                            value.value()?.toString()?.let { add(it) }
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    final override fun appendDocumentation(comment: String, tagSection: String?) {
+        if (comment.isBlank()) {
+            return
+        }
+
+        // TODO: Figure out if an annotation should go on the return value, or on the method.
+        // For example; threading: on the method, range: on the return value.
+        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
+
+        if (this is ParameterItem) {
+            // For parameters, the documentation goes into the surrounding method's documentation!
+            // Find the right parameter location!
+            val parameterName = name()
+            val target = containingCallable()
+            target.appendDocumentation(comment, parameterName)
+            return
+        }
+
+        documentation.appendDocumentation(comment, tagSection)
+    }
+
+    final override fun equals(other: Any?) = equalsToItem(other)
+
+    final override fun hashCode() = hashCodeForItem()
+
+    final override fun toString() = toStringForItem()
 }

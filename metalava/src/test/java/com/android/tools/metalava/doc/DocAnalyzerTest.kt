@@ -22,7 +22,9 @@ import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.requiresApiSource
@@ -108,6 +110,55 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Check construct ApiLookup works correctly`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public Foo(int i) { this.i = i; }
+
+                                private int i;
+                            }
+                        """
+                    ),
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Foo" since="17">
+                            <method name="&lt;init>()V" since="18"/>
+                            <method name="&lt;init>(I)V" since="19"/>
+                        </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 17 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 18 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 19 */
+                            public Foo(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 
@@ -221,8 +272,9 @@ class DocAnalyzerTest : DriverTest() {
                     requiresPermissionSource
                 ),
             checkCompilation = false, // needs androidx.annotations in classpath
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/PermissionTest.java:33: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
+                "src/test/pkg/PermissionTest.java:33: error: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
             stubFiles =
                 arrayOf(
                     // common_typos_disable
@@ -383,8 +435,9 @@ class DocAnalyzerTest : DriverTest() {
                     workerThreadSource
                 ),
             checkCompilation = true,
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/RangeTest.java:6: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
+                "src/test/pkg/RangeTest.java:6: error: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
             stubFiles =
                 arrayOf(
@@ -555,8 +608,9 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
-                "src/test/pkg/RangeTest.java:5: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
+                "src/test/pkg/RangeTest.java:5: error: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
             stubFiles =
                 arrayOf(
                     java(
@@ -868,6 +922,62 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Api levels current codename but no current version`() {
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_CODENAME,
+                    "Z",
+                ),
+            includeSystemApiAnnotations = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            public class Test {
+                               public static final String UNIT_TEST_1 = "unit.test.1";
+                               public static final String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="android/pkg/Test" since="1">
+                            <field name="UNIT_TEST_1" since="24" deprecated="30"/>
+                            <field name="UNIT_TEST_2" since="36"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 24
+                             * @deprecatedSince 30
+                             */
+                            public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
+                            /** @apiSince 36 */
+                            public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `No api levels on SystemApi only elements`() {
         // @SystemApi, @TestApi etc cannot get api versions since we don't have
         // accurate android.jar files (or even reliable api.txt/api.xml files) for them.
@@ -1033,17 +1143,6 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 ),
-            docStubsSourceList =
-                """
-                TESTROOT/stubs/android/pkg1/package-info.java
-                TESTROOT/stubs/android/pkg1/Test1.java
-                TESTROOT/stubs/android/pkg1/Test2.java
-                TESTROOT/stubs/android/pkg2/package-info.java
-                TESTROOT/stubs/android/pkg2/Test1.java
-                TESTROOT/stubs/android/pkg2/Test2.java
-                TESTROOT/stubs/android/pkg3/package-info.java
-                TESTROOT/stubs/android/pkg3/Test1.java
-            """
         )
     }
 
@@ -1094,12 +1193,6 @@ class DocAnalyzerTest : DriverTest() {
                     </class>
                 </api>
                 """
-
-        const val docStubsSourceList =
-            """
-                TESTROOT/stubs/android/pkg/package-info.java
-                TESTROOT/stubs/android/pkg/Test.java
-            """
     }
 
     @Test
@@ -1114,7 +1207,6 @@ class DocAnalyzerTest : DriverTest() {
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
-            docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
             stubFiles =
                 arrayOf(
                     java(
@@ -1179,7 +1271,6 @@ class DocAnalyzerTest : DriverTest() {
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
-            docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
             stubFiles =
                 arrayOf(
                     java(
@@ -1399,6 +1490,7 @@ class DocAnalyzerTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Include Kotlin deprecation text`() {
         check(
@@ -1445,19 +1537,19 @@ class DocAnalyzerTest : DriverTest() {
                     @Deprecated
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
-                     * {@inheritDoc}
-                     * @deprecated Blah blah blah 1
-                     */
-                    @Deprecated
-                    @androidx.annotation.NonNull
-                    public java.lang.String toString() { throw new RuntimeException("Stub!"); }
-                    /**
                      * My description
                      * @deprecated Existing deprecation message.
                      * Blah blah blah 2
                      */
                     @Deprecated
                     public int hashCode() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * {@inheritDoc}
+                     * @deprecated Blah blah blah 1
+                     */
+                    @Deprecated
+                    @androidx.annotation.NonNull
+                    public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                     }
                     """
                     )
@@ -1678,40 +1770,43 @@ class DocAnalyzerTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
-                    import java.lang.annotation.Target;
-                    /**
-                     * More text here
-                     * @memberDoc Important {@link another.pkg.Bar#BAR}
-                     * and here
-                     */
-                    @Target({ ElementType.FIELD })
-                    @Retention(RetentionPolicy.SOURCE)
-                    public @interface Foo { }
-                """
+                            package test.pkg;
+                            import java.lang.annotation.ElementType;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+                            import java.lang.annotation.Target;
+                            /**
+                             * More text here
+                             * @memberDoc Important {@link another.pkg.Bar#BAR}
+                             * and here
+                             */
+                            @Target({ ElementType.FIELD })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface Foo { }
+                        """
                     ),
                     java(
                         """
-                    package another.pkg;
-                    public class Bar {
-                        public String BAR = "BAAAAR";
-                    }
-                """
+                            package another.pkg;
+                            public class Bar {
+                                public String BAR = "BAAAAR";
+                            }
+                        """
                     ),
                     java(
                         """
-                    package yetonemore.pkg;
-                    public class Fun {
-                        /**
-                         * Separate comment
-                         */
-                        @test.pkg.Foo
-                        public static final String FUN = "FUN";
-                    }
-                """
+                            package yetonemore.pkg;
+                            public class Fun {
+                                @test.pkg.Foo
+                                public Fun() {}
+
+                                /**
+                                 * Separate comment
+                                 */
+                                @test.pkg.Foo
+                                public static final String FUN = "FUN";
+                            }
+                        """
                     )
                 ),
             docStubs = true,
@@ -1719,19 +1814,23 @@ class DocAnalyzerTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package yetonemore.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Fun {
-                    public Fun() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Separate comment
-                     * <br>
-                     * Important {@link another.pkg.Bar#BAR}
-                     * and here
-                     */
-                    public static final java.lang.String FUN = "FUN";
-                    }
-                """
+                            package yetonemore.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Fun {
+                            /**
+                             * Important {@link another.pkg.Bar#BAR}
+                             * and here
+                             */
+                            public Fun() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Separate comment
+                             * <br>
+                             * Important {@link another.pkg.Bar#BAR}
+                             * and here
+                             */
+                            public static final java.lang.String FUN = "FUN";
+                            }
+                        """
                     )
                 )
         )
