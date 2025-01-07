@@ -106,9 +106,9 @@ sealed class PatternNode {
         val start = PatternFileState(file = dir)
         return scan(config, start)
             // Ignore all but the first of each version.
-            .distinctBy { it.apiVersion }
+            .distinctBy { it.version }
             // Sort them from the lowest version to the highest version.
-            .sortedBy { it.apiVersion }
+            .sortedBy { it.version }
             // Convert the sequence into a list.
             .toList()
     }
@@ -235,15 +235,15 @@ sealed class PatternNode {
                 // all its contents by returning an empty sequence. This relies on the [pattern]
                 // using the first group to match the API version.
                 val level = matcher.groups[1]!!.value.toInt()
-                val apiVersion = ApiVersion.fromLevel(level)
+                val version = ApiVersion.fromLevel(level)
                 config.apiVersionRange?.let { apiVersionRange ->
-                    if (apiVersion !in apiVersionRange) return@flatMap emptySequence()
+                    if (version !in apiVersionRange) return@flatMap emptySequence()
                 }
 
                 // Create a new set of properties with the file and extracted version and then
                 // pass them on to the next node in the scanning, or return if this is the last
                 // node.
-                val newProperties = state.copy(file = file, apiVersion = apiVersion)
+                val newProperties = state.copy(file = file, version = version)
                 scanChildrenOrReturnMatching(config, newProperties)
             }
         }
@@ -372,17 +372,17 @@ internal data class PatternFileState(
     val file: File,
 
     /** The optional [ApiVersion] that was extracted from the path. */
-    val apiVersion: ApiVersion? = null,
+    val version: ApiVersion? = null,
 ) {
     /**
      * Construct a [MatchedPatternFile] from this.
      *
      * This must only be called when this has been matched by a leaf [PatternNode] and so is
-     * guaranteed to have had [apiVersion] set to a non-null value.
+     * guaranteed to have had [version] set to a non-null value.
      */
     fun matchedPatternFile(dir: File) =
-        if (apiVersion == null) error("matching pattern could not extract version from $file")
-        else MatchedPatternFile(file.relativeTo(dir), apiVersion)
+        if (version == null) error("matching pattern could not extract version from $file")
+        else MatchedPatternFile(file.relativeTo(dir), version)
 }
 
 /** Represents a [File] that matches a pattern encapsulate in a hierarchy of [PatternNode]s. */
@@ -395,5 +395,5 @@ data class MatchedPatternFile(
     val file: File,
 
     /** The [ApiVersion] extracted from the [File] path. */
-    val apiVersion: ApiVersion,
+    val version: ApiVersion,
 )
