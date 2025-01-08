@@ -27,15 +27,19 @@ Api Levels Generation:
   Options controlling the API levels file, e.g. `api-versions.xml` file.
 
   --generate-api-levels <xmlfile>            Reads android.jar SDK files and generates an XML file recording the API
-                                             level for each class, method and field
+                                             level for each class, method and field. The --current-version must also be
+                                             provided and must be greater than or equal to 27.
   --remove-missing-class-references-in-api-levels
                                              Removes references to missing classes when generating the API levels XML
                                              file. This can happen when generating the XML file for the non-updatable
                                              portions of the module-lib sdk, as those non-updatable portions can
                                              reference classes that are part of an updatable apex.
-  --first-version <numeric-version>          Sets the first API level to generate an API database from. (default: 1)
-  --current-version <numeric-version>        Sets the current API level of the current source code. Must be greater than
-                                             or equal to 27.
+  --first-version <api-version>              Sets the first API version to include in the API history file. See
+                                             --current-version for acceptable `<api-version>`s. (default: 1)
+  --current-version <api-version>            Sets the current API version of the current source code. This supports a
+                                             single integer level, `major.minor`, `major.minor.patch` and
+                                             `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
+                                             all non-negative integers and `quality` is an alphanumeric string.
   --current-codename <version-codename>      Sets the code name for the current source code.
   --android-jar-pattern <android-jar-pattern>
                                              Pattern to use to locate Android JAR files. Each pattern must contain a
@@ -101,6 +105,27 @@ class ApiLevelsGenerationOptionsTest :
         runTest(ARG_SDK_INFO_FILE, file.path) {
             assertThat(stderr)
                 .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
+        }
+    }
+
+    @Test
+    fun `Test current version supports major-minor`() {
+        runTest(ARG_CURRENT_VERSION, "1.2") {
+            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2")
+        }
+    }
+
+    @Test
+    fun `Test current version supports major-minor-patch`() {
+        runTest(ARG_CURRENT_VERSION, "1.2.3") {
+            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2.3")
+        }
+    }
+
+    @Test
+    fun `Test current version supports major-minor-patch-preRelease`() {
+        runTest(ARG_CURRENT_VERSION, "1.2.3-beta01") {
+            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2.3-beta01")
         }
     }
 }
