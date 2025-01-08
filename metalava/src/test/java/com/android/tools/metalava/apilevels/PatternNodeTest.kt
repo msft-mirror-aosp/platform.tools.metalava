@@ -73,7 +73,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}'",
             exception.message
         )
     }
@@ -380,6 +380,7 @@ class PatternNodeTest : TemporaryFolderOwner {
             dir("1") { apiFile() }
             dir("1.1") { apiFile() }
             dir("1.1.1") { apiFile() }
+            dir("1.1.2-beta01") { apiFile() }
             dir("2") { apiFile() }
             dir("2.2") { apiFile() }
             dir("2.2.3") { apiFile() }
@@ -403,6 +404,24 @@ class PatternNodeTest : TemporaryFolderOwner {
                 MatchedPatternFile(File("1.1/api.txt"), ApiVersion.fromString("1.1")),
                 MatchedPatternFile(File("2/api.txt"), ApiVersion.fromString("2")),
                 MatchedPatternFile(File("2.2/api.txt"), ApiVersion.fromString("2.2")),
+            )
+        assertEquals(expected, files)
+    }
+
+    @Test
+    fun `Scan for major minor patch`() {
+        val rootDir = createApiFileStructure()
+
+        val patterns =
+            listOf(
+                "{version:major.minor.patch}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val expected =
+            listOf(
+                MatchedPatternFile(File("1.1.1/api.txt"), ApiVersion.fromString("1.1.1")),
+                MatchedPatternFile(File("2.2.3/api.txt"), ApiVersion.fromString("2.2.3")),
             )
         assertEquals(expected, files)
     }

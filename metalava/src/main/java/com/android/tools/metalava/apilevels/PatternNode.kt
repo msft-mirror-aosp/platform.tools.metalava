@@ -445,6 +445,13 @@ sealed class PatternNode {
             // Match either a single major version or a major and minor version together.
             pattern = """\d+(?:\.\d+)?""",
         ),
+        /** The {version:major.minor.patch} placeholder. */
+        VERSION_MAJOR_MINOR_PATCH(
+            property = Property.VERSION,
+            format = "major.minor.patch",
+            // Only match a version with major, minor and patch components.
+            pattern = """\d+\.\d+\.\d+""",
+        ),
         ;
 
         /** The label for this that will be used in a path pattern, e.g. `{version:level}`. */
