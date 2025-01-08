@@ -75,6 +75,13 @@ interface TemporaryFolderOwner {
         }
     }
 
+    /** Create a file (and containing directory if necessary) with a path [relative] to the root. */
+    fun newFile(relative: String = ""): File {
+        val file = temporaryFolder.root.resolve(relative)
+        file.parentFile.mkdirs()
+        return temporaryFolder.newFile(relative)
+    }
+
     /** Hides path prefixes from /tmp folders used by the testing infrastructure */
     fun cleanupString(
         string: String,
