@@ -523,23 +523,28 @@ class ApiLevelsGenerationOptions(
         signatureFileLoader: SignatureFileLoader,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ): GenerateApiHistoryConfig? {
-        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
-        // so there should be 1 more name than signature file (or both can be null)
-        val numVersionNames = apiVersionNames?.size ?: 0
-        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
-        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw MetalavaCliException(
-                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
-            )
-        }
-
         val apiVersionsFile = generateApiVersionHistory
-        val apiVersionNames = apiVersionNames
-        return if (apiVersionsFile != null && apiVersionNames != null) {
+        return if (apiVersionsFile != null) {
             // The signature files can be null if the current version is the only version
             val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
 
-            val allVersions = apiVersionNames.map { ApiVersion.fromString(it) }
+            val allVersions = apiVersionNames?.map { ApiVersion.fromString(it) } ?: emptyList()
+
+            // Get the number of version names and signature files, defaulting to 0 if not provided.
+            val numVersionNames = allVersions.size
+            if (numVersionNames == 0) {
+                throw MetalavaCliException(
+                    "Must specify $ARG_API_VERSION_NAMES and/or $ARG_CURRENT_VERSION with $ARG_GENERATE_API_VERSION_HISTORY"
+                )
+            }
+            val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
+            // allVersions will include the current version but apiVersionSignatureFiles will not,
+            // so there should be 1 more name than signature files.
+            if (numVersionNames != numVersionFiles + 1) {
+                throw MetalavaCliException(
+                    "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
+                )
+            }
 
             val sourceVersion = allVersions.last()
 

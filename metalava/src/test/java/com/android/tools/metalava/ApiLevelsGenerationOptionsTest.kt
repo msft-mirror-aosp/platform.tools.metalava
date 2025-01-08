@@ -16,8 +16,14 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.text.SignatureFile
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 val API_LEVELS_GENERATION_OPTIONS_HELP =
@@ -90,6 +96,21 @@ class ApiLevelsGenerationOptionsTest :
     ) {
     override fun createOptions() = ApiLevelsGenerationOptions()
 
+    /** Get an optional [GenerateApiHistoryConfig] for a fake set of signature files. */
+    private fun ApiLevelsGenerationOptions.fromFakeSignatureFiles(): GenerateApiHistoryConfig? =
+        fromSignatureFilesConfig(
+            signatureFileLoader =
+                object : SignatureFileLoader {
+                    override fun load(
+                        signatureFiles: List<SignatureFile>,
+                        classResolver: ClassResolver?
+                    ) = error("Fake signature file loader cannot load signature files")
+                },
+            codebaseFragmentProvider = {
+                error("Fake CodebaseFragment provider cannot create CodebaseFragment")
+            },
+        )
+
     @Test
     fun `sdkJarRoot without sdkInfoFile`() {
         val file = temporaryFolder.newFolder("sdk-jar-root")
@@ -127,5 +148,28 @@ class ApiLevelsGenerationOptionsTest :
         runTest(ARG_CURRENT_VERSION, "1.2.3-beta01") {
             assertThat(options.currentApiVersion.toString()).isEqualTo("1.2.3-beta01")
         }
+    }
+
+    @Test
+    fun `Test --generate-api-version-history without --api-version-names`() {
+        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
+        val exception =
+            assertThrows(MetalavaCliException::class.java) {
+                runTest(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    apiVersionsJson.path,
+                ) {
+                    val apiHistoryConfig = options.fromFakeSignatureFiles()
+                    assertThat(apiHistoryConfig).isNotNull()
+                    val apiVersions =
+                        apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
+                    assertThat(apiVersions).isEqualTo("1.2.3-beta01")
+                }
+            }
+
+        assertThat(exception.message)
+            .isEqualTo(
+                "Must specify --api-version-names and/or --current-version with --generate-api-version-history"
+            )
     }
 }
