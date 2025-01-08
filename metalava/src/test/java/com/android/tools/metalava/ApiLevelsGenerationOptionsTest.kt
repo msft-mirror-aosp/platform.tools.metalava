@@ -85,8 +85,9 @@ Api Levels Generation:
                                              Not required to generate API version JSON if the current version is the
                                              only version.
   --api-version-names <api-versions>         An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files, and the name of the current API version.
-                                             Required for --generate-api-version-history.
+                                             --api-version-signature-files. If --current-version is not provided then
+                                             this must include an additional version at the end which is used for the
+                                             current API version. Required for --generate-api-version-history.
     """
         .trimIndent()
 
@@ -171,5 +172,42 @@ class ApiLevelsGenerationOptionsTest :
             .isEqualTo(
                 "Must specify --api-version-names and/or --current-version with --generate-api-version-history"
             )
+    }
+
+    @Test
+    fun `Test --current-version used alone with --generate-api-version-history`() {
+        val apiVersionsJson = newFile("api-versions.json")
+        runTest(
+            ARG_CURRENT_VERSION,
+            "1.2.3-beta01",
+            ARG_GENERATE_API_VERSION_HISTORY,
+            apiVersionsJson.path
+        ) {
+            val apiHistoryConfig = options.fromFakeSignatureFiles()
+            assertThat(apiHistoryConfig).isNotNull()
+            val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
+            assertThat(apiVersions).isEqualTo("1.2.3-beta01")
+        }
+    }
+
+    @Test
+    fun `Test --current-version used with --generate-api-version-history and --api-version-names`() {
+        val signatureFile = newFile("1.2.0-alpha01/api.txt")
+        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
+        runTest(
+            ARG_CURRENT_VERSION,
+            "1.2.3-beta01",
+            ARG_GENERATE_API_VERSION_HISTORY,
+            apiVersionsJson.path,
+            ARG_API_VERSION_SIGNATURE_FILES,
+            signatureFile.path,
+            ARG_API_VERSION_NAMES,
+            "1.2.0",
+        ) {
+            val apiHistoryConfig = options.fromFakeSignatureFiles()
+            assertThat(apiHistoryConfig).isNotNull()
+            val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
+            assertThat(apiVersions).isEqualTo("1.2.0, 1.2.3-beta01")
+        }
     }
 }
