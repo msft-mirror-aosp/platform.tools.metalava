@@ -407,7 +407,7 @@ class ApiLevelsGenerationOptions(
                 if (codebaseSdkVersion != null) {
                     add(
                         VersionedSourceApi(
-                            codebaseFragmentProvider(),
+                            codebaseFragmentProvider,
                             codebaseSdkVersion,
                             useInternalNames = true,
                         )
@@ -550,8 +550,13 @@ class ApiLevelsGenerationOptions(
                     VersionedSignatureApi(signatureFileLoader, file, allVersions[index])
                 }
                 // Add a VersionedSourceApi for the source code.
-                val codebaseFragment = codebaseFragmentProvider()
-                add(VersionedSourceApi(codebaseFragment, sourceVersion, useInternalNames = false))
+                add(
+                    VersionedSourceApi(
+                        codebaseFragmentProvider,
+                        sourceVersion,
+                        useInternalNames = false
+                    )
+                )
             }
 
             val printer =
