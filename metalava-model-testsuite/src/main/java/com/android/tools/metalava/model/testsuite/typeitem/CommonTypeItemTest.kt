@@ -1997,7 +1997,7 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(notDeprecated.firstParameterIsVarargs()).isFalse()
             assertThat(deprecatedWarning.firstParameterIsVarargs()).isFalse()
             assertThat(deprecatedError.firstParameterIsVarargs()).isFalse()
-            assertThat(deprecatedHidden.firstParameterIsVarargs()).isTrue()
+            assertThat(deprecatedHidden.firstParameterIsVarargs()).isFalse()
         }
     }
 }
