@@ -425,4 +425,25 @@ class PatternNodeTest : TemporaryFolderOwner {
             )
         assertEquals(expected, files)
     }
+
+    @Test
+    fun `Scan for major minor patch plus wildcard`() {
+        val rootDir = createApiFileStructure()
+
+        val patterns =
+            listOf(
+                // Use a wildcard to allow (and ignore) additional text after the patch, e.g. a
+                // pre-release quality tag like -beta01.
+                "{version:major.minor.patch}*/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val expected =
+            listOf(
+                MatchedPatternFile(File("1.1.1/api.txt"), ApiVersion.fromString("1.1.1")),
+                MatchedPatternFile(File("1.1.2-beta01/api.txt"), ApiVersion.fromString("1.1.2")),
+                MatchedPatternFile(File("2.2.3/api.txt"), ApiVersion.fromString("2.2.3")),
+            )
+        assertEquals(expected, files)
+    }
 }

@@ -509,7 +509,7 @@ sealed class PatternNode {
                         namePattern == "" -> {
                             FixedNamePatternNode("/")
                         }
-                        '{' in namePattern -> {
+                        '{' in namePattern || '*' in namePattern -> {
                             parseParameterizedPattern(pathPattern, namePattern)
                         }
                         else -> FixedNamePatternNode(namePattern)
@@ -553,8 +553,8 @@ sealed class PatternNode {
             }
         }
 
-        /** [Regex] to find placeholders in a pattern. */
-        private val PLACEHOLDER_REGEX = Regex("""\{[^}]+}""")
+        /** [Regex] to find placeholders or wildcards in a pattern. */
+        private val PLACEHOLDER_OR_WILDCARD_REGEX = Regex("""(\{[^}]+})|(\*)""")
 
         /**
          * Parse a parameterized pattern, i.e. one with a placeholder like '{version:level}'.
@@ -589,29 +589,37 @@ sealed class PatternNode {
             }
 
             // Convert the pattern into a regular expression, quoting any literal text and replacing
-            // placeholders with an appropriate regular expression.
-            for (matchResult in PLACEHOLDER_REGEX.findAll(pattern)) {
+            // placeholders/wildcards with an appropriate regular expression.
+            for (matchResult in PLACEHOLDER_OR_WILDCARD_REGEX.findAll(pattern)) {
                 // Quote any literal text found between the start of the pattern or last
-                // placeholder and this match.
+                // placeholder/wildcard and this match.
                 quoteLiteralText(matchResult.range.first)
 
                 // The next block of literal text (if any) will start after the match.
                 literalStart = matchResult.range.last + 1
 
-                // Extract the text representation of the placeholder from the pattern.
-                val placeholderText = matchResult.value
+                // Extract the text representation of the placeholder/wildcard from the pattern and
+                // process it accordingly.
+                when (val placeholderOrWildcardText = matchResult.value) {
+                    "*" -> {
+                        regexBuilder.append("""[^/]*""")
+                    }
+                    else -> {
+                        // Find the corresponding [Placeholder], failing if it could not be found.
+                        val placeholder =
+                            Placeholder.placeholderForLabel(placeholderOrWildcardText, pathPattern)
 
-                // Find the corresponding [Placeholder], failing if it could not be found.
-                val placeholder = Placeholder.placeholderForLabel(placeholderText, pathPattern)
+                        // Add a capturing group to the pattern for the placeholder. This requires
+                        // that the placeholder pattern does not contain any capturing groups of its
+                        // own.
+                        regexBuilder.append("""(${placeholder.pattern})""")
 
-                // Add a capturing group to the pattern for the placeholder. This requires that the
-                // placeholder pattern does not contain any capturing groups of its own.
-                regexBuilder.append("""(${placeholder.pattern})""")
-
-                // Add a placeholder. As placeholder patterns do not contain capturing groups the
-                // combined pattern has a single group for each placeholder and in the same order as
-                // the placeholders.
-                placeholders.add(placeholder)
+                        // Add a placeholder. As placeholder patterns do not contain capturing
+                        // groups the combined pattern has a single group for each placeholder and
+                        // in the same order as the placeholders.
+                        placeholders.add(placeholder)
+                    }
+                }
             }
 
             // Quote any literal text found at the end of the pattern after the last placeholder.
