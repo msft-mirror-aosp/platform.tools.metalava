@@ -202,7 +202,7 @@ data class FileFormat(
     /** The base version of the file format. */
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
-        internal val versionNumber: String,
+        val versionNumber: String,
         /** The optional legacy alias used on the command line, for the `--format` option. */
         val legacyCommandLineAlias: String? = null,
 
@@ -214,6 +214,8 @@ data class FileFormat(
          * version.
          */
         factory: (Version) -> FileFormat,
+        /** Help text to use on the command line. */
+        val help: String,
     ) {
         V2(
             versionNumber = "2.0",
@@ -224,7 +226,16 @@ data class FileFormat(
                     kotlinStyleNulls = false,
                     conciseDefaultValues = false,
                 )
-            }
+            },
+            help =
+                """
+                    This is the base version (more details in `FORMAT.md`) on which all the others
+                    are based. It sets the properties as follows:
+                    ```
+                    + kotlin-style-nulls = no
+                    + concise-default-values = no
+                    ```
+                """,
         ),
         V3(
             versionNumber = "3.0",
@@ -235,7 +246,15 @@ data class FileFormat(
                     // This adds kotlinStyleNulls = true
                     kotlinStyleNulls = true,
                 )
-            }
+            },
+            help =
+                """
+                    This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
+                    ```
+                    + kotlin-style-nulls = yes
+                    + concise-default-values = no
+                    ```
+                """,
         ),
         V4(
             versionNumber = "4.0",
@@ -246,7 +265,16 @@ data class FileFormat(
                     // This adds conciseDefaultValues = true
                     conciseDefaultValues = true,
                 )
-            }
+            },
+            help =
+                """
+                    This is `3.0` plus `concise-default-values = yes` giving the following
+                    properties:
+                    ```
+                    + kotlin-style-nulls = yes
+                    + concise-default-values = yes
+                    ```
+                """,
         ),
         V5(
             versionNumber = "5.0",
@@ -257,7 +285,14 @@ data class FileFormat(
                     version = version,
                     // This does not add any property defaults, just full property support.
                 )
-            }
+            },
+            help =
+                """
+                    This is the first version that has full support for properties in the signature
+                    header. As such it does not add any new defaults to `4.0`. The intent is that
+                    properties will be explicitly defined in the signature file avoiding reliance on
+                    version specific defaults.
+                """,
         );
 
         /**

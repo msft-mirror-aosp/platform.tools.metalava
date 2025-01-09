@@ -18,9 +18,11 @@ package com.android.tools.metalava.cli.help
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
+import com.android.tools.metalava.cli.common.buildDefinitionListHelp
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.text.FileFormat
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
@@ -53,7 +55,7 @@ class HelpCommand :
         subcommands(
             IssuesCommand(),
             packageFilterHelp,
-            signatureFileFormatsHelp,
+            signatureFileFormatsHelp(),
         )
     }
 
@@ -92,8 +94,30 @@ will match `foo` and `foo.bar` and `foo.bar.baz` but not `foobar`.
                 .trimIndent()
     )
 
-private val signatureFileFormatsHelp =
-    SimpleHelpCommand(
+private fun signatureFileFormatsHelp(): CliktCommand {
+    /** Construct help for the different [FileFormat.Version]s. */
+    fun versionHelp(): String {
+        /** Generate a label for a [FileFormat.Version]. */
+        fun FileFormat.Version.labelGetter() = buildString {
+            append('`')
+            append(versionNumber)
+            append('`')
+            if (legacyCommandLineAlias != null) {
+                append(" (")
+                append(ARG_FORMAT)
+                append("=")
+                append(legacyCommandLineAlias)
+                append(")")
+            }
+        }
+
+        return buildDefinitionListHelp(
+            FileFormat.Version.entries.map { it.labelGetter() to it.help.trimIndent() },
+            termPrefix = "* ",
+        )
+    }
+
+    return SimpleHelpCommand(
         name = "signature-file-formats",
         help =
             """
@@ -134,27 +158,8 @@ option.
   signature files.
 
 Currently, metalava supports the following versions:
-
-* `2.0` ($ARG_FORMAT=v2) - this is the base version (more details in `FORMAT.md`) on which all the
-  others are based. It sets the properties as follows:
-```
-+ kotlin-style-nulls = no
-+ concise-default-values = no
-```
-
-* `3.0` ($ARG_FORMAT=v3) - this is `2.0` plus `kotlin-style-nulls = yes` giving the following
-properties:
-```
-+ kotlin-style-nulls = yes
-+ concise-default-values = no
-```
-
-* `4.0` ($ARG_FORMAT=v4) - this is 3.0` plus `concise-default-values = yes` giving the following
-properties:
-```
-+ kotlin-style-nulls = yes
-+ concise-default-values = yes
-```
+${versionHelp()}
             """
                 .trimIndent()
     )
+}
