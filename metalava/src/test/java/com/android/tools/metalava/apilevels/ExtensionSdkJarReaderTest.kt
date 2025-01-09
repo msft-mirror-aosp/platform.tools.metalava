@@ -28,26 +28,23 @@ class ExtensionSdkJarReaderTest : TemporaryFolderOwner {
     /** Provides access to temporary files. */
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
-    private fun createDirectoryHierarchy(vararg paths: String): File {
-        val root = temporaryFolder.newFolder("metalava")
-        for (path in paths) {
-            val file = root.resolve(path)
-            file.parentFile.mkdirs()
-            file.createNewFile()
-        }
-        return root
-    }
-
     @Test
     fun `Verify findExtensionSdkJarFiles`() {
-        val root =
-            createDirectoryHierarchy(
-                "1/public/foo.jar",
-                "1/public/bar.jar",
-                "2/public/foo.jar",
-                "2/public/bar.jar",
-                "2/public/baz.jar",
-            )
+        val root = buildFileStructure {
+            dir("1") {
+                dir("public") {
+                    emptyFile("foo.jar")
+                    emptyFile("bar.jar")
+                }
+            }
+            dir("2") {
+                dir("public") {
+                    emptyFile("foo.jar")
+                    emptyFile("bar.jar")
+                    emptyFile("baz.jar")
+                }
+            }
+        }
 
         val expected =
             mapOf(

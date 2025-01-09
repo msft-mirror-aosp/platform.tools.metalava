@@ -82,6 +82,18 @@ interface TemporaryFolderOwner {
         return temporaryFolder.newFile(relative)
     }
 
+    /**
+     * Build a file structure in the directory [relative] to the root.
+     *
+     * Creates the directory first, if needed. Then creates a [DirectoryBuilder] for the directory
+     * and then invokes [body] on it to populate the directory.
+     */
+    fun buildFileStructure(relative: String = "", body: DirectoryBuilder.() -> Unit): File {
+        val dir = getOrCreateFolder(relative)
+        dir.buildFileStructure(body)
+        return dir
+    }
+
     /** Hides path prefixes from /tmp folders used by the testing infrastructure */
     fun cleanupString(
         string: String,
