@@ -49,7 +49,7 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
-    fun `Invalid multiple API placeholders`() {
+    fun `Invalid multiple version placeholders`() {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android-{version:major.minor?}.jar",
@@ -64,6 +64,21 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Invalid multiple module placeholders`() {
+        val patterns =
+            listOf(
+                "prebuilts/sdk/{version:level}/{module}/{module}.jar",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals(
+            "Pattern 'prebuilts/sdk/{version:level}/{module}/{module}.jar' contains multiple placeholders for module; found {module}, {module}",
+            exception.message
+        )
+    }
+
+    @Test
     fun `Unknown placeholder`() {
         val patterns =
             listOf(
@@ -73,7 +88,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{module}'",
             exception.message
         )
     }
@@ -443,6 +458,60 @@ class PatternNodeTest : TemporaryFolderOwner {
                 MatchedPatternFile(File("1.1.1/api.txt"), ApiVersion.fromString("1.1.1")),
                 MatchedPatternFile(File("1.1.2-beta01/api.txt"), ApiVersion.fromString("1.1.2")),
                 MatchedPatternFile(File("2.2.3/api.txt"), ApiVersion.fromString("2.2.3")),
+            )
+        assertEquals(expected, files)
+    }
+
+    @Test
+    fun `Scan for module`() {
+        fun DirectoryBuilder.apiFile(module: String) = emptyFile("$module.txt")
+        val rootDir = buildFileStructure {
+            dir("extensions") {
+                dir("1") { apiFile("module-one") }
+                dir("2") {
+                    apiFile("module-two")
+                    apiFile("module.three")
+                }
+                dir("3") {
+                    apiFile("module-one")
+                    apiFile("module-two")
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "extensions/{version:level}/{module}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        val expected =
+            listOf(
+                MatchedPatternFile(
+                    File("extensions/1/module-one.txt"),
+                    ApiVersion.fromLevel(1),
+                    module = "module-one",
+                ),
+                MatchedPatternFile(
+                    File("extensions/2/module-two.txt"),
+                    ApiVersion.fromLevel(2),
+                    module = "module-two",
+                ),
+                MatchedPatternFile(
+                    File("extensions/2/module.three.txt"),
+                    ApiVersion.fromLevel(2),
+                    module = "module.three",
+                ),
+                MatchedPatternFile(
+                    File("extensions/3/module-one.txt"),
+                    ApiVersion.fromLevel(3),
+                    module = "module-one",
+                ),
+                MatchedPatternFile(
+                    File("extensions/3/module-two.txt"),
+                    ApiVersion.fromLevel(3),
+                    module = "module-two",
+                ),
             )
         assertEquals(expected, files)
     }

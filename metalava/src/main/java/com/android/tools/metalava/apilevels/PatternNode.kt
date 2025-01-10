@@ -401,6 +401,14 @@ sealed class PatternNode {
                 return state.copy(version = version)
             }
         },
+        /**
+         * Corresponds to the [PatternFileState.version] and [MatchedPatternFile.version]
+         * properties.
+         */
+        MODULE("module") {
+            override fun track(config: ScanConfig, state: PatternFileState, value: String) =
+                state.copy(module = value)
+        },
         ;
 
         /**
@@ -435,7 +443,7 @@ sealed class PatternNode {
      */
     private enum class Placeholder(
         val property: Property,
-        private val format: String,
+        private val format: String?,
         val pattern: String,
     ) {
         /** The {version:level} placeholder. */
@@ -459,10 +467,14 @@ sealed class PatternNode {
             // Only match a version with major, minor and patch components.
             pattern = """\d+\.\d+\.\d+""",
         ),
-        ;
+        MODULE(
+            property = Property.MODULE,
+            format = null,
+            pattern = """[a-z-.]+""",
+        );
 
         /** The label for this that will be used in a path pattern, e.g. `{version:level}`. */
-        val label = "{$property:$format}"
+        val label = if (format == null) "{$property}" else "{$property:$format}"
 
         override fun toString() = label
 
@@ -651,6 +663,9 @@ internal data class PatternFileState(
 
     /** The optional [ApiVersion] that was extracted from the path. */
     val version: ApiVersion? = null,
+
+    /** The optional module that was extracted from the path. */
+    val module: String? = null,
 ) {
     /**
      * Construct a [MatchedPatternFile] from this.
@@ -660,7 +675,12 @@ internal data class PatternFileState(
      */
     fun matchedPatternFile(dir: File) =
         if (version == null) error("matching pattern could not extract version from $file")
-        else MatchedPatternFile(file.relativeTo(dir), version)
+        else
+            MatchedPatternFile(
+                file.relativeTo(dir),
+                version,
+                module,
+            )
 }
 
 /** Represents a [File] that matches a pattern encapsulate in a hierarchy of [PatternNode]s. */
@@ -674,6 +694,9 @@ data class MatchedPatternFile(
 
     /** The [ApiVersion] extracted from the [File] path. */
     val version: ApiVersion,
+
+    /** The optional module that was extracted from the [File] path. */
+    val module: String? = null,
 )
 
 /**
@@ -684,4 +707,6 @@ private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
     compareBy(
         // Sort them from the lowest version to the highest version.
         { it.version },
+        // Then into those without modules ("") followed by those with in module order.
+        { it.module ?: "" },
     )
