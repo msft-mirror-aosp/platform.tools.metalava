@@ -84,6 +84,35 @@ sealed class PatternNode {
         return children.find { it == child } ?: child.also { children.add(child) }
     }
 
+    /**
+     * Provides access to the files that are to be scanned.
+     *
+     * Callers that want to limit the scanning to only some files can provide a custom
+     * implementation of this.
+     */
+    internal interface FileProvider {
+        /**
+         * Resolve [name] relative to [base] and if the resulting file exists then return it,
+         * otherwise return null.
+         */
+        fun resolve(base: File, name: String): File?
+
+        /** Return a sequence of the files in [dir], or null if [dir] is not a directory. */
+        fun listFiles(dir: File): Sequence<File>?
+    }
+
+    /** Provides access to all files in the whole file system. */
+    internal class WholeFileSystemProvider : FileProvider {
+        override fun resolve(base: File, name: String): File? {
+            val file = base.resolve(name)
+            return if (file.exists()) file else null
+        }
+
+        override fun listFiles(dir: File): Sequence<File>? {
+            return dir.listFiles()?.asSequence()
+        }
+    }
+
     /** Configuration provided when scanning. */
     internal data class ScanConfig(
         /** The root directory from which the scanning will be performed. */
@@ -95,6 +124,9 @@ sealed class PatternNode {
          * scanning by ignoring version directories that are not in the range.
          */
         val apiVersionRange: ClosedRange<ApiVersion>?,
+
+        /** Provides access to [File]s. */
+        val fileProvider: FileProvider = WholeFileSystemProvider(),
     )
 
     /**
@@ -150,7 +182,7 @@ sealed class PatternNode {
      */
     internal fun scanChildrenOrReturnMatching(
         config: ScanConfig,
-        state: PatternFileState
+        state: PatternFileState,
     ): Sequence<MatchedPatternFile> =
         if (children.isEmpty())
             sequenceOf(
@@ -216,8 +248,7 @@ sealed class PatternNode {
         ): Sequence<MatchedPatternFile> {
             // Resolve this against the file in [properties] to get a new file. If that file does
             // not exist then ignore it by returning an empty sequence.
-            val newFile = state.file.resolve(name)
-            if (!newFile.exists()) return emptySequence()
+            val newFile = config.fileProvider.resolve(state.file, name) ?: return emptySequence()
 
             // Create a new set of properties by copying the original properties, replacing the file
             // with the new file.
@@ -251,8 +282,8 @@ sealed class PatternNode {
             config: ScanConfig,
             state: PatternFileState
         ): Sequence<MatchedPatternFile> {
-            val contents = state.file.listFiles() ?: return emptySequence()
-            return contents.asSequence().flatMap { file ->
+            val contents = config.fileProvider.listFiles(state.file) ?: return emptySequence()
+            return contents.flatMap { file ->
                 // Match the regex against the file name, if it does not match then ignore this
                 // file and all its contents by returning an empty sequence.
                 val name = file.name
