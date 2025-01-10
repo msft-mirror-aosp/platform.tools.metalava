@@ -282,32 +282,55 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
     enumValues: Array<T>,
     help: String,
     enumValueHelpGetter: (T) -> String,
-    key: (T) -> String,
+    enumLabelGetter: (T) -> String,
     default: T
 ): OptionWithValues<T, T, T> {
-    // Filter out any enum values that do not provide any help.
-    val optionToValue = enumValues.filter { enumValueHelpGetter(it) != "" }.associateBy { key(it) }
+    val labelToEnumValue =
+        enumValues
+            // Filter out any enum values that do not provide any help.
+            .filter { enumValueHelpGetter(it) != "" }
+            // Convert to a map from label to enum value.
+            .associateBy { enumLabelGetter(it) }
 
     // Get the help representation of the default value.
-    val defaultForHelp = key(default)
+    val defaultForHelp = enumLabelGetter(default)
 
     val constructedHelp = buildString {
         append(help)
-        append(BLANK_LINE)
-        for (enumValue in optionToValue.values) {
-            val value = key(enumValue)
-            // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
-            // which is used to deconstruct this.
-            append(constructStyleableChoiceOption(value))
-            append(" - ")
-            append(enumValueHelpGetter(enumValue))
-            append(BLANK_LINE)
-        }
+        appendDefinitionListHelp(
+            labelToEnumValue.entries.map { (label, enumValue) ->
+                label to enumValueHelpGetter(enumValue)
+            }
+        )
     }
 
     return option(names = names, help = constructedHelp)
-        .choice(optionToValue)
+        .choice(labelToEnumValue)
         .default(default, defaultForHelp = defaultForHelp)
+}
+
+/**
+ * Append help for what is effectively a definition list, e.g. `<dl>...</dl>` in HTML.
+ *
+ * Each entry in the list has a term that is being defined and the definition of that term. If the
+ * terminal supports it then the term will be in bold. The term and definition are separate by ` -
+ * `.
+ *
+ * @param definitionList is a list of [Pair]s, where [Pair.first] is the term being defined and
+ *   [Pair.second] is the definition of that term.
+ */
+private fun StringBuilder.appendDefinitionListHelp(
+    definitionList: List<Pair<String, String>>,
+) {
+    append(BLANK_LINE)
+    for ((term, body) in definitionList) {
+        // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
+        // which is used to deconstruct this.
+        append(constructStyleableChoiceOption(term))
+        append(" - ")
+        append(body)
+        append(BLANK_LINE)
+    }
 }
 
 /**
