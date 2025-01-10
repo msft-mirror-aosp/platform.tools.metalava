@@ -323,4 +323,48 @@ class PatternNodeTest {
             )
         assertEquals(expected, files)
     }
+
+    @Test
+    fun `Scan explicit list of version specific jars`() {
+        val androidDir = getAndroidDir()
+
+        val patterns =
+            listOf(
+                "prebuilts/sdk/{version:level}/public/android.jar",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+
+        val limitedFileProvider =
+            PatternNode.LimitedFileSystemProvider(
+                listOf(
+                        "prebuilts/sdk/19/public/android.jar",
+                        "prebuilts/sdk/22/public/android.jar",
+                        "prebuilts/sdk/32/public/android.jar",
+                    )
+                    .map { androidDir.resolve(it) }
+            )
+
+        val scanConfig =
+            PatternNode.ScanConfig(
+                dir = androidDir,
+                fileProvider = limitedFileProvider,
+            )
+        val files = node.scan(scanConfig)
+        val expected =
+            listOf(
+                MatchedPatternFile(
+                    File("prebuilts/sdk/19/public/android.jar"),
+                    ApiVersion.fromLevel(19)
+                ),
+                MatchedPatternFile(
+                    File("prebuilts/sdk/22/public/android.jar"),
+                    ApiVersion.fromLevel(22)
+                ),
+                MatchedPatternFile(
+                    File("prebuilts/sdk/32/public/android.jar"),
+                    ApiVersion.fromLevel(32)
+                ),
+            )
+        assertEquals(expected, files)
+    }
 }

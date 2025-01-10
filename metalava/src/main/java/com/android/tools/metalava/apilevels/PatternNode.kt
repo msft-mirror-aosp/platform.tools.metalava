@@ -102,7 +102,7 @@ sealed class PatternNode {
     }
 
     /** Provides access to all files in the whole file system. */
-    internal class WholeFileSystemProvider : FileProvider {
+    internal open class WholeFileSystemProvider : FileProvider {
         override fun resolve(base: File, name: String): File? {
             val file = base.resolve(name)
             return if (file.exists()) file else null
@@ -110,6 +110,44 @@ sealed class PatternNode {
 
         override fun listFiles(dir: File): Sequence<File>? {
             return dir.listFiles()?.asSequence()
+        }
+    }
+
+    /**
+     * A [FileProvider] that limits access to a supplied list of [File]s.
+     *
+     * @param files The list of [File]s to which this will provide access.
+     */
+    internal class LimitedFileSystemProvider(files: List<File>) : WholeFileSystemProvider() {
+        /**
+         * Map from [File] to the list of [File]s it contains (or an empty list for [File]s that
+         * have no contents).
+         */
+        private val fileToContents =
+            buildMap<File, MutableList<File>> {
+                for (file in files) {
+                    // Remember the file.
+                    computeIfAbsent(file) { mutableListOf() }
+
+                    // Add the file to its parent file's contents. Repeat for its parent file.
+                    var f: File = file
+                    while (true) {
+                        val parent = f.parentFile ?: break
+                        val contents = computeIfAbsent(parent) { mutableListOf() }
+                        contents.add(f)
+                        f = parent
+                    }
+                }
+            }
+
+        override fun resolve(base: File, name: String): File? {
+            val file = super.resolve(base, name)
+            return if (file in fileToContents) file else null
+        }
+
+        override fun listFiles(dir: File): Sequence<File>? {
+            if (!dir.isDirectory) return null
+            return fileToContents[dir]?.asSequence()
         }
     }
 
@@ -123,7 +161,7 @@ sealed class PatternNode {
          * This is provided when scanning, instead of just filtering afterward, to save time when
          * scanning by ignoring version directories that are not in the range.
          */
-        val apiVersionRange: ClosedRange<ApiVersion>?,
+        val apiVersionRange: ClosedRange<ApiVersion>? = null,
 
         /** Provides access to [File]s. */
         val fileProvider: FileProvider = WholeFileSystemProvider(),
