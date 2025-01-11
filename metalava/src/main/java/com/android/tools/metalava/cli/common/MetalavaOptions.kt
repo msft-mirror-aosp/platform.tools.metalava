@@ -320,7 +320,19 @@ private fun constructStyleableChoiceOption(value: String) = "$HARD_NEWLINE**$val
  * A regular expression that will match choice options created using
  * [constructStyleableChoiceOption].
  */
-private val deconstructStyleableChoiceOption = """$HARD_NEWLINE\*\*([^*]+)\*\*""".toRegex()
+private val deconstructStyleableChoiceOption = """$HARD_NEWLINE(\*\*([^*]+)\*\*)""".toRegex()
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that must be replaced by
+ * [replaceChoiceOption].
+ */
+private const val REPLACEMENT_GROUP_INDEX = 1
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that contains the label that will be
+ * transformed by [replaceChoiceOption].
+ */
+private const val LABEL_GROUP_INDEX = REPLACEMENT_GROUP_INDEX + 1
 
 /**
  * Replace the choice option (i.e. the value passed to [constructStyleableChoiceOption]) with the
@@ -333,11 +345,20 @@ private fun MatchResult.replaceChoiceOption(
     builder: StringBuilder,
     transformer: (String) -> String
 ) {
-    val group = groups[1] ?: throw IllegalStateException("group 1 not found in $this")
-    val choiceOption = group.value
-    val replacementText = transformer(choiceOption)
-    // Replace the choice option and the surrounding style markers but not the leading NEL.
-    builder.replace(range.first + 1, range.last + 1, replacementText)
+    // Get the text for the label of the choice option.
+    val labelGroup =
+        groups[LABEL_GROUP_INDEX] ?: error("label group $LABEL_GROUP_INDEX not found in $this")
+    val label = labelGroup.value
+
+    // Transform the label.
+    val transformedLabel = transformer(label)
+
+    // Replace the label and the surrounding style markers but not the leading NEL with the
+    // transformed label.
+    val replacementGroup =
+        groups[REPLACEMENT_GROUP_INDEX]
+            ?: error("replacement group $REPLACEMENT_GROUP_INDEX not found in $this")
+    builder.replace(replacementGroup.range.first, replacementGroup.range.last + 1, transformedLabel)
 }
 
 /**
