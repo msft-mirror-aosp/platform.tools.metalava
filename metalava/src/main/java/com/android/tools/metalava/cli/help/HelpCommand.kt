@@ -117,6 +117,24 @@ private fun signatureFileFormatsHelp(): CliktCommand {
         )
     }
 
+    /**
+     * Construct help for the different [FileFormat.CustomizableProperty]s.
+     *
+     * @param filter filter the properties for which help will be provided.
+     */
+    fun customizablePropertyHelp(filter: (FileFormat.CustomizableProperty) -> Boolean): String {
+        fun FileFormat.CustomizableProperty.labelGetter() = "`$propertyName = $valueSyntax`"
+        return buildDefinitionListHelp(
+            FileFormat.CustomizableProperty.entries.mapNotNull {
+                if (!filter(it)) return@mapNotNull null
+                val help = it.help
+                if (help == "") return@mapNotNull null
+                it.labelGetter() to help.trimIndent()
+            },
+            termPrefix = "* ",
+        )
+    }
+
     return SimpleHelpCommand(
         name = "signature-file-formats",
         help =
@@ -130,32 +148,11 @@ that will be output to the API signature file and how it is represented. A forma
 a set of defaults for those properties.
 
 The supported properties are:
-
-* `kotlin-style-nulls = yes|no` - if `no` then the signature file will use `@Nullable` and `@NonNull`
-  annotations to indicate that the annotated item accepts `null` and does not accept `null`
-  respectively and neither indicates that it's not defined.
-
-  If `yes` then the signature file will use a type suffix of `?`, no type suffix and a type suffix
-  of `!` to indicate the that the type accepts `null`, does not accept `null` or it's not defined
-  respectively.
-
-* `concise-default-values = yes|no` - if `no` then Kotlin parameters that have a default value will
-  include that value in the signature file. If `yes` then those parameters will simply be prefixed
-  with `optional`, as if it was a keyword and no value will be included.
+${customizablePropertyHelp {!it.defaultable}}
 
 Plus the following properties which can have their default changed using the `--format-defaults`
 option.
-
-* `overloaded-method-order = source|signature` - Specifies the order of overloaded methods in
-  signature files. Applies to the contents of the files specified on `--api` and `--removed-api`.
-
-  `source` - preserves the order in which overloaded methods appear in the source files. This means
-   that refactorings of the source files which change the order but not the API can cause
-   unnecessary changes in the API signature files.
-
-  `signature` (default) - sorts overloaded methods by their signature. This means that refactorings
-  of the source files which change the order but not the API will have no effect on the API
-  signature files.
+${customizablePropertyHelp {it.defaultable}}
 
 Currently, metalava supports the following versions:
 ${versionHelp()}

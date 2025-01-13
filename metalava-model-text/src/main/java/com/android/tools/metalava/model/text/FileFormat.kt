@@ -791,7 +791,13 @@ data class FileFormat(
     }
 
     /** Information about the different customizable properties in [FileFormat]. */
-    private enum class CustomizableProperty(val defaultable: Boolean = false) {
+    enum class CustomizableProperty(
+        val defaultable: Boolean = false,
+        /** Syntax of command line values. */
+        val valueSyntax: String = "",
+        /** Help text to use on the command line. */
+        val help: String = "",
+    ) {
         // The order of values in this is significant as it determines the order of the properties
         // in signature headers. The values in this block are not in alphabetical order because it
         // is important that they are at the start of the signature header.
@@ -833,7 +839,15 @@ data class FileFormat(
                 format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
         },
         /** concise-default-values=[yes|no] */
-        CONCISE_DEFAULT_VALUES {
+        CONCISE_DEFAULT_VALUES(
+            valueSyntax = "yes|no",
+            help =
+                """
+                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+                    to indicate that the annotated item accepts `null` and does not accept `null`
+                    respectively and neither indicates that it's not defined.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.conciseDefaultValues = yesNo(value)
             }
@@ -860,7 +874,19 @@ data class FileFormat(
                 yesNo(format.kotlinNameTypeOrder)
         },
         /** kotlin-style-nulls=[yes|no] */
-        KOTLIN_STYLE_NULLS {
+        KOTLIN_STYLE_NULLS(
+            valueSyntax = "yes|no",
+            help =
+                """
+                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+                    to indicate that the annotated item accepts `null` and does not accept `null`
+                    respectively and neither indicates that it's not defined.
+
+                    If `yes` then the signature file will use a type suffix of `?`, no type suffix
+                    and a type suffix of `!` to indicate the that the type accepts `null`, does not
+                    accept `null` or it's not defined respectively.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.kotlinStyleNulls = yesNo(value)
             }
@@ -876,7 +902,23 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String? = format.migrating
         },
         /** overloaded-method-other=[source|signature] */
-        OVERLOADED_METHOD_ORDER(defaultable = true) {
+        OVERLOADED_METHOD_ORDER(
+            defaultable = true,
+            valueSyntax = "source|signature",
+            help =
+                """
+                    Specifies the order of overloaded methods in signature files. Applies to the
+                    contents of the files specified on `--api` and `--removed-api`.
+
+                    `source` - preserves the order in which overloaded methods appear in the source
+                    files. This means that refactorings of the source files which change the order
+                    but not the API can cause unnecessary changes in the API signature files.
+
+                    `signature` (default) - sorts overloaded methods by their signature. This means
+                    that refactorings of the source files which change the order but not the API
+                    will have no effect on the API signature files.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
             }
@@ -908,13 +950,13 @@ data class FileFormat(
          * Set the corresponding property in the supplied [Builder] to the value corresponding to
          * the string representation [value].
          */
-        abstract fun setFromString(builder: Builder, value: String)
+        internal abstract fun setFromString(builder: Builder, value: String)
 
         /**
          * Get the string representation of the corresponding property from the supplied
          * [FileFormat].
          */
-        abstract fun stringFromFormat(format: FileFormat): String?
+        internal abstract fun stringFromFormat(format: FileFormat): String?
 
         /** Inline function to map from a string value to an enum value of the required type. */
         inline fun <reified T : Enum<T>> enumFromString(value: String): T {

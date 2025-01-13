@@ -92,16 +92,16 @@ Usage: metalava help signature-file-formats
 
   The supported properties are:
 
-  * `kotlin-style-nulls = yes|no` - if `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
+  * `concise-default-values = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+  to indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
+  it's not defined.
+
+  * `kotlin-style-nulls = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
   indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
   it's not defined.
 
   If `yes` then the signature file will use a type suffix of `?`, no type suffix and a type suffix of `!` to indicate
   the that the type accepts `null`, does not accept `null` or it's not defined respectively.
-
-  * `concise-default-values = yes|no` - if `no` then Kotlin parameters that have a default value will include that value
-  in the signature file. If `yes` then those parameters will simply be prefixed with `optional`, as if it was a keyword
-  and no value will be included.
 
   Plus the following properties which can have their default changed using the `--format-defaults` option.
 
