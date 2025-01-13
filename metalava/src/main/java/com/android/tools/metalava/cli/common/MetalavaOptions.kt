@@ -238,6 +238,9 @@ internal fun stringToNewOrExistingFile(value: String): File {
 // collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
 const val HARD_NEWLINE = "\u0085"
 
+// Two consecutive newline characters will result in a blank line in the Clikt formatted output.
+const val BLANK_LINE = "\n\n"
+
 /**
  * Create a property delegate for an enum.
  *
@@ -290,7 +293,7 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
 
     val constructedHelp = buildString {
         append(help)
-        append(HARD_NEWLINE)
+        append(BLANK_LINE)
         for (enumValue in optionToValue.values) {
             val value = key(enumValue)
             // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
@@ -298,7 +301,7 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
             append(constructStyleableChoiceOption(value))
             append(" - ")
             append(enumValueHelpGetter(enumValue))
-            append(HARD_NEWLINE)
+            append(BLANK_LINE)
         }
     }
 
@@ -314,13 +317,13 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
  * in the help text using [deconstructStyleableChoiceOption] and replaced with actual styling
  * sequences if needed.
  */
-private fun constructStyleableChoiceOption(value: String) = "$HARD_NEWLINE**$value**"
+private fun constructStyleableChoiceOption(value: String) = "$BLANK_LINE**$value**"
 
 /**
  * A regular expression that will match choice options created using
  * [constructStyleableChoiceOption].
  */
-private val deconstructStyleableChoiceOption = """$HARD_NEWLINE(\*\*([^*]+)\*\*)""".toRegex()
+private val deconstructStyleableChoiceOption = """$BLANK_LINE(\*\*([^*]+)\*\*)""".toRegex()
 
 /**
  * The index of the group in [deconstructStyleableChoiceOption] that must be replaced by
@@ -353,7 +356,7 @@ private fun MatchResult.replaceChoiceOption(
     // Transform the label.
     val transformedLabel = transformer(label)
 
-    // Replace the label and the surrounding style markers but not the leading NEL with the
+    // Replace the label and the surrounding style markers but not the leading blank line with the
     // transformed label.
     val replacementGroup =
         groups[REPLACEMENT_GROUP_INDEX]
