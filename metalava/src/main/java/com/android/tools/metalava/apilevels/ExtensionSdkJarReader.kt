@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.SdkConstants
-import com.android.SdkConstants.PLATFORM_WINDOWS
 import java.io.File
 
 /**
@@ -28,15 +26,7 @@ import java.io.File
  *   Android build as it uses a sandbox to provide only those extension jars in the correct surface
  *   anyway.
  */
-class ExtensionSdkJarReader(surface: String?) {
-
-    private val regexJarPath = run {
-        var pattern = ".*/(\\d+)/${surface?:"[^/]+"}/(.*)\\.jar$"
-        if (SdkConstants.currentPlatform() == PLATFORM_WINDOWS) {
-            pattern = pattern.replace("/", "\\\\")
-        }
-        Regex(pattern)
-    }
+class ExtensionSdkJarReader(private val surface: String?) {
 
     /**
      * Find extension SDK jar files in an extension SDK tree.
@@ -45,20 +35,15 @@ class ExtensionSdkJarReader(surface: String?) {
      *   last version
      */
     internal fun findExtensionSdkJarFiles(root: File): Map<String, List<VersionAndPath>> {
-        val map = mutableMapOf<String, MutableList<VersionAndPath>>()
-        root
-            .walk()
-            .maxDepth(3)
-            .mapNotNull { file ->
-                regexJarPath.matchEntire(file.path)?.groups?.let { groups ->
-                    Triple(groups[2]!!.value, groups[1]!!.value.toInt(), file)
-                }
-            }
-            .sortedBy { it.second }
-            .forEach {
-                map.getOrPut(it.first) { mutableListOf() }.add(VersionAndPath(it.second, it.third))
-            }
-        return map
+        val node =
+            PatternNode.parsePatterns(
+                listOf(
+                    "{version:level}/${surface?:"*"}/{module}.jar",
+                )
+            )
+        return node.scan(PatternNode.ScanConfig(dir = root)).groupBy({ it.module!! }) {
+            VersionAndPath(it.version.major, root.resolve(it.file).normalize())
+        }
     }
 
     /**
