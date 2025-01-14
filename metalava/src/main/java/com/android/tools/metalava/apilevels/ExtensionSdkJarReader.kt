@@ -15,36 +15,8 @@
  */
 package com.android.tools.metalava.apilevels
 
-import java.io.File
-
-/**
- * Scan for and read extension jars.
- *
- * @param surface the optional surface of extension jars to read. If specified then only extension
- *   jars in the `extensions/<version>/<surface>` directories will be used. Otherwise, any available
- *   jar in the `extensions/<version>/<any>` directories will be used. The latter is used in the
- *   Android build as it uses a sandbox to provide only those extension jars in the correct surface
- *   anyway.
- */
-class ExtensionSdkJarReader(private val surface: String?) {
-
-    /**
-     * Find extension SDK jar files in an extension SDK tree.
-     *
-     * @return a mapping from SDK module name -> list of [MatchedPatternFile] objects, sorted from
-     *   earliest to last version.
-     */
-    internal fun findExtensionSdkJarFiles(root: File): Map<String, List<MatchedPatternFile>> {
-        val node =
-            PatternNode.parsePatterns(
-                listOf(
-                    "{version:extension}/${surface?:"*"}/{module}.jar",
-                )
-            )
-        return node.scan(PatternNode.ScanConfig(dir = root)).groupBy({ it.module!! }) {
-            it.copy(file = root.resolve(it.file).normalize())
-        }
-    }
+/** Scan for and read extension jars. */
+object ExtensionSdkJarReader {
 
     /**
      * Find the extension jars and versions for all modules, wrap in a [VersionedApi] and add them
@@ -55,21 +27,17 @@ class ExtensionSdkJarReader(private val surface: String?) {
      * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
      *
      * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
-     * @param sdkJarRoot path to directory containing extension SDK jars (usually
-     *   $ANDROID_ROOT/prebuilts/sdk/extensions)
+     * @param extensionJarsByModule extension jars, grouped by module name.
      * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
      */
     fun addVersionedExtensionApis(
         list: MutableList<VersionedApi>,
         versionNotInAndroidSdk: ApiVersion,
-        sdkJarRoot: File,
+        extensionJarsByModule: Map<String, List<MatchedPatternFile>>,
         sdkExtensionInfo: SdkExtensionInfo,
     ) {
-        val map = findExtensionSdkJarFiles(sdkJarRoot)
-        require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
-
         // Iterate over the mainline modules and their different versions.
-        for ((mainlineModule, value) in map) {
+        for ((mainlineModule, value) in extensionJarsByModule) {
             // Get the extensions information for the mainline module. If no information exists for
             // a particular module then the module is ignored.
             val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)

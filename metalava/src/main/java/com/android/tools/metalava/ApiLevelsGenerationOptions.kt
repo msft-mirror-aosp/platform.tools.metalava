@@ -23,6 +23,7 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
+import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.apilevels.VersionedApi
@@ -348,6 +349,33 @@ class ApiLevelsGenerationOptions(
         }
     }
 
+    /**
+     * Find extension SDK jar files in an extension SDK tree.
+     *
+     * @param root the root of the sdk extension directory.
+     * @param surface the optional surface of extension jars to read. If specified then only
+     *   extension jars in the `extensions/<version>/<surface>` directories will be used. Otherwise,
+     *   any available jar in the `extensions/<version>/<any>` directories will be used. The latter
+     *   is used in the Android build as it uses a sandbox to provide only those extension jars in
+     *   the correct surface anyway.
+     * @return a mapping from SDK module name -> list of [MatchedPatternFile] objects, sorted from
+     *   earliest to last version.
+     */
+    private fun findExtensionSdkJarFiles(
+        root: File,
+        surface: String?,
+    ): Map<String, List<MatchedPatternFile>> {
+        val node =
+            PatternNode.parsePatterns(
+                listOf(
+                    "{version:extension}/${surface?:"*"}/{module}.jar",
+                )
+            )
+        return node.scan(PatternNode.ScanConfig(dir = root)).groupBy({ it.module!! }) {
+            it.copy(file = root.resolve(it.file).normalize())
+        }
+    }
+
     /** Print string returned by [message] if verbose output has been requested. */
     private inline fun verbosePrint(message: () -> String) {
         if (earlyOptions.verbosity.verbose) {
@@ -425,18 +453,20 @@ class ApiLevelsGenerationOptions(
                 }
 
                 // Add any VersionedApis for SDK extensions. These must be added after all
-                // VersionedApis
-                // for SDK versions as their behavior depends on whether an API was defined in an
-                // SDK
-                // version.
+                // VersionedApis for SDK versions as their behavior depends on whether an API was
+                // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
-                    ExtensionSdkJarReader(apiSurface)
-                        .addVersionedExtensionApis(
-                            this,
-                            notFinalizedSdkVersion,
-                            sdkExtensionsArguments.sdkExtJarRoot,
-                            sdkExtensionsArguments.sdkExtensionInfo,
-                        )
+                    val extensionJarsByModule =
+                        findExtensionSdkJarFiles(sdkExtensionsArguments.sdkExtJarRoot, apiSurface)
+                    require(extensionJarsByModule.isNotEmpty()) {
+                        "no extension sdk jar files found in $sdkJarRoot"
+                    }
+                    ExtensionSdkJarReader.addVersionedExtensionApis(
+                        this,
+                        notFinalizedSdkVersion,
+                        extensionJarsByModule,
+                        sdkExtensionsArguments.sdkExtensionInfo,
+                    )
                 }
             }
 
