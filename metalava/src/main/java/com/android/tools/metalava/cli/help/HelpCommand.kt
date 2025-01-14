@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.cli.help
 
-import com.android.tools.metalava.ARG_STUB_PACKAGES
+import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
@@ -28,7 +28,7 @@ import com.github.ajalt.clikt.output.Localization
 
 class HelpCommand :
     CliktCommand(
-        help = "Provides help for general metalava concepts",
+        help = "Provides help for general metalava concepts.",
         invokeWithoutSubcommand = true,
     ) {
 
@@ -126,11 +126,11 @@ option.
   signature files. Applies to the contents of the files specified on `--api` and `--removed-api`.
 
   `source` - preserves the order in which overloaded methods appear in the source files. This means
-   that refactorings of the source files which change the order but not the API can cause 
+   that refactorings of the source files which change the order but not the API can cause
    unnecessary changes in the API signature files.
 
-  `signature` (default) - sorts overloaded methods by their signature. This means that refactorings 
-  of the source files which change the order but not the API will have no effect on the API 
+  `signature` (default) - sorts overloaded methods by their signature. This means that refactorings
+  of the source files which change the order but not the API will have no effect on the API
   signature files.
 
 Currently, metalava supports the following versions:

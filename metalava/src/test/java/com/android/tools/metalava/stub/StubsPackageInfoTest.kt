@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -48,7 +50,9 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             warnings = "",
             api =
@@ -66,8 +70,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
                     // By default metalava rewrites androidx.annotation.Nullable to
                     // android.annotation.Nullable, but the latter does not have target PACKAGE thus
                     // fails to compile. This forces stubs keep the androidx annotation.
@@ -164,6 +166,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test package-info annotations`() {
         check(
@@ -179,7 +182,9 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         )
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }"""),
-                    restrictToSource
+                    restrictToSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -204,7 +209,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 

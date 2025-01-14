@@ -208,7 +208,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class MyTest {
                     method public static codePointAt(_: char @NonNull [], _: int): int;
-                    method @NonNull public entrySet(): java.util.Set<java.util.Map.@NonNull Entry<K,V>>;
+                    method @NonNull public <K,V> entrySet(): java.util.Set<java.util.Map.@NonNull Entry<K,V>>;
                     method @NonNull public getAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [];
                     method @NonNull public abstract getParameterAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [] @NonNull [];
                     method @NonNull public split(@NonNull _: String, _: int): @NonNull String @NonNull [];
@@ -222,7 +222,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class MyTest {
                     method public static int codePointAt(char[], int);
-                    method @NonNull public java.util.Set<java.util.Map.Entry<K,V>> entrySet();
+                    method @NonNull public <K, V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
                     method @NonNull public java.lang.annotation.Annotation[] getAnnotations();
                     method @NonNull public abstract java.lang.annotation.Annotation[][] getParameterAnnotations();
                     method @NonNull public String[] split(@NonNull String, int);
@@ -315,8 +315,6 @@ class ApiFromTextTest : DriverTest() {
               public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }
@@ -335,7 +333,7 @@ class ApiFromTextTest : DriverTest() {
               public final class Test<T> {
                 ctor public Test();
                 method public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T);
-                method public static <T & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
+                method public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
                 method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws java.lang.Throwable;
                 field public static java.util.List<java.lang.String> LIST;
               }
@@ -377,6 +375,7 @@ class ApiFromTextTest : DriverTest() {
     fun `Test inner classes`() {
         val source =
             """
+                // Signature format: 5.0
                 package test.pkg {
                   public abstract class Foo {
                     ctor public Foo();
@@ -384,17 +383,17 @@ class ApiFromTextTest : DriverTest() {
                     method @Deprecated public static final void method2();
                   }
                   @Deprecated protected static final class Foo.Inner1 {
-                    ctor protected Foo.Inner1();
+                    ctor @Deprecated protected Foo.Inner1();
                   }
                   @Deprecated protected abstract static class Foo.Inner2 {
-                    ctor protected Foo.Inner2();
+                    ctor @Deprecated protected Foo.Inner2();
                   }
                   @Deprecated protected static interface Foo.Inner3 {
-                    method public default void method3();
-                    method public abstract static void method4(int);
+                    method @Deprecated public default void method3();
+                    method @Deprecated public static void method4(int);
                   }
                 }
-                """
+            """
 
         check(signatureSource = source, api = source)
     }

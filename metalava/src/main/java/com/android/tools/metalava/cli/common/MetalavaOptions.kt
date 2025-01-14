@@ -49,6 +49,11 @@ fun RawArgument.existingFile(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingFile)
 }
 
+/** Convert the option to a [File] that represents an existing directory. */
+fun RawOption.existingDir(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDir)
+}
+
 /** Convert the argument to a [File] that represents an existing directory. */
 fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)
@@ -72,6 +77,11 @@ fun RawArgument.newFile(): ProcessedArgument<File, File> {
 /** Convert the argument to a [File] that represents a new directory. */
 fun RawArgument.newDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToNewDir)
+}
+
+/** Convert the option to a [File] that represents a new or existing file. */
+fun RawOption.newOrExistingFile(): NullableOption<File, File> {
+    return fileConversion(::stringToNewOrExistingFile)
 }
 
 /** Convert the option to a [File] using the supplied conversion function.. */
@@ -203,9 +213,33 @@ internal fun stringToNewFile(value: String): File {
     return output
 }
 
+/**
+ * Convert a string representing a new or existing file to a [File].
+ *
+ * This will fail if:
+ * * the file is a directory.
+ * * the parent directory does not exist, and cannot be created.
+ */
+internal fun stringToNewOrExistingFile(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.exists()) {
+        val parentFile = file.parentFile
+        if (parentFile != null && !parentFile.isDirectory) {
+            val ok = parentFile.mkdirs()
+            if (!ok) {
+                throw MetalavaCliException("Could not create $parentFile")
+            }
+        }
+    }
+    return file
+}
+
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
 // collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
 const val HARD_NEWLINE = "\u0085"
+
+// Two consecutive newline characters will result in a blank line in the Clikt formatted output.
+const val BLANK_LINE = "\n\n"
 
 /**
  * Create a property delegate for an enum.
@@ -259,7 +293,7 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
 
     val constructedHelp = buildString {
         append(help)
-        append(HARD_NEWLINE)
+        append(BLANK_LINE)
         for (enumValue in optionToValue.values) {
             val value = key(enumValue)
             // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
@@ -267,7 +301,7 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
             append(constructStyleableChoiceOption(value))
             append(" - ")
             append(enumValueHelpGetter(enumValue))
-            append(HARD_NEWLINE)
+            append(BLANK_LINE)
         }
     }
 
@@ -283,13 +317,25 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
  * in the help text using [deconstructStyleableChoiceOption] and replaced with actual styling
  * sequences if needed.
  */
-private fun constructStyleableChoiceOption(value: String) = "$HARD_NEWLINE**$value**"
+private fun constructStyleableChoiceOption(value: String) = "$BLANK_LINE**$value**"
 
 /**
  * A regular expression that will match choice options created using
  * [constructStyleableChoiceOption].
  */
-private val deconstructStyleableChoiceOption = """$HARD_NEWLINE\*\*([^*]+)\*\*""".toRegex()
+private val deconstructStyleableChoiceOption = """$BLANK_LINE(\*\*([^*]+)\*\*)""".toRegex()
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that must be replaced by
+ * [replaceChoiceOption].
+ */
+private const val REPLACEMENT_GROUP_INDEX = 1
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that contains the label that will be
+ * transformed by [replaceChoiceOption].
+ */
+private const val LABEL_GROUP_INDEX = REPLACEMENT_GROUP_INDEX + 1
 
 /**
  * Replace the choice option (i.e. the value passed to [constructStyleableChoiceOption]) with the
@@ -302,11 +348,20 @@ private fun MatchResult.replaceChoiceOption(
     builder: StringBuilder,
     transformer: (String) -> String
 ) {
-    val group = groups[1] ?: throw IllegalStateException("group 1 not found in $this")
-    val choiceOption = group.value
-    val replacementText = transformer(choiceOption)
-    // Replace the choice option and the surrounding style markers but not the leading NEL.
-    builder.replace(range.first + 1, range.last + 1, replacementText)
+    // Get the text for the label of the choice option.
+    val labelGroup =
+        groups[LABEL_GROUP_INDEX] ?: error("label group $LABEL_GROUP_INDEX not found in $this")
+    val label = labelGroup.value
+
+    // Transform the label.
+    val transformedLabel = transformer(label)
+
+    // Replace the label and the surrounding style markers but not the leading blank line with the
+    // transformed label.
+    val replacementGroup =
+        groups[REPLACEMENT_GROUP_INDEX]
+            ?: error("replacement group $REPLACEMENT_GROUP_INDEX not found in $this")
+    builder.replace(replacementGroup.range.first, replacementGroup.range.last + 1, transformedLabel)
 }
 
 /**
@@ -503,5 +558,45 @@ internal fun Option.decompose(): Sequence<Option> {
         val metavar = if (name.endsWith("-category")) "<name>" else "<id>"
         val help = lines[i]
         copy(names = setOf(name), metavar = metavar, help = help)
+    }
+}
+
+/**
+ * Clikt does not allow `:` in option names but Metalava uses that for creating structured option
+ * names, e.g. --part1:part2:part3.
+ *
+ * This method can be used to circumvent the built-in check and use a custom check that allows for
+ * structure option names. Call it at the end of the `option(...)....allowStructureOptionName()`
+ * call chain.
+ */
+fun <T> OptionWithValues<T, *, *>.allowStructuredOptionName(): OptionDelegate<T> {
+    return StructuredOptionName(this)
+}
+
+/** Allows the same format for option names as Clikt with the addition of the ':' character. */
+private fun checkStructuredOptionNames(names: Set<String>) {
+    val invalidName = names.find { !it.matches(Regex("""[\-@/+]{1,2}[\w\-_:]+""")) }
+    require(invalidName == null) { "Invalid option name \"$invalidName\"" }
+}
+
+/** Circumvents the usual Clikt name format check and substitutes its own name format check. */
+class StructuredOptionName<T>(private val delegate: OptionDelegate<T>) :
+    OptionDelegate<T> by delegate {
+
+    override fun provideDelegate(
+        thisRef: ParameterHolder,
+        prop: KProperty<*>
+    ): ReadOnlyProperty<ParameterHolder, T> {
+        // If no names are provided then delegate this to the built-in method to infer the option
+        // name as that name is guaranteed not to contain a ':'.
+        if (names.isEmpty()) {
+            return delegate.provideDelegate(thisRef, prop)
+        }
+        require(secondaryNames.isEmpty()) {
+            "Secondary option names are only allowed on flag options."
+        }
+        checkStructuredOptionNames(names)
+        thisRef.registerOption(delegate)
+        return this
     }
 }

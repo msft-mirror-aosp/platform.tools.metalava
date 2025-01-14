@@ -16,84 +16,69 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiMethod
-import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
-import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UClass
-import org.jetbrains.uast.toUElement
+import com.android.tools.metalava.model.item.DefaultPropertyItem
+import org.jetbrains.kotlin.psi.KtDeclaration
 
-class PsiPropertyItem
+internal class PsiPropertyItem
 private constructor(
     override val codebase: PsiBasedCodebase,
-    private val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
-    private val name: String,
-    modifiers: PsiModifierItem,
-    documentation: String,
-    private val fieldType: PsiTypeItem,
-    override val getter: PsiMethodItem,
-    override val setter: PsiMethodItem?,
-    override val constructorParameter: PsiParameterItem?,
-    override val backingField: PsiFieldItem?
+    private val ktDeclaration: KtDeclaration,
+    modifiers: BaseModifierList,
+    // This needs to be passed in because the documentation may come from the property, or it may
+    // come from the getter method.
+    documentationFactory: ItemDocumentationFactory,
+    name: String,
+    containingClass: ClassItem,
+    type: TypeItem,
+    getter: MethodItem?,
+    setter: MethodItem?,
+    constructorParameter: ParameterItem?,
+    backingField: FieldItem?
 ) :
-    PsiItem(
+    DefaultPropertyItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation(ktDeclaration),
+        itemLanguage = ktDeclaration.itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
-        element = psiMethod
+        documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        name = name,
+        containingClass = containingClass,
+        type = type,
+        getter = getter,
+        setter = setter,
+        constructorParameter = constructorParameter,
+        backingField = backingField,
     ),
-    PropertyItem {
+    PropertyItem,
+    PsiItem {
 
-    override fun type(): TypeItem = fieldType
-
-    override fun name(): String = name
-
-    override fun containingClass(): PsiClassItem = containingClass
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = containingClass().psi()
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
+    override fun psi() = ktDeclaration
 
     companion object {
         /**
-         * Creates a new property item, given a [name], [type] and relationships to other items.
+         * Creates a new property item for the [ktDeclaration], given a [name] and relationships to
+         * other items.
          *
          * Kotlin's properties consist of up to four other declarations: Their accessor functions,
          * primary constructor parameter, and a backing field. These relationships are useful for
          * resolving documentation and exposing the model correctly in Kotlin stubs.
          *
-         * Metalava currently requires all properties to have a [getter]. It does not currently
-         * support private, `const val`, or [JvmField] properties. Mutable `var` properties usually
-         * have a [setter], but properties with a private default setter may use direct field access
-         * instead.
+         * Most properties have a [getter], but those that are available through field access in
+         * Java (e.g. `const val` and [JvmField] properties) or are not accessible from Java (e.g.
+         * private properties and non-constructor value class properties) do not.
+         *
+         * Mutable `var` properties usually have a [setter], but properties with a private default
+         * setter may use direct field access instead.
          *
          * Properties declared in the primary constructor of a class have an associated
          * [constructorParameter]. This relationship is important for resolving docs which may exist
@@ -102,64 +87,40 @@ private constructor(
          * Most properties on classes without a custom getter have a [backingField] to hold their
          * value. This is private except for [JvmField] properties.
          */
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            ktDeclaration: KtDeclaration,
+            containingClass: ClassItem,
+            typeItemFactory: PsiTypeItemFactory,
             name: String,
-            type: PsiTypeItem,
-            getter: PsiMethodItem,
+            getter: PsiMethodItem?,
             setter: PsiMethodItem? = null,
             constructorParameter: PsiParameterItem? = null,
-            backingField: PsiFieldItem? = null
-        ): PsiPropertyItem {
-            val psiMethod = getter.psiMethod
-            val documentation =
-                when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor -> javadoc(sourcePsi.property)
-                    else -> javadoc(sourcePsi ?: psiMethod)
-                }
-            val modifiers = modifiers(codebase, psiMethod, documentation)
-            // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
-            // if the property doesn't need a backing field. Same for unspecified use-site target.
-            // To preserve such annotations, our last resort is to examine source PSI directly.
-            if (backingField == null) {
-                val ktProperty = (getter.sourcePsi as? KtPropertyAccessor)?.property
-                val annotations =
-                    ktProperty?.annotationEntries?.mapNotNull {
-                        val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
-                        if (
-                            useSiteTarget == null ||
-                                useSiteTarget == AnnotationUseSiteTarget.PROPERTY
-                        ) {
-                            it.toUElement() as? UAnnotation
-                        } else null
-                    }
-                annotations?.forEach { uAnnotation ->
-                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
-                    if (annotationItem !in modifiers.annotations()) {
-                        modifiers.addAnnotation(annotationItem)
-                    }
-                }
-            }
+            backingField: PsiFieldItem? = null,
+        ): PsiPropertyItem? {
+            val type =
+                getter?.returnType()
+                    ?: typeItemFactory.getTypeForProperty(ktDeclaration) ?: return null
+            val modifiers = PsiModifierItem.createForProperty(codebase, ktDeclaration, getter)
+
             val property =
                 PsiPropertyItem(
                     codebase = codebase,
-                    psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = documentation,
+                    ktDeclaration = ktDeclaration,
                     modifiers = modifiers,
-                    fieldType = type,
+                    documentationFactory = PsiItemDocumentation.factory(ktDeclaration, codebase),
+                    name = name,
+                    containingClass = containingClass,
+                    type = type,
                     getter = getter,
                     setter = setter,
                     constructorParameter = constructorParameter,
                     backingField = backingField
                 )
-            getter.property = property
+            getter?.property = property
             setter?.property = property
             constructorParameter?.property = property
             backingField?.property = property
-            property.modifiers.setOwner(property)
             return property
         }
     }

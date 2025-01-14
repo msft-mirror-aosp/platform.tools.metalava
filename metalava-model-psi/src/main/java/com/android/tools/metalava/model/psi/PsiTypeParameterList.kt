@@ -16,32 +16,40 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.intellij.psi.PsiTypeParameterListOwner
 
-internal class PsiTypeParameterList(
-    val codebase: PsiBasedCodebase,
-    private val psiTypeParameterList: com.intellij.psi.PsiTypeParameterList
-) : TypeParameterList {
-    override fun toString(): String {
-        return PsiTypeItem.typeParameterList(psiTypeParameterList) ?: ""
-    }
+internal object PsiTypeParameterList {
 
-    override fun typeParameterNames(): List<String> {
-        val parameters = psiTypeParameterList.typeParameters
-        val list = ArrayList<String>(parameters.size)
-        for (parameter in parameters) {
-            list.add(parameter.name ?: continue)
-        }
-        return list
-    }
+    fun create(
+        codebase: PsiBasedCodebase,
+        enclosingTypeItemFactory: PsiTypeItemFactory,
+        scopeDescription: String,
+        psiOwner: PsiTypeParameterListOwner
+    ): TypeParameterListAndFactory<PsiTypeItemFactory> {
+        val psiTypeParameterList =
+            psiOwner.typeParameterList
+                ?: return TypeParameterListAndFactory(
+                    TypeParameterList.NONE,
+                    enclosingTypeItemFactory
+                )
 
-    override fun typeParameters(): List<TypeParameterItem> {
-        val parameters = psiTypeParameterList.typeParameters
-        val list = ArrayList<TypeParameterItem>(parameters.size)
-        parameters.mapTo(list) {
-            PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() }
-        }
-        return list
+        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+            enclosingTypeItemFactory,
+            scopeDescription,
+            psiTypeParameterList.typeParameters.toList(),
+            { PsiTypeParameterItem.create(codebase, it) },
+            // Create bounds and store it in the [PsiTypeParameterItem.bounds] property.
+            { typeItemFactory, psiTypeParameter ->
+                val refs = psiTypeParameter.extendsList.referencedTypes
+                if (refs.isEmpty()) {
+                    emptyList()
+                } else {
+                    refs.mapNotNull { typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
+                }
+            },
+        )
     }
 }

@@ -16,39 +16,30 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.DefaultAnnotationManager
 import com.android.tools.metalava.JDiffXmlWriter
 import com.android.tools.metalava.OptionsDelegate
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.ReferenceResolver
-import com.android.tools.metalava.model.text.ResolverContext
-import com.android.tools.metalava.model.text.SourcePositionInfo
-import com.android.tools.metalava.model.text.TextClassItem
-import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.text.TextConstructorItem
-import com.android.tools.metalava.model.text.TextFieldItem
-import com.android.tools.metalava.model.text.TextMethodItem
-import com.android.tools.metalava.model.text.TextPackageItem
-import com.android.tools.metalava.model.text.TextPropertyItem
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.text.TextCodebaseBuilder
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -68,8 +59,10 @@ class SignatureToJDiffCommand :
         option(
                 help =
                     """
-                        Determines whether duplicate inherited methods should be stripped from the
-                        output or not.
+                        Determines whether types that are not defined within the input signature
+                        file should be stripped from the output or not. This does not include
+                        super class types, i.e. the `extends` attribute in the generated JDiff file.
+                        Historically, they have not been filtered.
                     """
                         .trimIndent()
             )
@@ -139,29 +132,33 @@ class SignatureToJDiffCommand :
         OptionsDelegate.disallowAccess()
 
         val annotationManager = DefaultAnnotationManager()
-        val signatureFileLoader =
-            SignatureFileLoader(
+        val codebaseConfig =
+            Codebase.Config(
                 annotationManager = annotationManager,
+            )
+        val signatureFileLoader =
+            DefaultSignatureFileLoader(
+                codebaseConfig = codebaseConfig,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(apiFile)
+        val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFile))
 
-        val apiVisitorConfig = ApiVisitor.Config()
-        val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
+        val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
         val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
         val strip = strip
         val apiReference =
             if (strip) apiType.getEmitFilter(apiPredicateConfig)
             else apiType.getReferenceFilter(apiPredicateConfig)
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
         val baseFile = baseApiFile
 
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(baseFile)
-                computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
+                val baseApi = signatureFileLoader.load(SignatureFile.fromFiles(baseFile))
+                computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
             } else {
                 signatureApi
             }
@@ -170,20 +167,22 @@ class SignatureToJDiffCommand :
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
         createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
             JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName,
-                showUnannotated = false,
-                ApiVisitor.Config(),
-            )
+                    writer = printWriter,
+                    apiName = apiName,
+                )
+                .createFilteringVisitor(
+                    apiFilters = apiFilters,
+                    preFiltered = signatureApi.preFiltered && !strip,
+                    showUnannotated = false,
+                    // Historically, the super class type has not been filtered.
+                    filterSuperClassType = false,
+                )
         }
     }
 }
 
 /**
- * Create a [TextCodebase] that is a delta between [baseApi] and [signatureApi], i.e. it includes
+ * Create a text [Codebase] that is a delta between [baseApi] and [signatureApi], i.e. it includes
  * all the [Item] that are in [signatureApi] but not in [baseApi].
  *
  * This is expected to be used where [signatureApi] is a super set of [baseApi] but that is not
@@ -204,105 +203,44 @@ private fun computeDelta(
     baseFile: File,
     baseApi: Codebase,
     signatureApi: Codebase,
-    apiVisitorConfig: ApiVisitor.Config,
-): TextCodebase {
+    apiPredicateConfig: ApiPredicate.Config,
+): Codebase {
     // Compute just the delta
-    val delta = TextCodebase(baseFile, signatureApi.annotationManager)
-    delta.description = "Delta between $baseApi and $signatureApi"
-
-    CodebaseComparator(apiVisitorConfig = apiVisitorConfig)
-        .compare(
-            object : ComparisonVisitor() {
-                override fun added(new: PackageItem) {
-                    delta.addPackage(new as TextPackageItem)
-                }
-
-                override fun added(new: ClassItem) {
-                    val pkg = getOrAddPackage(new.containingPackage().qualifiedName())
-                    pkg.addClass(new as TextClassItem)
-                }
-
-                override fun added(new: ConstructorItem) {
-                    val cls = getOrAddClass(new.containingClass())
-                    cls.addConstructor(new as TextConstructorItem)
-                }
-
-                override fun added(new: MethodItem) {
-                    val cls = getOrAddClass(new.containingClass())
-                    cls.addMethod(new as TextMethodItem)
-                }
-
-                override fun added(new: FieldItem) {
-                    val cls = getOrAddClass(new.containingClass())
-                    cls.addField(new as TextFieldItem)
-                }
-
-                override fun added(new: PropertyItem) {
-                    val cls = getOrAddClass(new.containingClass())
-                    cls.addProperty(new as TextPropertyItem)
-                }
-
-                private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
-                    val cls = delta.findClass(fullClass.qualifiedName())
-                    if (cls != null) {
-                        return cls
+    return TextCodebaseBuilder.build(
+        location = baseFile,
+        description = "Delta between $baseApi and $signatureApi",
+        codebaseConfig = signatureApi.config,
+    ) {
+        CodebaseComparator()
+            .compare(
+                object : ComparisonVisitor() {
+                    override fun addedPackageItem(new: PackageItem) {
+                        addPackage(new)
                     }
-                    val textClass = fullClass as TextClassItem
-                    val newClass =
-                        TextClassItem(
-                            delta,
-                            SourcePositionInfo.UNKNOWN,
-                            textClass.modifiers,
-                            textClass.isInterface(),
-                            textClass.isEnum(),
-                            textClass.isAnnotationType(),
-                            textClass.qualifiedName,
-                            textClass.qualifiedName,
-                            textClass.name,
-                            textClass.annotations,
-                            textClass.typeParameterList
-                        )
-                    val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
-                    pkg.addClass(newClass)
-                    newClass.setContainingPackage(pkg)
-                    delta.registerClass(newClass)
-                    return newClass
-                }
 
-                private fun getOrAddPackage(pkgName: String): TextPackageItem {
-                    val pkg = delta.findPackage(pkgName)
-                    if (pkg != null) {
-                        return pkg
+                    override fun addedClassItem(new: ClassItem) {
+                        addClass(new)
                     }
-                    val newPkg =
-                        TextPackageItem(
-                            delta,
-                            pkgName,
-                            DefaultModifierList(delta, DefaultModifierList.PUBLIC),
-                            SourcePositionInfo.UNKNOWN
-                        )
-                    delta.addPackage(newPkg)
-                    return newPkg
-                }
-            },
-            baseApi,
-            signatureApi,
-            ApiType.ALL.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
-        )
 
-    // As the delta has not been created by the parser there is no parser provided
-    // context to use so just use an empty context.
-    val context =
-        object : ResolverContext {
-            override fun namesOfInterfaces(cl: TextClassItem): List<String>? = null
+                    override fun addedConstructorItem(new: ConstructorItem) {
+                        addConstructor(new)
+                    }
 
-            override fun nameOfSuperClass(cl: TextClassItem): String? = null
+                    override fun addedMethodItem(new: MethodItem) {
+                        addMethod(new)
+                    }
 
-            override val classResolver: ClassResolver? = null
-        }
+                    override fun addedFieldItem(new: FieldItem) {
+                        addField(new)
+                    }
 
-    // All this actually does is add in an appropriate super class depending on the class
-    // type.
-    ReferenceResolver.resolveReferences(context, delta)
-    return delta
+                    override fun addedPropertyItem(new: PropertyItem) {
+                        addProperty(new)
+                    }
+                },
+                baseApi,
+                signatureApi,
+                ApiType.ALL.getReferenceFilter(apiPredicateConfig)
+            )
+    }
 }
