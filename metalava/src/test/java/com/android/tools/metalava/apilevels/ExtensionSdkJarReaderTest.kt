@@ -50,15 +50,38 @@ class ExtensionSdkJarReaderTest : TemporaryFolderOwner {
             mapOf(
                 "foo" to
                     listOf(
-                        VersionAndPath(1, File(root, "1/public/foo.jar")),
-                        VersionAndPath(2, File(root, "2/public/foo.jar"))
+                        MatchedPatternFile(
+                            File(root, "1/public/foo.jar"),
+                            ApiVersion.fromLevel(1),
+                            module = "foo",
+                        ),
+                        MatchedPatternFile(
+                            File(root, "2/public/foo.jar"),
+                            ApiVersion.fromLevel(2),
+                            module = "foo",
+                        ),
                     ),
                 "bar" to
                     listOf(
-                        VersionAndPath(1, File(root, "1/public/bar.jar")),
-                        VersionAndPath(2, File(root, "2/public/bar.jar"))
+                        MatchedPatternFile(
+                            File(root, "1/public/bar.jar"),
+                            ApiVersion.fromLevel(1),
+                            module = "bar",
+                        ),
+                        MatchedPatternFile(
+                            File(root, "2/public/bar.jar"),
+                            ApiVersion.fromLevel(2),
+                            module = "bar",
+                        ),
                     ),
-                "baz" to listOf(VersionAndPath(2, File(root, "2/public/baz.jar"))),
+                "baz" to
+                    listOf(
+                        MatchedPatternFile(
+                            File(root, "2/public/baz.jar"),
+                            ApiVersion.fromLevel(2),
+                            module = "baz",
+                        ),
+                    ),
             )
         val actual = ExtensionSdkJarReader("public").findExtensionSdkJarFiles(root)
         assertEquals(expected, actual)

@@ -31,10 +31,10 @@ class ExtensionSdkJarReader(private val surface: String?) {
     /**
      * Find extension SDK jar files in an extension SDK tree.
      *
-     * @return a mapping SDK jar file -> list of VersionAndPath objects, sorted from earliest to
-     *   last version
+     * @return a mapping from SDK module name -> list of [MatchedPatternFile] objects, sorted from
+     *   earliest to last version.
      */
-    internal fun findExtensionSdkJarFiles(root: File): Map<String, List<VersionAndPath>> {
+    internal fun findExtensionSdkJarFiles(root: File): Map<String, List<MatchedPatternFile>> {
         val node =
             PatternNode.parsePatterns(
                 listOf(
@@ -42,7 +42,7 @@ class ExtensionSdkJarReader(private val surface: String?) {
                 )
             )
         return node.scan(PatternNode.ScanConfig(dir = root)).groupBy({ it.module!! }) {
-            VersionAndPath(it.version.major, root.resolve(it.file).normalize())
+            it.copy(file = root.resolve(it.file).normalize())
         }
     }
 
@@ -75,18 +75,16 @@ class ExtensionSdkJarReader(private val surface: String?) {
             val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
-            for ((level, path) in value) {
-                val extVersion = ExtVersion.fromLevel(level)
+            for ((file, version) in value) {
+                val extVersion = ExtVersion.fromLevel(version.major)
                 val updater =
                     ApiHistoryUpdater.forExtVersion(
                         versionNotInAndroidSdk,
                         extVersion,
                         mainlineModule,
                     )
-                list.add(VersionedJarApi(path, updater))
+                list.add(VersionedJarApi(file, updater))
             }
         }
     }
 }
-
-data class VersionAndPath(@JvmField val version: Int, @JvmField val path: File)
