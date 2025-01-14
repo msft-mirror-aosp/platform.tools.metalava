@@ -60,7 +60,7 @@ class ExtensionSdkJarReaderTest : TemporaryFolderOwner {
                     ),
                 "baz" to listOf(VersionAndPath(2, File(root, "2/public/baz.jar"))),
             )
-        val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root)
+        val actual = ExtensionSdkJarReader("public").findExtensionSdkJarFiles(root)
         assertEquals(expected, actual)
     }
 }

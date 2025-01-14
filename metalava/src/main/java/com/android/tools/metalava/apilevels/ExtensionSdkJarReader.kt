@@ -19,10 +19,19 @@ import com.android.SdkConstants
 import com.android.SdkConstants.PLATFORM_WINDOWS
 import java.io.File
 
-object ExtensionSdkJarReader {
+/**
+ * Scan for and read extension jars.
+ *
+ * @param surface the optional surface of extension jars to read. If specified then only extension
+ *   jars in the `extensions/<version>/<surface>` directories will be used. Otherwise, any available
+ *   jar in the `extensions/<version>/<any>` directories will be used. The latter is used in the
+ *   Android build as it uses a sandbox to provide only those extension jars in the correct surface
+ *   anyway.
+ */
+class ExtensionSdkJarReader(surface: String?) {
 
-    private val REGEX_JAR_PATH = run {
-        var pattern = ".*/(\\d+)/[^/]+/(.*)\\.jar$"
+    private val regexJarPath = run {
+        var pattern = ".*/(\\d+)/${surface?:"[^/]+"}/(.*)\\.jar$"
         if (SdkConstants.currentPlatform() == PLATFORM_WINDOWS) {
             pattern = pattern.replace("/", "\\\\")
         }
@@ -41,7 +50,7 @@ object ExtensionSdkJarReader {
             .walk()
             .maxDepth(3)
             .mapNotNull { file ->
-                REGEX_JAR_PATH.matchEntire(file.path)?.groups?.let { groups ->
+                regexJarPath.matchEntire(file.path)?.groups?.let { groups ->
                     Triple(groups[2]!!.value, groups[1]!!.value.toInt(), file)
                 }
             }

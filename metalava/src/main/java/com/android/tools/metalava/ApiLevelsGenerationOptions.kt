@@ -21,7 +21,7 @@ import com.android.tools.metalava.apilevels.ApiHistoryUpdater
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
-import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
+import com.android.tools.metalava.apilevels.ExtensionSdkJarReader
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
@@ -353,8 +353,12 @@ class ApiLevelsGenerationOptions(
      * Get the [GenerateApiHistoryConfig] for Android.
      *
      * This has some Android specific code, e.g. structure of SDK extensions.
+     *
+     * @param apiSurface the optional API surface to use to limit access to extension jars. If
+     *   `null` then all extension jars that are visible will be used.
      */
     fun forAndroidConfig(
+        apiSurface: String?,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
@@ -420,12 +424,13 @@ class ApiLevelsGenerationOptions(
                 // SDK
                 // version.
                 if (sdkExtensionsArguments != null) {
-                    addVersionedExtensionApis(
-                        this,
-                        notFinalizedSdkVersion,
-                        sdkExtensionsArguments.sdkExtJarRoot,
-                        sdkExtensionsArguments.sdkExtensionInfo,
-                    )
+                    ExtensionSdkJarReader(apiSurface)
+                        .addVersionedExtensionApis(
+                            this,
+                            notFinalizedSdkVersion,
+                            sdkExtensionsArguments.sdkExtJarRoot,
+                            sdkExtensionsArguments.sdkExtensionInfo,
+                        )
                 }
             }
 
