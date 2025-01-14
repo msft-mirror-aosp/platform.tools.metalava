@@ -17,6 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import java.io.File
+import java.util.TreeSet
 
 /**
  * A node in a tree of path patterns used to select historical API files.
@@ -177,13 +178,19 @@ sealed class PatternNode {
     internal fun scan(config: ScanConfig): List<MatchedPatternFile> {
         val dir = config.dir
         val start = PatternFileState(file = dir)
-        return scan(config, start)
-            // Ignore all but the first of each version.
-            .distinctBy { it.version }
-            // Sort them from the lowest version to the highest version.
-            .sortedBy { it.version }
-            // Convert the sequence into a list.
-            .toList()
+
+        // Create a sorted set into which the matched files will be added.
+        val sortedSet = TreeSet(matchedPatternFileComparator)
+
+        // Scan for files and add them to the sorted set if an equivalent one does not exist. That
+        // will eliminate duplicates and order them.
+        for (matchedPatternFile in scan(config, start)) {
+            // Add the file if it does not already exist in the set. That ensures that the set
+            // contains the first instance of each duplicate.
+            sortedSet.add(matchedPatternFile)
+        }
+
+        return sortedSet.toList()
     }
 
     /**
@@ -668,3 +675,13 @@ data class MatchedPatternFile(
     /** The [ApiVersion] extracted from the [File] path. */
     val version: ApiVersion,
 )
+
+/**
+ * Comparator that is used to identify duplicate [MatchedPatternFile]s and defined an order for the
+ * unique instances.
+ */
+private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
+    compareBy(
+        // Sort them from the lowest version to the highest version.
+        { it.version },
+    )
