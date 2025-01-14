@@ -21,11 +21,12 @@ import com.android.tools.metalava.apilevels.ApiHistoryUpdater
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
-import com.android.tools.metalava.apilevels.ExtensionSdkJarReader
+import com.android.tools.metalava.apilevels.ExtVersion
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
+import com.android.tools.metalava.apilevels.SdkExtensionInfo
 import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
@@ -461,7 +462,7 @@ class ApiLevelsGenerationOptions(
                     require(extensionJarsByModule.isNotEmpty()) {
                         "no extension sdk jar files found in $sdkJarRoot"
                     }
-                    ExtensionSdkJarReader.addVersionedExtensionApis(
+                    addVersionedExtensionApis(
                         this,
                         notFinalizedSdkVersion,
                         extensionJarsByModule,
@@ -490,6 +491,44 @@ class ApiLevelsGenerationOptions(
                     else MissingClassAction.REPORT,
             )
         }
+
+    /**
+     * Find the extension jars and versions for all modules, wrap in a [VersionedApi] and add them
+     * to [list].
+     *
+     * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
+     * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
+     * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
+     *
+     * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
+     * @param extensionJarsByModule extension jars, grouped by module name.
+     * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
+     */
+    private fun addVersionedExtensionApis(
+        list: MutableList<VersionedApi>,
+        versionNotInAndroidSdk: ApiVersion,
+        extensionJarsByModule: Map<String, List<MatchedPatternFile>>,
+        sdkExtensionInfo: SdkExtensionInfo,
+    ) {
+        // Iterate over the mainline modules and their different versions.
+        for ((mainlineModule, value) in extensionJarsByModule) {
+            // Get the extensions information for the mainline module. If no information exists for
+            // a particular module then the module is ignored.
+            val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
+            if (moduleMap.isEmpty())
+                continue // TODO(b/259115852): remove this (though it is an optimization too).
+            for ((file, version) in value) {
+                val extVersion = ExtVersion.fromLevel(version.major)
+                val updater =
+                    ApiHistoryUpdater.forExtVersion(
+                        versionNotInAndroidSdk,
+                        extVersion,
+                        mainlineModule,
+                    )
+                list.add(VersionedJarApi(file, updater))
+            }
+        }
+    }
 
     /** API version history file to generate */
     private val generateApiVersionHistory by
