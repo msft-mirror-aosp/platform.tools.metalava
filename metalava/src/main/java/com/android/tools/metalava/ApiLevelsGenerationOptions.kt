@@ -32,6 +32,7 @@ import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.RequiresOtherGroups
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.existingFile
@@ -82,7 +83,13 @@ class ApiLevelsGenerationOptions(
                 Options controlling the API levels file, e.g. `api-versions.xml` file.
             """
                 .trimIndent()
-    ) {
+    ),
+    RequiresOtherGroups {
+
+    /** Make sure that the [earlyOptions] is correctly initialized when testing. */
+    override val requiredGroups: List<OptionGroup>
+        get() = listOf(earlyOptions)
+
     /** API level XML file to generate. */
     val generateApiLevelXml: File? by
         option(
