@@ -102,6 +102,8 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 zip.from(testTask.map { it.reports.junitXml.outputLocation.get() })
             }
 
+        project.addToModuleInfo(testTask.map { it.path })
+
         testTask.configure { task ->
             task as Test
             task.jvmArgs = listOf(

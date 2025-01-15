@@ -15,9 +15,12 @@
  */
 
 import com.android.tools.metalava.CREATE_ARCHIVE_TASK
+import com.android.tools.metalava.CREATE_MODULE_INFO
+import com.android.tools.metalava.ZIP_OWNERS_FILES
 import com.android.tools.metalava.buildinfo.CREATE_BUILD_INFO_TASK
 import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
 import com.android.tools.metalava.buildinfo.setUpAggregateBuildInfoFileTask
+import com.android.tools.metalava.registerOwnersServiceTasks
 
 defaultTasks =
     mutableListOf(
@@ -29,6 +32,9 @@ defaultTasks =
         CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
         "lint",
         "ktCheck",
+        ZIP_OWNERS_FILES,
+        CREATE_MODULE_INFO
     )
 
 setUpAggregateBuildInfoFileTask()
+registerOwnersServiceTasks()
