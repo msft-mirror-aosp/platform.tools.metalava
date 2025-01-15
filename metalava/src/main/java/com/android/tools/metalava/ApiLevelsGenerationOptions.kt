@@ -222,13 +222,6 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .multiple(default = emptyList())
-            .map {
-                buildList {
-                    addAll(it)
-                    // Fallbacks
-                    add("prebuilts/sdk/{version:level}/public/android.jar")
-                }
-            }
 
     /** Directory of prebuilt extension SDK jars that contribute to the API */
     private val sdkJarRoot: File? by

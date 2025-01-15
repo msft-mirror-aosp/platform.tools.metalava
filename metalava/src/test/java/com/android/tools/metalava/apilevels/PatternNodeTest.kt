@@ -98,8 +98,6 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",
-                // The following are fallbacks which are always added.
-                "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
         val patternNode = PatternNode.parsePatterns(patterns)
@@ -120,8 +118,6 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/system/android.jar",
-                "prebuilts/sdk/{version:level}/public/android.jar",
-                // The following are fallbacks which are always added.
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
@@ -146,8 +142,6 @@ class PatternNodeTest : TemporaryFolderOwner {
             listOf(
                 "prebuilts/sdk/{version:level}/module-lib/android.jar",
                 "prebuilts/sdk/{version:level}/system/android.jar",
-                "prebuilts/sdk/{version:level}/public/android.jar",
-                // The following are fallbacks which are always added.
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
