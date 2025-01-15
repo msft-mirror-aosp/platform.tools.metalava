@@ -327,18 +327,30 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * Find all android stub jars that matches the given criteria.
+     * Find all jars that matches the patterns in [patterns] and are in the range from
+     * [firstApiVersion] to [lastApiVersion].
+     *
+     * @param dir the directory to scan.
+     * @param patterns the patterns that determine the files that will be found.
+     */
+    private fun scanForJarFiles(dir: File, patterns: List<String>): List<MatchedPatternFile> {
+        // Find all the android.jar files for versions within the required range.
+        val patternNode = PatternNode.parsePatterns(patterns)
+        val versionRange = firstApiVersion.rangeTo(lastApiVersion)
+        val scanConfig = PatternNode.ScanConfig(dir = dir, apiVersionRange = versionRange)
+        return patternNode.scan(scanConfig)
+    }
+
+    /**
+     * Create [VersionedJarApi]s for each android stub jars in [matchedFiles].
      *
      * Returns a list of [VersionedApi]s from lowest [VersionedApi.apiVersion] to highest.
+     *
+     * @param matchedFiles a list of files that matched the historical API patterns.
      */
-    private fun findAndroidJars(): List<VersionedApi> {
-        // Find all the android.jar files for versions within the required range.
-        val patternNode = PatternNode.parsePatterns(androidJarPatterns)
-        val versionRange = firstApiVersion.rangeTo(lastApiVersion)
-        val scanConfig =
-            PatternNode.ScanConfig(dir = fileForPathInner("."), apiVersionRange = versionRange)
-        val matchedFiles = patternNode.scan(scanConfig)
-
+    private fun constructVersionedApisForAndroidJars(
+        matchedFiles: List<MatchedPatternFile>
+    ): List<VersionedApi> {
         // TODO(b/383288863): Check to make sure that there is one jar file for every major version
         //  in the range.
 
@@ -397,7 +409,11 @@ class ApiLevelsGenerationOptions(
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
-            val versionedHistoricalApis = findAndroidJars()
+            // Scan for all the files that could contribute to the API history.
+            val androidJarFiles = scanForJarFiles(fileForPathInner("."), androidJarPatterns)
+
+            // Get a VersionedApi for each of the Android jar files.
+            val versionedHistoricalApis = constructVersionedApisForAndroidJars(androidJarFiles)
 
             val currentSdkVersion = currentApiVersion
             if (currentSdkVersion.major <= 26) {
