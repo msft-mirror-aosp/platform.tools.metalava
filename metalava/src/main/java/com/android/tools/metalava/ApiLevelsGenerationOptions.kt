@@ -359,20 +359,20 @@ class ApiLevelsGenerationOptions(
      *   any available jar in the `extensions/<version>/<any>` directories will be used. The latter
      *   is used in the Android build as it uses a sandbox to provide only those extension jars in
      *   the correct surface anyway.
-     * @return a mapping from SDK module name -> list of [MatchedPatternFile] objects, sorted from
-     *   earliest to last version.
+     * @return a list of [MatchedPatternFile] objects, sorted by module from earliest to last
+     *   version.
      */
     private fun findExtensionSdkJarFiles(
         root: File,
         surface: String?,
-    ): Map<String, List<MatchedPatternFile>> {
+    ): List<MatchedPatternFile> {
         val node =
             PatternNode.parsePatterns(
                 listOf(
                     "{version:extension}/${surface?:"*"}/{module}.jar",
                 )
             )
-        return node.scan(PatternNode.ScanConfig(dir = root)).groupBy({ it.module!! }) {
+        return node.scan(PatternNode.ScanConfig(dir = root)).map {
             it.copy(file = root.resolve(it.file).normalize())
         }
     }
@@ -457,15 +457,15 @@ class ApiLevelsGenerationOptions(
                 // VersionedApis for SDK versions as their behavior depends on whether an API was
                 // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
-                    val extensionJarsByModule =
+                    val extensionJarFiles =
                         findExtensionSdkJarFiles(sdkExtensionsArguments.sdkExtJarRoot, apiSurface)
-                    require(extensionJarsByModule.isNotEmpty()) {
+                    require(extensionJarFiles.isNotEmpty()) {
                         "no extension sdk jar files found in $sdkJarRoot"
                     }
                     addVersionedExtensionApis(
                         this,
                         notFinalizedSdkVersion,
-                        extensionJarsByModule,
+                        extensionJarFiles,
                         sdkExtensionsArguments.sdkExtensionInfo,
                     )
                 }
@@ -493,23 +493,23 @@ class ApiLevelsGenerationOptions(
         }
 
     /**
-     * Find the extension jars and versions for all modules, wrap in a [VersionedApi] and add them
-     * to [list].
+     * Add [VersionedApi] instances to [list] for each of the [extensionJarFiles].
      *
      * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
      * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
      * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
      *
      * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
-     * @param extensionJarsByModule extension jars, grouped by module name.
+     * @param extensionJarFiles extension jar files.
      * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
      */
     private fun addVersionedExtensionApis(
         list: MutableList<VersionedApi>,
         versionNotInAndroidSdk: ApiVersion,
-        extensionJarsByModule: Map<String, List<MatchedPatternFile>>,
+        extensionJarFiles: List<MatchedPatternFile>,
         sdkExtensionInfo: SdkExtensionInfo,
     ) {
+        val extensionJarsByModule = extensionJarFiles.groupBy({ it.module!! })
         // Iterate over the mainline modules and their different versions.
         for ((mainlineModule, value) in extensionJarsByModule) {
             // Get the extensions information for the mainline module. If no information exists for
