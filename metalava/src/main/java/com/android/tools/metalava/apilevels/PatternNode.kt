@@ -701,10 +701,23 @@ internal data class PatternFileState(
         if (version == null) error("matching pattern could not extract version from $file")
         else
             MatchedPatternFile(
-                file.relativeTo(dir),
+                file.relativeDescendantOfOrSelf(dir),
                 version,
                 module,
             )
+
+    /**
+     * If this [File] is a descendant of [base] then return a relative path from [base] to this,
+     * otherwise just return this.
+     *
+     * This ensures that an absolute path does not end up being turned into an even more complicated
+     * relative path that starts with lots of `../../`. This is only needed for tests that use
+     * patterns in a temporary directory which is not relative to the current directory in which the
+     * scanning is performed. It should not be an issue in practice as callers typically run with
+     * patterns relative to the current directory.
+     */
+    private fun File.relativeDescendantOfOrSelf(base: File) =
+        relativeTo(base).let { relative -> if (relative.startsWith("../")) file else relative }
 }
 
 /** Represents a [File] that matches a pattern encapsulate in a hierarchy of [PatternNode]s. */

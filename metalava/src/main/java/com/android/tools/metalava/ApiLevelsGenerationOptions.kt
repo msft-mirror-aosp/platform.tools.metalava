@@ -355,33 +355,6 @@ class ApiLevelsGenerationOptions(
         }
     }
 
-    /**
-     * Find extension SDK jar files in an extension SDK tree.
-     *
-     * @param root the root of the sdk extension directory.
-     * @param surface the optional surface of extension jars to read. If specified then only
-     *   extension jars in the `extensions/<version>/<surface>` directories will be used. Otherwise,
-     *   any available jar in the `extensions/<version>/<any>` directories will be used. The latter
-     *   is used in the Android build as it uses a sandbox to provide only those extension jars in
-     *   the correct surface anyway.
-     * @return a list of [MatchedPatternFile] objects, sorted by module from earliest to last
-     *   version.
-     */
-    private fun findExtensionSdkJarFiles(
-        root: File,
-        surface: String?,
-    ): List<MatchedPatternFile> {
-        val node =
-            PatternNode.parsePatterns(
-                listOf(
-                    "{version:extension}/${surface?:"*"}/{module}.jar",
-                )
-            )
-        return node.scan(PatternNode.ScanConfig(dir = root)).map {
-            it.copy(file = root.resolve(it.file).normalize())
-        }
-    }
-
     /** Print string returned by [message] if verbose output has been requested. */
     private inline fun verbosePrint(message: () -> String) {
         if (earlyOptions.verbosity.verbose) {
@@ -402,8 +375,19 @@ class ApiLevelsGenerationOptions(
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
+            // If an SDK extension jar root directory was provided then add it to the list of
+            // patterns to scan.
+            val patterns =
+                if (sdkJarRoot == null) androidJarPatterns
+                else
+                    androidJarPatterns +
+                        "$sdkJarRoot/{version:extension}/${apiSurface?:"*"}/{module}.jar"
+
             // Scan for all the files that could contribute to the API history.
-            val androidJarFiles = scanForJarFiles(fileForPathInner("."), androidJarPatterns)
+            val matchedFiles = scanForJarFiles(fileForPathInner("."), patterns)
+
+            // Split the files into Android jar files and extension jar files.
+            val (androidJarFiles, extensionJarFiles) = matchedFiles.partition { it.module == null }
 
             // Get a VersionedApi for each of the Android jar files.
             val versionedHistoricalApis = constructVersionedApisForAndroidJars(androidJarFiles)
@@ -466,8 +450,6 @@ class ApiLevelsGenerationOptions(
                 // VersionedApis for SDK versions as their behavior depends on whether an API was
                 // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
-                    val extensionJarFiles =
-                        findExtensionSdkJarFiles(sdkExtensionsArguments.sdkExtJarRoot, apiSurface)
                     require(extensionJarFiles.isNotEmpty()) {
                         "no extension sdk jar files found in $sdkJarRoot"
                     }
