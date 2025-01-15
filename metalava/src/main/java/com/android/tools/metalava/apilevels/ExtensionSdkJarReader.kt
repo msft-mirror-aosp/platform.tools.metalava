@@ -38,7 +38,7 @@ class ExtensionSdkJarReader(private val surface: String?) {
         val node =
             PatternNode.parsePatterns(
                 listOf(
-                    "{version:level}/${surface?:"*"}/{module}.jar",
+                    "{version:extension}/${surface?:"*"}/{module}.jar",
                 )
             )
         return node.scan(PatternNode.ScanConfig(dir = root)).groupBy({ it.module!! }) {

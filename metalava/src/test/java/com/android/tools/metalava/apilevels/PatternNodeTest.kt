@@ -88,7 +88,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{module}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{module}'",
             exception.message
         )
     }
@@ -411,6 +411,26 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Scan for extension version`() {
+        val rootDir = createApiFileStructure()
+
+        val patterns =
+            listOf(
+                "{version:extension}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        // This range should have no effect on extension versions.
+        val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = range))
+        val expected =
+            listOf(
+                MatchedPatternFile(File("1/api.txt"), ApiVersion.fromString("1")),
+                MatchedPatternFile(File("2/api.txt"), ApiVersion.fromString("2")),
+            )
+        assertEquals(expected, files)
+    }
+
+    @Test
     fun `Scan for module`() {
         fun DirectoryBuilder.apiFile(module: String) = emptyFile("$module.txt")
         val rootDir = buildFileStructure {
@@ -429,7 +449,7 @@ class PatternNodeTest : TemporaryFolderOwner {
 
         val patterns =
             listOf(
-                "extensions/{version:level}/{module}.txt",
+                "extensions/{version:extension}/{module}.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         val files = node.scan(PatternNode.ScanConfig(rootDir))
