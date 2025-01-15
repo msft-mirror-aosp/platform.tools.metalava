@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
+import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.SignatureFileLoader
@@ -208,6 +209,82 @@ class ApiLevelsGenerationOptionsTest :
             assertThat(apiHistoryConfig).isNotNull()
             val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
             assertThat(apiVersions).isEqualTo("1.2.0, 1.2.3-beta01")
+        }
+    }
+
+    @Test
+    fun `Test extension jar files in forAndroidConfig`() {
+        val root = buildFileStructure {
+            dir("1") {
+                dir("public") {
+                    emptyFile("foo.jar")
+                    emptyFile("bar.jar")
+                }
+            }
+            dir("2") {
+                dir("public") {
+                    emptyFile("foo.jar")
+                    emptyFile("bar.jar")
+                    emptyFile("baz.jar")
+                }
+            }
+        }
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val sdkExtensionsInfoXml =
+            temporaryFolder.newFile("sdk-extensions-info.xml").apply {
+                writeText(
+                    """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <sdk-extensions-info>
+                    <sdk id="7"
+                         shortname="seven"
+                         name="Seven Extensions"
+                         reference="Seven" />
+                    <symbol jar="bar" pattern="foo" sdks="seven" />
+                    <symbol jar="baz" pattern="foo" sdks="seven" />
+                    <symbol jar="foo" pattern="foo" sdks="seven" />
+                    </sdk-extensions-info>
+                """
+                        .trimIndent()
+                )
+            }
+        runTest(
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_SDK_JAR_ROOT,
+            root.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+        ) {
+            val apiHistoryConfig =
+                options.forAndroidConfig(apiSurface = null) { error("no codebase fragment") }
+            assertThat(apiHistoryConfig).isNotNull()
+
+            // Make sure that there were some versioned jar files found.
+            val versionedJarFiles =
+                apiHistoryConfig!!.versionedApis.mapNotNull { it as? VersionedJarApi }
+            assertThat(versionedJarFiles).isNotEmpty()
+
+            // Compute the list of versioned jar files for extensions.
+            val extensionJarFiles =
+                versionedJarFiles
+                    .filter { it.forExtension() }
+                    .joinToString("\n") { it.jar.relativeTo(root).path }
+                    .trim()
+            assertThat(extensionJarFiles)
+                .isEqualTo(
+                    """
+                        1/public/bar.jar
+                        2/public/bar.jar
+                        1/public/foo.jar
+                        2/public/foo.jar
+                        2/public/baz.jar
+                    """
+                        .trimIndent()
+                )
         }
     }
 }
