@@ -98,11 +98,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
                 // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
@@ -115,14 +111,6 @@ class PatternNodeTest : TemporaryFolderOwner {
                       (\d+)/
                         public/
                           android.jar
-                    tools/
-                      common/
-                        api-versions/
-                          (\d+)/
-                            public/
-                              android.jar
-                          \Qandroid-\E(\d+)/
-                            android.jar
             """
         )
     }
@@ -132,15 +120,8 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/system/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/system/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
                 // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
@@ -155,16 +136,6 @@ class PatternNodeTest : TemporaryFolderOwner {
                           android.jar
                         public/
                           android.jar
-                    tools/
-                      common/
-                        api-versions/
-                          (\d+)/
-                            system/
-                              android.jar
-                            public/
-                              android.jar
-                          \Qandroid-\E(\d+)/
-                            android.jar
             """
         )
     }
@@ -174,19 +145,9 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/module-lib/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/module-lib/android.jar",
                 "prebuilts/sdk/{version:level}/system/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/system/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
                 // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
@@ -203,18 +164,6 @@ class PatternNodeTest : TemporaryFolderOwner {
                           android.jar
                         public/
                           android.jar
-                    tools/
-                      common/
-                        api-versions/
-                          (\d+)/
-                            module-lib/
-                              android.jar
-                            system/
-                              android.jar
-                            public/
-                              android.jar
-                          \Qandroid-\E(\d+)/
-                            android.jar
             """
         )
     }
@@ -226,7 +175,6 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(5))
@@ -234,15 +182,15 @@ class PatternNodeTest : TemporaryFolderOwner {
         val expected =
             listOf(
                 MatchedPatternFile(
-                    File("prebuilts/tools/common/api-versions/android-1/android.jar"),
+                    File("prebuilts/sdk/1/public/android.jar"),
                     ApiVersion.fromLevel(1)
                 ),
                 MatchedPatternFile(
-                    File("prebuilts/tools/common/api-versions/android-2/android.jar"),
+                    File("prebuilts/sdk/2/public/android.jar"),
                     ApiVersion.fromLevel(2)
                 ),
                 MatchedPatternFile(
-                    File("prebuilts/tools/common/api-versions/android-3/android.jar"),
+                    File("prebuilts/sdk/3/public/android.jar"),
                     ApiVersion.fromLevel(3)
                 ),
                 MatchedPatternFile(

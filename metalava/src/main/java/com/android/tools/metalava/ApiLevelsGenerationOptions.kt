@@ -224,7 +224,6 @@ class ApiLevelsGenerationOptions(
                 buildList {
                     addAll(it)
                     // Fallbacks
-                    add("prebuilts/tools/common/api-versions/android-{version:level}/android.jar")
                     add("prebuilts/sdk/{version:level}/public/android.jar")
                 }
             }
