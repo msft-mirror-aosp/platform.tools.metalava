@@ -725,8 +725,8 @@ data class MatchedPatternFile(
  */
 private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
     compareBy(
-        // Sort them from the lowest version to the highest version.
-        { it.version },
-        // Then into those without modules ("") followed by those with in module order.
+        // Group into those without modules ("") and then by those with module, in order.
         { it.module ?: "" },
+        // Then sort them from the lowest version to the highest version.
+        { it.version },
     )

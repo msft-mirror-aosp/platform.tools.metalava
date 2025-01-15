@@ -461,24 +461,24 @@ class PatternNodeTest : TemporaryFolderOwner {
                     module = "module-one",
                 ),
                 MatchedPatternFile(
+                    File("extensions/3/module-one.txt"),
+                    ApiVersion.fromLevel(3),
+                    module = "module-one",
+                ),
+                MatchedPatternFile(
                     File("extensions/2/module-two.txt"),
                     ApiVersion.fromLevel(2),
+                    module = "module-two",
+                ),
+                MatchedPatternFile(
+                    File("extensions/3/module-two.txt"),
+                    ApiVersion.fromLevel(3),
                     module = "module-two",
                 ),
                 MatchedPatternFile(
                     File("extensions/2/module.three.txt"),
                     ApiVersion.fromLevel(2),
                     module = "module.three",
-                ),
-                MatchedPatternFile(
-                    File("extensions/3/module-one.txt"),
-                    ApiVersion.fromLevel(3),
-                    module = "module-one",
-                ),
-                MatchedPatternFile(
-                    File("extensions/3/module-two.txt"),
-                    ApiVersion.fromLevel(3),
-                    module = "module-two",
                 ),
             )
         assertEquals(expected, files)

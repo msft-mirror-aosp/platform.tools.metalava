@@ -279,9 +279,9 @@ class ApiLevelsGenerationOptionsTest :
                     """
                         1/public/bar.jar
                         2/public/bar.jar
+                        2/public/baz.jar
                         1/public/foo.jar
                         2/public/foo.jar
-                        2/public/baz.jar
                     """
                         .trimIndent()
                 )
