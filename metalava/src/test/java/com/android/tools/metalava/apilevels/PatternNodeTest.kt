@@ -352,6 +352,14 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Scan with empty patterns`() {
+        val rootDir = createApiFileStructure()
+        val node = PatternNode.parsePatterns(emptyList())
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        assertEquals(emptyList(), files)
+    }
+
+    @Test
     fun `Scan for major minor`() {
         val rootDir = createApiFileStructure()
 

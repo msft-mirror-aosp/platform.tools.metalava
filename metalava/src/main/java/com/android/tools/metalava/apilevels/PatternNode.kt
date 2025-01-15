@@ -48,6 +48,9 @@ sealed class PatternNode {
      */
     private val children = mutableListOf<PatternNode>()
 
+    /** Check to see if this node has any children. */
+    internal fun hasChildren() = children.isNotEmpty()
+
     /**
      * Dump the contents of this node and return as a string.
      *
@@ -260,6 +263,7 @@ sealed class PatternNode {
             config: ScanConfig,
             state: PatternFileState
         ): Sequence<MatchedPatternFile> {
+            if (!hasChildren()) return emptySequence()
             return scanChildrenOrReturnMatching(config, state)
         }
 
