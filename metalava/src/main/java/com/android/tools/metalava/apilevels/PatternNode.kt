@@ -77,7 +77,7 @@ sealed class PatternNode {
      * a directory.
      */
     protected fun withDirectorySuffixIfHasChildren(text: String) =
-        text + if (children.isEmpty()) "" else "/"
+        text + if (children.isEmpty() || text == "/") "" else "/"
 
     /**
      * Get an existing child node that matches [child] or if none exist add [child] and return it.

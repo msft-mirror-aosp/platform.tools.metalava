@@ -163,6 +163,25 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Parse pattern with absolute path`() {
+        val patterns =
+            listOf(
+                "/absolute/path/{version:level}.txt",
+            )
+
+        val patternNode = PatternNode.parsePatterns(patterns)
+        patternNode.assertStructure(
+            """
+                <root>
+                  /
+                    absolute/
+                      path/
+                        (\d+)\Q.txt\E
+            """
+        )
+    }
+
+    @Test
     fun `Scan public prebuilts`() {
         val androidDir = getAndroidDir()
 
