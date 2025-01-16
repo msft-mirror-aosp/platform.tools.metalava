@@ -182,6 +182,8 @@ Usage: metalava help historical-api-patterns
 
   Patterns that use a placeholder for this are assumed to be matching files for SDK extensions.
 
+  * `surface` - Optional property that stores the API surface.
+
   The supported placeholders are:
 
   * `{version:level}` - Placeholder for property `version`. Matches a single non-negative integer and treats it as an
@@ -198,6 +200,9 @@ Usage: metalava help historical-api-patterns
 
   * `{module}` - Placeholder for property `module`. Matches a module name which must consist of lower case letters,
   hyphens and `.`s.
+
+  * `{surface}` - Placeholder for property `surface`. Matches a surface name which must consist of lower case letters
+  and hyphens.
                 """
                     .trimIndent()
         }

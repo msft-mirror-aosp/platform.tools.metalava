@@ -18,6 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import java.io.File
 import java.util.TreeSet
 
@@ -171,6 +172,14 @@ sealed class PatternNode {
 
         /** Provides access to [File]s. */
         val fileProvider: FileProvider = WholeFileSystemProvider(),
+
+        /**
+         * Map from [ApiSurface.name] to [ApiSurface]s that is used by [Placeholder.SURFACE] to map
+         * from surface name to [ApiSurface].
+         *
+         * It is an error if a [Placeholder.SURFACE] is used and this is not provided.
+         */
+        val apiSurfaceByName: Map<String, ApiSurface>? = null,
     )
 
     /**
@@ -443,6 +452,36 @@ sealed class PatternNode {
                 placeholder: Placeholder,
             ) = state.copy(module = value)
         },
+
+        /**
+         * Corresponds to the [PatternFileState.surface] and [MatchedPatternFile.surface]
+         * properties.
+         */
+        SURFACE(
+            "surface",
+            help = {
+                """
+                    Optional property that stores the API surface.
+                """
+            },
+        ) {
+            override fun track(
+                config: ScanConfig,
+                state: PatternFileState,
+                value: String,
+                placeholder: Placeholder,
+            ): PatternFileState? {
+                val apiSurfaceByName =
+                    config.apiSurfaceByName
+                        ?: error(
+                            "Must provide ScanConfig.apiSurfaceByName when ${Placeholder.SURFACE} is used"
+                        )
+                // Look the surface up in the available surfaces, if it could not be found then
+                // ignore this file.
+                val surface = apiSurfaceByName[value] ?: return null
+                return state.copy(surface = surface)
+            }
+        },
         ;
 
         /**
@@ -546,6 +585,18 @@ sealed class PatternNode {
                 """
                     Matches a module name which must consist of lower case letters, hyphens and
                     `.`s.
+                """
+            },
+        ),
+
+        /** The {surface} placeholder. */
+        SURFACE(
+            property = Property.SURFACE,
+            format = null,
+            pattern = """[a-z-]+""",
+            help = {
+                """
+                    Matches a surface name which must consist of lower case letters and hyphens.
                 """
             },
         ),
@@ -744,6 +795,9 @@ internal data class PatternFileState(
 
     /** The optional module that was extracted from the path. */
     val module: String? = null,
+
+    /** The optional surface that was extracted from the path. */
+    val surface: ApiSurface? = null,
 ) {
     /**
      * Construct a [MatchedPatternFile] from this.
@@ -758,6 +812,7 @@ internal data class PatternFileState(
                 file = file.relativeDescendantOfOrSelf(dir),
                 version = version,
                 module = module,
+                surface = surface,
             )
 
     /**
@@ -788,6 +843,9 @@ data class MatchedPatternFile(
 
     /** The optional module that was extracted from the [File] path. */
     val module: String? = null,
+
+    /** The optional surface that was extracted from the [File] path. */
+    val surface: ApiSurface? = null,
 ) {
     /**
      * Create a string representation of the properties, used for testing and debugging.
@@ -808,6 +866,11 @@ data class MatchedPatternFile(
                 append(module)
                 append("'")
             }
+            if (surface != null) {
+                append(", surface='")
+                append(surface.name)
+                append("'")
+            }
             append(")")
         }
     }
@@ -824,4 +887,6 @@ private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
         { it.module },
         // Then sort them from the lowest version to the highest version.
         { it.version },
+        // Then group into those without surface and then by those with a surface, in order.
+        { it.surface },
     )
