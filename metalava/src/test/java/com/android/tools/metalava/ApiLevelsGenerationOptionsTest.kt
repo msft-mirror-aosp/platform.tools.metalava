@@ -59,6 +59,9 @@ Api Levels Generation:
                                              \"<int>/public/<module-name>.jar\", where <int> corresponds to the
                                              extension SDK version, and <module-name> to the name of the mainline
                                              module.
+
+                                             Deprecated: Add <sdk-jar-root>/{version:extension}/*/{module}.jar to
+                                             --android-jar-pattern instead.
   --sdk-extensions-info <sdk-info-file>      Points to map of extension SDK APIs to include, if any. The file is a plain
                                              text file and describes, per extension SDK, what APIs from that extension
                                              to include in the file created via --generate-api-levels. The format of
@@ -73,6 +76,10 @@ Api Levels Generation:
                                              SDK). Fields are separated by whitespace. A mainline module may be listed
                                              multiple times. The special pattern \"*\" refers to all APIs in the given
                                              mainline module. Lines beginning with # are comments.
+
+                                             If specified then the --android-jar-pattern must include at least one
+                                             pattern that uses `{version:extension}` and `{module}` placeholders and
+                                             that pattern must match at least one file.
   --generate-api-version-history <output-file>
                                              Reads API signature files and generates a JSON or XML file depending on the
                                              extension, which must be one of `json` or `xml` respectively. The JSON file
@@ -112,24 +119,6 @@ class ApiLevelsGenerationOptionsTest :
                 error("Fake CodebaseFragment provider cannot create CodebaseFragment")
             },
         )
-
-    @Test
-    fun `sdkJarRoot without sdkInfoFile`() {
-        val file = temporaryFolder.newFolder("sdk-jar-root")
-        runTest(ARG_SDK_JAR_ROOT, file.path) {
-            assertThat(stderr)
-                .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
-        }
-    }
-
-    @Test
-    fun `sdkInfoFile without sdkJarRoot`() {
-        val file = temporaryFolder.newFile("sdk-info-file.xml")
-        runTest(ARG_SDK_INFO_FILE, file.path) {
-            assertThat(stderr)
-                .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
-        }
-    }
 
     @Test
     fun `Test current version supports major-minor`() {
@@ -257,8 +246,8 @@ class ApiLevelsGenerationOptionsTest :
             "30",
             ARG_GENERATE_API_LEVELS,
             apiVersionsXml.path,
-            ARG_SDK_JAR_ROOT,
-            root.path,
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/{version:extension}/*/{module}.jar",
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
@@ -312,7 +301,10 @@ class ApiLevelsGenerationOptionsTest :
                     options.forAndroidConfig(apiSurface = null) { error("no codebase fragment") }
                 }
 
-            assertThat(exception.message).isEqualTo("no extension sdk jar files found in $root")
+            assertThat(exception.message)
+                .isEqualTo(
+                    "no extension sdk jar files found in $root/{version:extension}/*/{module}.jar"
+                )
         }
     }
 }

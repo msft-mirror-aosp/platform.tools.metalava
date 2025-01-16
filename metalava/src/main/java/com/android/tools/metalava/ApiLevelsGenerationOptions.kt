@@ -51,7 +51,6 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.split
-import com.github.ajalt.clikt.parameters.options.validate
 import java.io.File
 
 // XML API version related arguments.
@@ -235,11 +234,13 @@ class ApiLevelsGenerationOptions(
                         form of stub jars. The paths should be on the format
                         \"<int>/public/<module-name>.jar\", where <int> corresponds to the extension
                         SDK version, and <module-name> to the name of the mainline module.
+
+                        Deprecated: Add <sdk-jar-root>/{version:extension}/*/{module}.jar to
+                        $ARG_ANDROID_JAR_PATTERN instead.
                     """
                         .trimIndent(),
             )
             .existingDir()
-            .validate { checkSdkJarRootAndSdkInfoFile() }
 
     /**
      * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
@@ -266,26 +267,14 @@ class ApiLevelsGenerationOptions(
                         whitespace. A mainline module may be listed multiple times.
                         The special pattern \"*\" refers to all APIs in the given mainline module.
                         Lines beginning with # are comments.
+
+                        If specified then the $ARG_ANDROID_JAR_PATTERN must include at least one
+                        pattern that uses `{version:extension}` and `{module}` placeholders and that
+                        pattern must match at least one file.
                     """
                         .trimIndent(),
             )
             .existingFile()
-            .validate { checkSdkJarRootAndSdkInfoFile() }
-
-    /**
-     * Check the [sdkJarRoot] and [sdkInfoFile] to make sure that if one is specified they are both
-     * specified
-     *
-     * This is called if either of those is set to a non-null value so all this needs to do is make
-     * sure that neither are `null`.
-     */
-    private fun checkSdkJarRootAndSdkInfoFile() {
-        if ((sdkJarRoot == null) || (sdkInfoFile == null)) {
-            throw MetalavaCliException(
-                stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
-            )
-        }
-    }
 
     /**
      * Get label for [level].
@@ -421,9 +410,8 @@ class ApiLevelsGenerationOptions(
 
             // Get the optional SDK extension arguments.
             val sdkExtensionsArguments =
-                if (sdkJarRoot != null && sdkInfoFile != null) {
+                if (sdkInfoFile != null) {
                     ApiGenerator.SdkExtensionsArguments(
-                        sdkJarRoot!!,
                         sdkInfoFile!!,
                         notFinalizedSdkVersion,
                     )
@@ -451,7 +439,7 @@ class ApiLevelsGenerationOptions(
                 // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
                     require(extensionJarFiles.isNotEmpty()) {
-                        "no extension sdk jar files found in $sdkJarRoot"
+                        "no extension sdk jar files found in ${patterns.joinToString()}"
                     }
                     addVersionedExtensionApis(
                         this,
