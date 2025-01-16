@@ -212,6 +212,26 @@ class ApiLevelsGenerationOptionsTest :
         }
     }
 
+    /** Create a simple `sdk-extension-info.xml` for testing. */
+    private fun createSdkExtensionsInfoXml() =
+        temporaryFolder.newFile("sdk-extensions-info.xml").apply {
+            writeText(
+                """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <sdk-extensions-info>
+                        <sdk id="7"
+                             shortname="seven"
+                             name="Seven Extensions"
+                             reference="Seven" />
+                        <symbol jar="bar" pattern="foo" sdks="seven" />
+                        <symbol jar="baz" pattern="foo" sdks="seven" />
+                        <symbol jar="foo" pattern="foo" sdks="seven" />
+                        </sdk-extensions-info>
+                    """
+                    .trimIndent()
+            )
+        }
+
     @Test
     fun `Test extension jar files in forAndroidConfig`() {
         val root = buildFileStructure {
@@ -231,24 +251,7 @@ class ApiLevelsGenerationOptionsTest :
         }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
-        val sdkExtensionsInfoXml =
-            temporaryFolder.newFile("sdk-extensions-info.xml").apply {
-                writeText(
-                    """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <sdk-extensions-info>
-                    <sdk id="7"
-                         shortname="seven"
-                         name="Seven Extensions"
-                         reference="Seven" />
-                    <symbol jar="bar" pattern="foo" sdks="seven" />
-                    <symbol jar="baz" pattern="foo" sdks="seven" />
-                    <symbol jar="foo" pattern="foo" sdks="seven" />
-                    </sdk-extensions-info>
-                """
-                        .trimIndent()
-                )
-            }
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
         runTest(
             ARG_CURRENT_VERSION,
             "30",
@@ -285,6 +288,31 @@ class ApiLevelsGenerationOptionsTest :
                     """
                         .trimIndent()
                 )
+        }
+    }
+
+    @Test
+    fun `Test no extension jar files found in forAndroidConfig`() {
+        val root = getOrCreateFolder()
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+        runTest(
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_SDK_JAR_ROOT,
+            root.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+        ) {
+            val exception =
+                assertThrows(IllegalArgumentException::class.java) {
+                    options.forAndroidConfig(apiSurface = null) { error("no codebase fragment") }
+                }
+
+            assertThat(exception.message).isEqualTo("no extension sdk jar files found in $root")
         }
     }
 }
