@@ -17,4 +17,10 @@
 package com.android.tools.metalava.config
 
 /** The top level configuration object. */
-class Config
+data class Config(
+    /**
+     * Temporary property to make this a valid data class which is needed as the [equals] method is
+     * used in tests.
+     */
+    var placeholder: Int = 0,
+)

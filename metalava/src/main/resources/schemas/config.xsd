@@ -14,7 +14,29 @@
   ~ limitations under the License.
   -->
 
-<!-- Schema for a configuration file supplied to Metalava with the `‐‐config-file` option. -->
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.google.com/tools/metalava/config">
-    <xs:element name="config"/>
+<!--
+ ! Schema for a configuration file supplied to Metalava with the `‐‐config-file` option.
+ !
+ ! While this is used at runtime to validate config files during parsing its main purpose is for use by editors to
+ ! provide support for editing configuration files, e.g. providing auto-completion, validation while typing, etc.
+ !
+ ! As any element defined as a child of <xs:schema> can be used as a root element, which would often result in an
+ ! invalid document this only creates a single such element. For other elements it defines them where they are used in
+ ! terms of a top level <xs:complexType>. That prevents them from being used as root element while limiting the nested
+ ! depth of this file. That is a common approach and in fact is used in the XMLSchema that applies to this file.
+ !
+ ! Elements use lower case, hyphenated names. Types use camel case names that start with an upper case letter to
+ ! differentiate them.
+ !-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified"
+           targetNamespace="http://www.google.com/tools/metalava/config"
+            xmlns:config="http://www.google.com/tools/metalava/config">
+    <xs:element name="config">
+        <xs:annotation>
+            <xs:documentation>
+                Root element of every configuration file.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
 </xs:schema>

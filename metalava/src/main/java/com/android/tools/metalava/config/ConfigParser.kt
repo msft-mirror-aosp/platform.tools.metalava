@@ -30,8 +30,7 @@ import org.xml.sax.SAXParseException
 import org.xml.sax.helpers.DefaultHandler
 
 /** Parser for XML configuration files. */
-class ConfigParser(private val reporter: Reporter) : DefaultHandler() {
-
+class ConfigParser private constructor(private val reporter: Reporter) : DefaultHandler() {
     private fun reportParseException(exception: SAXParseException, severity: Severity) {
         val systemIdAsURI = URI.create(exception.systemId)
         val location = FileLocation.createLocation(Paths.get(systemIdAsURI), exception.lineNumber)
