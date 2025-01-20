@@ -890,7 +890,14 @@ fun ApiConstraint.minApiVersion(): ApiVersion? {
         .filter { it.isAtLeast(androidSdkConstraint) }
         // Get the minimum of all the lowest ApiVersions, or null if there are no ApiVersions in the
         // constraints.
-        .minOfOrNull { ApiVersion.fromLevel(it.fromInclusive()) }
+        .minOfOrNull {
+            val major = it.fromInclusive()
+            val minor = it.fromInclusiveMinor()
+            ApiVersion.fromMajorMinor(
+                major,
+                if (minor == 0) null else minor,
+            )
+        }
 }
 
 fun ApiLookup.getClassVersion(cls: ClassItem): ApiVersion? {

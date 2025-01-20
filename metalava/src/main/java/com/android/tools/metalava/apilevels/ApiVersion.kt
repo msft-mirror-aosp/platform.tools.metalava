@@ -167,6 +167,9 @@ internal constructor(
             return ApiVersion(major, minor, patch, quality)
         }
 
+        /** Create an [ApiVersion] with the specified [major] and [minor] properties. */
+        fun fromMajorMinor(major: Int, minor: Int? = null) = ApiVersion(major, minor)
+
         /**
          * The lowest [ApiVersion], used as the default value when higher versions override lower
          * ones.
