@@ -636,8 +636,15 @@ internal class PsiItemDocumentation(
                 }
             }
 
-            if (element is PsiDocCommentOwner && element.docComment !is PsiCompiledElement) {
-                return element.docComment?.text ?: ""
+            if (element is PsiDocCommentOwner) {
+                val docComment = element.docComment
+                if (docComment != null && docComment !is PsiCompiledElement) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text != null && text.startsWith("/**")) {
+                        return text
+                    }
+                }
             }
 
             return ""
