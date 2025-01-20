@@ -852,10 +852,12 @@ class ExtractAnnotationsTest : DriverTest() {
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
-                        // TODO(b/391413938): Add annotations from the class.
                         """
                             <?xml version="1.0" encoding="UTF-8"?>
                             <root>
+                              <item name="test.pkg.Test">
+                                <annotation name="androidx.annotation.UiThread"/>
+                              </item>
                               <item name="test.pkg.Test Test()">
                                 <annotation name="androidx.annotation.UiThread"/>
                               </item>
