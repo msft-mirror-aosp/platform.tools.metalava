@@ -268,7 +268,7 @@ internal fun processFlags(
                 executionEnvironment,
                 codebase,
                 reporter,
-                options.apiLevelLabelProvider,
+                options.apiVersionLabelProvider,
                 options.includeApiLevelInDocumentation,
                 options.apiPredicateConfig,
             )
@@ -276,7 +276,7 @@ internal fun processFlags(
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
             progressTracker.progress("Applying API levels")
-            docAnalyzer.applyApiLevels(applyApiLevelsXml)
+            docAnalyzer.applyApiVersions(applyApiLevelsXml)
         }
     }
 

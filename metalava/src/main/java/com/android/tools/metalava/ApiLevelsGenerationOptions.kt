@@ -255,35 +255,35 @@ class ApiLevelsGenerationOptions(
             .existingFile()
 
     /**
-     * Get label for [level].
+     * Get label for [version].
      *
-     * If a codename has been specified and [level] is greater than the current API level (which
-     * defaults to `-1` when not set) then use the codename as the label, otherwise use the number
-     * itself.
+     * If a codename has been specified and [version] is greater than the current API version (which
+     * defaults to `null` when not set) then use the codename as the label, otherwise use the
+     * version itself.
      */
-    fun getApiLevelLabel(level: Int): String {
+    fun getApiVersionLabel(version: ApiVersion): String {
         val codename = currentCodeName
-        val current = optionalCurrentApiVersion?.major
-        return if (current == null || codename == null || level <= current) level.toString()
+        val current = optionalCurrentApiVersion
+        return if (current == null || codename == null || version <= current) version.toString()
         else codename
     }
 
     /**
-     * Check whether [level] should be included in documentation.
+     * Check whether [version] should be included in documentation.
      *
-     * If [isDeveloperPreviewBuild] is `true` then allow any API level as the documentation is not
-     * going to be published outside Android, so it is safe to include all API levels, including the
-     * next one.
+     * If [isDeveloperPreviewBuild] is `true` then allow any [ApiVersion] as the documentation is
+     * not going to be published outside Android, so it is safe to include all [ApiVersion]s,
+     * including the next one.
      *
-     * If no [currentApiVersion] has been provided then allow any API level as there is no way to
-     * determine whether the API level is a future API or not.
+     * If no [currentApiVersion] has been provided then allow any [ApiVersion] level as there is no
+     * way to determine whether the [ApiVersion] is a future API or not.
      *
-     * Otherwise, it is a release build so ignore any API levels after the current one.
+     * Otherwise, it is a release build so ignore any [ApiVersion]s after the current one.
      */
-    fun includeApiLevelInDocumentation(level: Int): Boolean {
+    fun includeApiVersionInDocumentation(version: ApiVersion): Boolean {
         if (isDeveloperPreviewBuild) return true
-        val current = optionalCurrentApiVersion?.major ?: return true
-        return level <= current
+        val current = optionalCurrentApiVersion ?: return true
+        return version <= current
     }
 
     /**
