@@ -26,7 +26,6 @@ import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
-import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -90,8 +89,8 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsXml.path,
                     ARG_ANDROID_JAR_PATTERN,
                     "${testPrebuiltsRoot.path}/{version:level}/public/android.jar",
-                    ARG_SDK_JAR_ROOT,
-                    "${testPrebuiltsRoot.path}/extensions",
+                    ARG_ANDROID_JAR_PATTERN,
+                    "${testPrebuiltsRoot.path}/extensions/{version:extension}/*/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     "${testPrebuiltsRoot.path}/sdk-extensions-info.xml",
                     ARG_FIRST_VERSION,
