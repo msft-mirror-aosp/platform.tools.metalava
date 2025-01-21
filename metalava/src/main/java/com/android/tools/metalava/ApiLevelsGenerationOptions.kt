@@ -36,7 +36,6 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.RequiresOtherGroups
 import com.android.tools.metalava.cli.common.SignatureFileLoader
-import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.map
@@ -65,7 +64,6 @@ const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
-const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 
 // JSON API version related arguments
@@ -222,26 +220,6 @@ class ApiLevelsGenerationOptions(
             )
             .multiple(default = emptyList())
 
-    /** Directory of prebuilt extension SDK jars that contribute to the API */
-    private val sdkJarRoot: File? by
-        option(
-                ARG_SDK_JAR_ROOT,
-                metavar = "<sdk-jar-root>",
-                help =
-                    """
-                        Points to root of prebuilt extension SDK jars, if any. This directory is
-                        expected to contain snapshots of historical extension SDK versions in the
-                        form of stub jars. The paths should be on the format
-                        \"<int>/public/<module-name>.jar\", where <int> corresponds to the extension
-                        SDK version, and <module-name> to the name of the mainline module.
-
-                        Deprecated: Add <sdk-jar-root>/{version:extension}/*/{module}.jar to
-                        $ARG_ANDROID_JAR_PATTERN instead.
-                    """
-                        .trimIndent(),
-            )
-            .existingDir()
-
     /**
      * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
      * that are kept
@@ -355,25 +333,13 @@ class ApiLevelsGenerationOptions(
      * Get the [GenerateApiHistoryConfig] for Android.
      *
      * This has some Android specific code, e.g. structure of SDK extensions.
-     *
-     * @param apiSurface the optional API surface to use to limit access to extension jars. If
-     *   `null` then all extension jars that are visible will be used.
      */
     fun forAndroidConfig(
-        apiSurface: String?,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
-            // If an SDK extension jar root directory was provided then add it to the list of
-            // patterns to scan.
-            val patterns =
-                if (sdkJarRoot == null) androidJarPatterns
-                else
-                    androidJarPatterns +
-                        "$sdkJarRoot/{version:extension}/${apiSurface?:"*"}/{module}.jar"
-
             // Scan for all the files that could contribute to the API history.
-            val matchedFiles = scanForJarFiles(fileForPathInner("."), patterns)
+            val matchedFiles = scanForJarFiles(fileForPathInner("."), androidJarPatterns)
 
             // Split the files into Android jar files and extension jar files.
             val (androidJarFiles, extensionJarFiles) = matchedFiles.partition { it.module == null }
@@ -439,7 +405,7 @@ class ApiLevelsGenerationOptions(
                 // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
                     require(extensionJarFiles.isNotEmpty()) {
-                        "no extension sdk jar files found in ${patterns.joinToString()}"
+                        "no extension sdk jar files found in ${androidJarPatterns.joinToString()}"
                     }
                     addVersionedExtensionApis(
                         this,
