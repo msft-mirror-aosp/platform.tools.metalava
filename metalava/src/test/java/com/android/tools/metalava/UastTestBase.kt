@@ -1793,34 +1793,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `internal value class extension property`() {
         // b/385148821
-        val baseApi =
-            """
-            package test.pkg {
-              @kotlin.jvm.JvmInline public final value class IntValue {
-                ctor public IntValue(int value);
-                method public int getValue();
-                property public int value;
-              }
-
-            """
-                .trimIndent()
-        // With K2 an incorrect version of the internal isValid extension property is added.
-        val expectedApi =
-            baseApi +
-                if (isK2) {
-                    """
-                      public final class IntValueKt {
-                        method public boolean isValid();
-                      }
-                    }
-                    """
-                        .trimIndent()
-                } else {
-                    """
-                    }
-                    """
-                        .trimIndent()
-                }
         check(
             sourceFiles =
                 arrayOf(
@@ -1829,12 +1801,22 @@ abstract class UastTestBase : DriverTest() {
                             package test.pkg
                             @JvmInline
                             value class IntValue(val value: Int)
-                            internal val IntValue.isValid
+                            internal var IntValue.isValid
                                 get() = this.value != 0
+                                set(newValue) = Unit
                         """
                     )
                 ),
-            api = expectedApi
+            api =
+                """
+            package test.pkg {
+              @kotlin.jvm.JvmInline public final value class IntValue {
+                ctor public IntValue(int value);
+                method public int getValue();
+                property public int value;
+              }
+            }
+            """
         )
     }
 
@@ -2003,31 +1985,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `Private property with defined getter of value class type`() {
         // b/388494377
-        val baseApi =
-            """
-            package test.pkg.main {
-              public final class Foo {
-                ctor public Foo();
-
-            """
-                .trimIndent()
-        val expectedApi =
-            baseApi +
-                if (isK2) {
-                    """
-                        method public int getPrivateVar();
-                        method public void setPrivateVar(int);
-                      }
-                    }
-                    """
-                        .trimIndent()
-                } else {
-                    """
-                        }
-                      }
-                    """
-                        .trimIndent()
-                }
         check(
             sourceFiles =
                 arrayOf(
@@ -2044,7 +2001,14 @@ abstract class UastTestBase : DriverTest() {
                     """
                     ),
                 ),
-            api = expectedApi
+            api =
+                """
+                package test.pkg.main {
+                  public final class Foo {
+                    ctor public Foo();
+                  }
+                }
+                """
         )
     }
 }

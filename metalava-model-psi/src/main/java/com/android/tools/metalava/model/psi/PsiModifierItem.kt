@@ -135,6 +135,7 @@ internal object PsiModifierItem {
         codebase: PsiBasedCodebase,
         ktDeclaration: KtDeclaration,
         getter: PsiMethodItem?,
+        setter: PsiMethodItem?,
     ): MutableModifierList {
         val ktModifierList = ktDeclaration.modifierList
         val visibilityFlags =
@@ -153,6 +154,18 @@ internal object PsiModifierItem {
         // Use the flags computed from the property, and the getter annotations, if they exist.
         val modifiers =
             createMutableModifiers(flags, getter?.modifiers?.annotations() ?: emptyList())
+
+        // Correct visibility of accessors (work around K2 bugs with value class type properties)
+        // https://youtrack.jetbrains.com/issue/KT-74205
+        // The getter must have the same visibility as the property
+        val propertyVisibility = modifiers.getVisibilityLevel()
+        if (getter != null && getter.modifiers.getVisibilityLevel() != propertyVisibility) {
+            getter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
+        }
+        // The setter cannot be more visible than the property
+        if (setter != null && setter.modifiers.getVisibilityLevel() > propertyVisibility) {
+            setter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
+        }
 
         // Annotations whose target is property won't be bound to anywhere in LC/UAST, if the
         // property doesn't need a backing field. Same for unspecified use-site target.
