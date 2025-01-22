@@ -33,6 +33,7 @@ java_binary_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
+    kotlin_lang_version: "1.9",
     java_resources: [
         ":metalava-version",
         ":metalava-resources",
