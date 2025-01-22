@@ -2000,4 +2000,53 @@ abstract class UastTestBase : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Private property with defined getter of value class type`() {
+        // b/388494377
+        val baseApi =
+            """
+            package test.pkg.main {
+              public final class Foo {
+                ctor public Foo();
+
+            """
+                .trimIndent()
+        val expectedApi =
+            baseApi +
+                if (isK2) {
+                    """
+                        method public int getPrivateVar();
+                        method public void setPrivateVar(int);
+                        property public int privateVar;
+                      }
+                    }
+                    """
+                        .trimIndent()
+                } else {
+                    """
+                        }
+                      }
+                    """
+                        .trimIndent()
+                }
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg.main
+                        class Foo {
+                            private var privateVar: IntValue
+                                get() = IntValue(0)
+                                set(newValue) = Unit
+                        }
+                        @JvmInline
+                        internal value class IntValue(val value: Int)
+                    """
+                    ),
+                ),
+            api = expectedApi
+        )
+    }
 }
