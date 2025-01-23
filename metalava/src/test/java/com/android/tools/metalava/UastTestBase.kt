@@ -1104,11 +1104,11 @@ abstract class UastTestBase : DriverTest() {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
                         method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
-                        method public String? getPOld_accessors_deprecatedOnProperty();
+                        method @Deprecated public String? getPOld_accessors_deprecatedOnProperty();
                         method public String? getPOld_accessors_deprecatedOnSetter();
                         method public void setPNew_accessors(String?);
                         method public void setPOld_accessors_deprecatedOnGetter(String?);
-                        method public void setPOld_accessors_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnProperty(String?);
                         method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
@@ -1119,7 +1119,7 @@ abstract class UastTestBase : DriverTest() {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
                         method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
-                        method public String? getPOld_getter_deprecatedOnProperty();
+                        method @Deprecated public String? getPOld_getter_deprecatedOnProperty();
                         method public String? getPOld_getter_deprecatedOnSetter();
                         method public void setPNew_getter(String?);
                         method public void setPOld_getter_deprecatedOnGetter(String?);
@@ -1153,7 +1153,7 @@ abstract class UastTestBase : DriverTest() {
                         method public String? getPOld_setter_deprecatedOnSetter();
                         method public void setPNew_setter(String?);
                         method public void setPOld_setter_deprecatedOnGetter(String?);
-                        method public void setPOld_setter_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnProperty(String?);
                         method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
@@ -1201,9 +1201,9 @@ abstract class UastTestBase : DriverTest() {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
                         method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
-                        method public String? getPOld_accessors_deprecatedOnProperty();
+                        method @Deprecated public String? getPOld_accessors_deprecatedOnProperty();
                         method public void setPNew_accessors(String?);
-                        method public void setPOld_accessors_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnProperty(String?);
                         method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
@@ -1214,7 +1214,7 @@ abstract class UastTestBase : DriverTest() {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
                         method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
-                        method public String? getPOld_getter_deprecatedOnProperty();
+                        method @Deprecated public String? getPOld_getter_deprecatedOnProperty();
                         method public void setPNew_getter(String?);
                         method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
                         method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
@@ -1242,7 +1242,7 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
                         method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
                         method public void setPNew_setter(String?);
-                        method public void setPOld_setter_deprecatedOnProperty(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnProperty(String?);
                         method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;

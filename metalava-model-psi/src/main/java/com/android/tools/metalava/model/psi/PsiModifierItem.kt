@@ -153,7 +153,15 @@ internal object PsiModifierItem {
 
         // Use the flags computed from the property, and the getter annotations, if they exist.
         val modifiers =
-            createMutableModifiers(flags, getter?.modifiers?.annotations() ?: emptyList())
+            createMutableModifiers(
+                flags,
+                // Filter deprecated annotations: the property will pull effectivelyDeprecated
+                // status from its getter, but the originallyDeprecated value should reflect
+                // the property itself, to avoid propagating deprecation from getter to property to
+                // setter. The setter should only inherit deprecation from the property itself.
+                getter?.modifiers?.annotations()?.filter { !isDeprecatedAnnotation(it) }
+                    ?: emptyList()
+            )
 
         // Correct visibility of accessors (work around K2 bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205
@@ -207,14 +215,15 @@ internal object PsiModifierItem {
     }
 
     private fun hasDeprecatedAnnotation(modifiers: BaseModifierList) =
-        modifiers.hasAnnotation {
-            it.qualifiedName.let { qualifiedName ->
-                qualifiedName == "Deprecated" ||
-                    qualifiedName.endsWith(".Deprecated") ||
-                    // DeprecatedForSdk that do not apply to this API surface have been filtered
-                    // out so if any are left then treat it as a standard Deprecated annotation.
-                    qualifiedName == ANDROID_DEPRECATED_FOR_SDK
-            }
+        modifiers.hasAnnotation(::isDeprecatedAnnotation)
+
+    private fun isDeprecatedAnnotation(annotationItem: AnnotationItem): Boolean =
+        annotationItem.qualifiedName.let { qualifiedName ->
+            qualifiedName == "Deprecated" ||
+                qualifiedName.endsWith(".Deprecated") ||
+                // DeprecatedForSdk that do not apply to this API surface have been filtered
+                // out so if any are left then treat it as a standard Deprecated annotation.
+                qualifiedName == ANDROID_DEPRECATED_FOR_SDK
         }
 
     private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
