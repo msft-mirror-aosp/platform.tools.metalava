@@ -22,6 +22,7 @@ import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
 import java.io.StringWriter
+import org.intellij.lang.annotations.Language
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -60,13 +61,42 @@ class ConfigParserTest : TemporaryFolderOwner {
         val config: Config,
     )
 
+    /**
+     * Round trip [config], i.e. write it to XML, check it matches [xml], read it back in, check
+     * that it matches [config].
+     *
+     * Writing configuration to XML is not something that Metalava needs at runtime, but it is
+     * useful to test what is written as that is what can be read.
+     */
+    private fun roundTrip(config: Config, @Language("xml") xml: String) {
+        val xmlMapper = ConfigParser.configXmlMapper()
+
+        val writtenXml = xmlMapper.writeValueAsString(config)
+        assertThat(writtenXml.trimEnd()).isEqualTo(xml.trimIndent())
+
+        val readConfig = xmlMapper.readValue(writtenXml, Config::class.java)
+        assertThat(readConfig).isEqualTo(config)
+    }
+
     @Test
     fun `Empty config file`() {
+        roundTrip(
+            Config(),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config"/>
+            """
+        )
+    }
+
+    @Test
+    fun `Config file with xsi schemaLocation`() {
         runTest(
             xml(
                 "config.xml",
                 """
-                    <config xmlns="http://www.google.com/tools/metalava/config"/>
+                    <config xmlns="http://www.google.com/tools/metalava/config"
+                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                            xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../../resources/schemas/config.xsd"/>
                 """,
             ),
         ) {

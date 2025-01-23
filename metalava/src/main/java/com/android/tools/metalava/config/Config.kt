@@ -16,11 +16,18 @@
 
 package com.android.tools.metalava.config
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
+
 /** The top level configuration object. */
+@JacksonXmlRootElement(localName = "config", namespace = CONFIG_NAMESPACE)
+// Ignore the xsi:schemaLocation property if present on the root <config> element.
+@JsonIgnoreProperties("schemaLocation")
 data class Config(
     /**
      * Temporary property to make this a valid data class which is needed as the [equals] method is
      * used in tests.
      */
-    var placeholder: Int = 0,
+    @JsonIgnore val placeholder: Int = 0,
 )
