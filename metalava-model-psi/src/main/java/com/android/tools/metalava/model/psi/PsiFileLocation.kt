@@ -16,17 +16,34 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.vfs.VfsUtilCore
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiNameIdentifierOwner
+import com.intellij.psi.PsiPackage
+import com.intellij.psi.PsiParameter
 import com.intellij.psi.impl.light.LightElement
 import java.nio.file.Path
+import org.jetbrains.kotlin.fileClasses.javaFileFacadeFqName
+import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtModifierListOwner
+import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
+import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.toUElement
 
 /** A [FileLocation] that wraps [psiElement] and computes the [path] and [line] number on demand. */
 class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
@@ -57,6 +74,9 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
             ensureInitialized()
             return _line
         }
+
+    override val baselineKey: BaselineKey
+        get() = getBaselineKey(psiElement)
 
     /**
      * Make sure that this is initialized, if it is not then compute the [path] and [line] from the
@@ -105,6 +125,16 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
     }
 
     companion object {
+        /**
+         * Compute a [FileLocation] from a [PsiElement]
+         *
+         * @param element the optional element from which the path, line and [BaselineKey] will be
+         *   computed.
+         */
+        fun fromPsiElement(element: PsiElement?): FileLocation {
+            return element?.let { PsiFileLocation(it) } ?: FileLocation.UNKNOWN
+        }
+
         private fun getTextRange(element: PsiElement): TextRange? {
             var range: TextRange? = null
 
@@ -136,5 +166,80 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
             }
             return line
         }
+
+        internal fun getBaselineKey(element: PsiElement?): BaselineKey {
+            element ?: return BaselineKey.UNKNOWN
+            return when (element) {
+                is PsiFile -> {
+                    val virtualFile = element.virtualFile
+                    val file = VfsUtilCore.virtualToIoFile(virtualFile)
+                    BaselineKey.forPath(file.toPath())
+                }
+                else -> {
+                    val elementId = getElementId(element)
+                    BaselineKey.forElementId(elementId)
+                }
+            }
+        }
+
+        private fun getElementId(element: PsiElement): String {
+            return when (element) {
+                is PsiClass -> element.qualifiedName ?: element.name ?: "?"
+                is KtClass -> element.fqName?.asString() ?: element.name ?: "?"
+                is PsiMethod -> {
+                    val containingClass = element.containingClass
+                    val name = element.name
+                    val parameterList =
+                        "(" +
+                            element.parameterList.parameters.joinToString {
+                                it.type.canonicalText
+                            } +
+                            ")"
+                    if (containingClass != null) {
+                        getElementId(containingClass) + "#" + name + parameterList
+                    } else {
+                        name + parameterList
+                    }
+                }
+                is PsiField -> {
+                    val containingClass = element.containingClass
+                    val name = element.name
+                    if (containingClass != null) {
+                        getElementId(containingClass) + "#" + name
+                    } else {
+                        name
+                    }
+                }
+                is KtProperty -> {
+                    val containingClass =
+                        element.containingClass()?.let { getElementId(it) }
+                        // If there is no containing class, find the file facade class because that
+                        // will be the containing class in the Codebase.
+                        ?: element.containingKtFile.javaFileFacadeFqName.asString()
+                    val name = element.nameAsSafeName.asString()
+                    "$containingClass#$name"
+                }
+                is PsiPackage -> element.qualifiedName
+                is PsiParameter -> {
+                    val method = element.declarationScope.parent
+                    if (method is PsiMethod) {
+                        getElementId(method) + " parameter #" + element.parameterIndex()
+                    } else {
+                        "?"
+                    }
+                }
+                is KtFunction -> {
+                    // Try converting this to the Java API view (as a PsiMethod)
+                    (element.toUElement()?.javaPsi as? PsiMethod)?.let { getElementId(it) }
+                        ?: element.toString()
+                }
+                else -> element.toString()
+            }
+        }
     }
+}
+
+fun Reporter.report(id: Issues.Issue, element: PsiElement?, message: String): Boolean {
+    val location = PsiFileLocation.fromPsiElement(element)
+    return report(id, null, message, location)
 }

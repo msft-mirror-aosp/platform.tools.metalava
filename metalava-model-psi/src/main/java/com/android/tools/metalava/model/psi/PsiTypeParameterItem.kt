@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.BoundsTypeItem
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
@@ -27,60 +26,34 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
-    codebase: PsiBasedCodebase,
-    private val psiClass: PsiTypeParameter,
-    private val name: String,
-    modifiers: DefaultModifierList
+    override val codebase: PsiBasedCodebase,
+    private val psiTypeParameter: PsiTypeParameter,
+    name: String,
+    modifiers: BaseModifierList
 ) :
-    PsiItem(
+    DefaultTypeParameterItem(
         codebase = codebase,
-        element = psiClass,
         modifiers = modifiers,
-        documentation = "",
-    ),
-    TypeParameterItem {
+        name = name,
+        isReified = isReified(psiTypeParameter),
+    ) {
+    fun psi() = psiTypeParameter
 
-    override fun name() = name
-
-    /** Must only be used by [type] to cache its result. */
-    private lateinit var variableTypeItem: VariableTypeItem
-
-    override fun type(): VariableTypeItem {
-        if (!::variableTypeItem.isInitialized) {
-            variableTypeItem = codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
-        }
-        return variableTypeItem
-    }
-
-    override fun psi() = psiClass
-
-    override fun typeBounds(): List<BoundsTypeItem> = bounds
-
-    override fun isReified(): Boolean {
-        return isReified(psiClass as? PsiTypeParameter)
-    }
-
-    internal lateinit var bounds: List<BoundsTypeItem>
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is TypeParameterItem) return false
-
-        return name == other.name()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
+    override fun createVariableTypeItem(): VariableTypeItem {
+        return codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
     }
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
-            val simpleName = psiClass.name!!
-            val modifiers = modifiers(codebase, psiClass)
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiTypeParameter: PsiTypeParameter,
+        ): PsiTypeParameterItem {
+            val simpleName = psiTypeParameter.name!!
+            val modifiers = PsiModifierItem.create(codebase, psiTypeParameter)
 
             return PsiTypeParameterItem(
                 codebase = codebase,
-                psiClass = psiClass,
+                psiTypeParameter = psiTypeParameter,
                 name = simpleName,
                 modifiers = modifiers
             )

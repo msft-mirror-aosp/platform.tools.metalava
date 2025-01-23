@@ -17,13 +17,17 @@
 package com.android.tools.metalava.model
 
 @MetalavaApi
-interface TypeParameterItem : Item {
+interface TypeParameterItem {
+    val codebase: Codebase
+
+    /** Return the modifiers of this class */
+    @MetalavaApi val modifiers: ModifierList
 
     /** The name of the type parameter. */
     fun name(): String
 
     /** The [VariableTypeItem] representing the type of this type parameter. */
-    override fun type(): VariableTypeItem
+    fun type(): VariableTypeItem
 
     fun typeBounds(): List<BoundsTypeItem>
 
@@ -56,35 +60,15 @@ interface TypeParameterItem : Item {
                         append(" ")
                     }
                     first = false
-                    append(bound.toTypeString(spaceBetweenParameters = true))
+                    append(bound.toTypeString(SOURCE_TYPE_STRING_CONFIGURATION))
                 }
             }
         }
     }
 
-    override fun toStringForItem(): String =
-        if (typeBounds().isEmpty() && !isReified()) name()
-        else
-            buildString {
-                if (isReified()) append("reified ")
-                append(name())
-                if (typeBounds().isNotEmpty()) {
-                    append(" extends ")
-                    typeBounds().joinTo(this, " & ")
-                }
-            }
-
-    // Methods from [Item] that are not needed. They will be removed in a follow-up change.
-    override fun parent() = error("Not needed for TypeParameterItem")
-
-    override fun baselineElementId() = error("Not needed for TypeParameterItem")
-
-    override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
-
-    override fun containingPackage() = error("Not needed for TypeParameterItem")
-
-    override fun containingClass() = error("Not needed for TypeParameterItem")
-
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        error("Not needed for TypeParameterItem")
+    companion object {
+        /** [TypeStringConfiguration] for use by [toSource]. */
+        private val SOURCE_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(spaceBetweenParameters = true)
+    }
 }

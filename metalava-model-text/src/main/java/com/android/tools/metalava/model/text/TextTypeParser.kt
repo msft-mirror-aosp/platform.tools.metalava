@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -386,7 +387,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         val qualifiedName =
             if (outerClassType != null) {
-                // This is an inner type, add the prefix of the outer name
+                // This is a nested type, add the prefix of the outer name
                 "${outerClassType.qualifiedName}.$name"
             } else if (!name.contains('.')) {
                 // Reverse the effect of [TypeItem.stripJavaLangPrefix].
@@ -399,7 +400,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         val arguments =
             argumentStrings.map { cachedParseType(it, typeParameterScope) as TypeArgumentTypeItem }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
-        // the leading annotations (they belong to the inner class type).
+        // the leading annotations (they belong to the nested class type).
         val classModifiers =
             if (remainder != null) {
                 modifiers(classAnnotations, TypeNullability.NONNULL)
@@ -415,7 +416,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                     "Could not parse type `$type`. Found unexpected string after type parameters: $remainder"
                 )
             }
-            // This is an inner class type, recur with the new outer class
+            // This is a nested class type, recur with the new outer class
             return createClassType(
                 remainder.substring(1),
                 classType,
@@ -435,7 +436,6 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         return DefaultTypeModifiers.create(
             annotations,
             nullability,
-            "Type modifiers created by the text model are immutable because they are cached",
         )
     }
 
@@ -449,7 +449,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             trimmed = trimmed.substring(end).trim()
         }
         return Pair(trimmed, annotations)
@@ -490,7 +492,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 break
             }
             val annotationSource = trimmed.substring(start)
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             // Cut this annotation off, so now the next one can end at the last index.
             trimmed = trimmed.substring(0, start).trim()
         }
@@ -500,7 +504,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     /**
      * Given [type] which represents a class, splits the string into the qualified name of the
      * class, the remainder of the type string, and a list of type-use annotations. The remainder of
-     * the type string might be the type parameter list, inner class names, or a combination
+     * the type string might be the type parameter list, nested class names, or a combination
      *
      * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
      * "<java.lang.@C String", listOf("@A", "@B")).
@@ -821,15 +825,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
             // package, all other types must be fully qualified. At this point it is not clear
             // whether the type used in the input type string was qualified or not as the package
             // has been prepended so this assumes that they all are just to be on the safe side.
-            // It is only for legacy reasons that all `java.lang` package prefixes are stripped
-            // when generating the API signature files. See b/324047248.
             val name = classType.qualifiedName
             if (!name.contains('.')) {
                 unqualifiedNames.add(name)
             } else {
-                val trimmed = TypeItem.stripJavaLangPrefix(name)
-                if (trimmed != name) {
-                    unqualifiedNames.add(trimmed)
+                if (classType.classNamePrefix == JAVA_LANG_PREFIX) {
+                    unqualifiedNames.add(classType.className)
                 }
             }
         }

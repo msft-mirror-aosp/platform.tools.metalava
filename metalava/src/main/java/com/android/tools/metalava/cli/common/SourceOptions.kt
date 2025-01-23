@@ -17,12 +17,15 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
+import com.android.tools.metalava.model.PackageFilter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
-const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
 const val ARG_SOURCE_PATH = "--source-path"
+
+const val ARG_STUB_PACKAGES = "--stub-packages"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SOURCE_OPTIONS_GROUP = "Sources"
@@ -37,20 +40,6 @@ class SourceOptions :
                 .trimIndent()
     ) {
 
-    private val commonSourcePathString by
-        option(
-            ARG_COMMON_SOURCE_PATH,
-            metavar = "<path>",
-            help =
-                """
-                    A ${File.pathSeparator} separated list of directories containing common source
-                    files (organized in a standard Java package hierarchy). Common source files
-                    are where platform-agnostic `expect` declarations for Kotlin multi-platform code
-                    as well as common business logic are defined.
-                """
-                    .trimIndent(),
-        )
-
     private val sourcePathString by
         option(
             ARG_SOURCE_PATH,
@@ -62,11 +51,6 @@ class SourceOptions :
                 """
                     .trimIndent(),
         )
-
-    internal val commonSourcePath by
-        lazy(LazyThreadSafetyMode.NONE) {
-            getSourcePath(ARG_COMMON_SOURCE_PATH, commonSourcePathString)
-        }
 
     internal val sourcePath by
         lazy(LazyThreadSafetyMode.NONE) { getSourcePath(ARG_SOURCE_PATH, sourcePathString) }
@@ -89,4 +73,21 @@ class SourceOptions :
                 stringToExistingDir(it)
             }
         }
+
+    val apiPackages by
+        option(
+                ARG_STUB_PACKAGES,
+                metavar = "<package-list>",
+                help =
+                    """
+                        List of packages (separated by ${File.pathSeparator}) which will be used to
+                        filter out irrelevant classes. If specified, only classes in these packages
+                        will be included in signature files, stubs, etc.. This is not limited to
+                        just the stubs; the $ARG_STUB_PACKAGES name is historical.
+
+                        See `metalava help package-filters` for more information.
+                    """
+                        .trimIndent()
+            )
+            .convert { PackageFilter.parse(it) }
 }

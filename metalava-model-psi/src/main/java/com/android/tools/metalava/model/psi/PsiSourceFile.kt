@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SourceFile
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
@@ -31,7 +31,6 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiWhiteSpace
 import java.util.TreeSet
-import java.util.function.Predicate
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
@@ -87,7 +86,7 @@ internal class PsiSourceFile(
         return super.getHeaderComments()
     }
 
-    override fun getImports(predicate: Predicate<Item>): Collection<Import> {
+    override fun getImports(predicate: FilterPredicate): Collection<Import> {
         val imports = TreeSet<Import>(compareBy { it.pattern })
 
         if (file is PsiJavaFile) {
@@ -96,7 +95,7 @@ internal class PsiSourceFile(
                 for (importStatement in importList.importStatements) {
                     val resolved = importStatement.resolve() ?: continue
                     if (resolved is PsiClass) {
-                        val classItem = codebase.findClass(resolved) ?: continue
+                        val classItem = codebase.findOrCreateClass(resolved)
                         if (predicate.test(classItem)) {
                             imports.add(Import(classItem))
                         }
@@ -113,13 +112,13 @@ internal class PsiSourceFile(
                         }
                     } else if (resolved is PsiMethod) {
                         codebase.findClass(resolved.containingClass ?: continue) ?: continue
-                        val methodItem = codebase.findMethod(resolved)
+                        val methodItem = codebase.findCallableByPsiMethod(resolved)
                         if (predicate.test(methodItem)) {
                             imports.add(Import(methodItem))
                         }
                     } else if (resolved is PsiField) {
                         val classItem =
-                            codebase.findClass(resolved.containingClass ?: continue) ?: continue
+                            codebase.findOrCreateClass(resolved.containingClass ?: continue)
                         val fieldItem =
                             classItem.findField(
                                 resolved.name,
@@ -137,7 +136,7 @@ internal class PsiSourceFile(
             for (importDirective in file.importDirectives) {
                 val resolved = importDirective.reference?.resolve() ?: continue
                 if (resolved is PsiClass) {
-                    val classItem = codebase.findClass(resolved) ?: continue
+                    val classItem = codebase.findOrCreateClass(resolved)
                     if (predicate.test(classItem)) {
                         imports.add(Import(classItem))
                     }
