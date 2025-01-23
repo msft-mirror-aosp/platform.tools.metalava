@@ -105,7 +105,10 @@ class MainCommand(
             defaultBaselineFileProvider = { getDefaultBaselineFile() },
         )
 
-    private val apiSelectionOptions by ApiSelectionOptions()
+    private val apiSelectionOptions: ApiSelectionOptions by
+        ApiSelectionOptions(
+            apiSurfacesConfigProvider = { optionGroup.config.apiSurfaces },
+        )
 
     /** API lint options. */
     private val apiLintOptions by

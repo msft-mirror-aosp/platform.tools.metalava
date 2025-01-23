@@ -62,16 +62,6 @@ class ApiSurfacesTest : DriverTest() {
         )
     }
 
-    private fun ApiSurfaces.assertBaseWasNotCreated() {
-        assertNull(base, message = "base")
-        assertNull(main.extends, message = "main.extends")
-    }
-
-    private fun ApiSurfaces.assertBaseWasCreated() {
-        assertNotNull(base, message = "base")
-        assertSame(base, main.extends, message = "main.extends")
-    }
-
     @Test
     fun `Test generating public API does not need to track the base API surface`() {
         checkApiSurfaces {
@@ -128,4 +118,14 @@ class ApiSurfacesTest : DriverTest() {
             apiSurfaces.assertBaseWasCreated()
         }
     }
+}
+
+fun ApiSurfaces.assertBaseWasNotCreated() {
+    assertNull(base, message = "base")
+    assertNull(main.extends, message = "main.extends")
+}
+
+fun ApiSurfaces.assertBaseWasCreated() {
+    assertNotNull(base, message = "base")
+    assertSame(base, main.extends, message = "main.extends")
 }
