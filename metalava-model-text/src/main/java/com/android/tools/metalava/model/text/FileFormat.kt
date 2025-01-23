@@ -382,7 +382,7 @@ data class FileFormat(
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
         val defaults = version.defaultsIncludingLanguage(language)
         if (this@FileFormat != defaults) {
-            CustomizableProperty.values().forEach { prop ->
+            CustomizableProperty.entries.forEach { prop ->
                 // Get the string value of this property, if null then it was not specified so skip
                 // the property.
                 val thisValue = prop.stringFromFormat(this@FileFormat) ?: return@forEach
@@ -425,9 +425,9 @@ data class FileFormat(
     }
 
     companion object {
-        private val allDefaults = Version.values().map { it.defaults }.toList()
+        private val allDefaults = Version.entries.map { it.defaults }.toList()
 
-        private val versionByNumber = Version.values().associateBy { it.versionNumber }
+        private val versionByNumber = Version.entries.associateBy { it.versionNumber }
 
         // The defaults associated with version 2.0.
         val V2 = Version.V2.defaults
@@ -707,7 +707,7 @@ data class FileFormat(
          * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
          */
         fun defaultableProperties(): List<String> {
-            return CustomizableProperty.values()
+            return CustomizableProperty.entries
                 .filter { it.defaultable }
                 .map { it.propertyName }
                 .sorted()
@@ -929,7 +929,7 @@ data class FileFormat(
         fun yesNo(value: Boolean): String = if (value) "yes" else "no"
 
         companion object {
-            val byPropertyName = values().associateBy { it.propertyName }
+            val byPropertyName = entries.associateBy { it.propertyName }
 
             /**
              * Get the [CustomizableProperty] by name, throwing an [ApiParseException] if it could
