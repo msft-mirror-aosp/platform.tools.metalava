@@ -20,6 +20,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
@@ -104,6 +105,8 @@ class ConfigParser private constructor(private val reporter: Reporter) : Default
                 .defaultUseWrapper(false)
                 // Pretty print, indenting each level by 2 spaces.
                 .enable(SerializationFeature.INDENT_OUTPUT)
+                // Exclude any `null` values from being serialized.
+                .serializationInclusion(JsonInclude.Include.NON_NULL)
                 // Add support for using Kotlin data classes.
                 .addModule(kotlinModule())
                 .build()
@@ -111,8 +114,13 @@ class ConfigParser private constructor(private val reporter: Reporter) : Default
 
         /** Merge two Config objects together returning an object that combines them both. */
         internal fun merge(configLeft: Config, configRight: Config): Config {
-            if (configLeft != configRight) error("Mismatching configuration")
-            return configLeft
+            val apiSurfaces = merge(configLeft.apiSurfaces, configRight.apiSurfaces)
+            return Config(apiSurfaces)
         }
+
+        internal fun merge(apiSurfaces1: ApiSurfacesConfig?, apiSurfaces2: ApiSurfacesConfig?) =
+            if (apiSurfaces1 == null) apiSurfaces2
+            else if (apiSurfaces2 == null) apiSurfaces1
+            else ApiSurfacesConfig(apiSurfaces1.apiSurfaceList + apiSurfaces2.apiSurfaceList)
     }
 }

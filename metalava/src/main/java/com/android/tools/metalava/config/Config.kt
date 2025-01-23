@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.config
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
 
 /** The top level configuration object. */
@@ -25,9 +25,21 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
 // Ignore the xsi:schemaLocation property if present on the root <config> element.
 @JsonIgnoreProperties("schemaLocation")
 data class Config(
-    /**
-     * Temporary property to make this a valid data class which is needed as the [equals] method is
-     * used in tests.
-     */
-    @JsonIgnore val placeholder: Int = 0,
+    @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
+    val apiSurfaces: ApiSurfacesConfig? = null,
+)
+
+/** A set of [ApiSurfaceConfig]s. */
+data class ApiSurfacesConfig(
+    @field:JacksonXmlProperty(localName = "api-surface", namespace = CONFIG_NAMESPACE)
+    val apiSurfaceList: List<ApiSurfaceConfig> = emptyList(),
+)
+
+/** An API surface that Metalava could generate. */
+data class ApiSurfaceConfig(
+    /** The name of the API surface, e.g. `public`, `restricted`, etc. */
+    @field:JacksonXmlProperty(isAttribute = true) val name: String?,
+
+    /** The optional name of the API surface that this surface extends, e.g. `public`. */
+    @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,
 )

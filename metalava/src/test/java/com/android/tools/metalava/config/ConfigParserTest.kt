@@ -137,4 +137,156 @@ class ConfigParserTest : TemporaryFolderOwner {
             assertThat(config).isEqualTo(Config())
         }
     }
+
+    @Test
+    fun `Empty api-surfaces config`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                        <api-surfaces/>
+                    </config>
+                """,
+            ),
+        ) {
+            assertThat(config)
+                .isEqualTo(
+                    Config(
+                        apiSurfaces = ApiSurfacesConfig(),
+                    )
+                )
+        }
+    }
+
+    @Test
+    fun `Simple api-surfaces config`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                ),
+                                ApiSurfaceConfig(
+                                    name = "system",
+                                    extends = "public",
+                                ),
+                            ),
+                    )
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public"/>
+                    <api-surface name="system" extends="public"/>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `Invalid api-surfaces config - invalid name`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                        <api-surfaces>
+                            <api-surface name="public2"/>
+                        </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedIssues =
+                """
+                    TESTROOT/config.xml:3: error: Problem parsing configuration file: cvc-pattern-valid: Value 'public2' is not facet-valid with respect to pattern '[a-z-]+' for type 'ApiSurfaceNameType'. [ConfigFileProblem]
+                    TESTROOT/config.xml:3: error: Problem parsing configuration file: cvc-attribute.3: The value 'public2' of attribute 'name' on element 'api-surface' is not valid with respect to its type, 'ApiSurfaceNameType'. [ConfigFileProblem]
+                """,
+        )
+    }
+
+    @Test
+    fun `Invalid api-surfaces config - extends non-existent surface`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                        <api-surfaces>
+                            <api-surface name="system" extends="missing"/>
+                        </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedIssues =
+                "TESTROOT/config.xml:5: error: Problem parsing configuration file: cvc-identity-constraint.4.3: Key 'ApiSurfaceExtendsKeyRef' with value 'missing' not found for identity constraint of element 'config'. [ConfigFileProblem]",
+        )
+    }
+
+    @Test
+    fun `Invalid api-surfaces config - duplicate surface names`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                        <api-surfaces>
+                            <api-surface name="duplicate"/>
+                            <api-surface name="duplicate"/>
+                        </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedIssues =
+                "TESTROOT/config.xml:4: error: Problem parsing configuration file: cvc-identity-constraint.4.2.2: Duplicate key value [duplicate] declared for identity constraint \"ApiSurfaceByName\" of element \"config\". [ConfigFileProblem]"
+        )
+    }
+
+    @Test
+    fun `Multiple api-surfaces config files`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            xml(
+                "config2.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="other"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+        ) {
+            assertThat(config)
+                .isEqualTo(
+                    Config(
+                        apiSurfaces =
+                            ApiSurfacesConfig(
+                                apiSurfaceList =
+                                    listOf(
+                                        ApiSurfaceConfig(
+                                            name = "public",
+                                        ),
+                                        ApiSurfaceConfig(
+                                            name = "other",
+                                        ),
+                                    ),
+                            ),
+                    )
+                )
+        }
+    }
 }
