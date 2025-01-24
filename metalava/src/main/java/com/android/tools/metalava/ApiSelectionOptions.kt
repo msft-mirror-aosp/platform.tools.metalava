@@ -18,10 +18,13 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.defaultLazy
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.switch
 
 const val ARG_API_SURFACE = "--api-surface"
+const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
@@ -54,6 +57,16 @@ class ApiSelectionOptions :
                     Currently, only used for testing purposes.
                 """,
         )
+
+    val showUnannotated by
+        option(help = "Include un-annotated public APIs in the signature file as well.")
+            .switch(ARG_SHOW_UNANNOTATED to true)
+            .defaultLazy(defaultForHelp = "true if no --show*-annotation options specified") {
+                // If the caller has not explicitly requested that unannotated classes and members
+                // should be shown in the output then only show them if no show annotations were
+                // provided.
+                allShowAnnotations.isEmpty()
+            }
 
     private val showAnnotationValues by
         option(

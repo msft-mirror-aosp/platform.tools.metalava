@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
 
 val API_SELECTION_OPTIONS_HELP =
     """
@@ -27,6 +29,8 @@ Api Selection:
   --api-surface <surface>                    The API surface currently being generated.
 
                                              Currently, only used for testing purposes.
+  --show-unannotated                         Include un-annotated public APIs in the signature file as well. (default:
+                                             true if no --show*-annotation options specified)
   --show-annotation <annotation-filter>      Unhide any hidden elements that are also annotated with the given
                                              annotation.
   --show-single-annotation <annotation-filter>
@@ -43,4 +47,16 @@ Api Selection:
 class ApiSelectionOptionsTest :
     BaseOptionGroupTest<ApiSelectionOptions>(API_SELECTION_OPTIONS_HELP) {
     override fun createOptions() = ApiSelectionOptions()
+
+    @Test
+    fun `Test no --show-unannotated no show annotations`() {
+        runTest { assertThat(options.showUnannotated).isTrue() }
+    }
+
+    @Test
+    fun `Test no --show-unannotated with --show-annotation`() {
+        runTest(ARG_SHOW_ANNOTATION, "test.pkg.Show") {
+            assertThat(options.showUnannotated).isFalse()
+        }
+    }
 }

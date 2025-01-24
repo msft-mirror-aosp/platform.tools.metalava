@@ -172,7 +172,6 @@ const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
@@ -348,7 +347,8 @@ class Options(
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
      * applies to signature files, not stub files.
      */
-    var showUnannotated = false
+    val showUnannotated
+        get() = apiSelectionOptions.showUnannotated
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -741,7 +741,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_SHOW_UNANNOTATED -> showUnannotated = true
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
@@ -822,13 +821,6 @@ class Options(
             }
 
             ++index
-        }
-
-        // If the caller has not explicitly requested that unannotated classes and
-        // members should be shown in the output then only show them if no annotations were
-        // provided.
-        if (!showUnannotated && allShowAnnotations.isEmpty()) {
-            showUnannotated = true
         }
 
         // Initialize the reporters.
@@ -1046,8 +1038,6 @@ object OptionsHelp {
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
                 "$ARG_HIDE_ANNOTATION <annotation class>",
                 "Treat any elements annotated with the given annotation " + "as hidden",
-                ARG_SHOW_UNANNOTATED,
-                "Include un-annotated public APIs in the signature file as well",
                 "$ARG_JAVA_SOURCE <level>",
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
