@@ -23,12 +23,12 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
@@ -714,9 +714,7 @@ class Options(
                 }
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
-                        throw MetalavaCliException(
-                            stderr = "Only one $ARG_SUBTRACT_API can be supplied"
-                        )
+                        cliError("Only one $ARG_SUBTRACT_API can be supplied")
                     }
                     subtractApi = stringToExistingFile(getValue(args, ++index))
                 }
@@ -922,16 +920,12 @@ class Options(
             if (jar.isFile) {
                 mutableClassPath.add(jar)
             } else {
-                throw MetalavaCliException(
-                    stderr =
-                        "Could not find android.jar for API level " +
-                            "$compileSdkVersion in SDK $sdkHome: $jar does not exist"
+                cliError(
+                    "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
                 )
             }
             if (jdkHome != null) {
-                throw MetalavaCliException(
-                    stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME"
-                )
+                cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
             }
         } else if (jdkHome != null) {
             val isJre = !isJdkFolder(jdkHome)
@@ -942,7 +936,7 @@ class Options(
 
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
-            throw MetalavaCliException("Missing argument for ${args[index - 1]}")
+            cliError("Missing argument for ${args[index - 1]}")
         }
         return args[index]
     }
@@ -952,7 +946,7 @@ class Options(
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
-                throw MetalavaCliException("$file is not a jar or directory")
+                cliError("$file is not a jar or directory")
             }
             files.add(file)
         }
@@ -964,7 +958,7 @@ class Options(
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.exists()) {
-                throw MetalavaCliException("$file does not exist")
+                cliError("$file does not exist")
             }
             files.add(file)
         }
@@ -975,7 +969,7 @@ class Options(
     private fun stringToExistingFileOrDir(value: String): File {
         val file = fileForPathInner(value)
         if (!file.exists()) {
-            throw MetalavaCliException("$file is not a file or directory")
+            cliError("$file is not a file or directory")
         }
         return file
     }
@@ -986,7 +980,7 @@ class Options(
             .map { fileForPathInner(it) }
             .map { file ->
                 if (!file.isFile) {
-                    throw MetalavaCliException("$file is not a file")
+                    cliError("$file is not a file")
                 }
                 file
             }
@@ -997,7 +991,7 @@ class Options(
         if (!dir.isDirectory) {
             val ok = dir.mkdirs()
             if (!ok) {
-                throw MetalavaCliException("Could not create $dir")
+                cliError("Could not create $dir")
             }
         }
         return dir

@@ -33,9 +33,9 @@ import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.RequiresOtherGroups
 import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.map
@@ -175,9 +175,7 @@ class ApiLevelsGenerationOptions(
     internal val currentApiVersion: ApiVersion
         get() =
             optionalCurrentApiVersion
-                ?: throw MetalavaCliException(
-                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
-                )
+                ?: cliError("$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION")
 
     /**
      * The codename of the codebase: non-null string if this is a developer preview build, null if
@@ -349,9 +347,7 @@ class ApiLevelsGenerationOptions(
 
             val currentSdkVersion = currentApiVersion
             if (currentSdkVersion.major <= 26) {
-                throw MetalavaCliException(
-                    "Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27"
-                )
+                cliError("Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27")
             }
 
             val notFinalizedSdkVersion = currentSdkVersion + 1
@@ -563,7 +559,7 @@ class ApiLevelsGenerationOptions(
             // Get the number of version names and signature files, defaulting to 0 if not provided.
             val numVersionNames = allVersions.size
             if (numVersionNames == 0) {
-                throw MetalavaCliException(
+                cliError(
                     "Must specify $ARG_API_VERSION_NAMES and/or $ARG_CURRENT_VERSION with $ARG_GENERATE_API_VERSION_HISTORY"
                 )
             }
@@ -572,11 +568,11 @@ class ApiLevelsGenerationOptions(
             // so there should be 1 more name than signature files.
             if (numVersionNames != numVersionFiles + 1) {
                 if (currentApiVersion == null) {
-                    throw MetalavaCliException(
+                    cliError(
                         "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name as $ARG_CURRENT_VERSION is not provided"
                     )
                 } else {
-                    throw MetalavaCliException(
+                    cliError(
                         "$ARG_API_VERSION_NAMES must have the same number of versions as $ARG_API_VERSION_SIGNATURE_FILES has files as $ARG_CURRENT_VERSION is provided"
                     )
                 }
