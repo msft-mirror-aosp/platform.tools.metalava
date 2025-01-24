@@ -42,9 +42,12 @@ const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
  *
  * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
  *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
+ * @param ignoreShowAnnotationsProvider Provides an indication whether show annotations are going to
+ *   be used or not, `true` if they are not, `false` if they are.
  */
 class ApiSelectionOptions(
     private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
+    private val ignoreShowAnnotationsProvider: () -> Boolean = { false },
 ) :
     OptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
@@ -163,10 +166,12 @@ class ApiSelectionOptions(
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
             val apiSurfacesConfig = apiSurfacesConfigProvider()
+            val ignoreShowAnnotations = ignoreShowAnnotationsProvider()
             createApiSurfaces(
                 showUnannotated,
                 apiSurface,
                 apiSurfacesConfig,
+                ignoreShowAnnotations,
             )
         }
 
@@ -179,11 +184,16 @@ class ApiSelectionOptions(
          * @param targetApiSurface the optional name of the target API surface to be created. If
          *   supplied it MUST reference an [ApiSurfaceConfig] in [apiSurfacesConfig].
          * @param apiSurfacesConfig the optional [ApiSurfacesConfig].
+         * @param ignoreShowAnnotations if true then the show annotations should be ignored,
+         *   otherwise they should be used when create [ApiSurfaces]. This will be set to `true`
+         *   when the API is not being created from source files, e.g. when it is being created from
+         *   signature files as the show annotations only affect source files.
          */
         private fun createApiSurfaces(
             showUnannotated: Boolean,
             targetApiSurface: String?,
             apiSurfacesConfig: ApiSurfacesConfig?,
+            ignoreShowAnnotations: Boolean,
         ): ApiSurfaces {
             // A base API surface is needed if and only if the main API surface being generated
             // extends another API surface. That is not currently explicitly specified on the
@@ -231,6 +241,14 @@ class ApiSelectionOptions(
 
                 val extendedSurface = targetApiSurfaceConfig.extends
                 val extendsSurface = extendedSurface != null
+
+                // If show annotations should be ignored then there is no need to check consistency
+                // of them so just create the ApiSurfaces from the configuration.
+                if (ignoreShowAnnotations) {
+                    return ApiSurfaces.create(
+                        needsBase = extendsSurface,
+                    )
+                }
 
                 // Perform a consistency check to ensure that the configuration and command line
                 // options are compatible.

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.xml
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -115,6 +116,44 @@ class ApiSurfacesTest : DriverTest() {
             ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
             ANDROID_SYSTEM_API,
         ) {
+            apiSurfaces.assertBaseWasCreated()
+        }
+    }
+
+    @Test
+    fun `Test no show annotations with signature sources`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                        public class Foo {
+                            ctor public Foo();
+                        }
+                    }
+                """,
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                                <api-surfaces>
+                                    <api-surface name="public"/>
+                                    <api-surface name="system" extends="public"/>
+                                </api-surfaces>
+                            </config>
+                        """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_API_SURFACE,
+                    "system",
+                ),
+        ) {
+            val apiSurfaces = options.apiSurfaces
             apiSurfaces.assertBaseWasCreated()
         }
     }

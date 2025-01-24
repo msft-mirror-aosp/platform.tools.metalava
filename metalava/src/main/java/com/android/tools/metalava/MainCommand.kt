@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -108,6 +109,11 @@ class MainCommand(
     private val apiSelectionOptions: ApiSelectionOptions by
         ApiSelectionOptions(
             apiSurfacesConfigProvider = { optionGroup.config.apiSurfaces },
+            ignoreShowAnnotationsProvider = {
+                optionGroup.sources.let { sources ->
+                    sources.isEmpty() || sources[0].path.endsWith(DOT_TXT)
+                }
+            },
         )
 
     /** API lint options. */
