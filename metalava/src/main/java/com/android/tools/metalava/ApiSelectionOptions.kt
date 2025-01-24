@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.defaultLazy
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -150,4 +152,56 @@ class ApiSelectionOptions :
         lazy(LazyThreadSafetyMode.NONE) {
             AnnotationFilter.create(showForStubPurposesAnnotationValues)
         }
+
+    val apiSurfaces by
+        lazy(LazyThreadSafetyMode.NONE) {
+            createApiSurfaces(
+                showUnannotated,
+            )
+        }
+
+    companion object {
+        /**
+         * Create [ApiSurfaces] and associated [ApiSurface] objects from these options.
+         *
+         * @param showUnannotated true if unannotated items should be included in the API, false
+         *   otherwise.
+         */
+        private fun createApiSurfaces(
+            showUnannotated: Boolean,
+        ): ApiSurfaces {
+            // A base API surface is needed if and only if the main API surface being generated
+            // extends another API surface. That is not currently explicitly specified on the
+            // command line so has to be inferred from the existing arguments. There are four main
+            // supported cases:
+            //
+            // * Public which does not extend another API surface so does not need a base. This
+            //   happens by default unless one or more `--show*annotation` options were specified.
+            //   In that case it behaves as if `--show-unannotated` was specified.
+            //
+            // * Restricted API in AndroidX which is basically public + other and does not need a
+            //   base. This happens when `--show-unannotated` was provided (the public part) as well
+            //   as `--show-annotation RestrictTo(...)` (the other part).
+            //
+            // * System delta on public in Android build. This happens when --show-unannotated was
+            //   not specified (so the public part is not included in signature files at least) but
+            //   `--show-annotation SystemApi` was.
+            //
+            // * Test API delta on system (or similar) in Android build. This happens when
+            //   `--show-unannotated` was not specified (so the public part is not included),
+            //   `--show-for-stub-purposes-only SystemApi` was (so system API is included in the
+            //   stubs but not the signature files) and `--show-annotation TestApi` was.
+            //
+            // There are other combinations of the `--show*` options which are not used, and it is
+            // not clear whether they make any sense so this does not cover them.
+            //
+            // This does not need a base if --show-unannotated was specified, or it defaulted to
+            // behaving as if it was.
+            val needsBase = !showUnannotated
+
+            return ApiSurfaces.create(
+                needsBase = needsBase,
+            )
+        }
+    }
 }
