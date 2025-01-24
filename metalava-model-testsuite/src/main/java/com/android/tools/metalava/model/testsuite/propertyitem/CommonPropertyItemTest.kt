@@ -718,4 +718,102 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isFalse()
         }
     }
+
+    @Test
+    fun `JvmStatic property in object is static`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    import kotlin.jvm.JvmStatic
+                    object Foo {
+                        @JvmStatic
+                        val jvmStaticProperty = 0
+                        val notStaticProperty = 0
+                    }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val jvmStaticProperty = fooClass.assertProperty("jvmStaticProperty")
+            assertThat(jvmStaticProperty.modifiers.isStatic()).isTrue()
+            val notStaticProperty = fooClass.assertProperty("notStaticProperty")
+            assertThat(notStaticProperty.modifiers.isStatic()).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test abstract and default modifier on properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface Interface {
+                        // interface properties cannot have initializers
+                        // if no getter is defined, the property is abstract
+                        val abstractVal: Int
+                        // getter is defined, the property is default
+                        val defaultVal: Int
+                            get() = 0
+
+                        companion object {
+                            // this shouldn't be default because the immediate container is an
+                            // object, not an interface
+                            val interfaceCompanionValWithGetter: Int
+                                get() = 0
+                        }
+                    }
+
+                    abstract class AbstractClass {
+                        abstract val abstractVal: Int
+
+                        val nonAbstractValWithInitializer: Int = 0
+                        val nonAbstractValWithGetter: Int
+                            get() = 0
+
+                        // lateinit cannot be paired with abstract
+                        lateinit var nonAbstractLateinitVar: String
+
+                        val notAbstractValInInitBlock: Int
+                        init {
+                            notAbstractValInInitBlock = 0
+                        }
+                    }
+                """
+            )
+        ) {
+            val interfaceClass = codebase.assertClass("test.pkg.Interface")
+            val abstractInterfaceProperty = interfaceClass.assertProperty("abstractVal")
+            assertThat(abstractInterfaceProperty.modifiers.isAbstract()).isTrue()
+            assertThat(abstractInterfaceProperty.modifiers.isDefault()).isFalse()
+            val defaultInterfaceProperty = interfaceClass.assertProperty("defaultVal")
+            assertThat(defaultInterfaceProperty.modifiers.isAbstract()).isFalse()
+            assertThat(defaultInterfaceProperty.modifiers.isDefault()).isTrue()
+
+            val interfaceCompanion = interfaceClass.nestedClasses().single()
+            val interfaceCompanionProperty =
+                interfaceCompanion.assertProperty("interfaceCompanionValWithGetter")
+            assertThat(interfaceCompanionProperty.modifiers.isAbstract()).isFalse()
+            assertThat(interfaceCompanionProperty.modifiers.isDefault()).isFalse()
+
+            val abstractClass = codebase.assertClass("test.pkg.AbstractClass")
+            val abstractClassProperty = abstractClass.assertProperty("abstractVal")
+            assertThat(abstractClassProperty.modifiers.isAbstract()).isTrue()
+            assertThat(abstractClassProperty.modifiers.isDefault()).isFalse()
+
+            val nonAbstractPropertiesFromAbstractClass =
+                listOf(
+                    abstractClass.assertProperty("nonAbstractValWithInitializer"),
+                    abstractClass.assertProperty("nonAbstractValWithGetter"),
+                    abstractClass.assertProperty("nonAbstractLateinitVar"),
+                    abstractClass.assertProperty("notAbstractValInInitBlock"),
+                )
+
+            for (property in nonAbstractPropertiesFromAbstractClass) {
+                assertThat(property.modifiers.isAbstract()).isFalse()
+                assertThat(property.modifiers.isDefault()).isFalse()
+            }
+        }
+    }
 }

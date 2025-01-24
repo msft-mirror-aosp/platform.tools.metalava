@@ -1087,14 +1087,14 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
-                        property @Deprecated public int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property @Deprecated public int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1184,18 +1184,18 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
-                        property @Deprecated public int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property @Deprecated public int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnSetter;
-                        property public int pOld_deprecatedOnSetter;
-                        property public int pOld_deprecatedOnSetter_myAnnoOnBoth;
-                        property public int pOld_deprecatedOnSetter_myAnnoOnGetter;
-                        property public int pOld_deprecatedOnSetter_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property public abstract int pOld_deprecatedOnSetter;
+                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
                       }
                       public final class Test_accessors {
                         ctor public Test_accessors();
@@ -1811,7 +1811,6 @@ abstract class UastTestBase : DriverTest() {
                     """
                       public final class IntValueKt {
                         method public boolean isValid();
-                        property public boolean isValid;
                       }
                     }
                     """
@@ -2018,7 +2017,6 @@ abstract class UastTestBase : DriverTest() {
                     """
                         method public int getPrivateVar();
                         method public void setPrivateVar(int);
-                        property public int privateVar;
                       }
                     }
                     """
