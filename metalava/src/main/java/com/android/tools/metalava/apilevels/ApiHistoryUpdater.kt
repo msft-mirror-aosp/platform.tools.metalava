@@ -44,6 +44,8 @@ sealed interface ApiHistoryUpdater {
 
     fun forExtension(): Boolean
 
+    override fun toString(): String
+
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
     private open class ApiVersionUpdater(override val apiVersion: ApiVersion) : ApiHistoryUpdater {
         override fun update(api: Api) {
@@ -55,6 +57,8 @@ sealed interface ApiHistoryUpdater {
         }
 
         override fun forExtension() = false
+
+        override fun toString() = "ApiVersionUpdater(version=$apiVersion)"
     }
 
     /**
@@ -81,6 +85,9 @@ sealed interface ApiHistoryUpdater {
         }
 
         override fun forExtension() = true
+
+        override fun toString() =
+            "ExtensionUpdater(extVersion=$extVersion, module=$module, nextSdkVersion=$apiVersion)"
     }
 
     companion object {

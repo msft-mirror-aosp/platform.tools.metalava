@@ -297,4 +297,57 @@ class ApiLevelsGenerationOptionsTest :
                 )
         }
     }
+
+    @Test
+    fun `Test generating api versions during finalization`() {
+        val root = buildFileStructure {
+            dir("31") { dir("public") { emptyFile("android.jar") } }
+            dir("32") { dir("public") { emptyFile("android.jar") } }
+            dir("extensions") {
+                dir("1") { dir("public") { emptyFile("bar.jar") } }
+                dir("2") {
+                    dir("public") {
+                        emptyFile("bar.jar")
+                        emptyFile("foo.jar")
+                    }
+                }
+            }
+        }
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+        runTest(
+            ARG_CURRENT_VERSION,
+            "33",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/{version:level}/*/android.jar",
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/extensions/{version:extension}/*/{module}.jar",
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+        ) {
+            val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
+            assertThat(apiHistoryConfig).isNotNull()
+
+            val versionedApisDump =
+                cleanupString(apiHistoryConfig!!.versionedApis.joinToString("\n"))
+            assertThat(versionedApisDump)
+                // TODO(b/392565932): When generating the api-versions.xml for a finalized API the
+                //  ExtensionUpdater.nextSdkVersion property should be the current version but it is
+                //  the current version + 1.
+                .isEqualTo(
+                    """
+                        VersionedJarApi(jar=TESTROOT/31/public/android.jar, updater=ApiVersionUpdater(version=31))
+                        VersionedJarApi(jar=TESTROOT/32/public/android.jar, updater=ApiVersionUpdater(version=32))
+                        VersionedSourceApi(version=33)
+                        VersionedJarApi(jar=TESTROOT/extensions/1/public/bar.jar, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=34))
+                        VersionedJarApi(jar=TESTROOT/extensions/2/public/bar.jar, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=34))
+                        VersionedJarApi(jar=TESTROOT/extensions/2/public/foo.jar, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=34))
+                    """
+                        .trimIndent()
+                )
+        }
+    }
 }

@@ -30,4 +30,7 @@ interface VersionedApi {
     fun updateApi(api: Api)
 
     fun forExtension() = false
+
+    /** Provide a string representation for debugging and testing. */
+    override fun toString(): String
 }
