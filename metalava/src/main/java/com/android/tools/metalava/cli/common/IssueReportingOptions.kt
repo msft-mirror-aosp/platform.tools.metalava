@@ -199,7 +199,7 @@ private enum class ConfigurableAspect {
                                 "$optionName ${it.name} instead of $optionName $id"
                         )
                     }
-                        ?: throw MetalavaCliException("Unknown issue id: '$optionName' '$id'")
+                        ?: cliError("Unknown issue id: '$optionName' '$id'")
 
             configuration.setSeverity(issue, severity)
         }
