@@ -42,8 +42,6 @@ sealed interface ApiHistoryUpdater {
         deprecated: Boolean = apiElement.deprecatedIn != null,
     )
 
-    fun forExtension(): Boolean
-
     override fun toString(): String
 
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
@@ -55,8 +53,6 @@ sealed interface ApiHistoryUpdater {
         override fun update(apiElement: ApiElement, deprecated: Boolean) {
             apiElement.update(apiVersion, deprecated)
         }
-
-        override fun forExtension() = false
 
         override fun toString() = "ApiVersionUpdater(version=$apiVersion)"
     }
@@ -83,8 +79,6 @@ sealed interface ApiHistoryUpdater {
                 apiElement.updateMainlineModule(module)
             }
         }
-
-        override fun forExtension() = true
 
         override fun toString() =
             "ExtensionUpdater(extVersion=$extVersion, module=$module, nextSdkVersion=$apiVersion)"
