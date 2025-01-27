@@ -238,34 +238,33 @@ class ApiSelectionOptions(
             // behaving as if it was.
             val needsBase = !showUnannotated
 
-            // If an --api-surface option was provided then check to make sure that the command line
-            // options are consistent with the configured API surfaces.
-            if (targetApiSurface != null) {
-                if (apiSurfacesConfig == null || apiSurfacesConfig.apiSurfaceList.isEmpty()) {
-                    throw MetalavaCliException(
-                        "$ARG_API_SURFACE requires at least one <api-surface> to have been configured in a --config-file"
+            // If no --api-surface option was provided, then create the ApiSurfaces from the command
+            // line options.
+            if (targetApiSurface == null) {
+                return ApiSurfaces.create(
+                    needsBase = needsBase,
+                )
+            }
+
+            // Otherwise, create it from the configured API surfaces.
+            if (apiSurfacesConfig == null || apiSurfacesConfig.apiSurfaceList.isEmpty()) {
+                throw MetalavaCliException(
+                    "$ARG_API_SURFACE requires at least one <api-surface> to have been configured in a --config-file"
+                )
+            }
+
+            val targetApiSurfaceConfig =
+                apiSurfacesConfig.byName[targetApiSurface]
+                    ?: throw MetalavaCliException(
+                        "$ARG_API_SURFACE (`$targetApiSurface`) does not match an <api-surface> in a --config-file, expected one of ${apiSurfacesConfig.byName.keys.joinToString { "`$it`" }}"
                     )
-                }
 
-                val targetApiSurfaceConfig =
-                    apiSurfacesConfig.byName[targetApiSurface]
-                        ?: throw MetalavaCliException(
-                            "$ARG_API_SURFACE (`$targetApiSurface`) does not match an <api-surface> in a --config-file, expected one of ${apiSurfacesConfig.byName.keys.joinToString { "`$it`" }}"
-                        )
+            val extendedSurface = targetApiSurfaceConfig.extends
+            val extendsSurface = extendedSurface != null
 
-                val extendedSurface = targetApiSurfaceConfig.extends
-                val extendsSurface = extendedSurface != null
-
-                // If show annotations should be ignored then there is no need to check consistency
-                // of them so just create the ApiSurfaces from the configuration.
-                if (ignoreShowAnnotations) {
-                    return ApiSurfaces.create(
-                        needsBase = extendsSurface,
-                    )
-                }
-
-                // Perform a consistency check to ensure that the configuration and command line
-                // options are compatible.
+            // If show annotations should not be ignored then perform a consistency check to ensure
+            // that the configuration and command line options are compatible.
+            if (!ignoreShowAnnotations) {
                 if (extendsSurface != needsBase) {
                     val reason =
                         if (extendsSurface)
@@ -278,8 +277,9 @@ class ApiSelectionOptions(
                 }
             }
 
+            // Create the ApiSurfaces from the configured API surfaces.
             return ApiSurfaces.create(
-                needsBase = needsBase,
+                needsBase = extendsSurface,
             )
         }
     }
