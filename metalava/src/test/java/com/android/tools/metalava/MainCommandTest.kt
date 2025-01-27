@@ -147,8 +147,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---hide-annotation <annotation class>
-                                             Treat any elements annotated with the given annotation as hidden
 --java-source <level>
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>

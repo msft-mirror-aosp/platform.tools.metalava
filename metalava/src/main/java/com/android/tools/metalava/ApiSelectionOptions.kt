@@ -34,6 +34,8 @@ const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 
+const val ARG_HIDE_ANNOTATION = "--hide-annotation"
+
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
 
@@ -121,6 +123,14 @@ class ApiSelectionOptions(
             )
             .multiple()
 
+    private val hideAnnotationValues by
+        option(
+                ARG_HIDE_ANNOTATION,
+                help = "Treat any elements annotated with the given annotation as hidden.",
+                metavar = "<annotation-filter>",
+            )
+            .multiple()
+
     /**
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
      * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
@@ -162,6 +172,10 @@ class ApiSelectionOptions(
         lazy(LazyThreadSafetyMode.NONE) {
             AnnotationFilter.create(showForStubPurposesAnnotationValues)
         }
+
+    /** Annotations that mark items which should be treated as hidden. */
+    internal val hideAnnotations by
+        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(hideAnnotationValues) }
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {

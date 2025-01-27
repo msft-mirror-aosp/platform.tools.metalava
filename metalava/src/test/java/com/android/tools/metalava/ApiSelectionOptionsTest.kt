@@ -45,6 +45,7 @@ Api Selection:
                                              "implicitly" included in the API surface, and they'll be included in
                                              certain kinds of output such as stubs, but not in others, such as the
                                              signature file and API lint.
+  --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
     """
         .trimIndent()
 
