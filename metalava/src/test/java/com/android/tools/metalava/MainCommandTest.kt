@@ -149,8 +149,6 @@ API sources:
                                              the file specified in --nullability-warnings-txt instead.
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
---show-unannotated
-                                             Include un-annotated public APIs in the signature file as well
 --java-source <level>
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
