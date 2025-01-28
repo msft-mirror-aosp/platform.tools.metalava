@@ -21,7 +21,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.xml
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
 import org.intellij.lang.annotations.Language
-import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -343,28 +342,7 @@ class ConfigParserTest : TemporaryFolderOwner {
                     </config>
                 """,
             ),
-        ) {
-            assertThat(config)
-                .isEqualTo(
-                    Config(
-                        apiSurfaces =
-                            ApiSurfacesConfig(
-                                apiSurfaceList =
-                                    listOf(
-                                        ApiSurfaceConfig(
-                                            name = "public",
-                                        ),
-                                        ApiSurfaceConfig(
-                                            name = "public",
-                                        ),
-                                    ),
-                            ),
-                    )
-                )
-
-            val exception =
-                assertThrows(IllegalStateException::class.java) { config.apiSurfaces?.byName }
-            assertThat(exception.message).isEqualTo("Found duplicate surfaces called `public`")
-        }
+            expectedFail = "Found duplicate surfaces called `public`"
+        )
     }
 }

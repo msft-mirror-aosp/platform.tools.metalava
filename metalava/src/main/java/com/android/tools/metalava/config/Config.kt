@@ -28,7 +28,12 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
 data class Config(
     @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
     val apiSurfaces: ApiSurfacesConfig? = null,
-)
+) {
+    /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
+    internal fun validate() {
+        apiSurfaces?.validate()
+    }
+}
 
 /** A set of [ApiSurfaceConfig]s. */
 data class ApiSurfacesConfig(
@@ -49,6 +54,12 @@ data class ApiSurfacesConfig(
                     error("Found duplicate surfaces called `$name`")
                 }
         }
+
+    /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
+    fun validate() {
+        // Force check for duplicates.
+        byName
+    }
 }
 
 /** An API surface that Metalava could generate. */

@@ -103,6 +103,8 @@ class ConfigParser private constructor() : DefaultHandler() {
                 }
                 // Merge the config objects together.
                 .reduceOrNull { configLeft, configRight -> merge(configLeft, configRight) }
+                // Validate the config.
+                ?.apply { validate() }
             // If no configuration files were created then return an empty Config.
             ?: Config()
         }
