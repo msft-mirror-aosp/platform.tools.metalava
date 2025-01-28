@@ -54,95 +54,95 @@ sealed interface ApiSurfaces {
          */
         val DEFAULT = create()
     }
+}
 
-    /** Default implementation of [ApiSurfaces]. */
-    private class DefaultApiSurfaces(needsBase: Boolean) : ApiSurfaces {
+/** Default implementation of [ApiSurfaces]. */
+private class DefaultApiSurfaces(needsBase: Boolean) : ApiSurfaces {
 
-        override val all: List<DefaultApiSurface>
+    override val all: List<DefaultApiSurface>
 
-        override val base: DefaultApiSurface?
+    override val base: DefaultApiSurface?
 
-        override val main: DefaultApiSurface
+    override val main: DefaultApiSurface
 
-        override val variants: List<ApiVariant>
+    override val variants: List<ApiVariant>
 
-        init {
-            val surfaceList = mutableListOf<DefaultApiSurface>()
+    init {
+        val surfaceList = mutableListOf<DefaultApiSurface>()
 
-            // The list of all ApiVariants belonging to this. Will be populated in the
-            // DefaultApiSurface initializer.
-            val allVariants = mutableListOf<ApiVariant>()
-
-            /**
-             * Create an [ApiSurface] with the specified [name] which has an optional [extends].
-             *
-             * Adds the created [ApiSurface] to [all].
-             */
-            fun createSurface(name: String, extends: DefaultApiSurface?) =
-                DefaultApiSurface(
-                        surfaces = this,
-                        name = name,
-                        extends = extends,
-                        allVariants = allVariants,
-                    )
-                    .also { surfaceList.add(it) }
-
-            base =
-                if (needsBase)
-                    createSurface(
-                        "base",
-                        extends = null,
-                    )
-                else null
-
-            main =
-                createSurface(
-                    "main",
-                    extends = base,
-                )
-
-            all = surfaceList.toList()
-            variants = allVariants.toList()
-        }
-
-        override val emptyVariantSet: ApiVariantSet = ApiVariantSet.emptySet(this)
-    }
-
-    /**
-     * Default implementation of [ApiSurface].
-     *
-     * @param allVariants the list of all [ApiVariant]s belonging to [surfaces]. This must be
-     *   initialised with all the [ApiVariant]s belonging to this [ApiSurface].
-     */
-    private class DefaultApiSurface(
-        override val surfaces: ApiSurfaces,
-        override val name: String,
-        override val extends: DefaultApiSurface?,
-        allVariants: MutableList<ApiVariant>,
-    ) : ApiSurface {
+        // The list of all ApiVariants belonging to this. Will be populated in the
+        // DefaultApiSurface initializer.
+        val allVariants = mutableListOf<ApiVariant>()
 
         /**
-         * Create a list of [ApiVariant]s for this surface, one for each [ApiVariantType]. Each
-         * [ApiVariant] will add themselves to the `allVariants` list that contains all the
-         * [ApiVariant]s belong to [surfaces].
+         * Create an [ApiSurface] with the specified [name] which has an optional [extends].
+         *
+         * Adds the created [ApiSurface] to [all].
          */
-        override val variants =
-            ApiVariantType.entries.map { type -> ApiVariant(this, type, allVariants) }
+        fun createSurface(name: String, extends: DefaultApiSurface?) =
+            DefaultApiSurface(
+                    surfaces = this,
+                    name = name,
+                    extends = extends,
+                    allVariants = allVariants,
+                )
+                .also { surfaceList.add(it) }
 
-        override val variantSet =
-            // Create an ApiVariantSet that contains all ApiVariants in this surface.
-            ApiVariantSet.build(surfaces) {
-                for (variant in variants) {
-                    add(variant)
-                }
+        base =
+            if (needsBase)
+                createSurface(
+                    "base",
+                    extends = null,
+                )
+            else null
+
+        main =
+            createSurface(
+                "main",
+                extends = base,
+            )
+
+        all = surfaceList.toList()
+        variants = allVariants.toList()
+    }
+
+    override val emptyVariantSet: ApiVariantSet = ApiVariantSet.emptySet(this)
+}
+
+/**
+ * Default implementation of [ApiSurface].
+ *
+ * @param allVariants the list of all [ApiVariant]s belonging to [surfaces]. This must be
+ *   initialised with all the [ApiVariant]s belonging to this [ApiSurface].
+ */
+private class DefaultApiSurface(
+    override val surfaces: ApiSurfaces,
+    override val name: String,
+    override val extends: DefaultApiSurface?,
+    allVariants: MutableList<ApiVariant>,
+) : ApiSurface {
+
+    /**
+     * Create a list of [ApiVariant]s for this surface, one for each [ApiVariantType]. Each
+     * [ApiVariant] will add themselves to the `allVariants` list that contains all the
+     * [ApiVariant]s belong to [surfaces].
+     */
+    override val variants =
+        ApiVariantType.entries.map { type -> ApiVariant(this, type, allVariants) }
+
+    override val variantSet =
+        // Create an ApiVariantSet that contains all ApiVariants in this surface.
+        ApiVariantSet.build(surfaces) {
+            for (variant in variants) {
+                add(variant)
             }
-
-        override fun variantFor(type: ApiVariantType): ApiVariant {
-            return variants[type.ordinal]
         }
 
-        override val isMain = name == "main"
-
-        override fun toString(): String = "ApiSurface($name)"
+    override fun variantFor(type: ApiVariantType): ApiVariant {
+        return variants[type.ordinal]
     }
+
+    override val isMain = name == "main"
+
+    override fun toString(): String = "ApiSurface($name)"
 }
