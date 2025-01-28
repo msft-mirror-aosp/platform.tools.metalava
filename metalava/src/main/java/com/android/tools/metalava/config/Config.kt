@@ -35,9 +35,20 @@ data class ApiSurfacesConfig(
     @field:JacksonXmlProperty(localName = "api-surface", namespace = CONFIG_NAMESPACE)
     val apiSurfaceList: List<ApiSurfaceConfig> = emptyList(),
 ) {
-    /** Map of [ApiSurfaceConfig]s by [ApiSurfaceConfig.name]. */
+    /**
+     * Map of [ApiSurfaceConfig]s by [ApiSurfaceConfig.name].
+     *
+     * Groups them by name, throws an exception if there are two surfaces with the same name.
+     */
     @get:JsonIgnore
-    val byName by lazy(LazyThreadSafetyMode.NONE) { apiSurfaceList.associateBy { it.name } }
+    val byName by
+        lazy(LazyThreadSafetyMode.NONE) {
+            apiSurfaceList
+                .groupingBy { it.name }
+                .reduce { name, surface1, surface2 ->
+                    error("Found duplicate surfaces called `$name`")
+                }
+        }
 }
 
 /** An API surface that Metalava could generate. */
