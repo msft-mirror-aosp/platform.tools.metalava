@@ -277,9 +277,18 @@ class ApiSelectionOptions(
             }
 
             // Create the ApiSurfaces from the configured API surfaces.
-            return ApiSurfaces.create(
-                needsBase = extendsSurface,
-            )
+            return ApiSurfaces.build {
+                // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
+                // through `extends`) come before the surfaces that reference them. This ensures
+                // that the `extends` can be resolved to an existing `ApiSurface`.
+                for (surfaceConfig in apiSurfacesConfig.contributesTo(targetApiSurfaceConfig)) {
+                    createSurface(
+                        name = surfaceConfig.name,
+                        extends = surfaceConfig.extends,
+                        isMain = surfaceConfig.name == targetApiSurface,
+                    )
+                }
+            }
         }
     }
 }

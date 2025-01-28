@@ -156,6 +156,8 @@ class ApiSelectionOptionsTest :
             ANDROID_SYSTEM_API,
         ) {
             options.apiSurfaces.assertBaseWasCreated()
+            assertThat(options.apiSurfaces.main.name).isEqualTo("system")
+            assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
         }
     }
 
@@ -182,6 +184,7 @@ class ApiSelectionOptionsTest :
             "public",
         ) {
             options.apiSurfaces.assertBaseWasNotCreated()
+            assertThat(options.apiSurfaces.main.name).isEqualTo("public")
         }
     }
 }
