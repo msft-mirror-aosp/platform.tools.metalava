@@ -168,7 +168,6 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
@@ -216,8 +215,6 @@ class Options(
     private val mutableSources: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /** Internal builder backing [hideAnnotations] */
-    private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [revertAnnotations] */
     private val revertAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -379,9 +376,6 @@ class Options(
     val skipEmitPackages
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
-    /** Annotations to hide */
-    private val hideAnnotations by lazy(hideAnnotationsBuilder::build)
-
     /** Annotations to revert */
     val revertAnnotations by lazy(revertAnnotationsBuilder::build)
 
@@ -393,7 +387,7 @@ class Options(
                 showAnnotations = apiSelectionOptions.showAnnotations,
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
-                hideAnnotations = hideAnnotations,
+                hideAnnotations = apiSelectionOptions.hideAnnotations,
                 revertAnnotations = revertAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
@@ -709,7 +703,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
@@ -836,7 +829,6 @@ class Options(
         // Reporters are non-null.
         allReporters =
             listOf(
-                issueReportingOptions.bootstrapReporter,
                 reporterUnknown,
                 reporterApiLint,
                 reporterCompatibilityReleased,
@@ -1004,8 +996,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_HIDE_ANNOTATION <annotation class>",
-                "Treat any elements annotated with the given annotation " + "as hidden",
                 "$ARG_JAVA_SOURCE <level>",
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
