@@ -829,7 +829,6 @@ class Options(
         // Reporters are non-null.
         allReporters =
             listOf(
-                issueReportingOptions.bootstrapReporter,
                 reporterUnknown,
                 reporterApiLint,
                 reporterCompatibilityReleased,

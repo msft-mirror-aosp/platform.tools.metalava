@@ -89,8 +89,7 @@ class MainCommand(
     private val sourceOptions by SourceOptions()
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by
-        IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
+    private val issueReportingOptions by IssueReportingOptions(commonOptions)
 
     private val commonBaselineOptions by
         CommonBaselineOptions(

@@ -18,15 +18,9 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
-import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TestRule
-import org.junit.runner.Description
-import org.junit.runners.model.Statement
 
 val ISSUE_REPORTING_OPTIONS_HELP =
     """
@@ -55,72 +49,12 @@ Issue Reporting:
     """
         .trimIndent()
 
-/**
- * JUnit [TestRule] that will intercept calls to [ReporterEnvironment.printReport], save them into a
- * couple of buffers and then allow the test to verify them. If there are any unverified errors then
- * the test will fail. The other issues will only be verified when requested.
- */
-class ReportCollectorRule(
-    private val cleaner: (String) -> String,
-    private val rootFolderSupplier: () -> File,
-) : TestRule {
-    private val allReportedIssues = StringBuilder()
-    private val errorSeverityReportedIssues = StringBuilder()
-
-    internal var reporterEnvironment: ReporterEnvironment? = null
-
-    override fun apply(base: Statement, description: Description): Statement {
-        return object : Statement() {
-            override fun evaluate() {
-                try {
-                    reporterEnvironment = InterceptingReporterEnvironment()
-                    // Evaluate the test.
-                    base.evaluate()
-                } finally {
-                    reporterEnvironment = null
-                }
-
-                assertEquals("", errorSeverityReportedIssues.toString())
-            }
-        }
-    }
-
-    fun verifyAll(expected: String) {
-        assertEquals(expected.trim(), allReportedIssues.toString().trim())
-        allReportedIssues.clear()
-    }
-
-    fun verifyErrors(expected: String) {
-        assertEquals(expected.trim(), errorSeverityReportedIssues.toString().trim())
-        errorSeverityReportedIssues.clear()
-    }
-
-    /** Intercepts calls to the [ReporterEnvironment] and collates the reports. */
-    private inner class InterceptingReporterEnvironment : ReporterEnvironment {
-
-        override val rootFolder: File
-            get() = rootFolderSupplier()
-
-        override fun printReport(message: String, severity: Severity) {
-            val cleanedMessage = cleaner(message)
-            if (severity == Severity.ERROR) {
-                errorSeverityReportedIssues.append(cleanedMessage).append('\n')
-            }
-            allReportedIssues.append(cleanedMessage).append('\n')
-        }
-    }
-}
-
 class IssueReportingOptionsTest :
     BaseOptionGroupTest<IssueReportingOptions>(
         ISSUE_REPORTING_OPTIONS_HELP,
     ) {
 
-    @get:Rule
-    val reportCollector = ReportCollectorRule(this::cleanupString, { temporaryFolder.root })
-
-    override fun createOptions(): IssueReportingOptions =
-        IssueReportingOptions(reporterEnvironment = reportCollector.reporterEnvironment!!)
+    override fun createOptions() = IssueReportingOptions()
 
     @Test
     fun `Test issue severity options`() {
@@ -167,10 +101,6 @@ class IssueReportingOptionsTest :
     fun `Test issue severity options with case insensitive names`() {
         runTest("--hide", "arrayreturn") {
             assertEquals("Unknown issue id: '--hide' 'arrayreturn'", stderr)
-
-            // Make sure that there were no reported issues.
-            options.bootstrapReporter.writeSavedReports()
-            reportCollector.verifyErrors("")
 
             // Make sure that the ARRAY_RETURN severity was not changed.
             val issueConfiguration = options.issueConfiguration
@@ -221,10 +151,6 @@ class IssueReportingOptionsTest :
             assertEquals("", stdout)
             assertEquals("", stderr)
 
-            // Make sure that there were no reported issues.
-            options.bootstrapReporter.writeSavedReports()
-            reportCollector.verifyErrors("")
-
             // Make sure the two issues both default to warning.
             val defaults = IssueConfiguration()
             assertEquals(Severity.ERROR, defaults.getSeverity(Issues.ADD_SEALED))
@@ -246,10 +172,6 @@ class IssueReportingOptionsTest :
                 "Option --hide-category is invalid: Unknown category: 'compatibility', expected one of Compatibility, Documentation, ApiLint, Unknown",
                 stderr
             )
-
-            // Make sure that there were no reported issues.
-            options.bootstrapReporter.writeSavedReports()
-            reportCollector.verifyErrors("")
         }
     }
 }

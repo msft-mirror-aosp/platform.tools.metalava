@@ -247,15 +247,6 @@ object Issues {
         return nameToIssue[id]
     }
 
-    fun findIssueByIdIgnoringCase(id: String): Issue? {
-        for (e in allIssues) {
-            if (id.equals(e.name, ignoreCase = true)) {
-                return e
-            }
-        }
-        return null
-    }
-
     fun findCategoryById(id: String?): Category =
         Category.entries.find { it.id == id }
             ?: error(
