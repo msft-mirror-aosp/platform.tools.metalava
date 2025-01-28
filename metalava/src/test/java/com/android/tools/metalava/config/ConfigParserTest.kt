@@ -40,15 +40,25 @@ class ConfigParserTest : TemporaryFolderOwner {
     private fun runTest(
         vararg configFiles: TestFile,
         expectedFail: String = "",
-        body: TestContext.() -> Unit = {},
+        body: (TestContext.() -> Unit)? = null,
     ) {
         val dir = temporaryFolder.newFolder()
+        val expectingFailure = expectedFail != ""
+        val hasBody = body != null
+
+        // If expecting a failure then it should not provide a body and if it is not expecting a
+        // failure then it must provide a body.
+        if (expectingFailure == hasBody) {
+            if (expectingFailure) error("Should not provide a body when expecting a failure")
+            else error("Must provide a body when not expecting a failure")
+        }
+
         var errors = ""
         try {
             val files = configFiles.map { it.indented().createFile(dir) }.toList()
             val config = ConfigParser.parse(files)
             val context = TestContext(config = config)
-            context.body()
+            if (body != null) context.body()
         } catch (e: Exception) {
             errors = cleanupString(e.message ?: "", project = dir)
         }
@@ -161,23 +171,14 @@ class ConfigParserTest : TemporaryFolderOwner {
 
     @Test
     fun `Empty api-surfaces config`() {
-        runTest(
-            xml(
-                "config.xml",
-                """
-                    <config xmlns="http://www.google.com/tools/metalava/config">
-                        <api-surfaces/>
-                    </config>
-                """,
-            ),
-        ) {
-            assertThat(config)
-                .isEqualTo(
-                    Config(
-                        apiSurfaces = ApiSurfacesConfig(),
-                    )
-                )
-        }
+        roundTrip(
+            Config(apiSurfaces = ApiSurfacesConfig()),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces/>
+                </config>
+            """,
+        )
     }
 
     @Test
