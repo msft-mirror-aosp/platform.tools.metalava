@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.model.api.surface
 
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ApiSurfacesTest {
@@ -52,5 +54,54 @@ class ApiSurfacesTest {
         val apiSurfaces = ApiSurfaces.create(needsBase = true)
         apiSurfaces.assertSelfConsistent()
         assertNotNull(apiSurfaces.base, "base is expected")
+    }
+
+    @Test
+    fun `Test with no main`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                ApiSurfaces.build { createSurface(name = "public") }
+            }
+        assertEquals("No call to createSurface() set isMain to true", exception.message)
+    }
+
+    @Test
+    fun `Test with two mains`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                ApiSurfaces.build {
+                    createSurface(name = "public", isMain = true)
+                    createSurface(name = "other", isMain = true)
+                }
+            }
+        assertEquals(
+            "Main surface already set to `public`, cannot set to `other`",
+            exception.message
+        )
+    }
+
+    @Test
+    fun `Test with other names needs base`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public", isMain = true)
+            }
+        apiSurfaces.assertSelfConsistent()
+        assertEquals(apiSurfaces.main.name, "system")
+        assertNotNull(apiSurfaces.base, "base is expected")
+        assertEquals(apiSurfaces.base?.name, "public")
+    }
+
+    @Test
+    fun `Test with other names does not need base`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public", isMain = true)
+                createSurface(name = "system", extends = "public")
+            }
+        apiSurfaces.assertSelfConsistent()
+        assertEquals(apiSurfaces.main.name, "public")
+        assertNull(apiSurfaces.base, "base is not expected")
     }
 }
