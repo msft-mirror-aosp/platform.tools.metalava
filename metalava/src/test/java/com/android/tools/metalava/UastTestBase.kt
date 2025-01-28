@@ -181,10 +181,10 @@ abstract class UastTestBase : DriverTest() {
                             val interpolated: Boolean,
                         ) {
                             @get:JvmName("isInitiallyEnabled")
-                            val initiallyEnabled: Boolean
+                            val initiallyEnabled: Boolean = false
 
                             @set:JvmName("updateOtherColors")
-                            var otherColors: IntArray
+                            var otherColors: IntArray = arrayOf()
                         }
                     """
                     )

@@ -5430,7 +5430,7 @@ class ApiFileTest : DriverTest() {
                         private val baz
 
                         class Toast {
-                            val foo: Int
+                            val foo: Int = 0
                         }
                     """
                     ),
