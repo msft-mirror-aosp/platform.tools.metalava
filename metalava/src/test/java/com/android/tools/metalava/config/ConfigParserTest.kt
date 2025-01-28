@@ -345,4 +345,75 @@ class ConfigParserTest : TemporaryFolderOwner {
             expectedFail = "Found duplicate surfaces called `public`"
         )
     }
+
+    @Test
+    fun `Cycle in api-surfaces`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public" extends="module-lib"/>
+                        <api-surface name="system" extends="public"/>
+                        <api-surface name="module-lib" extends="system"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedFail =
+                "Cycle detected in extends relationship: `public` -> `module-lib` -> `system` -> `public`.",
+        )
+    }
+
+    @Test
+    fun `Dag in api-surfaces, module-lib first`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="system" extends="public"/>
+                        <api-surface name="module-lib" extends="system"/>
+                        <api-surface name="test" extends="system"/>
+                        <api-surface name="public"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+        ) {
+            // The extends property defines a partial order to those surfaces that have an
+            // extends relationship but configuration order is preserved otherwise. So, as
+            // `module-lib` comes before `test` in the configuration it comes first in the ordered
+            // set.
+            assertThat(config.apiSurfaces?.orderedSurfaces?.map { it.name })
+                .isEqualTo(listOf("public", "system", "module-lib", "test"))
+        }
+    }
+
+    @Test
+    fun `Dag in api-surfaces, test first`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="system" extends="public"/>
+                        <api-surface name="test" extends="system"/>
+                        <api-surface name="module-lib" extends="system"/>
+                        <api-surface name="public"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+        ) {
+            // The extends property defines a partial order to those surfaces that have an
+            // extends relationship but configuration order is preserved otherwise. So, as `test`
+            // comes before `module-lib` in the configuration it comes first in the ordered set.
+            assertThat(config.apiSurfaces?.orderedSurfaces?.map { it.name })
+                .isEqualTo(listOf("public", "system", "test", "module-lib"))
+        }
+    }
 }
