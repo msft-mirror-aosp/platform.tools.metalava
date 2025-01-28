@@ -109,19 +109,16 @@ class IssueReportingOptions(
         val issueOption =
             compositeSideEffectOption(
                 // Create one side effect option per label.
-                ConfigLabel.entries.map {
-                    sideEffectOption(it.optionName, help = it.help) {
+                ConfigLabel.entries.map { label ->
+                    sideEffectOption(label.optionName, help = label.help) { optionValue ->
                         // if `--hide id1,id2` was supplied on the command line then this will split
-                        // it into
-                        // ["id1", "id2"]
-                        val values = it.split(",")
-
-                        // Get the label from the name of the option.
-                        val label = ConfigLabel.fromOptionName(name)
+                        // it into ["id1", "id2"]
+                        val values = optionValue.split(",")
 
                         // Update the configuration immediately
-                        values.forEach {
-                            label.setAspectForId(bootstrapReporter, issueConfiguration, it.trim())
+                        for (value in values) {
+                            val trimmed = value.trim()
+                            label.setAspectForId(bootstrapReporter, issueConfiguration, trimmed)
                         }
                     }
                 }
@@ -298,15 +295,5 @@ private enum class ConfigLabel(
     /** Configure the aspect identified by [id] into the [configuration]. */
     fun setAspectForId(reporter: Reporter, configuration: IssueConfiguration, id: String) {
         aspect.setAspectSeverityForId(reporter, configuration, optionName, severity, id)
-    }
-
-    companion object {
-        private val optionNameToLabel = entries.associateBy { it.optionName }
-
-        /**
-         * Get the label for the option name. This is only called with an option name that has been
-         * obtained from [ConfigLabel.optionName] so it is known that it must match.
-         */
-        fun fromOptionName(option: String): ConfigLabel = optionNameToLabel[option]!!
     }
 }
