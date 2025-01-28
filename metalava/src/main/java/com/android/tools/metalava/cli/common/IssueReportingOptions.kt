@@ -30,7 +30,6 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
-import java.io.File
 
 const val ARG_ERROR = "--error"
 const val ARG_ERROR_WHEN_NEW = "--error-when-new"
@@ -187,16 +186,7 @@ private enum class ConfigurableAspect {
             id: String
         ) {
             val issue =
-                Issues.findIssueById(id)
-                    ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                        reporter.report(
-                            Issues.DEPRECATED_OPTION,
-                            null as File?,
-                            "Case-insensitive issue matching is deprecated, use " +
-                                "$optionName ${it.name} instead of $optionName $id"
-                        )
-                    }
-                        ?: cliError("Unknown issue id: '$optionName' '$id'")
+                Issues.findIssueById(id) ?: cliError("Unknown issue id: '$optionName' '$id'")
 
             configuration.setSeverity(issue, severity)
         }

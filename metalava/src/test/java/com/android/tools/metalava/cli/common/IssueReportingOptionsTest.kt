@@ -166,15 +166,18 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options with case insensitive names`() {
         runTest("--hide", "arrayreturn") {
-            // Write any saved reports.
+            assertEquals("Unknown issue id: '--hide' 'arrayreturn'", stderr)
+
+            // Make sure that there were no reported issues.
             options.bootstrapReporter.writeSavedReports()
+            reportCollector.verifyErrors("")
 
-            reportCollector.verifyAll(
-                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
-            )
-
+            // Make sure that the ARRAY_RETURN severity was not changed.
             val issueConfiguration = options.issueConfiguration
-            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
+            assertEquals(
+                Issues.ARRAY_RETURN.defaultLevel,
+                issueConfiguration.getSeverity(Issues.ARRAY_RETURN)
+            )
         }
     }
 
@@ -209,22 +212,6 @@ class IssueReportingOptionsTest :
             val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.HIDDEN_SUPERCLASS))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
-        }
-    }
-
-    @Test
-    fun `Test issue severity options can affect issues related to processing the options`() {
-        runTest("--error", "DeprecatedOption", "--hide", "arrayreturn") {
-            // Write any saved reports.
-            options.bootstrapReporter.writeSavedReports()
-
-            reportCollector.verifyErrors(
-                "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]\n"
-            )
-
-            val issueConfiguration = options.issueConfiguration
-            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-            assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.DEPRECATED_OPTION))
         }
     }
 

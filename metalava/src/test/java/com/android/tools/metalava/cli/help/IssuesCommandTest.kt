@@ -88,7 +88,6 @@ Available Issues                             |  Category                |   Defa
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  compatibility           |   error
   Deprecated                                 |  documentation           |   hidden
-  DeprecatedOption                           |  unknown                 |   warning
   DeprecationMismatch                        |  documentation           |   error
   DocumentExceptions                         |  api_lint                |   error
   DuplicateSourceClass                       |  unknown                 |   warning
