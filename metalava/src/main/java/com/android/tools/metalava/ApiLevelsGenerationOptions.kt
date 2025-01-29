@@ -204,13 +204,12 @@ class ApiLevelsGenerationOptions(
     private val androidJarPatterns: List<String> by
         option(
                 ARG_ANDROID_JAR_PATTERN,
-                metavar = "<android-jar-pattern>",
+                metavar = "<historical-api-pattern>",
                 help =
                     """
-                        Pattern to use to locate Android JAR files. Each pattern must contain a
-                        {version:level} placeholder that will be replaced with each API level that
-                        is being included and if the result is an existing jar file then it will be
-                        taken as the definition of the API at that level.
+                        Pattern to use to locate Android JAR files. Must end with `.jar`.
+
+                        See `metalava help historical-api-patterns` for more information.
                     """
                         .trimIndent(),
             )

@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_FIRST_VERSION
 import java.io.File
 import java.util.TreeSet
 
@@ -381,12 +383,23 @@ sealed class PatternNode {
     }
 
     /** The properties for which placeholders can be provided. */
-    private enum class Property(val propertyName: String) {
+    enum class Property(val propertyName: String, val help: () -> String) {
         /**
          * Corresponds to the [PatternFileState.version] and [MatchedPatternFile.version]
          * properties.
          */
-        VERSION("version") {
+        VERSION(
+            "version",
+            help = {
+                """
+                    Mandatory property that stores the version of a matched file.
+
+                    Apart from the ${Placeholder.VERSION_EXTENSION} all placeholders for this will
+                    ignore versions that fall outside the range $ARG_FIRST_VERSION and
+                    $ARG_CURRENT_VERSION, if provided.
+                """
+            },
+        ) {
             override fun track(
                 config: ScanConfig,
                 state: PatternFileState,
@@ -412,7 +425,17 @@ sealed class PatternNode {
          * Corresponds to the [PatternFileState.version] and [MatchedPatternFile.version]
          * properties.
          */
-        MODULE("module") {
+        MODULE(
+            "module",
+            help = {
+                """
+                    Optional property that stores the name of the SDK extension module.
+
+                    Patterns that use a placeholder for this are assumed to be matching files for
+                    SDK extensions.
+                """
+            },
+        ) {
             override fun track(
                 config: ScanConfig,
                 state: PatternFileState,
@@ -434,7 +457,7 @@ sealed class PatternNode {
          * @param value the value of the placeholder extracted from the path.
          * @param placeholder the [Placeholder] for which this is being called.
          */
-        abstract fun track(
+        internal abstract fun track(
             config: ScanConfig,
             state: PatternFileState,
             value: String,
@@ -453,17 +476,26 @@ sealed class PatternNode {
      *   same [property] but which have different [pattern]s.
      * @param pattern the pattern that determines which part of a file name will be matched by the
      *   placeholder. This must not contain any capturing groups.
+     * @param help lambda for providing help used in the `metalava help historical-api-patterns`
+     *   command. A lambda is used to allow references to [Property] instances that may not have
+     *   been initialized before this is initialized.
      */
-    private enum class Placeholder(
+    enum class Placeholder(
         val property: Property,
         private val format: String?,
         val pattern: String,
+        val help: () -> String,
     ) {
         /** The {version:level} placeholder. */
         VERSION_LEVEL(
             property = Property.VERSION,
             format = "level",
             pattern = """\d+""",
+            help = {
+                """
+                    Matches a single non-negative integer and treats it as an API version.
+                """
+            },
         ),
 
         /** The {version:major.minor?} placeholder. */
@@ -472,6 +504,11 @@ sealed class PatternNode {
             format = "major.minor?",
             // Match either a single major version or a major and minor version together.
             pattern = """\d+(?:\.\d+)?""",
+            help = {
+                """
+                    Matches a single non-negative integer or two such integers separated by a `.`.
+                """
+            },
         ),
 
         /** The {version:major.minor.patch} placeholder. */
@@ -480,6 +517,11 @@ sealed class PatternNode {
             format = "major.minor.patch",
             // Only match a version with major, minor and patch components.
             pattern = """\d+\.\d+\.\d+""",
+            help = {
+                """
+                    Matches three non-negative integers separated by `.`s.
+                """
+            },
         ),
 
         /** The {version:extension} placeholder. */
@@ -488,6 +530,11 @@ sealed class PatternNode {
             format = "extension",
             // Only match a version with extension version.
             pattern = """\d+""",
+            help = {
+                """
+                    Matches a single non-negative integer and treats it as an extension version.
+                """
+            },
         ),
 
         /** The {module} placeholder. */
@@ -495,6 +542,12 @@ sealed class PatternNode {
             property = Property.MODULE,
             format = null,
             pattern = """[a-z-.]+""",
+            help = {
+                """
+                    Matches a module name which must consist of lower case letters, hyphens and
+                    `.`s.
+                """
+            },
         );
 
         /** The label for this that will be used in a path pattern, e.g. `{version:level}`. */

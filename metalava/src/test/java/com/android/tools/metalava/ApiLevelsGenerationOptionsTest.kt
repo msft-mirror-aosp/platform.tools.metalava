@@ -48,11 +48,10 @@ Api Levels Generation:
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
                                              all non-negative integers and `quality` is an alphanumeric string.
   --current-codename <version-codename>      Sets the code name for the current source code.
-  --android-jar-pattern <android-jar-pattern>
-                                             Pattern to use to locate Android JAR files. Each pattern must contain a
-                                             {version:level} placeholder that will be replaced with each API level that
-                                             is being included and if the result is an existing jar file then it will be
-                                             taken as the definition of the API at that level.
+  --android-jar-pattern <historical-api-pattern>
+                                             Pattern to use to locate Android JAR files. Must end with `.jar`.
+
+                                             See `metalava help historical-api-patterns` for more information.
   --sdk-extensions-info <sdk-info-file>      Points to map of extension SDK APIs to include, if any. The file is a plain
                                              text file and describes, per extension SDK, what APIs from that extension
                                              to include in the file created via --generate-api-levels. The format of
