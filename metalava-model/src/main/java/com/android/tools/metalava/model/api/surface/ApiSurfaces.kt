@@ -84,6 +84,7 @@ private class DefaultApiSurfaces(needsBase: Boolean) : ApiSurfaces {
                     surfaces = this,
                     name = name,
                     extends = extends,
+                    isMain = name == "main",
                     allVariants = allVariants,
                 )
                 .also { surfaceList.add(it) }
@@ -119,6 +120,7 @@ private class DefaultApiSurface(
     override val surfaces: ApiSurfaces,
     override val name: String,
     override val extends: DefaultApiSurface?,
+    override val isMain: Boolean,
     allVariants: MutableList<ApiVariant>,
 ) : ApiSurface {
 
@@ -141,8 +143,6 @@ private class DefaultApiSurface(
     override fun variantFor(type: ApiVariantType): ApiVariant {
         return variants[type.ordinal]
     }
-
-    override val isMain = name == "main"
 
     override fun toString(): String = "ApiSurface($name)"
 }
