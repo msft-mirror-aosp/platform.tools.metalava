@@ -19,6 +19,7 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_VERSION_NAMES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
@@ -854,8 +855,8 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsXml.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.2", "1.3").joinToString(" "),
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor?}",
                     ARG_CURRENT_VERSION,
                     "2.0",
                 ),

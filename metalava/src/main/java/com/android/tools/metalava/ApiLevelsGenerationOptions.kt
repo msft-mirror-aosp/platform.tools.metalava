@@ -64,6 +64,8 @@ const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 
+const val ARG_API_VERSION_SIGNATURE_PATTERN = "--api-version-signature-pattern"
+
 // JSON API version related arguments
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
@@ -214,6 +216,24 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .multiple(default = emptyList())
+
+    /**
+     * The list of patterns used to find matching signature files in the set of files visible to
+     * Metalava.
+     */
+    private val signaturePatterns by
+        option(
+                ARG_API_VERSION_SIGNATURE_PATTERN,
+                metavar = "<historical-api-pattern>",
+                help =
+                    """
+                        Pattern to use to locate signature files. Typically ends with `.txt`.
+
+                        See `metalava help historical-api-patterns` for more information.
+                    """
+                        .trimIndent(),
+            )
+            .multiple()
 
     /**
      * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
@@ -541,7 +561,9 @@ class ApiLevelsGenerationOptions(
         val apiVersionsFile = generateApiVersionHistory
         return if (apiVersionsFile != null) {
             val (sourceVersion, matchedPatternFiles) =
-                sourceVersionAndMatchedPatternFilesFromVersionNames()
+                if (signaturePatterns.isNotEmpty())
+                    sourceVersionAndMatchedPatternFilesFromSignaturePatterns()
+                else sourceVersionAndMatchedPatternFilesFromVersionNames()
 
             // Create VersionedApis for the signature files and the source codebase.
             val versionedApis = buildList {
@@ -616,5 +638,45 @@ class ApiLevelsGenerationOptions(
             }
 
         return sourceVersion to matchedPatternFiles
+    }
+
+    /**
+     * Get the source [ApiVersion] and list of [MatchedPatternFile]s from [signaturePatterns] as
+     * well as [optionalCurrentApiVersion] and [apiVersionSignatureFiles].
+     */
+    private fun sourceVersionAndMatchedPatternFilesFromSignaturePatterns():
+        Pair<ApiVersion, List<MatchedPatternFile>> {
+        if (apiVersionNames != null)
+            cliError(
+                "Cannot combine $ARG_API_VERSION_NAMES with $ARG_API_VERSION_SIGNATURE_PATTERN"
+            )
+
+        val sourceVersion =
+            optionalCurrentApiVersion
+                ?: cliError(
+                    "Must specify $ARG_CURRENT_VERSION with $ARG_API_VERSION_SIGNATURE_PATTERN"
+                )
+
+        val historicalSignatureFiles = apiVersionSignatureFiles
+        if (historicalSignatureFiles.isEmpty()) return sourceVersion to emptyList()
+
+        val patternNode = PatternNode.parsePatterns(signaturePatterns)
+        val matchedFiles =
+            patternNode.scan(
+                PatternNode.ScanConfig(
+                    dir = File(".").canonicalFile,
+                    fileProvider = PatternNode.LimitedFileSystemProvider(historicalSignatureFiles)
+                )
+            )
+
+        if (matchedFiles.size != historicalSignatureFiles.size) {
+            val matched = matchedFiles.map { it.file }.toSet()
+            val unmatched = historicalSignatureFiles.filter { it !in matched }
+            cliError(
+                "$ARG_API_VERSION_SIGNATURE_FILES: The following files were unmatched by a signature pattern:\n${unmatched.joinToString("\n") {"    $it"}}"
+            )
+        }
+
+        return sourceVersion to matchedFiles
     }
 }
