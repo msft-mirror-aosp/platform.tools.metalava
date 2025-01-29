@@ -39,4 +39,69 @@ class ApiSurfacesConfigTest {
             exception.message
         )
     }
+
+    /**
+     * Check that [ApiSurfacesConfig.contributesTo] returns the expected result.
+     *
+     * @param name The name of the surface whose contributes are to be checked.
+     * @param expectedSurfaces The list of expected surface names.
+     */
+    private fun ApiSurfacesConfig.assertContributesTo(
+        name: String,
+        expectedSurfaces: List<String>
+    ) {
+        val surfaceConfig = getByNameOrError(name) { "unknown `$name`" }
+        assertEquals(
+            expectedSurfaces,
+            contributesTo(surfaceConfig).map { it.name },
+            "contributions to $name"
+        )
+    }
+
+    @Test
+    fun `Test contributesTo`() {
+        val apiSurfacesConfig =
+            ApiSurfacesConfig(
+                apiSurfaceList =
+                    listOf(
+                        ApiSurfaceConfig(name = "test", extends = "system"),
+                        ApiSurfaceConfig(name = "module-lib", extends = "system"),
+                        ApiSurfaceConfig(name = "public"),
+                        ApiSurfaceConfig(name = "system", extends = "public"),
+                    ),
+            )
+
+        apiSurfacesConfig.assertContributesTo(
+            "public",
+            listOf(
+                "public",
+            )
+        )
+
+        apiSurfacesConfig.assertContributesTo(
+            "system",
+            listOf(
+                "public",
+                "system",
+            )
+        )
+
+        apiSurfacesConfig.assertContributesTo(
+            "test",
+            listOf(
+                "public",
+                "system",
+                "test",
+            )
+        )
+
+        apiSurfacesConfig.assertContributesTo(
+            "module-lib",
+            listOf(
+                "public",
+                "system",
+                "module-lib",
+            )
+        )
+    }
 }

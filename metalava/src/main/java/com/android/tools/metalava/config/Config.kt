@@ -102,6 +102,16 @@ data class ApiSurfacesConfig(
         }
 
     /**
+     * Get the ordered set of [ApiSurfaceConfig]s that contribute to the [targetSurface].
+     *
+     * A surface that contributes to [targetSurface] is one which is extended (possibly indirectly)
+     * by [targetSurface] or [targetSurface] itself.
+     */
+    fun contributesTo(targetSurface: ApiSurfaceConfig): Set<ApiSurfaceConfig> {
+        return buildSet { targetSurface.flatten(this, mutableSetOf()) }
+    }
+
+    /**
      * Flatten the [ApiSurfaceConfig.extends] hierarchy of this [ApiSurfaceConfig], if any.
      *
      * If this has a non-null [ApiSurfaceConfig.extends] then this will be called on the
