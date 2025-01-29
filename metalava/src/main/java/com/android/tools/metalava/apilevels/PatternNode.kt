@@ -788,7 +788,30 @@ data class MatchedPatternFile(
 
     /** The optional module that was extracted from the [File] path. */
     val module: String? = null,
-)
+) {
+    /**
+     * Create a string representation of the properties, used for testing and debugging.
+     *
+     * Any optional properties will only be included in the string representation if they are
+     * provided, e.g. not `null`. That means adding a new optional property will not affect any
+     * tests that rely on the output of this.
+     */
+    override fun toString(): String {
+        return buildString {
+            append("MatchedPatternFile(")
+            append("file=")
+            append(file.path)
+            append(", version=")
+            append(version)
+            if (module != null) {
+                append(", module='")
+                append(module)
+                append("'")
+            }
+            append(")")
+        }
+    }
+}
 
 /**
  * Comparator that is used to identify duplicate [MatchedPatternFile]s and defined an order for the
