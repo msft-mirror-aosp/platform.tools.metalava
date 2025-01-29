@@ -421,9 +421,9 @@ sealed class PatternNode {
                 return state.copy(version = version)
             }
         },
+
         /**
-         * Corresponds to the [PatternFileState.version] and [MatchedPatternFile.version]
-         * properties.
+         * Corresponds to the [PatternFileState.module] and [MatchedPatternFile.module] properties.
          */
         MODULE(
             "module",
@@ -548,7 +548,8 @@ sealed class PatternNode {
                     `.`s.
                 """
             },
-        );
+        ),
+        ;
 
         /** The label for this that will be used in a path pattern, e.g. `{version:level}`. */
         val label = if (format == null) "{$property}" else "{$property:$format}"
@@ -754,9 +755,9 @@ internal data class PatternFileState(
         if (version == null) error("matching pattern could not extract version from $file")
         else
             MatchedPatternFile(
-                file.relativeDescendantOfOrSelf(dir),
-                version,
-                module,
+                file = file.relativeDescendantOfOrSelf(dir),
+                version = version,
+                module = module,
             )
 
     /**
@@ -794,9 +795,10 @@ data class MatchedPatternFile(
  * unique instances.
  */
 private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
+    // If any of the selectors return `null` that will compare before any other value.
     compareBy(
-        // Group into those without modules ("") and then by those with module, in order.
-        { it.module ?: "" },
+        // Group into those without modules and then by those with module, in order.
+        { it.module },
         // Then sort them from the lowest version to the highest version.
         { it.version },
     )
