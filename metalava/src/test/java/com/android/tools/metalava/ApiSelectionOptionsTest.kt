@@ -125,11 +125,11 @@ class ApiSelectionOptionsTest :
             ARG_API_SURFACE,
             "unknown",
         ) {
-            assertThrowsCliError(
-                "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
-            ) {
-                options.apiSurfaces
-            }
+            val exception = assertThrows(IllegalStateException::class.java) { options.apiSurfaces }
+            assertThat(exception.message)
+                .isEqualTo(
+                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
+                )
         }
     }
 

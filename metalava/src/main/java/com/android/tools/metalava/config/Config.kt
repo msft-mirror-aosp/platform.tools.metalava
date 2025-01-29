@@ -55,6 +55,14 @@ data class ApiSurfacesConfig(
                 }
         }
 
+    /**
+     * Get the [ApiSurfaceConfig] by [name].
+     *
+     * If no such config exists then raise an error include [reason].
+     */
+    inline fun getByNameOrError(name: String, reason: () -> String) =
+        byName[name] ?: error("${reason()}, expected one of ${byName.keys.joinToString {"`$it`"}}")
+
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {
         // Force check for duplicates.

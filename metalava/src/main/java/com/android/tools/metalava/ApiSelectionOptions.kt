@@ -254,10 +254,9 @@ class ApiSelectionOptions(
             }
 
             val targetApiSurfaceConfig =
-                apiSurfacesConfig.byName[targetApiSurface]
-                    ?: throw MetalavaCliException(
-                        "$ARG_API_SURFACE (`$targetApiSurface`) does not match an <api-surface> in a --config-file, expected one of ${apiSurfacesConfig.byName.keys.joinToString { "`$it`" }}"
-                    )
+                apiSurfacesConfig.getByNameOrError(targetApiSurface) {
+                    "$ARG_API_SURFACE (`$targetApiSurface`) does not match an <api-surface> in a --config-file"
+                }
 
             val extendedSurface = targetApiSurfaceConfig.extends
             val extendsSurface = extendedSurface != null
