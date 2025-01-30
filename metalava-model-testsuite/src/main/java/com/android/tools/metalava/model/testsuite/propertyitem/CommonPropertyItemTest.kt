@@ -649,11 +649,38 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // extension property has getter and setter, but no backing field
             val stringExtension = fileFacadeClass.assertProperty("stringExtension")
-            // TODO: the getter and setter are not being correctly linked for extension properties
-            // assertThat(stringExtension.getter).isNotNull()
-            // assertThat(stringExtension.setter).isNotNull()
+            assertThat(stringExtension.getter).isNotNull()
+            assertThat(stringExtension.setter).isNotNull()
             assertThat(stringExtension.backingField).isNull()
             assertThat(stringExtension.constructorParameter).isNull()
+        }
+    }
+
+    @Test
+    fun `Value class extension properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    @file:JvmName("Foo")
+                    package test.pkg
+
+                    value class IntValue(val value: Int)
+
+                    var IntValue.valueClassExtension
+                        get() = 0
+                        set(value) {}
+                """
+            )
+        ) {
+            val fileFacadeClass = codebase.assertClass("test.pkg.Foo")
+            assertThat(fileFacadeClass.properties()).hasSize(1)
+
+            // extension property has getter and setter, but no backing field
+            val valueClassExtension = fileFacadeClass.assertProperty("valueClassExtension")
+            assertThat(valueClassExtension.getter).isNotNull()
+            assertThat(valueClassExtension.setter).isNotNull()
+            assertThat(valueClassExtension.backingField).isNull()
+            assertThat(valueClassExtension.constructorParameter).isNull()
         }
     }
 }
