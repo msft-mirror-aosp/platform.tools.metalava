@@ -18,9 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiHistoryUpdater
-import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
-import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtVersion
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MatchedPatternFile
@@ -418,14 +416,9 @@ class ApiLevelsGenerationOptions(
                 }
             }
 
-            val availableSdkExtensions =
-                sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-            val printer = ApiXmlPrinter(availableSdkExtensions, versionedApis)
-
             GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
                 outputFile = outputFile,
-                printer = printer,
                 sdkExtensionsArguments = sdkExtensionsArguments,
                 missingClassAction =
                     if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
@@ -596,20 +589,9 @@ class ApiLevelsGenerationOptions(
                 )
             }
 
-            val printer =
-                when (val extension = apiVersionsFile.extension) {
-                    "xml" -> ApiXmlPrinter(null, versionedApis)
-                    "json" -> ApiJsonPrinter()
-                    else ->
-                        error(
-                            "unexpected extension for $apiVersionsFile, expected 'xml', or 'json' got '$extension'"
-                        )
-                }
-
             GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
                 outputFile = apiVersionsFile,
-                printer = printer,
                 // None are available when generating from signature files.
                 sdkExtensionsArguments = null,
                 // Keep any references to missing classes.
