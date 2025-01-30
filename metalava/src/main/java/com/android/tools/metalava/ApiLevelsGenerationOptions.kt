@@ -418,21 +418,9 @@ class ApiLevelsGenerationOptions(
                 }
             }
 
-            // Get a list of all versions, including the codebase version, if necessary. This is in
-            // version order and is used to compute the version in which an API element has been
-            // removed based on the last version it was present in. See [ApiXmlPrinter].
-            val allVersions = buildList {
-                versionedHistoricalApis.mapTo(this) { it.apiVersion }
-
-                // Add the highest version. That is either the version used for the current
-                // codebase, if present, or the next version. That ensures that the [ApiXmlPrinter]
-                // can always compute the version in which an API element was removed.
-                add(codebaseSdkVersion ?: nextSdkVersion)
-            }
-
             val availableSdkExtensions =
                 sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-            val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
+            val printer = ApiXmlPrinter(availableSdkExtensions, versionedApis)
 
             GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
@@ -610,7 +598,7 @@ class ApiLevelsGenerationOptions(
 
             val printer =
                 when (val extension = apiVersionsFile.extension) {
-                    "xml" -> ApiXmlPrinter(null, allVersions)
+                    "xml" -> ApiXmlPrinter(null, versionedApis)
                     "json" -> ApiJsonPrinter()
                     else ->
                         error(
