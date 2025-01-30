@@ -572,11 +572,16 @@ class ApiLevelsGenerationOptions(
 
             val sourceVersion = allVersions.last()
 
-            // Combine the `pastApiVersions` and `apiVersionNames` into a list of
-            // `VersionedSignatureApi`s.
+            // Combine the `pastApiVersions` and `allVersion` into a list of `MatchedPatternFile`s.
+            val matchedPatternFiles =
+                pastApiVersions.mapIndexed { index, file ->
+                    MatchedPatternFile(file = file, version = allVersions[index])
+                }
+
+            // Create VersionedApis for the signature files and the source codebase.
             val versionedApis = buildList {
-                pastApiVersions.mapIndexedTo(this) { index, file ->
-                    VersionedSignatureApi(signatureFileLoader, file, allVersions[index])
+                matchedPatternFiles.mapTo(this) {
+                    VersionedSignatureApi(signatureFileLoader, it.file, it.version)
                 }
                 // Add a VersionedSourceApi for the source code.
                 add(
