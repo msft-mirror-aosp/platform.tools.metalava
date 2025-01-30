@@ -501,6 +501,7 @@ class ApiLevelsGenerationOptions(
             )
             .existingFile()
             .split(File.pathSeparator)
+            .default(emptyList(), defaultForHelp = "")
 
     /**
      * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
@@ -540,7 +541,7 @@ class ApiLevelsGenerationOptions(
         val apiVersionsFile = generateApiVersionHistory
         return if (apiVersionsFile != null) {
             // The signature files can be null if the current version is the only version
-            val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
+            val historicalSignatureFiles = apiVersionSignatureFiles
 
             val currentApiVersion = optionalCurrentApiVersion
             val allVersions = buildList {
@@ -548,17 +549,16 @@ class ApiLevelsGenerationOptions(
                 if (currentApiVersion != null) add(currentApiVersion)
             }
 
-            // Get the number of version names and signature files, defaulting to 0 if not provided.
+            // Get the number of version names and signature files.
             val numVersionNames = allVersions.size
             if (numVersionNames == 0) {
                 cliError(
                     "Must specify $ARG_API_VERSION_NAMES and/or $ARG_CURRENT_VERSION with $ARG_GENERATE_API_VERSION_HISTORY"
                 )
             }
-            val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
             // allVersions will include the current version but apiVersionSignatureFiles will not,
             // so there should be 1 more name than signature files.
-            if (numVersionNames != numVersionFiles + 1) {
+            if (numVersionNames != historicalSignatureFiles.size + 1) {
                 if (currentApiVersion == null) {
                     cliError(
                         "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name as $ARG_CURRENT_VERSION is not provided"
@@ -574,7 +574,7 @@ class ApiLevelsGenerationOptions(
 
             // Combine the `pastApiVersions` and `allVersion` into a list of `MatchedPatternFile`s.
             val matchedPatternFiles =
-                pastApiVersions.mapIndexed { index, file ->
+                historicalSignatureFiles.mapIndexed { index, file ->
                     MatchedPatternFile(file = file, version = allVersions[index])
                 }
 
