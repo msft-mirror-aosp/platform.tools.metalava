@@ -39,8 +39,9 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -48,14 +49,15 @@ import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
+import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
-import java.util.function.Predicate
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
@@ -73,11 +75,11 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
-        val apiPredicate: Predicate<Item> = Predicate { true },
+        val apiPredicate: FilterPredicate = FilterPredicate { true },
         /**
-         * Provider of a [List] of [Codebase] objects that will be used when reverting flagged APIs.
+         * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
          */
-        val previouslyReleasedCodebasesProvider: () -> List<Codebase> = { emptyList() },
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
     )
 
     /**
@@ -141,7 +143,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return LazyAnnotationInfo(config, annotationItem)
+        return LazyAnnotationInfo(this, config, annotationItem)
     }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
@@ -336,11 +338,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          ANNOTATION_EXTERNAL
         else ANNOTATION_EXTERNAL_ONLY
 
-    /** The applicable targets for this annotation */
-    override fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget> {
+    /**
+     * The applicable targets for the [annotation].
+     *
+     * Care must be taken to ensure that this only accesses [AnnotationItem.qualifiedName] and
+     * [AnnotationItem.resolve]. In particular, it must NOT access the attributes. That is because
+     * the result must be identical for all [AnnotationItem] instances of an annotation class.
+     */
+    internal fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> {
         val qualifiedName = annotation.qualifiedName
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
@@ -481,7 +486,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
         // See if the annotation is pointing to an annotation class that is part of the API; if
         // not, skip it.
-        val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
+        val cls = annotation.resolve() ?: return NO_ANNOTATION_TARGETS
         if (!config.apiPredicate.test(cls)) {
             if (config.typedefMode != TypedefMode.NONE) {
                 if (cls.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)) {
@@ -537,7 +542,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return modifiers.hasAnnotation(AnnotationItem::isSuppressCompatibilityAnnotation)
     }
 
-    override fun getShowabilityForItem(item: Item): Showability {
+    override fun getShowabilityForItem(item: SelectableItem): Showability {
         // Iterates over the annotations on the item and computes the showability for the item by
         // combining the showability of each annotation. The basic rules are:
         // * `show=true` beats `show=false`
@@ -560,7 +565,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If any of a method's super methods are part of a unstable API that needs to be
             // reverted then treat the method as if it is too.
             val revertUnstableApi =
-                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
+                item.superMethods().any { methodItem ->
+                    methodItem.showability.revertUnstableApi() &&
+                        // Ignore overridden methods that are not part of the API being generated if
+                        // there is no previously released API as that will always result in the
+                        // overriding method being removed which can cause problems.
+                        !(methodItem.origin != ClassOrigin.COMMAND_LINE &&
+                            previouslyReleasedCodebase == null)
+                }
             if (revertUnstableApi) {
                 itemShowability =
                     itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
@@ -613,26 +625,21 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     /**
-     * Local cache of the previously released codebases to avoid calling the provider for every
+     * Local cache of the previously released codebase to avoid calling the provider for every
      * affected item.
      */
-    private val previouslyReleasedCodebases by
-        lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebasesProvider() }
+    private val previouslyReleasedCodebase by
+        lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebaseProvider() }
 
     /**
      * Find the item to which [item] will be reverted.
      *
-     * Searches first the previously released API (if present) and then the previously released
-     * removed API (if present).
+     * Searches the previously released API (if available).
      */
-    private fun findRevertItem(item: Item): Item? {
-        for (oldCodebase in previouslyReleasedCodebases) {
-            item.findCorrespondingItemIn(oldCodebase)?.let {
-                return it
-            }
+    private fun findRevertItem(item: SelectableItem): SelectableItem? {
+        return previouslyReleasedCodebase?.let { codebase ->
+            item.findCorrespondingItemIn(codebase)
         }
-
-        return null
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
@@ -645,12 +652,20 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
  * The properties are initialized lazily to avoid doing more work than necessary.
  */
 private class LazyAnnotationInfo(
+    private val annotationManager: DefaultAnnotationManager,
     private val config: Config,
     private val annotationItem: AnnotationItem,
-) : AnnotationInfo(annotationItem.qualifiedName) {
+) : AnnotationInfo {
+
+    private val qualifiedName = annotationItem.qualifiedName
+
+    override val targets by
+        lazy(LazyThreadSafetyMode.NONE) { annotationManager.computeTargets(annotationItem) }
+
+    override val typeNullability = computeTypeNullability(qualifiedName)
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showability: Showability by
+    override val showability by
         lazy(LazyThreadSafetyMode.NONE) {
             // The showAnnotations filter includes all the annotation patterns that are matched by
             // the first two filters plus 0 or more additional patterns. Excluding the patterns that
@@ -735,11 +750,10 @@ private class LazyAnnotationInfo(
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
-    private val annotationClass: ClassItem? by
-        lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+    private val annotationClass by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
 
     /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
-    private var isCheckingResolvedAnnotationClass: Boolean = false
+    private var isCheckingResolvedAnnotationClass = false
 
     /**
      * Check to see whether the resolved annotation class matches the supplied predicate.
@@ -772,7 +786,7 @@ private class LazyAnnotationInfo(
      *
      * This is true if this annotation is
      */
-    override val suppressCompatibility: Boolean by
+    override val suppressCompatibility by
         lazy(LazyThreadSafetyMode.NONE) {
             qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
                 config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||

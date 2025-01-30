@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -48,7 +49,9 @@ import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
-class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), DelegatedVisitor {
+class CodebaseSnapshotTaker
+private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) :
+    DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
      * The [Codebase] that is under construction.
@@ -56,6 +59,13 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
      * Initialized in [visitCodebase].
      */
     private lateinit var snapshotCodebase: DefaultCodebase
+
+    /**
+     * The [ItemVisitor] to use in [createClassFromUnderlyingModel] to create a [ClassItem] that is
+     * not emitted as part of the snapshot but is included because it is referenced from a
+     * [ClassItem] that is emitted from the snapshot.
+     */
+    private val referenceVisitor = referenceVisitorFactory(this)
 
     override val itemFactory: DefaultItemFactory by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -87,7 +97,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
      * will not be initialized correctly.
      */
     override val requiresClassNesting: Boolean
-        get() = true
+        get() = false
 
     override fun visitCodebase(codebase: Codebase) {
         this.originalCodebase = codebase
@@ -96,11 +106,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 location = codebase.location,
                 description = "snapshot of ${codebase.description}",
                 preFiltered = true,
-                annotationManager = codebase.annotationManager,
+                config = codebase.config,
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
-                reporter = codebase.reporter,
                 assembler = this,
             )
 
@@ -138,7 +147,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // incorrect. However, that should not be a problem as the packages are visited in order
         // such that a containing package is visited before any contained packages.
         val packageDocs = packageDocsForPackageItem(this)
-        return snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        newPackageItem.copySelectedApiVariants(this)
+        return newPackageItem
     }
 
     /**
@@ -177,6 +188,11 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     private fun ClassItem.getSnapshotClass(): DefaultClassItem =
         snapshotCodebase.resolveClass(qualifiedName()) as DefaultClassItem
 
+    /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
+    private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
+        selectedApiVariants = original.selectedApiVariants
+    }
+
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
@@ -203,21 +219,23 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
         // Create the class and register it in the codebase.
-        itemFactory.createClassItem(
-            fileLocation = classToSnapshot.fileLocation,
-            itemLanguage = classToSnapshot.itemLanguage,
-            modifiers = classToSnapshot.modifiers.snapshot(),
-            documentationFactory = snapshotDocumentation(classToSnapshot, cls),
-            source = cls.sourceFile(),
-            classKind = classToSnapshot.classKind,
-            containingClass = containingClass,
-            containingPackage = containingPackage,
-            qualifiedName = classToSnapshot.qualifiedName(),
-            typeParameterList = typeParameterList,
-            origin = classToSnapshot.origin,
-            superClassType = snapshotSuperClassType,
-            interfaceTypes = snapshotInterfaceTypes,
-        )
+        val newClass =
+            itemFactory.createClassItem(
+                fileLocation = classToSnapshot.fileLocation,
+                itemLanguage = classToSnapshot.itemLanguage,
+                modifiers = classToSnapshot.modifiers.snapshot(),
+                documentationFactory = snapshotDocumentation(classToSnapshot, cls),
+                source = cls.sourceFile(),
+                classKind = classToSnapshot.classKind,
+                containingClass = containingClass,
+                containingPackage = containingPackage,
+                qualifiedName = classToSnapshot.qualifiedName(),
+                typeParameterList = typeParameterList,
+                origin = classToSnapshot.origin,
+                superClassType = snapshotSuperClassType,
+                interfaceTypes = snapshotInterfaceTypes,
+            )
+        newClass.copySelectedApiVariants(classToSnapshot)
     }
 
     /** Execute [body] within [SnapshotTypeItemFactoryContext]. */
@@ -259,8 +277,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                         },
                     callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
+                    isPrimary = constructorToSnapshot.isPrimary,
                 )
             }
+        newConstructor.copySelectedApiVariants(constructorToSnapshot)
 
         containingClass.addConstructor(newConstructor)
     }
@@ -298,6 +318,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     annotationDefault = methodToSnapshot.defaultValue(),
                 )
             }
+        newMethod.copySelectedApiVariants(methodToSnapshot)
 
         containingClass.addMethod(newMethod)
     }
@@ -322,6 +343,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
                 )
             }
+        newField.copySelectedApiVariants(fieldToSnapshot)
 
         containingClass.addField(newField)
     }
@@ -342,8 +364,13 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     name = propertyToSnapshot.name(),
                     containingClass = containingClass,
                     type = propertyToSnapshot.type().snapshot(),
+                    getter = property.getter,
+                    setter = property.setter,
+                    constructorParameter = property.constructorParameter,
+                    backingField = property.backingField,
                 )
             }
+        newProperty.copySelectedApiVariants(propertyToSnapshot)
 
         containingClass.addProperty(newProperty)
     }
@@ -353,26 +380,46 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // Resolve the class in the original codebase, if possible.
         val originalClass = originalCodebase.resolveClass(qualifiedName) ?: return null
 
-        // Take a snapshot of the class, that should add a new class to the snapshot codebase.
-        val visitor = NonFilteringDelegatingVisitor(this)
-        originalClass.accept(visitor)
+        // Take a snapshot of a class that is referenced from, but not defined within, the snapshot.
+        originalClass.accept(referenceVisitor)
 
         // Find the newly added class.
-        return snapshotCodebase.findClass(originalClass.qualifiedName())!!
+        val classItem =
+            snapshotCodebase.findClass(originalClass.qualifiedName())
+                ?: error("Could not snapshot class $qualifiedName")
+
+        // Any class that is created only when resolving references is by definition not part of the
+        // codebase and so will not be emitted.
+        classItem.emit = false
+
+        return classItem
     }
 
     companion object {
-        /** Take a snapshot of [codebase]. */
+        /**
+         * Take a snapshot of [codebase].
+         *
+         * @param definitionVisitorFactory a factory for creating an [ItemVisitor] that delegates to
+         *   a [DelegatedVisitor]. The [ItemVisitor] is used to determine which parts of [codebase]
+         *   will be defined within and emitted from the snapshot.
+         * @param referenceVisitorFactory a factory for creating an [ItemVisitor] that delegates to
+         *   a [DelegatedVisitor]. The [ItemVisitor] is used to determine which parts of [codebase]
+         *   will be referenced from within but not emitted from the snapshot.
+         */
         fun takeSnapshot(
             codebase: Codebase,
-            visitorFactory: (DelegatedVisitor) -> ItemVisitor = ::EmittableDelegatingVisitor,
+            definitionVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
+            referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
         ): Codebase {
-            // Create a snapshot taker that will construct the snapshot.
-            val taker = CodebaseSnapshotTaker()
+            // Create a snapshot taker that will construct the snapshot. Pass in the
+            // referenceVisitorFactory so it can create the reference visitor for use in creating
+            // Items that are referenced from the snapshot.
+            val taker = CodebaseSnapshotTaker(referenceVisitorFactory)
 
-            // Wrap it in a visitor and visit the codebase.
-            val visitor = visitorFactory(taker)
-            codebase.accept(visitor)
+            // Wrap it in a visitor that will determine which Items are defined in the snapshot and
+            // then apply that visitor to the input codebase.
+            val definitionVisitor = definitionVisitorFactory(taker)
+            codebase.accept(definitionVisitor)
 
             // Return the constructed snapshot.
             return taker.snapshotCodebase
@@ -400,7 +447,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     { typeParameterItem ->
                         DefaultTypeParameterItem(
                             codebase = snapshotCodebase,
-                            itemLanguage = typeParameterItem.itemLanguage,
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()
@@ -465,12 +511,12 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 /**
  * Get the actual item to snapshot, this takes into account whether the item has been reverted.
  *
- * The [Showability.revertItem] is only set to a non-null value if changes to this [Item] have been
- * reverted AND this [Item] existed in the previously released API.
+ * The [Showability.revertItem] is only set to a non-null value if changes to this [SelectableItem]
+ * have been reverted AND this [SelectableItem] existed in the previously released API.
  *
  * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
- * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
- * same type.
+ * if set to a non-null value the [Showability.revertItem] will always point to a [SelectableItem]
+ * of the same type.
  */
-val <reified T : Item> T.actualItemToSnapshot: T
+private val <reified T : SelectableItem> T.actualItemToSnapshot: T
     inline get() = (showability.revertItem ?: this) as T

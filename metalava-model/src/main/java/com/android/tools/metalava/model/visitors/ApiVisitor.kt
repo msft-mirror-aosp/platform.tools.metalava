@@ -16,37 +16,30 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import java.util.function.Predicate
 
 open class ApiVisitor(
-    /**
-     * Whether nested classes should be visited "inside" a class; when this property is true, nested
-     * classes are visited before the [#afterVisitClass] method is called; when false, it's done
-     * afterwards. Defaults to false.
-     */
+    /** @see BaseItemVisitor.preserveClassNesting */
     preserveClassNesting: Boolean = false,
 
+    /** @see BaseItemVisitor.visitParameterItems */
+    visitParameterItems: Boolean = true,
+
     /** Whether to include inherited fields too */
-    val inlineInheritedFields: Boolean = true,
+    private val inlineInheritedFields: Boolean = true,
 
     /** Comparator to sort callables with. */
-    val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
+    private val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
 
-    /** The filter to use to determine if we should emit an item */
-    val filterEmit: Predicate<Item>,
-
-    /** The filter to use to determine if we should emit a reference to an item */
-    val filterReference: Predicate<Item>,
+    /** The filters to use to determine what parts of the API will be visited. */
+    private val apiFilters: ApiFilters,
 
     /**
      * Whether this visitor should visit elements that have not been annotated with one of the
@@ -54,77 +47,49 @@ open class ApiVisitor(
      * files sometimes sets this to false so the signature file only contains the "diff" of the
      * annotated API relative to the base API.
      */
-    val showUnannotated: Boolean = true,
-
-    /** Configuration that may come from the command line. */
-    @Suppress("UNUSED_PARAMETER") config: Config,
-) : BaseItemVisitor(preserveClassNesting) {
-
-    /**
-     * Contains configuration for [ApiVisitor] that can, or at least could, come from command line
-     * options.
-     */
-    data class Config(
-        /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
-    )
+    protected val showUnannotated: Boolean = true,
+) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
 
     constructor(
-        /**
-         * Whether nested classes should be visited "inside" a class; when this property is true,
-         * nested classes are visited before the [#afterVisitClass] method is called; when false,
-         * it's done afterwards. Defaults to false.
-         */
-        preserveClassNesting: Boolean = false,
-
-        /** Whether to ignore APIs with annotations in the --show-annotations list */
-        ignoreShown: Boolean = true,
-
-        /** Whether to match APIs marked for removal instead of the normal API */
-        remove: Boolean = false,
-
-        /** Comparator to sort callables with. */
-        callableComparator: Comparator<CallableItem> = CallableItem.comparator,
-
-        /**
-         * The filter to use to determine if we should emit an item. If null, the default value is
-         * an [ApiPredicate] based on the values of [remove], [includeApisForStubPurposes],
-         * [config], and [ignoreShown].
-         */
-        filterEmit: Predicate<Item>? = null,
-
-        /**
-         * The filter to use to determine if we should emit a reference to an item. If null, the
-         * default value is an [ApiPredicate] based on the values of [remove] and [config].
-         */
-        filterReference: Predicate<Item>? = null,
-
-        /**
-         * Whether to include "for stub purposes" APIs.
-         *
-         * See [ApiPredicate.includeOnlyForStubPurposes]
-         */
-        includeApisForStubPurposes: Boolean = true,
+        /** @see BaseItemVisitor.visitParameterItems */
+        visitParameterItems: Boolean = true,
 
         /** Configuration that may come from the command line. */
-        config: Config,
+        apiPredicateConfig: ApiPredicate.Config,
     ) : this(
-        preserveClassNesting = preserveClassNesting,
-        inlineInheritedFields = true,
-        callableComparator = callableComparator,
-        filterEmit = filterEmit
-                ?: ApiPredicate(
-                    matchRemoved = remove,
-                    includeApisForStubPurposes = includeApisForStubPurposes,
-                    config = config.apiPredicateConfig.copy(ignoreShown = ignoreShown),
-                ),
-        filterReference = filterReference
-                ?: ApiPredicate(
-                    ignoreRemoved = remove,
-                    config = config.apiPredicateConfig.copy(ignoreShown = true),
-                ),
-        config = config,
+        visitParameterItems = visitParameterItems,
+        apiFilters = defaultFilters(apiPredicateConfig),
     )
+
+    /** The filter to use to determine if we should emit an item */
+    protected val filterEmit = apiFilters.emit
+
+    /** The filter to use to determine if we should emit a reference to an item */
+    protected val filterReference = apiFilters.reference
+
+    companion object {
+        /** Get the default [ApiFilters] to use with [ApiVisitor]. */
+        fun defaultFilters(
+            apiPredicateConfig: ApiPredicate.Config,
+        ): ApiFilters {
+            return ApiFilters(
+                emit = defaultEmitFilter(apiPredicateConfig),
+                reference =
+                    ApiPredicate(
+                        ignoreRemoved = false,
+                        config = apiPredicateConfig.copy(ignoreShown = true),
+                    ),
+            )
+        }
+
+        /** Get the default emit filter to use with [ApiVisitor]. */
+        fun defaultEmitFilter(apiPredicateConfig: ApiPredicate.Config) =
+            ApiPredicate(
+                matchRemoved = false,
+                includeApisForStubPurposes = true,
+                config = apiPredicateConfig.copy(ignoreShown = true),
+            )
+    }
 
     /**
      * Visit a [List] of [ClassItem]s after sorting it into order defined by
@@ -164,13 +129,13 @@ open class ApiVisitor(
         // If none of the classes in this package will be visited them ignore the package entirely.
         if (classesToVisitDirectly.isEmpty()) return
 
-        visitItem(pkg)
-        visitPackage(pkg)
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
+            visitPackage(pkg)
 
-        visitClassList(classesToVisitDirectly)
+            visitClassList(classesToVisitDirectly)
 
-        afterVisitPackage(pkg)
-        afterVisitItem(pkg)
+            afterVisitPackage(pkg)
+        }
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
@@ -298,31 +263,31 @@ open class ApiVisitor(
             visitWrappedClassAndFilteredMembers()
         }
 
-        internal fun visitWrappedClassAndFilteredMembers() {
-            visitItem(cls)
-            visitClass(cls)
+        fun visitWrappedClassAndFilteredMembers() {
+            wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
+                visitClass(cls)
 
-            for (constructor in constructors) {
-                constructor.accept(this@ApiVisitor)
-            }
+                for (constructor in constructors) {
+                    constructor.accept(this@ApiVisitor)
+                }
 
-            for (method in methods) {
-                method.accept(this@ApiVisitor)
-            }
+                for (method in methods) {
+                    method.accept(this@ApiVisitor)
+                }
 
-            for (property in properties) {
-                property.accept(this@ApiVisitor)
-            }
-            for (field in fields) {
-                field.accept(this@ApiVisitor)
-            }
+                for (property in properties) {
+                    property.accept(this@ApiVisitor)
+                }
+                for (field in fields) {
+                    field.accept(this@ApiVisitor)
+                }
 
-            if (preserveClassNesting) { // otherwise done in visit(PackageItem)
-                visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
-            }
+                if (preserveClassNesting) { // otherwise done in visit(PackageItem)
+                    visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
+                }
 
-            afterVisitClass(cls)
-            afterVisitItem(cls)
+                afterVisitClass(cls)
+            }
         }
     }
 }

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.KotlinInteropChecks
 import com.android.tools.metalava.lint.ResourceType.AAPT
 import com.android.tools.metalava.lint.ResourceType.ANIM
@@ -50,6 +49,7 @@ import com.android.tools.metalava.lint.ResourceType.STYLE_ITEM
 import com.android.tools.metalava.lint.ResourceType.TRANSITION
 import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
+import com.android.tools.metalava.manifest.SetMinSdkVersion
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -59,6 +59,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -70,12 +71,15 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.SetMinSdkVersion
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
@@ -181,7 +185,6 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import java.io.StringWriter
 import java.util.Locale
-import java.util.function.Predicate
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 
 /**
@@ -194,21 +197,20 @@ private constructor(
     private val oldCodebase: Codebase?,
     reporter: Reporter,
     private val manifest: Manifest,
-    config: Config,
+    apiPredicateConfig: ApiPredicate.Config,
+    private val allowedAcronyms: List<String>,
 ) :
     ApiVisitor(
+        // ApiLint does not visit ParameterItems.
+        visitParameterItems = false,
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
-        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(config.apiPredicateConfig),
-        filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
-        config = config,
-        // Sort by source order such that warnings follow source line number order.
-        callableComparator = CallableItem.sourceOrderComparator,
+        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
-    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
+    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
 
     /** [Reporter] that filters out items that are not relevant for the current API surface. */
     inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
@@ -242,9 +244,23 @@ private constructor(
                     return false
                 }
 
+                // Get the Item to check if it is part of the API. If it is not then there is no
+                // point in reporting the issue.
+                val testItem =
+                    when (item) {
+                        is ParameterItem ->
+                            // The parameter will only be included in the API if and only if its
+                            // containing callable is so check that.
+                            item.containingCallable()
+                        is SelectableItem -> item
+                        else ->
+                            // This should not happen as all Items are either a SelectableItem or a
+                            // ParameterItem
+                            error("Unknown item $item")
+                    }
+
                 // With show annotations we might be flagging API that is filtered out: hide these
-                // here
-                val testItem = if (item is ParameterItem) item.containingCallable() else item
+                // here by checking to see if the item is part of the API.
                 if (!filterEmit.test(testItem)) {
                     return false
                 }
@@ -360,6 +376,7 @@ private constructor(
         reporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
         }
+        kotlinInterop.checkClass(cls)
     }
 
     override fun visitCallable(callable: CallableItem) {
@@ -554,14 +571,15 @@ private constructor(
                     method,
                     "Method name must start with lowercase char: $name"
                 )
-            hasAcronyms(name) -> {
+            hasAcronyms(name, allowedAcronyms) -> {
                 report(
                     ACRONYM_NAME,
                     method,
                     "Acronyms should not be capitalized in method names: was `$name`, should this be `${
                         decapitalizeAcronyms(
-                        name
-                    )
+                            name,
+                            allowedAcronyms
+                        )
                     }`?"
                 )
             }
@@ -586,14 +604,15 @@ private constructor(
             first !in 'A'..'Z' -> {
                 report(START_WITH_UPPER, cls, "Class must start with uppercase char: $name")
             }
-            hasAcronyms(name) -> {
+            hasAcronyms(name, allowedAcronyms) -> {
                 report(
                     ACRONYM_NAME,
                     cls,
                     "Acronyms should not be capitalized in class names: was `$name`, should this be `${
                         decapitalizeAcronyms(
-                        name
-                    )
+                            name,
+                            allowedAcronyms
+                        )
                     }`?"
                 )
             }
@@ -1797,7 +1816,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: Predicate<Item>) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
@@ -1908,12 +1927,12 @@ private constructor(
         }
     }
 
-    private fun checkHasFlaggedApi(item: Item) {
+    private fun checkHasFlaggedApi(item: SelectableItem) {
         // Cannot flag an implicit constructor.
         if (item is ConstructorItem && item.isImplicitConstructor()) return
 
-        fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
-            var it: Item? = item
+        fun itemOrAnyContainingClasses(predicate: FilterPredicate): Boolean {
+            var it: SelectableItem? = item
             while (it != null) {
                 if (predicate.test(it)) {
                     return true
@@ -1940,7 +1959,7 @@ private constructor(
      * Check whether an `@FlaggedApi` annotation is required on a new [Item], i.e. one that has not
      * previously been released.
      */
-    private fun checkFlaggedApiOnNewApi(item: Item) {
+    private fun checkFlaggedApiOnNewApi(item: SelectableItem) {
         val elidedField =
             if (item is FieldItem) {
                 val inheritedFrom = item.inheritedFrom
@@ -3270,8 +3289,8 @@ private constructor(
         setter: MethodItem
     ) {
         if (getterType.modifiers.nullability != setterType.modifiers.nullability) {
-            val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
-            val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
+            val getterTypeString = getterType.toTypeString(KOTLIN_NULLS_TYPE_STRING_CONFIGURATION)
+            val setterTypeString = setterType.toTypeString(KOTLIN_NULLS_TYPE_STRING_CONFIGURATION)
             report(
                 Issues.GETTER_SETTER_NULLABILITY,
                 getter,
@@ -3318,6 +3337,9 @@ private constructor(
     }
 
     companion object {
+        /** [TypeStringConfiguration] for use in [checkAccessorNullabilityMatches] */
+        private val KOTLIN_NULLS_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(kotlinStyleNulls = true)
 
         /**
          * Check the supplied [codebase] to see if it adheres to the API lint rules enforced by this
@@ -3331,9 +3353,18 @@ private constructor(
             oldCodebase: Codebase?,
             reporter: Reporter,
             manifest: Manifest,
-            config: Config,
+            apiPredicateConfig: ApiPredicate.Config,
+            allowedAcronyms: List<String>,
         ) {
-            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, config)
+            val apiLint =
+                ApiLint(
+                    codebase,
+                    oldCodebase,
+                    reporter,
+                    manifest,
+                    apiPredicateConfig,
+                    allowedAcronyms,
+                )
             apiLint.check()
         }
 
@@ -3455,8 +3486,13 @@ private constructor(
         private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z0-9]*")
         private val styleFieldPattern = Regex("[A-Z][A-Za-z0-9]+(_[A-Z][A-Za-z0-9]+?)*")
 
-        private val acronymPattern2 = Regex("([A-Z]){2,}")
-        private val acronymPattern3 = Regex("([A-Z]){3,}")
+        // An acronym is 2 or more capital letters. Following the acronym there can either be a next
+        // word (capital followed by a non-capital), digit, underscore, or word break (digits and
+        // underscores count as word characters).
+        // Including the next character in the regex means the first capture group will contain just
+        // the acronym and not the start of the next word, e.g. for "HTMLWriter" the acronym is
+        // "HTML", not "HTMLW".
+        private val acronymPattern = Regex("([A-Z]{2,})(?:[A-Z][a-z]|[0-9]|_|\\b)")
 
         private val serviceDumpMethodParameterTypes =
             listOf("java.io.FileDescriptor", "java.io.PrintWriter", "java.lang.String[]")
@@ -3475,28 +3511,28 @@ private constructor(
                 item.parameters().map { it.type().toTypeString() } ==
                     serviceDumpMethodParameterTypes
 
-        private fun hasAcronyms(name: String): Boolean {
-            // Require 3 capitals, or 2 if it's at the end of a word.
-            val result = acronymPattern2.find(name) ?: return false
-            return result.range.first == name.length - 2 || acronymPattern3.find(name) != null
+        private fun hasAcronyms(name: String, allowedAcronyms: List<String>): Boolean {
+            return getFirstAcronym(name, allowedAcronyms) != null
         }
 
-        private fun getFirstAcronym(name: String): String? {
-            // Require 3 capitals, or 2 if it's at the end of a word.
-            val result = acronymPattern2.find(name) ?: return null
-            if (result.range.first == name.length - 2) {
-                return name.substring(name.length - 2)
-            }
-            val result2 = acronymPattern3.find(name)
-            return if (result2 != null) {
-                name.substring(result2.range.first, result2.range.last + 1)
+        private fun getFirstAcronym(name: String, allowedAcronyms: List<String>): String? {
+            val fullMatch = acronymPattern.find(name) ?: return null
+            // Group 1 is just the acronym.
+            val result = fullMatch.groups[1] ?: return null
+
+            val acronym = name.substring(result.range.first, result.range.last + 1)
+            return if (acronym !in allowedAcronyms) {
+                acronym
+            } else if (fullMatch.range.last < name.length) {
+                // Keep searching from the end of the last match, if possible.
+                getFirstAcronym(name.substring(result.range.last + 1), allowedAcronyms)
             } else {
                 null
             }
         }
 
         /** for something like "HTMLWriter", returns "HtmlWriter" */
-        private fun decapitalizeAcronyms(name: String): String {
+        private fun decapitalizeAcronyms(name: String, allowedAcronyms: List<String>): String {
             var s = name
 
             if (s.none { it.isLowerCase() }) {
@@ -3513,26 +3549,14 @@ private constructor(
             }
 
             while (true) {
-                val acronym = getFirstAcronym(s) ?: return s
+                val acronym = getFirstAcronym(s, allowedAcronyms) ?: return s
                 val index = s.indexOf(acronym)
                 if (index == -1) {
                     return s
                 }
-                // The last character, if not the end of the string, is probably the beginning of
-                // the
-                // next word so capitalize it
-                s =
-                    if (index == s.length - acronym.length) {
-                        // acronym at the end of the word word
-                        val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
-                        s.replace(acronym, decapitalized)
-                    } else {
-                        val replacement =
-                            acronym[0] +
-                                acronym.substring(1, acronym.length - 1).lowercase(Locale.US) +
-                                acronym[acronym.length - 1]
-                        s.replace(acronym, replacement)
-                    }
+                // Convert all but the first character of the acronym to lowercase.
+                val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
+                s = s.replace(acronym, decapitalized)
             }
         }
 

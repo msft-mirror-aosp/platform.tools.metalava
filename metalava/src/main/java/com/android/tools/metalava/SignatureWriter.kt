@@ -28,10 +28,13 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
@@ -190,7 +193,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item.actualItemToSnapshot)
+        modifierListWriter.write(item)
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
@@ -206,14 +209,24 @@ class SignatureWriter(
         writeExtendsOrImplementsType(superClassType)
     }
 
+    /**
+     * Legacy [TypeStringConfiguration] when writing super types in [writeExtendsOrImplementsType].
+     */
+    private val legacySuperTypeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+        )
+
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
-        val superClassString =
-            typeItem.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            )
         write(" ")
-        write(superClassString)
+
+        if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) {
+            writeType(typeItem)
+        } else {
+            val superClassString = typeItem.toTypeString(legacySuperTypeStringConfiguration)
+            write(superClassString)
+        }
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
@@ -287,16 +300,20 @@ class SignatureWriter(
         write(")")
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeType]. */
+    private val typeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
+        )
+
     private fun writeType(type: TypeItem?) {
         type ?: return
 
-        var typeString =
-            type.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            )
+        var typeString = type.toTypeString(typeStringConfiguration)
 
-        // Strip java.lang. prefix
+        // Strip androidx.annotation. prefix from annotations.
         typeString = TypeItem.shortenTypes(typeString)
 
         write(typeString)
@@ -310,7 +327,8 @@ class SignatureWriter(
                 if (i > 0) {
                     write(", ")
                 }
-                write(type.toTypeString())
+                if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) writeType(type)
+                else write(type.toTypeString())
             }
         }
     }
@@ -377,10 +395,9 @@ fun createFilteringVisitorForSignatures(
     apiType: ApiType,
     preFiltered: Boolean,
     showUnannotated: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val filterEmit = apiType.getEmitFilter(apiVisitorConfig.apiPredicateConfig)
-    val filterReference = apiType.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
+    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
@@ -391,10 +408,8 @@ fun createFilteringVisitorForSignatures(
         callableComparator = fileFormat.overloadedMethodOrder.comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
         showUnannotated = showUnannotated,
-        config = apiVisitorConfig,
     )
 }

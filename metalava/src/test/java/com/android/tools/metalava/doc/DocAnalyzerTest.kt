@@ -163,6 +163,55 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Check construct ApiLookup works correctly for major-minor`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public Foo(int i) { this.i = i; }
+
+                                private int i;
+                            }
+                        """
+                    ),
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4">
+                        <class name="test/pkg/Foo" since="17">
+                            <method name="&lt;init>()V" since="18.0"/>
+                            <method name="&lt;init>(I)V" since="19.3"/>
+                        </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 17 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 18 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 19.3 */
+                            public Foo(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Fix first sentence handling`() {
         check(
             sourceFiles =
@@ -916,6 +965,62 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Api levels current codename but no current version`() {
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_CODENAME,
+                    "Z",
+                ),
+            includeSystemApiAnnotations = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            public class Test {
+                               public static final String UNIT_TEST_1 = "unit.test.1";
+                               public static final String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="android/pkg/Test" since="1">
+                            <field name="UNIT_TEST_1" since="24" deprecated="30"/>
+                            <field name="UNIT_TEST_2" since="36"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 24
+                             * @deprecatedSince 30
+                             */
+                            public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
+                            /** @apiSince 36 */
+                            public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
                     )
                 )
         )

@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -38,6 +39,7 @@ import com.intellij.psi.impl.source.SourceTreeToPsiMap
 import com.intellij.psi.impl.source.javadoc.PsiDocMethodOrFieldRef
 import com.intellij.psi.impl.source.tree.CompositePsiElement
 import com.intellij.psi.impl.source.tree.JavaDocElementType
+import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.javadoc.PsiDocToken
 import com.intellij.psi.javadoc.PsiInlineDocTag
@@ -68,7 +70,11 @@ internal class PsiItemDocumentation(
         return _text
     }
 
-    override fun duplicate(item: Item) = PsiItemDocumentation(item as PsiItem, psi, extraDocs)
+    override fun duplicate(item: Item) =
+        if (item is PsiItem) PsiItemDocumentation(item, psi, extraDocs)
+        else text.toItemDocumentationFactory()(item)
+
+    override fun snapshot(item: Item) = this
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {
@@ -127,19 +133,7 @@ internal class PsiItemDocumentation(
         }
 
         val assembler = item.codebase.psiAssembler
-        val comment =
-            try {
-                assembler.getComment(documentation, psi)
-            } catch (throwable: Throwable) {
-                // TODO: Get rid of line comments as documentation
-                // Invalid comment
-                if (documentation.startsWith("//") && documentation.contains("/**")) {
-                    return fullyQualifiedDocumentation(
-                        documentation.substring(documentation.indexOf("/**"))
-                    )
-                }
-                assembler.getComment(documentation, psi)
-            }
+        val comment = assembler.getComment(documentation, psi)
         return buildString(documentation.length) { expand(comment, this) }
     }
 
@@ -171,48 +165,16 @@ internal class PsiItemDocumentation(
             element is PsiDocToken -> {
                 assert(element.firstChild == null)
                 val text = element.text
-                // Auto-fix some docs in the framework which starts with R.styleable in @attr
-                if (text.startsWith("R.styleable#") && item.documentation.contains("@attr")) {
-                    sb.append("android.")
-                }
-
                 sb.append(text)
             }
             element is PsiDocMethodOrFieldRef -> {
                 val text = element.text
-                var resolved = element.reference?.resolve()
-
-                // Workaround: relative references doesn't work from a class item to its members
-                if (resolved == null && item is ClassItem) {
-                    // For some reason, resolving relative methods and field references at the root
-                    // level isn't working right.
-                    if (PREPEND_LOCAL_CLASS && text.startsWith("#")) {
-                        var end = text.indexOf('(')
-                        if (end == -1) {
-                            // definitely a field
-                            end = text.length
-                            val fieldName = text.substring(1, end)
-                            val field = item.findField(fieldName)
-                            if (field != null) {
-                                resolved = (field as? PsiFieldItem)?.psi()
-                            }
-                        }
-                        if (resolved == null) {
-                            val methodName = text.substring(1, end)
-                            resolved =
-                                (item as PsiClassItem)
-                                    .psi()
-                                    .findMethodsByName(methodName, true)
-                                    .firstOrNull()
-                        }
-                    }
-                }
-
+                val resolved = element.reference?.resolve()
                 if (resolved is PsiMember) {
                     val containingClass = resolved.containingClass
                     if (containingClass != null && !samePackage(containingClass)) {
                         val referenceText = element.reference?.element?.text ?: text
-                        if (!PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
+                        if (referenceText.startsWith("#")) {
                             sb.append(text)
                             return
                         }
@@ -315,8 +277,8 @@ internal class PsiItemDocumentation(
         val reference = extractReference(element)
         val referenceText = reference?.element?.text ?: element.text
         val customLinkText = extractCustomLinkText(element)
-        val displayText = customLinkText?.text ?: referenceText
-        if (!PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
+        val displayText = customLinkText?.text ?: referenceText.replaceFirst('#', '.')
+        if (referenceText.startsWith("#")) {
             val suffix = element.text
             if (suffix.contains("(") && suffix.contains(")")) {
                 expandArgumentList(element, suffix, sb)
@@ -369,32 +331,7 @@ internal class PsiItemDocumentation(
             }
         }
 
-        var resolved = reference?.resolve()
-        if (resolved == null && item is ClassItem) {
-            // For some reason, resolving relative methods and field references at the root
-            // level isn't working right.
-            if (PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
-                var end = referenceText.indexOf('(')
-                if (end == -1) {
-                    // definitely a field
-                    end = referenceText.length
-                    val fieldName = referenceText.substring(1, end)
-                    val field = item.findField(fieldName)
-                    if (field != null) {
-                        resolved = (field as? PsiFieldItem)?.psi()
-                    }
-                }
-                if (resolved == null) {
-                    val methodName = referenceText.substring(1, end)
-                    resolved =
-                        (item as PsiClassItem)
-                            .psi()
-                            .findMethodsByName(methodName, true)
-                            .firstOrNull()
-                }
-            }
-        }
-
+        val resolved = reference?.resolve()
         if (resolved != null) {
             when (resolved) {
                 is PsiClass -> {
@@ -686,9 +623,11 @@ internal class PsiItemDocumentation(
             if (element is UElement) {
                 val comments = element.comments
                 if (comments.isNotEmpty()) {
-                    val sb = StringBuilder()
-                    comments.joinTo(buffer = sb, separator = "\n") { it.text }
-                    return sb.toString()
+                    return comments.firstNotNullOfOrNull {
+                        val text = it.text
+                        if (text.startsWith("/**")) text else null
+                    }
+                        ?: ""
                 } else {
                     // Temporary workaround: UAST seems to not return document nodes
                     // https://youtrack.jetbrains.com/issue/KT-22135
@@ -699,8 +638,46 @@ internal class PsiItemDocumentation(
                 }
             }
 
-            if (element is PsiDocCommentOwner && element.docComment !is PsiCompiledElement) {
-                return element.docComment?.text ?: ""
+            if (element is PsiDocCommentOwner) {
+                val docComment = element.docComment
+                if (docComment != null && docComment !is PsiCompiledElement) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text != null) {
+                        if (text.startsWith("/**")) {
+                            return text
+                        } else {
+                            // Workaround for b/391104222.
+                            //
+                            // Scan through the previous nodes for the first real doc comment up to
+                            // the first non-white space node. The latter ensures it does not find a
+                            // doc comment that belongs to another item.
+                            var node = element.node
+                            while (true) {
+                                node = node.treePrev ?: break
+
+                                // Ignore white space or empty marker nodes, e.g. ImportListElement,
+                                // that are inserted to mark semantically significant locations but
+                                // do not actually have any content. They may be added between an
+                                // item like a class and its corresponding doc comment.
+                                if (node is PsiWhiteSpace || node.textLength == 0) continue
+
+                                // Stop searching as soon as the first non PsiComment is found.
+                                val psiComment = node as? PsiComment ?: break
+
+                                // If the comment is not a doc comment (with the correct type AND
+                                // content) then ignore it.
+                                if (
+                                    psiComment !is PsiDocComment ||
+                                        !psiComment.text.startsWith("/**")
+                                )
+                                    continue
+
+                                return psiComment.text
+                            }
+                        }
+                    }
+                }
             }
 
             return ""

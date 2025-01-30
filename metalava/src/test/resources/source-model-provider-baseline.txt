@@ -31,6 +31,7 @@ com.android.tools.metalava.DuplicateClassTest
 com.android.tools.metalava.ExtractAnnotationsTest
   Check java typedef extraction and warning about non-source retention of typedefs[turbine]
   Check warning about unexpected returns from typedef method[turbine]
+  Extract annotations from class[turbine]
   Extract permission annotations[turbine]
   Include merged annotations in exported source annotations[turbine]
   Inlining typedef signatures in api files[turbine]
@@ -70,7 +71,6 @@ com.android.tools.metalava.Java9LanguageFeaturesTest
 com.android.tools.metalava.JavadocTest
   Check references to inherited field constants[turbine]
   Ensure references to classes in JavaDoc of hidden members do not affect imports[turbine]
-  Handle @attr references[turbine]
   Javadoc link to innerclass constructor[turbine]
   Relative documentation links in stubs[turbine]
   Rewrite parameter list 2[turbine]
@@ -135,22 +135,11 @@ com.android.tools.metalava.TypeUseAnnotationFilteringTest
 com.android.tools.metalava.UnhideApisTest
   Including private interfaces from types[turbine]
 
+com.android.tools.metalava.VisibleForTestingTest
+  Test VisibleForTesting constants - java[turbine]
+
 com.android.tools.metalava.apilevels.ApiGeneratorTest
   APIs annotated with suppress-compatibility-meta-annotations appear in output[turbine]
-
-com.android.tools.metalava.compatibility.CheckAndroidApisShard1Test
-  Test All Android API levels[turbine,4 to 5]
-  Test All Android API levels[turbine,5 to 6]
-  Test All Android API levels[turbine,6 to 7]
-  Test All Android API levels[turbine,7 to 8]
-
-com.android.tools.metalava.compatibility.CheckAndroidApisShard2Test
-  Test All Android API levels[turbine,17 to 18]
-  Test All Android API levels[turbine,18 to 19]
-  Test All Android API levels[turbine,19 to 20]
-
-com.android.tools.metalava.compatibility.CheckAndroidApisShard3Test
-  Test All Android API levels[turbine,25 to 26]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from AutoCloseable to Closeable is not API-breaking[turbine]
@@ -193,6 +182,12 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   Warn about missing field[turbine]
   Warn about multiple threading annotations[turbine]
   memberDoc crash[turbine]
+
+com.android.tools.metalava.doc.RestrictedForEnvironmentTest
+  Check RestrictedForEnvironment handling for SDK_SANDBOX env[turbine]
+  Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env[turbine]
+  Check RestrictedForEnvironment handling for multiple annotations[turbine]
+  Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env[turbine]
 
 com.android.tools.metalava.lint.ApiLintTest
   CompletableFuture and plain Future not allowed[turbine]

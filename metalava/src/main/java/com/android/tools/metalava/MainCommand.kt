@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -88,8 +89,7 @@ class MainCommand(
     private val sourceOptions by SourceOptions()
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by
-        IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
+    private val issueReportingOptions by IssueReportingOptions(commonOptions)
 
     private val commonBaselineOptions by
         CommonBaselineOptions(
@@ -105,7 +105,15 @@ class MainCommand(
             defaultBaselineFileProvider = { getDefaultBaselineFile() },
         )
 
-    private val apiSelectionOptions by ApiSelectionOptions()
+    private val apiSelectionOptions: ApiSelectionOptions by
+        ApiSelectionOptions(
+            apiSurfacesConfigProvider = { optionGroup.config.apiSurfaces },
+            ignoreShowAnnotationsProvider = {
+                optionGroup.sources.let { sources ->
+                    sources.isEmpty() || sources[0].path.endsWith(DOT_TXT)
+                }
+            },
+        )
 
     /** API lint options. */
     private val apiLintOptions by
@@ -130,12 +138,20 @@ class MainCommand(
     /** Stub generation options. */
     private val stubGenerationOptions by StubGenerationOptions()
 
+    /** Api levels generation options. */
+    private val apiLevelsGenerationOptions by
+        ApiLevelsGenerationOptions(
+            executionEnvironment = executionEnvironment,
+            earlyOptions = commonOptions,
+        )
+
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
     internal val optionGroup by
         Options(
+            executionEnvironment = executionEnvironment,
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
@@ -146,6 +162,7 @@ class MainCommand(
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
             stubGenerationOptions = stubGenerationOptions,
+            apiLevelsGenerationOptions = apiLevelsGenerationOptions,
         )
 
     override fun run() {
@@ -175,7 +192,7 @@ class MainCommand(
         val remainingArgs = flags.toTypedArray()
 
         // Parse any remaining arguments
-        optionGroup.parse(executionEnvironment, remainingArgs)
+        optionGroup.parse(remainingArgs)
 
         // Update the global options.
         @Suppress("DEPRECATION")
