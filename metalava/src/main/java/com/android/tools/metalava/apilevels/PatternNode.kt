@@ -418,16 +418,18 @@ sealed class PatternNode {
                 // Extract the API version from the value.
                 val version = ApiVersion.fromString(value)
 
+                val extension = placeholder == Placeholder.VERSION_EXTENSION
+
                 // Make sure that it is within the allowable range (if one was specified). If it is
                 // not then ignore this file and all its contents by returning an empty sequence.
                 // The range does not apply to extension versions, all extension versions are used.
-                if (placeholder != Placeholder.VERSION_EXTENSION) {
+                if (!extension) {
                     config.apiVersionRange?.let { apiVersionRange ->
                         if (version !in apiVersionRange) return null
                     }
                 }
 
-                return state.copy(version = version)
+                return state.copy(version = version, extension = extension)
             }
         },
 
@@ -572,6 +574,9 @@ sealed class PatternNode {
             help = {
                 """
                     Matches a single non-negative integer and treats it as an extension version.
+
+                    A pattern that includes this must also include `$MODULE` as SDK extension APIs
+                    are stored in a file per extension module.
                 """
             },
         ),
@@ -671,11 +676,9 @@ sealed class PatternNode {
             }
 
             // Check to make sure that exactly one of the nodes will match an API version.
-            val placeholdersByProperty =
-                nodes
-                    .mapNotNull { it as? PlaceholderPatternNode }
-                    .flatMap { it.placeholders }
-                    .groupBy { it.property }
+            val usedPlaceholders =
+                nodes.mapNotNull { it as? PlaceholderPatternNode }.flatMap { it.placeholders }
+            val placeholdersByProperty = usedPlaceholders.groupBy { it.property }
 
             // Do some basic validation of the placeholders in the pattern.
             if (Property.VERSION !in placeholdersByProperty) {
@@ -695,6 +698,15 @@ sealed class PatternNode {
                         "Pattern '$pathPattern' contains multiple placeholders for $property; found ${placeholders.joinToString()}"
                     )
                 }
+            }
+
+            if (
+                Placeholder.VERSION_EXTENSION in usedPlaceholders &&
+                    Placeholder.MODULE !in usedPlaceholders
+            ) {
+                error(
+                    "Pattern '$pathPattern' contains `${Placeholder.VERSION_EXTENSION}` but does not contain `${Placeholder.MODULE}`"
+                )
             }
         }
 
@@ -790,6 +802,9 @@ internal data class PatternFileState(
     /** The optional [ApiVersion] that was extracted from the path. */
     val version: ApiVersion? = null,
 
+    /** Indicates whether the file is for an SDK extension module. */
+    val extension: Boolean = false,
+
     /** The optional module that was extracted from the path. */
     val module: String? = null,
 
@@ -808,6 +823,7 @@ internal data class PatternFileState(
             MatchedPatternFile(
                 file = file.relativeDescendantOfOrSelf(dir),
                 version = version,
+                extension = extension,
                 module = module,
                 surface = surface,
             )
@@ -838,6 +854,9 @@ data class MatchedPatternFile(
     /** The [ApiVersion] extracted from the [File] path. */
     val version: ApiVersion,
 
+    /** True if this represents a file from an extension module. */
+    val extension: Boolean = false,
+
     /** The optional module that was extracted from the [File] path. */
     val module: String? = null,
 
@@ -858,6 +877,9 @@ data class MatchedPatternFile(
             append(file.path)
             append(", version=")
             append(version)
+            if (extension) {
+                append(", extension=true")
+            }
             if (module != null) {
                 append(", module='")
                 append(module)

@@ -198,6 +198,9 @@ Usage: metalava help historical-api-patterns
   * `{version:extension}` - Placeholder for property `version`. Matches a single non-negative integer and treats it as
   an extension version.
 
+  A pattern that includes this must also include `{module}` as SDK extension APIs are stored in a file per extension
+  module.
+
   * `{module}` - Placeholder for property `module`. Matches a module name which must consist of lower case letters,
   hyphens and `.`s.
 

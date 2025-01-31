@@ -357,7 +357,7 @@ class ApiLevelsGenerationOptions(
             val matchedFiles = scanForJarFiles(fileForPathInner("."), androidJarPatterns)
 
             // Split the files into Android jar files and extension jar files.
-            val (androidJarFiles, extensionJarFiles) = matchedFiles.partition { it.module == null }
+            val (extensionJarFiles, androidJarFiles) = matchedFiles.partition { it.extension }
 
             // Get a VersionedApi for each of the Android jar files.
             val versionedHistoricalApis = constructVersionedApisForAndroidJars(androidJarFiles)

@@ -397,12 +397,26 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Check pattern with version extension includes module`() {
+        val patterns =
+            listOf(
+                "extensions/{version:extension}/api.txt",
+            )
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals(
+            "Pattern 'extensions/{version:extension}/api.txt' contains `{version:extension}` but does not contain `{module}`",
+            exception.message
+        )
+    }
+
+    @Test
     fun `Scan for extension version`() {
         val rootDir = createApiFileStructure()
 
         val patterns =
             listOf(
-                "{version:extension}/api.txt",
+                "{version:extension}/{module}.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         // This range should have no effect on extension versions.
@@ -410,8 +424,8 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = range))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=1/api.txt, version=1)
-                MatchedPatternFile(file=2/api.txt, version=2)
+                MatchedPatternFile(file=1/api.txt, version=1, extension=true, module='api')
+                MatchedPatternFile(file=2/api.txt, version=2, extension=true, module='api')
             """
         )
     }
@@ -440,11 +454,11 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=extensions/1/module-one.txt, version=1, module='module-one')
-                MatchedPatternFile(file=extensions/3/module-one.txt, version=3, module='module-one')
-                MatchedPatternFile(file=extensions/2/module-two.txt, version=2, module='module-two')
-                MatchedPatternFile(file=extensions/3/module-two.txt, version=3, module='module-two')
-                MatchedPatternFile(file=extensions/2/module.three.txt, version=2, module='module.three')
+                MatchedPatternFile(file=extensions/1/module-one.txt, version=1, extension=true, module='module-one')
+                MatchedPatternFile(file=extensions/3/module-one.txt, version=3, extension=true, module='module-one')
+                MatchedPatternFile(file=extensions/2/module-two.txt, version=2, extension=true, module='module-two')
+                MatchedPatternFile(file=extensions/3/module-two.txt, version=3, extension=true, module='module-two')
+                MatchedPatternFile(file=extensions/2/module.three.txt, version=2, extension=true, module='module.three')
             """
         )
     }
