@@ -576,4 +576,84 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(valuePropertyOnCompanion.getter).isEqualTo(valueGetterOnCompanion)
         }
     }
+
+    @Test
+    fun `Test top level properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    @file:JvmName("Foo")
+                    package test.pkg
+
+                    var variable = 0
+
+                    val valWithNoBackingField
+                        get() = 0
+
+                    const val CONST = 0
+
+                    @JvmField
+                    val jvmField = 0
+                """
+            )
+        ) {
+            val fileFacadeClass = codebase.assertClass("test.pkg.Foo")
+            assertThat(fileFacadeClass.properties()).hasSize(4)
+
+            // var property with getter, setter, and backing field
+            val variable = fileFacadeClass.assertProperty("variable")
+            assertThat(variable.getter).isNotNull()
+            assertThat(variable.setter).isNotNull()
+            assertThat(variable.backingField).isNotNull()
+            assertThat(variable.constructorParameter).isNull()
+
+            // val property with getter, no setter or backing field
+            val valWithNoBackingField = fileFacadeClass.assertProperty("valWithNoBackingField")
+            assertThat(valWithNoBackingField.getter).isNotNull()
+            assertThat(valWithNoBackingField.setter).isNull()
+            assertThat(valWithNoBackingField.backingField).isNull()
+            assertThat(valWithNoBackingField.constructorParameter).isNull()
+
+            // const val doesn't have accessors, but does have backing field
+            val constVal = fileFacadeClass.assertProperty("CONST")
+            assertThat(constVal.getter).isNull()
+            assertThat(constVal.setter).isNull()
+            assertThat(constVal.backingField).isNotNull()
+            assertThat(constVal.constructorParameter).isNull()
+
+            // jvmfield val doesn't have accessors, but does have backing field
+            val jvmField = fileFacadeClass.assertProperty("jvmField")
+            assertThat(jvmField.getter).isNull()
+            assertThat(jvmField.setter).isNull()
+            assertThat(jvmField.backingField).isNotNull()
+            assertThat(jvmField.constructorParameter).isNull()
+        }
+    }
+
+    @Test
+    fun `Test top level extension properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    @file:JvmName("Foo")
+                    package test.pkg
+
+                    var String.stringExtension
+                        get() = 0
+                        set(value) {}
+                """
+            )
+        ) {
+            val fileFacadeClass = codebase.assertClass("test.pkg.Foo")
+            assertThat(fileFacadeClass.properties()).hasSize(1)
+
+            // extension property has getter and setter, but no backing field
+            val stringExtension = fileFacadeClass.assertProperty("stringExtension")
+            // TODO: the getter and setter are not being correctly linked for extension properties
+            // assertThat(stringExtension.getter).isNotNull()
+            // assertThat(stringExtension.setter).isNotNull()
+            assertThat(stringExtension.backingField).isNull()
+            assertThat(stringExtension.constructorParameter).isNull()
+        }
+    }
 }

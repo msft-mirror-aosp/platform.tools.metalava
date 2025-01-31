@@ -409,9 +409,7 @@ internal class PsiCodebaseAssembler(
                     .orEmpty()
 
             // Properties can either be declared directly as properties or as constructor params.
-            // For a file facade class containing top-level property definitions, the KtClass won't
-            // exist, so fall back to the properties underlying the getters and fields.
-            val allProperties =
+            val allProperties: List<KtDeclaration> =
                 if (ktClass != null) {
                     ktClass.declarations.filterIsInstance<KtProperty>() +
                         ktClass.primaryConstructor
@@ -419,7 +417,9 @@ internal class PsiCodebaseAssembler(
                             ?.filter { it.isPropertyParameter() }
                             .orEmpty()
                 } else {
-                    (getters.keys + backingFields.keys).toSet()
+                    // For a file facade class containing top-level property definitions, the
+                    // KtClass won't exist, so get top level definitions from the file(s).
+                    topLevelDeclarations(psiClass).filterIsInstance<KtProperty>()
                 }
 
             for (propertyDeclaration in allProperties) {
@@ -947,18 +947,24 @@ internal class PsiCodebaseAssembler(
      * [psiClasses] and adds them to the codebase.
      */
     private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
-        val facadeClasses =
-            psiClasses.mapNotNull { (it as? UClass)?.javaPsi as? KtLightClassForFacade }
         val typeAliases =
-            facadeClasses
-                .flatMap { it.files }
-                .flatMap { it.declarations }
-                .filterIsInstance<KtTypeAlias>()
+            psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
         for (typeAlias in typeAliases) {
             val qualifiedTypeAliasName = typeAlias.getClassId()?.asFqNameString() ?: continue
             val value = codebase.globalTypeItemFactory.getTypeForKtElement(typeAlias) ?: continue
             codebase.typeAliases[qualifiedTypeAliasName] = value
         }
+    }
+
+    /**
+     * Returns a list of declarations from the [fileFacadeClass]. If [fileFacadeClass] is not
+     * actually a file facade class, returns an empty list.
+     */
+    private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
+        return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
+            it.declarations
+        }
+            ?: emptyList()
     }
 
     /**
