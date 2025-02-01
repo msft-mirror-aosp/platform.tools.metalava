@@ -678,25 +678,22 @@ sealed class PatternNode {
                     .groupBy { it.property }
 
             // Do some basic validation of the placeholders in the pattern.
-            for (property in Property.entries) {
-                val placeholders = placeholdersByProperty[property] ?: emptyList()
+            if (Property.VERSION !in placeholdersByProperty) {
+                // At least one placeholder that will set the version property must be provided.
+                error("Pattern '$pathPattern' does not contain placeholder for ${Property.VERSION}")
+            }
+
+            for ((property, placeholders) in placeholdersByProperty.entries) {
                 val count = placeholders.size
-                when {
-                    count == 0 ->
-                        // At least one placeholder that will set the version property must be
-                        // provided.
-                        if (property == Property.VERSION) {
-                            error(
-                                "Pattern '$pathPattern' does not contain placeholder for $property"
-                            )
-                        }
-                    count > 1 ->
-                        // No property can have multiple placeholders for it as that could lead to a
-                        // conflict over which value will be used and/or complicate the logic to
-                        // make sure that all the values are the same.
-                        error(
-                            "Pattern '$pathPattern' contains multiple placeholders for $property; found ${placeholders.joinToString()}"
-                        )
+                // An entry in a map created by groupBy will always have a list containing at least
+                // one item.
+                if (count != 1) {
+                    // No property can have multiple placeholders for it as that could lead to a
+                    // conflict over which value will be used and/or complicate the logic to make
+                    // sure that all the values are the same.
+                    error(
+                        "Pattern '$pathPattern' contains multiple placeholders for $property; found ${placeholders.joinToString()}"
+                    )
                 }
             }
         }
