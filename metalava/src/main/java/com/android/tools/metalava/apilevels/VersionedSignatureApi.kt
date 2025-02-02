@@ -34,7 +34,8 @@ class VersionedSignatureApi(
     override fun updateApi(api: Api) {
         val codebase = signatureFileLoader.load(SignatureFile.fromFiles(file))
         val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-        addApisFromCodebase(api, apiVersion, codebaseFragment)
+        val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
+        addApisFromCodebase(api, updater, codebaseFragment)
     }
 
     override fun toString() = "VersionedSignatureApi(file=$file, version=$apiVersion)"
