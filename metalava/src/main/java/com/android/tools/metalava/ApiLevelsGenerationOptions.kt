@@ -414,7 +414,6 @@ class ApiLevelsGenerationOptions(
                         VersionedSourceApi(
                             codebaseFragmentProvider,
                             codebaseSdkVersion,
-                            useInternalNames = true,
                         )
                     )
                 }
@@ -442,6 +441,8 @@ class ApiLevelsGenerationOptions(
                 missingClassAction =
                     if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
                     else MissingClassAction.REPORT,
+                // Use internal names.
+                useInternalNames = true,
             )
         }
 
@@ -571,13 +572,7 @@ class ApiLevelsGenerationOptions(
                     VersionedSignatureApi(signatureFileLoader, it.file, it.version)
                 }
                 // Add a VersionedSourceApi for the source code.
-                add(
-                    VersionedSourceApi(
-                        codebaseFragmentProvider,
-                        sourceVersion,
-                        useInternalNames = false
-                    )
-                )
+                add(VersionedSourceApi(codebaseFragmentProvider, sourceVersion))
             }
 
             GenerateApiHistoryConfig(
@@ -587,6 +582,8 @@ class ApiLevelsGenerationOptions(
                 sdkExtensionsArguments = null,
                 // Keep any references to missing classes.
                 missingClassAction = MissingClassAction.KEEP,
+                // Do not use internal names.
+                useInternalNames = false,
             )
         } else {
             null
