@@ -374,7 +374,7 @@ class ApiLevelsGenerationOptionsTest :
 
             assertThat(exception.message)
                 .isEqualTo(
-                    "no extension sdk jar files found in $root/{version:extension}/*/{module}.jar"
+                    "no extension api files found by $root/{version:extension}/*/{module}.jar"
                 )
         }
     }
