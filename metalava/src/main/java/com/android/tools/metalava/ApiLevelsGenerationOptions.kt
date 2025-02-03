@@ -71,6 +71,13 @@ const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
 
+/**
+ * Factory for creating a [VersionedApi] from an [ApiHistoryUpdater] and a list of
+ * [MatchedPatternFile].
+ */
+private typealias VersionedApiFactory =
+    (ApiHistoryUpdater, List<MatchedPatternFile>) -> VersionedApi
+
 class ApiLevelsGenerationOptions(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
     private val earlyOptions: EarlyOptions = EarlyOptions(),
@@ -326,17 +333,38 @@ class ApiLevelsGenerationOptions(
      * @param matchedFiles a list of files that matched the historical API patterns.
      */
     private fun constructVersionedApisForHistoricalFiles(
-        matchedFiles: List<MatchedPatternFile>
+        matchedFiles: List<MatchedPatternFile>,
+        versionedApiFactory: VersionedApiFactory,
     ): List<VersionedApi> {
         // TODO(b/383288863): Check to make sure that there is one VersionedApi for every major
         //  version in the range.
 
+        val byVersion = matchedFiles.groupBy { it.version }
+
         // Convert the MatchedPatternFiles into VersionedApis.
-        return matchedFiles.map { (jar, apiVersion) ->
-            verbosePrint { "Found API $apiVersion at $jar" }
+        return byVersion.map { (apiVersion, files) ->
             val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
-            VersionedJarApi(jar, updater)
+            versionedApiFactory(updater, files)
         }
+    }
+
+    /**
+     * Create a [VersionedApi] from [updater] and [files].
+     *
+     * It requires [files] to contain a single entry.
+     */
+    private fun createVersionedJarApi(
+        updater: ApiHistoryUpdater,
+        files: List<MatchedPatternFile>,
+    ): VersionedApi {
+        val version = updater.apiVersion
+        val jar =
+            files.singleOrNull()?.file
+                ?: error(
+                    "Expected only one jar file for version $version but found ${files.size}:\n${files.joinToString("\n") {"    $it"}}"
+                )
+        verbosePrint { "Found API $version at $jar" }
+        return VersionedJarApi(jar, updater)
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -357,12 +385,14 @@ class ApiLevelsGenerationOptions(
         generateApiLevelXml?.let { outputFile ->
             // Scan for all the files that could contribute to the API history.
             val matchedFiles = findHistoricalFiles(fileForPathInner("."), androidJarPatterns)
+            val versionedApiFactory = ::createVersionedJarApi
 
             // Split the files into extension api files and primary api files.
             val (extensionApiFiles, primaryApiFiles) = matchedFiles.partition { it.extension }
 
             // Get a VersionedApi for each of the released API files.
-            val versionedHistoricalApis = constructVersionedApisForHistoricalFiles(primaryApiFiles)
+            val versionedHistoricalApis =
+                constructVersionedApisForHistoricalFiles(primaryApiFiles, versionedApiFactory)
 
             val currentSdkVersion = currentApiVersion
             if (currentSdkVersion.major <= 26) {
@@ -432,6 +462,7 @@ class ApiLevelsGenerationOptions(
                         sdkExtensionsArguments.notFinalizedSdkVersion,
                         extensionApiFiles,
                         sdkExtensionsArguments.sdkExtensionInfo,
+                        versionedApiFactory,
                     )
                 }
             }
@@ -458,22 +489,26 @@ class ApiLevelsGenerationOptions(
      * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param extensionApiFiles extension api files.
      * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
+     * @param versionedApiFactory factory for creating [VersionedApi]s.
      */
     private fun addVersionedExtensionApis(
         list: MutableList<VersionedApi>,
         versionNotInAndroidSdk: ApiVersion,
         extensionApiFiles: List<MatchedPatternFile>,
         sdkExtensionInfo: SdkExtensionInfo,
+        versionedApiFactory: VersionedApiFactory,
     ) {
         val byModule = extensionApiFiles.groupBy({ it.module!! })
         // Iterate over the mainline modules and their different versions.
-        for ((mainlineModule, value) in byModule) {
+        for ((mainlineModule, moduleFiles) in byModule) {
             // Get the extensions information for the mainline module. If no information exists for
             // a particular module then the module is ignored.
             val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
-            for ((file, version) in value) {
+
+            val byVersion = moduleFiles.groupBy { it.version }
+            byVersion.mapTo(list) { (version, files) ->
                 val extVersion = ExtVersion.fromLevel(version.major)
                 val updater =
                     ApiHistoryUpdater.forExtVersion(
@@ -481,7 +516,7 @@ class ApiLevelsGenerationOptions(
                         extVersion,
                         mainlineModule,
                     )
-                list.add(VersionedJarApi(file, updater))
+                versionedApiFactory(updater, files)
             }
         }
     }
