@@ -61,12 +61,7 @@ fun addApisFromCodebase(
                             newClass.updateSuperClass(superClass.nameInApi(), updater)
                         }
                     }
-                    ClassKind.INTERFACE -> {
-                        val superClass = cls.superClass()
-                        if (superClass != null && !superClass.isJavaLangObject()) {
-                            newClass.updateInterface(superClass.nameInApi(), updater)
-                        }
-                    }
+                    ClassKind.INTERFACE -> {}
                     ClassKind.ENUM -> {
                         // Implicit super class; match convention from bytecode
                         if (newClass.name != enumClass) {
