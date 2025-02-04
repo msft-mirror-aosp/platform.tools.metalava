@@ -215,7 +215,7 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageItem = codebase.assertPackage("test.pkg")
             val packageLocation = packageItem.fileLocation.path.toString()
 
-            assertEquals("TESTROOT/api.txt", removeTestSpecificDirectories(packageLocation))
+            assertEquals("MAIN_SRC/api.txt", removeTestSpecificDirectories(packageLocation))
         }
     }
 
@@ -243,7 +243,7 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageLocation = packageItem.fileLocation.path.toString()
 
             assertEquals(
-                "TESTROOT/src/test/pkg/package-info.java",
+                "MAIN_SRC/src/test/pkg/package-info.java",
                 removeTestSpecificDirectories(packageLocation)
             )
         }
@@ -306,7 +306,7 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageLocation = packageItem.fileLocation.path.toString()
 
             assertEquals(
-                "TESTROOT/src/test/pkg/package.html",
+                "MAIN_SRC/src/test/pkg/package.html",
                 removeTestSpecificDirectories(packageLocation)
             )
         }

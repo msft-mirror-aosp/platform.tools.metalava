@@ -149,10 +149,10 @@ abstract class BaseModelTest() :
 
     inner class DefaultCodebaseContext(
         override val codebase: Codebase,
-        private val mainSourceDir: File,
+        private val fileToSymbol: Map<File, String>,
     ) : CodebaseContext {
         override fun removeTestSpecificDirectories(string: String): String {
-            return cleanupString(string, mainSourceDir)
+            return replaceFileWithSymbol(string, fileToSymbol)
         }
     }
 
@@ -214,7 +214,16 @@ abstract class BaseModelTest() :
                         projectDescription = projectDescriptionFile,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
-                    val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
+                    val context =
+                        DefaultCodebaseContext(
+                            codebase,
+                            buildMap {
+                                this[mainSourceDir.dir] = "MAIN_SRC"
+                                additionalSourceDir?.dir?.let { dir ->
+                                    this[dir] = "ADDITIONAL_SRC"
+                                }
+                            }
+                        )
                     context.test()
                 }
             }
