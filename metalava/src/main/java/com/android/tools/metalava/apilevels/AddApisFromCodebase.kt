@@ -61,7 +61,10 @@ fun addApisFromCodebase(
                             newClass.updateSuperClass(superClass.nameInApi(), updater)
                         }
                     }
-                    ClassKind.INTERFACE -> {}
+                    ClassKind.INTERFACE -> {
+                        // Implicit super class; match convention from bytecode
+                        newClass.updateSuperClass(objectClass, updater)
+                    }
                     ClassKind.ENUM -> {
                         // Implicit super class; match convention from bytecode
                         if (newClass.name != enumClass) {
@@ -80,23 +83,6 @@ fun addApisFromCodebase(
                             newClass.updateInterface(annotationClass, updater)
                         }
                     }
-                }
-
-                // Ensure we don't end up with
-                //    -  <extends name="java/lang/Object"/>
-                //    +  <extends name="java/lang/Object" removed="29"/>
-                // which can happen because the bytecode always explicitly contains extends
-                // java.lang.Object
-                // but in the source code we don't see it, and the lack of presence of this
-                // shouldn't be
-                // taken as a sign that we no longer extend object. But only do this if the class
-                // didn't
-                // previously extend object and now extends something else.
-                if (
-                    (cls.isClass() || cls.isInterface()) &&
-                        newClass.superClasses.singleOrNull()?.name == objectClass
-                ) {
-                    newClass.updateSuperClass(objectClass, updater)
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {

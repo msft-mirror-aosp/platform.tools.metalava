@@ -170,28 +170,26 @@ class ApiUpdateConsistencyTest : DriverTest() {
      * 3. The list of [versionedApiFactories] will be reversed and then used as in step #1. The
      *    resulting XML will be compared with [expectedBackwardIncludeVersions].
      *
-     * For most tests the [expected], [expectedReversedVersions] and [expectedReversedFactories] are
-     * the same and for those tests where it is not then the current behavior is incorrect and will
-     * be fixed.
+     * Irrespective of which way the [Api] is constructed it should produce XML output that matches
+     * [expected].
      */
     private fun checkVersionedApiFactories(
         vararg versionedApiFactories: VersionedApiFactory,
         expected: String,
-        expectedReversedVersions: String = expected,
-        expectedReversedFactories: String = expected,
     ) {
         val versionedApis =
             versionedApiFactories.mapIndexed { index, factory ->
                 factory(ApiVersion.fromLevel(index + 1))
             }
+
         checkVersionedApis(versionedApis, expected, "forward")
-        checkVersionedApis(versionedApis.reversed(), expectedReversedVersions, "reversed versions")
+        checkVersionedApis(versionedApis.reversed(), expected, "reversed versions")
 
         checkVersionedApis(
             versionedApiFactories.reversed().mapIndexed { index, factory ->
                 factory(ApiVersion.fromLevel(index + 1))
             },
-            expectedReversedFactories,
+            expected,
             "reversed factories"
         )
     }
@@ -270,28 +268,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     <api version="3">
                         <class name="java/lang/AutoCloseable" since="1">
                             <extends name="java/lang/Object"/>
-                            <method name="close()V"/>
-                        </class>
-                    </api>
-                """,
-            // TODO(b/394259916): Should not have removed="2".
-            expectedReversedVersions =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="3">
-                        <class name="java/lang/AutoCloseable" since="1">
-                            <extends name="java/lang/Object" removed="2"/>
-                            <method name="close()V"/>
-                        </class>
-                    </api>
-                """,
-            // TODO(b/394259916): Should not have since="3".
-            expectedReversedFactories =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="3">
-                        <class name="java/lang/AutoCloseable" since="1">
-                            <extends name="java/lang/Object" since="3"/>
                             <method name="close()V"/>
                         </class>
                     </api>
