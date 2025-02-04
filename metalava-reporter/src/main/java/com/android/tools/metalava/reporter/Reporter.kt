@@ -165,10 +165,6 @@ class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
         reportable: Reportable?,
         message: String?
     ): Boolean = false
-
-    companion object {
-        val ERR = BasicReporter(System.err)
-    }
 }
 
 /** A [Reporter] which will record issues in an internal buffer, accessible through [issues]. */
@@ -182,4 +178,21 @@ class RecordingReporter : AbstractBasicReporter() {
 
     val issues
         get() = stringWriter.toString().trim()
+}
+
+/**
+ * A [Reporter] which will throw an exception for the first issue, even warnings or hidden, that is
+ * reported.
+ *
+ * Safe to use when no issues are expected as it will prevent any issues from being silently
+ * ignored.
+ */
+class ThrowingReporter private constructor() : AbstractBasicReporter() {
+    override fun handleFormattedMessage(formattedMessage: String): Boolean {
+        error(formattedMessage)
+    }
+
+    companion object {
+        val INSTANCE = ThrowingReporter()
+    }
 }

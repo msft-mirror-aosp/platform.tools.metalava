@@ -27,8 +27,8 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import org.junit.Rule
@@ -171,7 +171,7 @@ abstract class BaseModelTest() :
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
 
         /** The [Reporter] to use for issues found creating the [Codebase]. */
-        val reporter: Reporter = BasicReporter.ERR,
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
     ) {
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =
