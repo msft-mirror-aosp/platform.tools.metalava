@@ -157,6 +157,7 @@ class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
 
     override fun handleFormattedMessage(formattedMessage: String): Boolean {
         stderr.println(formattedMessage)
+        stderr.flush()
         return true
     }
 
