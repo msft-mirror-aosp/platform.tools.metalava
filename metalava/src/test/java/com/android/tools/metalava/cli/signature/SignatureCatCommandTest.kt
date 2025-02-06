@@ -139,4 +139,43 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     .trimIndent()
         }
     }
+
+    @Test
+    fun `Cat signature file with missing type parameters`() {
+        commandTest {
+            args +=
+                listOf(
+                    "signature-cat",
+                    "--format-defaults",
+                    // Do not strip java.lang. prefixes to show whether unknown type parameters are
+                    // currently prefixed with "java.lang." or not.
+                    "strip-java-lang-prefix=never",
+                )
+
+            stdin =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(T t);
+                      }
+                    }
+                """
+                    .trimIndent()
+
+            expectedStdout =
+                // TODO(b/394789173): Stop prefixing T with java.lang..
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+
+                      public interface Foo {
+                        method public void foo(java.lang.T t);
+                      }
+
+                    }
+                """
+                    .trimIndent()
+        }
+    }
 }
