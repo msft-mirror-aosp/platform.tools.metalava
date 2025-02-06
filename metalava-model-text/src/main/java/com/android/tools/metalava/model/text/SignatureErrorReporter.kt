@@ -35,4 +35,14 @@ internal interface SignatureErrorReporter {
 
     /** Report recoverable errors encountered while parsing, using [Issues.SIGNATURE_FILE_ERROR]. */
     fun report(message: String) = report(Issues.SIGNATURE_FILE_ERROR, message)
+
+    companion object {
+        /** A [SignatureErrorReporter] that throws an exception at the first error it encounters. */
+        val THROWING =
+            object : SignatureErrorReporter {
+                override fun report(issue: Issues.Issue, message: String) {
+                    throw ApiParseException("$message [$issue]")
+                }
+            }
+    }
 }

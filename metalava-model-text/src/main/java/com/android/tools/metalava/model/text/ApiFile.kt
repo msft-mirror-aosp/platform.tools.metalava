@@ -229,7 +229,9 @@ private constructor(
      * to a non-null value to ensure that it picks up the correct setting of [kotlinStyleNulls].
      */
     private val typeParser by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            TextTypeParser(codebase, kotlinStyleNulls!!, errorReporter)
+        }
 
     /**
      * Provides support for creating [TypeItem]s for specific uses.

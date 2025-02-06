@@ -466,6 +466,79 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
+    fun `Test type parser issues - kotlin-style-nulls=no`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public abstract class Foo implements Comparable<? blah1> {
+                            field public static final int? FIELD1 = 0;
+                            method public void foo(Comparable<test.pkg.Foo>blah2);
+                            field public static final int? FIELD2 = 0;
+                        }
+                        public abstract class Bar implements Comparable<? blah1> {
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    // TODO(b/394789173): It should also report issues with `int?` for `FIELD2` and
+                    //   `? blah1` for `Bar` but is not because the types have been cached. Caching
+                    //   should be disabled for types that fail so that all similar issues are
+                    //   reported.
+                    """
+                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
+                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [SignatureFileError]
+                    """
+                        .trimIndent()
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val barClass = codebase.assertClass("test.pkg.Bar")
+
+            // Implements lists should drop blah1 and be an unbounded wildcard.
+            assertThat(fooClass.interfaceTypes().map { it.toString() })
+                .isEqualTo(listOf("java.lang.Comparable<?>"))
+            assertThat(barClass.interfaceTypes().map { it.toString() })
+                .isEqualTo(listOf("java.lang.Comparable<?>"))
+
+            // The type of Foo.FIELD1 should just be `int`.
+            assertThat(fooClass.assertField("FIELD1").type().toString()).isEqualTo("int")
+        }
+    }
+
+    @Test
+    fun `Test type parser issues - kotlin-style-nulls=yes`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                        public abstract class Foo {
+                            field public static final int? FIELD1 = 0;
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]"
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // The type of FIELD1 should just be `int`.
+            assertThat(fooClass.assertField("FIELD1").type().toString()).isEqualTo("int")
+        }
+    }
+
+    @Test
     fun testTypeParameterNames() {
         assertThat(ApiFile.extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
         assertThat(ApiFile.extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")

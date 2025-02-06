@@ -44,7 +44,11 @@ import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Boolean = false) {
+internal class TextTypeParser(
+    val codebase: Codebase,
+    val kotlinStyleNulls: Boolean = false,
+    private val errorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
+) {
 
     /**
      * The cache key, incorporates some information from [ContextNullability] and [kotlinStyleNulls]
@@ -137,7 +141,8 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 // If forceClassToBeNonNull is true then a plain class type without any nullability
                 // suffix must be treated as if it was not null, which is just how it would be
                 // treated when kotlinStyleNulls is true. So, pretend that kotlinStyleNulls is true.
-                kotlinStyleNulls || forceClassToBeNonNull
+                kotlinStyleNulls || forceClassToBeNonNull,
+                errorReporter,
             )
         val trimmed = withoutNullability.trim()
 
@@ -190,7 +195,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 else -> return null
             }
         if (nullability != null && nullability != TypeNullability.NONNULL) {
-            throw ApiParseException("Invalid nullability suffix on primitive: $original")
+            errorReporter.report("Invalid nullability suffix on primitive: $original")
         }
         return DefaultPrimitiveTypeItem(modifiers(annotations, TypeNullability.NONNULL), kind)
     }
@@ -237,7 +242,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         // Remove nullability marker from the component type, but don't add it to the list yet, as
         // it might not be an array.
-        var nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
+        var nullabilityResult =
+            splitNullabilitySuffix(
+                componentString,
+                kotlinStyleNulls,
+                errorReporter,
+            )
         componentString = nullabilityResult.first
         var componentNullability = nullabilityResult.second
 
@@ -254,7 +264,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
             // Remove nullability marker from the new component type, but don't add it to the list
             // yet, as the next component type might not be an array.
-            nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
+            nullabilityResult =
+                splitNullabilitySuffix(
+                    componentString,
+                    kotlinStyleNulls,
+                    errorReporter,
+                )
             componentString = nullabilityResult.first
             componentNullability = nullabilityResult.second
         }
@@ -302,35 +317,33 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
+        val modifiers = modifiers(annotations, TypeNullability.UNDEFINED)
+
         // Unbounded wildcard type: there is an implicit Object extends bound
-        if (type == "?")
-            return DefaultWildcardTypeItem(
-                modifiers(annotations, TypeNullability.UNDEFINED),
-                objectType,
-                null,
-            )
+        if (type == "?") return DefaultWildcardTypeItem(modifiers, objectType, null)
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
             DefaultWildcardTypeItem(
-                modifiers(annotations, TypeNullability.UNDEFINED),
+                modifiers,
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
             DefaultWildcardTypeItem(
-                modifiers(annotations, TypeNullability.UNDEFINED),
+                modifiers,
                 // All wildcards have an implicit Object extends bound
                 objectType,
                 getWildcardBound(superBound, typeParameterScope),
             )
         } else {
-            throw ApiParseException(
-                "Type starts with \"?\" but doesn't appear to be wildcard: $type"
-            )
+            errorReporter.report("Type starts with \"?\" but doesn't appear to be wildcard: $type")
+
+            // Ignore the part after the "?" and treat it as an unbounded wildcard.
+            DefaultWildcardTypeItem(modifiers, objectType, null)
         }
     }
 
@@ -412,10 +425,13 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
-                throw ApiParseException(
+                errorReporter.report(
                     "Could not parse type `$type`. Found unexpected string after type parameters: $remainder"
                 )
+                // Ignore the remainder.
+                return classType
             }
+
             // This is a nested class type, recur with the new outer class
             return createClassType(
                 remainder.substring(1),
@@ -578,7 +594,8 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
          */
         fun splitNullabilitySuffix(
             type: String,
-            kotlinStyleNulls: Boolean
+            kotlinStyleNulls: Boolean,
+            errorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
         ): Pair<String, TypeNullability?> {
             return if (kotlinStyleNulls) {
                 // Don't interpret the wildcard type `?` as a nullability marker.
@@ -591,10 +608,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 } else {
                     Pair(type, TypeNullability.NONNULL)
                 }
-            } else if (type.length > 1 && type.endsWith("?") || type.endsWith("!")) {
-                throw ApiParseException(
-                    "Format does not support Kotlin-style null type syntax: $type"
-                )
+            } else if (((type.length > 1) && type.endsWith("?")) || type.endsWith("!")) {
+                errorReporter.report("Format does not support Kotlin-style null type syntax: $type")
+                Pair(type.dropLast(1), TypeNullability.PLATFORM)
             } else {
                 Pair(type, null)
             }
