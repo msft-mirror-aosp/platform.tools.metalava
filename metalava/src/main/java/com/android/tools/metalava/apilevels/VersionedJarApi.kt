@@ -24,13 +24,12 @@ import java.io.File
  * The [updater] is responsible for updating the [Api].
  */
 class VersionedJarApi(
-    private val jar: File,
-    private val updater: ApiHistoryUpdater,
-) : VersionedApi {
-    override val apiVersion
-        get() = updater.apiVersion
-
+    val jar: File,
+    updater: ApiHistoryUpdater,
+) : VersionedApi(updater) {
     override fun updateApi(api: Api) {
         api.readJar(jar, updater)
     }
+
+    override fun toString() = "VersionedJarApi(jar=$jar, updater=$updater)"
 }

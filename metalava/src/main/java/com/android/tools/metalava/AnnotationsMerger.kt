@@ -41,7 +41,7 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -103,11 +103,7 @@ class AnnotationsMerger(
     fun mergeInclusionAnnotationsFromFiles(files: List<File>) {
         mergeAll(
             files,
-            {
-                throw MetalavaCliException(
-                    "External inclusion annotations files must be .java, found ${it.path}"
-                )
-            },
+            { cliError("External inclusion annotations files must be .java, found ${it.path}") },
             ::mergeInclusionAnnotationsFromCodebase
         )
     }
@@ -136,10 +132,10 @@ class AnnotationsMerger(
                 val javaStubsCodebase =
                     sourceParser.parseSources(
                         SourceSet(javaStubFiles, roots),
-                        SourceSet.empty(),
                         "Codebase loaded from stubs",
                         classPath = options.classpath,
                         apiPackages = options.apiPackages,
+                        projectDescription = null,
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
             }
@@ -252,7 +248,7 @@ class AnnotationsMerger(
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $file: ${ex.message}"
-            throw MetalavaCliException(message)
+            cliError(message)
         }
     }
 

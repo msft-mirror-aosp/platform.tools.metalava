@@ -16,6 +16,7 @@
 package com.android.tools.metalava.apilevels
 
 import java.io.File
+import java.io.IOException
 
 /** Generates API version history. */
 class ApiGenerator {
@@ -24,8 +25,9 @@ class ApiGenerator {
      *
      * @param config Configuration provided from command line options.
      */
-    fun generateApiHistory(config: GenerateApiHistoryConfig): Boolean {
-        val api = createApiFromVersionedApis(config.versionedApis)
+    fun generateApiHistory(config: GenerateApiHistoryConfig) {
+        val versionedApis = config.versionedApis
+        val api = createApiFromVersionedApis(config.useInternalNames, versionedApis)
 
         // If necessary, update the sdks properties.
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
@@ -44,17 +46,36 @@ class ApiGenerator {
         // Apply the appropriate action for missing classes.
         config.missingClassAction.apply(api)
 
-        return createApiLevelsFile(config.outputFile, config.printer, api)
+        val outputFile = config.outputFile
+        val printer =
+            when (val extension = outputFile.extension) {
+                "xml" -> {
+                    val availableSdkExtensions =
+                        config.sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
+                    ApiXmlPrinter(availableSdkExtensions, versionedApis)
+                }
+                "json" -> ApiJsonPrinter()
+                else ->
+                    error(
+                        "unexpected extension for $outputFile, expected 'xml', or 'json' got '$extension'"
+                    )
+            }
+
+        createApiLevelsFile(outputFile, printer, api)
     }
 
     /**
      * Creates an [Api] from a list of [VersionedApi]s.
      *
+     * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
      * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
      *   from oldest to newest API version.
      */
-    private fun createApiFromVersionedApis(versionedApis: List<VersionedApi>): Api {
-        val api = Api()
+    private fun createApiFromVersionedApis(
+        useInternalNames: Boolean,
+        versionedApis: List<VersionedApi>
+    ): Api {
+        val api = Api(useInternalNames)
         for (versionedApi in versionedApis) {
             versionedApi.updateApi(api)
         }
@@ -126,31 +147,22 @@ class ApiGenerator {
         outFile: File,
         printer: ApiPrinter,
         api: Api,
-    ): Boolean {
+    ) {
         val parentFile = outFile.parentFile
         if (!parentFile.exists()) {
             val ok = parentFile.mkdirs()
             if (!ok) {
-                System.err.println("Could not create directory $parentFile")
-                return false
+                throw IOException("Could not create directory $parentFile")
             }
         }
-        try {
-            outFile.printWriter().use { writer -> printer.print(api, writer) }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return false
+
+        outFile.printWriter().use { writer ->
+            printer.print(api, writer)
+            if (writer.checkError()) throw IOException("Error writing $outFile")
         }
-        return true
     }
 
     data class SdkExtensionsArguments(
-        /**
-         * Root of the directory containing released versions of the SDK extensions, e.g.
-         * `prebuilts/sdk/extensions/`.
-         */
-        val sdkExtJarRoot: File,
-
         /**
          * The `sdk-extension-info.xml` file containing information about the available sdk
          * extensions and the APIs each module contributes to them.

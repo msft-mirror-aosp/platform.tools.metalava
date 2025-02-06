@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -32,6 +33,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
@@ -94,6 +96,38 @@ internal class PsiTypeItemFactory(
         return getType(underlyingType.psiType, underlyingType.context, contextNullability)
     }
 
+    override fun getMethodParameterType(
+        underlyingParameterType: PsiTypeInfo,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        parameterIndex: Int,
+        isVarArg: Boolean
+    ): TypeItem {
+        // Workaround for b/388030457, b/388508139: when a vararg is used in kotlin for a parameter
+        // that isn't final, it should be a regular PsiArrayType, not a PsiEllipsisType, but psi
+        // gets it wrong in some cases.
+        val fixedUnderlyingParameterType =
+            if (
+                underlyingParameterType.context?.isKotlin() == true &&
+                    underlyingParameterType.psiType is PsiEllipsisType &&
+                    parameterIndex + 1 != fingerprint.parameterCount
+            ) {
+                underlyingParameterType.copy(
+                    psiType = underlyingParameterType.psiType.toArrayType()
+                )
+            } else {
+                underlyingParameterType
+            }
+
+        return super.getMethodParameterType(
+            fixedUnderlyingParameterType,
+            itemAnnotations,
+            fingerprint,
+            parameterIndex,
+            isVarArg
+        )
+    }
+
     /**
      * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
      * information for Kotlin types.
@@ -154,7 +188,7 @@ internal class PsiTypeItemFactory(
      * no [PsiElement] with a defined [PsiType].
      */
     @OptIn(KaExperimentalApi::class)
-    internal fun getTypeForProperty(
+    internal fun getTypeForKtElement(
         ktElement: KtElement,
     ): PsiTypeItem? {
         val kotlinTypeInfo = KotlinTypeInfo.fromContext(ktElement)

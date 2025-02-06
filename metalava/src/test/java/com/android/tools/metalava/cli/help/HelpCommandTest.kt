@@ -30,13 +30,15 @@ class HelpCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
                 """
 Usage: metalava help <concept>...
 
-  Provides help for general metalava concepts
+  Provides help for general metalava concepts.
 
 Concepts
   issues                                     Provides help related to issues and issue reporting
   package-filters                            Explains the syntax and behavior of package filters used in options like
                                              --stub-packages.
   signature-file-formats                     Describes the different signature file formats.
+  historical-api-patterns                    Explains the syntax and behavior of historical API patterns used in options
+                                             like --android-jar-pattern.
                 """
                     .trimIndent()
         }
@@ -92,16 +94,16 @@ Usage: metalava help signature-file-formats
 
   The supported properties are:
 
-  * `kotlin-style-nulls = yes|no` - if `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
+  * `concise-default-values = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+  to indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
+  it's not defined.
+
+  * `kotlin-style-nulls = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
   indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
   it's not defined.
 
   If `yes` then the signature file will use a type suffix of `?`, no type suffix and a type suffix of `!` to indicate
   the that the type accepts `null`, does not accept `null` or it's not defined respectively.
-
-  * `concise-default-values = yes|no` - if `no` then Kotlin parameters that have a default value will include that value
-  in the signature file. If `yes` then those parameters will simply be prefixed with `optional`, as if it was a keyword
-  and no value will be included.
 
   Plus the following properties which can have their default changed using the `--format-defaults` option.
 
@@ -116,21 +118,94 @@ Usage: metalava help signature-file-formats
 
   Currently, metalava supports the following versions:
 
-  * `2.0` (--format=v2) - this is the base version (more details in `FORMAT.md`) on which all the others are based. It
+  * `2.0` (--format=v2) - This is the base version (more details in `FORMAT.md`) on which all the others are based. It
   sets the properties as follows:
 
   + kotlin-style-nulls = no
   + concise-default-values = no
 
-  * `3.0` (--format=v3) - this is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
+  * `3.0` (--format=v3) - This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
 
   + kotlin-style-nulls = yes
   + concise-default-values = no
 
-  * `4.0` (--format=v4) - this is 3.0` plus `concise-default-values = yes` giving the following properties:
+  * `4.0` (--format=v4) - This is `3.0` plus `concise-default-values = yes` giving the following properties:
 
   + kotlin-style-nulls = yes
   + concise-default-values = yes
+
+  * `5.0` - This is the first version that has full support for properties in the signature header. As such it does not
+  add any new defaults to `4.0`. The intent is that properties will be explicitly defined in the signature file avoiding
+  reliance on version specific defaults.
+                """
+                    .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test help historical-api-patterns`() {
+        commandTest {
+            args += listOf("help", "historical-api-patterns")
+
+            expectedStdout =
+                """
+Usage: metalava help historical-api-patterns
+
+  Explains the syntax and behavior of historical API patterns used in options like --android-jar-pattern.
+
+  A historical API pattern is used to find historical versioned API files that are used to construct a history of an API
+  surface, e.g. when items were added, removed, deprecated, etc.. It allows for efficiently scanning a directory for
+  matching files, or matching a given file. In both cases information is extracted from the file path, e.g. version,
+  that is used when constructing the API history.
+
+  Each pattern contains placeholders which match part of a file name, extracts the value, possibly filters it and then
+  stores it in a property. Each property can have at most a single associated placeholder in each pattern.
+
+  A `version` placeholder is mandatory but the other options are optional. Files that match a pattern are assumed to
+  provide the definition of that version of the API. e.g. given a pattern of
+  `prebuilts/sdk/{version:level}/public/android.jar` then it will match a file like `prebuilts/sdk/1/public/android.jar`
+  and that file is assumed to define version 1 of the API.
+
+  Patterns can also include any number of wildcards:
+
+  * `*` - matches any characters within a file name, but not into sub-directories. e.g. `foo/b*h/bar` will match
+  `foo/blah/bar` but not `foo/blah/blah/bar`.
+
+  The supported properties are:
+
+  * `version` - Mandatory property that stores the version of a matched file.
+
+  Apart from the {version:extension} all placeholders for this will ignore versions that fall outside the range
+  --first-version and --current-version, if provided.
+
+  * `module` - Optional property that stores the name of the SDK extension module.
+
+  Patterns that use a placeholder for this are assumed to be matching files for SDK extensions.
+
+  * `surface` - Optional property that stores the API surface.
+
+  The supported placeholders are:
+
+  * `{version:level}` - Placeholder for property `version`. Matches a single non-negative integer and treats it as an
+  API version.
+
+  * `{version:major.minor?}` - Placeholder for property `version`. Matches a single non-negative integer or two such
+  integers separated by a `.`.
+
+  * `{version:major.minor.patch}` - Placeholder for property `version`. Matches three non-negative integers separated by
+  `.`s.
+
+  * `{version:extension}` - Placeholder for property `version`. Matches a single non-negative integer and treats it as
+  an extension version.
+
+  A pattern that includes this must also include `{module}` as SDK extension APIs are stored in a file per extension
+  module.
+
+  * `{module}` - Placeholder for property `module`. Matches a module name which must consist of lower case letters,
+  hyphens and `.`s.
+
+  * `{surface}` - Placeholder for property `surface`. Matches a surface name which must consist of lower case letters
+  and hyphens.
                 """
                     .trimIndent()
         }

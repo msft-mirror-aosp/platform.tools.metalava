@@ -42,6 +42,8 @@ sealed interface ApiHistoryUpdater {
         deprecated: Boolean = apiElement.deprecatedIn != null,
     )
 
+    override fun toString(): String
+
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
     private open class ApiVersionUpdater(override val apiVersion: ApiVersion) : ApiHistoryUpdater {
         override fun update(api: Api) {
@@ -51,6 +53,8 @@ sealed interface ApiHistoryUpdater {
         override fun update(apiElement: ApiElement, deprecated: Boolean) {
             apiElement.update(apiVersion, deprecated)
         }
+
+        override fun toString() = "ApiVersionUpdater(version=$apiVersion)"
     }
 
     /**
@@ -75,6 +79,9 @@ sealed interface ApiHistoryUpdater {
                 apiElement.updateMainlineModule(module)
             }
         }
+
+        override fun toString() =
+            "ExtensionUpdater(extVersion=$extVersion, module=$module, nextSdkVersion=$apiVersion)"
     }
 
     companion object {

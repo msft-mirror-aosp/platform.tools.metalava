@@ -20,14 +20,16 @@ import com.android.tools.metalava.model.CodebaseFragment
 
 /**
  * Supports updating an [Api] with information from the [apiVersion] of the API that is defined by
- * the [codebaseFragment] of the sources.
+ * the [CodebaseFragment] of the sources created by [codebaseFragmentProvider].
  */
 class VersionedSourceApi(
-    private val codebaseFragment: CodebaseFragment,
-    override val apiVersion: ApiVersion,
-    private val useInternalNames: Boolean,
-) : VersionedApi {
+    private val codebaseFragmentProvider: () -> CodebaseFragment,
+    apiVersion: ApiVersion,
+) : VersionedApi(ApiHistoryUpdater.forApiVersion(apiVersion)) {
     override fun updateApi(api: Api) {
-        addApisFromCodebase(api, apiVersion, codebaseFragment, useInternalNames)
+        val codebaseFragment = codebaseFragmentProvider()
+        addApisFromCodebase(api, updater, codebaseFragment)
     }
+
+    override fun toString() = "VersionedSourceApi(version=$apiVersion)"
 }

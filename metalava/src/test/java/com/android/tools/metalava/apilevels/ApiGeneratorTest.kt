@@ -19,6 +19,7 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_VERSION_NAMES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
@@ -26,7 +27,6 @@ import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
-import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -89,9 +89,9 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_LEVELS,
                     apiVersionsXml.path,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${testPrebuiltsRoot.path}/%/public/android.jar",
-                    ARG_SDK_JAR_ROOT,
-                    "${testPrebuiltsRoot.path}/extensions",
+                    "${testPrebuiltsRoot.path}/{version:level}/public/android.jar",
+                    ARG_ANDROID_JAR_PATTERN,
+                    "${testPrebuiltsRoot.path}/extensions/{version:extension}/*/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     "${testPrebuiltsRoot.path}/sdk-extensions-info.xml",
                     ARG_FIRST_VERSION,
@@ -395,7 +395,9 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_API_VERSION_SIGNATURE_FILES,
                 pastVersions.joinToString(":") { it.absolutePath },
                 ARG_API_VERSION_NAMES,
-                listOf("1.1.0", "1.2.0", "1.3.0", "1.4.0").joinToString(" "),
+                listOf("1.1.0", "1.2.0", "1.3.0").joinToString(" "),
+                ARG_CURRENT_VERSION,
+                "1.4.0",
             )
 
         check(
@@ -442,12 +444,12 @@ class ApiGeneratorTest : DriverTest() {
                     ],
                     "fields": [
                       {
-                        "field": "fieldV2",
-                        "addedIn": "1.2.0"
-                      },
-                      {
                         "field": "fieldV1",
                         "addedIn": "1.1.0"
+                      },
+                      {
+                        "field": "fieldV2",
+                        "addedIn": "1.2.0"
                       }
                     ]
                   }
@@ -465,7 +467,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
-                <api version="3" min="1.1.0">
+                <api version="4" min="1.1.0">
                     <class name="test.pkg.Foo" since="1.1.0">
                         <extends name="java.lang.Object"/>
                         <method name="methodV1&lt;T extends java.lang.String>(T)" deprecated="1.3.0"/>
@@ -530,7 +532,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
-                <api version="3" min="1.1.0">
+                <api version="4" min="1.1.0">
                     <class name="test.pkg.Bar" since="1.1.0" removed="1.2.0">
                         <extends name="java.lang.Object"/>
                         <field name="barField"/>
@@ -566,7 +568,7 @@ class ApiGeneratorTest : DriverTest() {
                     listOf("1.1.0", "1.2.0").joinToString(" ")
                 ),
             expectedFail =
-                "Aborting: --api-version-names must have one more version than --api-version-signature-files to include the current version name"
+                "Aborting: --api-version-names must have one more version than --api-version-signature-files to include the current version name as --current-version is not provided"
         )
     }
 
@@ -591,6 +593,36 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
                     ARG_API_VERSION_NAMES,
+                    "0.0.0-alpha01"
+                )
+        )
+
+        val expectedJson =
+            "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0-alpha01\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0-alpha01\"}],\"fields\":[]}]"
+        assertEquals(expectedJson, output.readText())
+    }
+
+    @Test
+    fun `API levels can be generated from just the current codebase using --current-version`() {
+        val output = temporaryFolder.newFile("api-info.json")
+
+        val api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(String?);
+                  }
+                }
+            """
+
+        check(
+            signatureSource = api,
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    output.path,
+                    ARG_CURRENT_VERSION,
                     "0.0.0-alpha01"
                 )
         )
@@ -748,11 +780,11 @@ class ApiGeneratorTest : DriverTest() {
                     "addedIn": "1.1.0",
                     "methods": [
                       {
-                        "method": "experimentalFunction()",
+                        "method": "Foo()",
                         "addedIn": "1.1.0"
                       },
                       {
-                        "method": "Foo()",
+                        "method": "experimentalFunction()",
                         "addedIn": "1.1.0"
                       },
                       {
@@ -772,5 +804,77 @@ class ApiGeneratorTest : DriverTest() {
     }
 
     private fun createTextFile(name: String, contents: String) =
-        signature(name, contents).createFile(temporaryFolder.newFolder())
+        signature(name, contents).createFile(temporaryFolder.root)
+
+    @Test
+    fun `Support major minor versions in generated api-versions xml file`() {
+        val pastVersions =
+            listOf(
+                createTextFile(
+                    "1.2",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                          }
+                        }
+                    """
+                ),
+                createTextFile(
+                    "1.3",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                          }
+                          public class Foo extends test.pkg.Bar {
+                          }
+                        }
+                    """
+                ),
+            )
+        val currentVersion =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Bar {
+                  }
+                  public class Foo extends test.pkg.Bar {
+                    field public int field;
+                  }
+                }
+            """
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            signatureSource = currentVersion,
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    apiVersionsXml.path,
+                    ARG_API_VERSION_SIGNATURE_FILES,
+                    pastVersions.joinToString(":") { it.absolutePath },
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor?}",
+                    ARG_CURRENT_VERSION,
+                    "2.0",
+                ),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="4" min="1.2">
+                    <class name="test.pkg.Bar" since="1.2">
+                        <extends name="java.lang.Object"/>
+                    </class>
+                    <class name="test.pkg.Foo" since="1.3">
+                        <extends name="test.pkg.Bar"/>
+                        <field name="field" since="2.0"/>
+                    </class>
+                </api>
+            """
+        )
+    }
 }
