@@ -29,13 +29,13 @@ import java.io.File
 class VersionedSignatureApi(
     private val signatureFileLoader: SignatureFileLoader,
     private val file: File,
-    override val apiVersion: ApiVersion,
-) : VersionedApi {
+    updater: ApiHistoryUpdater,
+) : VersionedApi(updater) {
     override fun updateApi(api: Api) {
         val codebase = signatureFileLoader.load(SignatureFile.fromFiles(file))
         val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-        addApisFromCodebase(api, apiVersion, codebaseFragment)
+        addApisFromCodebase(api, updater, codebaseFragment)
     }
 
-    override fun toString() = "VersionedSignatureApi(file=$file, version=$apiVersion)"
+    override fun toString() = "VersionedSignatureApi(file=$file, updater=$updater)"
 }
