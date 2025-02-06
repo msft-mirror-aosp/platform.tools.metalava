@@ -570,7 +570,7 @@ class ApiLevelsGenerationOptions(
             val versionedApis = buildList {
                 matchedPatternFiles.mapTo(this) {
                     val updater = ApiHistoryUpdater.forApiVersion(it.version)
-                    VersionedSignatureApi(signatureFileLoader, it.file, updater)
+                    VersionedSignatureApi(signatureFileLoader, listOf(it.file), updater)
                 }
                 // Add a VersionedSourceApi for the source code.
                 add(VersionedSourceApi(codebaseFragmentProvider, sourceVersion))
