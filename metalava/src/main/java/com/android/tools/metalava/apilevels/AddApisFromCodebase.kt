@@ -32,17 +32,16 @@ import com.android.tools.metalava.model.MethodItem
  */
 fun addApisFromCodebase(
     api: Api,
-    apiVersion: ApiVersion,
+    updater: ApiHistoryUpdater,
     codebaseFragment: CodebaseFragment,
 ) {
     val useInternalNames = api.useInternalNames
 
-    // Keep track of the versions added to this api.
-    api.update(apiVersion)
+    // Keep track of the versions added to this api, if necessary.
+    updater.update(api)
 
     val delegatedVisitor =
         object : DelegatedVisitor {
-            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
 
             var currentClass: ApiClass? = null
 
