@@ -41,14 +41,40 @@ import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
+import com.android.tools.metalava.reporter.Issues
 import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
 internal class TextTypeParser(
     val codebase: Codebase,
     val kotlinStyleNulls: Boolean = false,
-    private val errorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
+    delegateErrorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
 ) {
+    /**
+     * A count of the errors reported through [errorReporter].
+     *
+     * This is used to prevent caching [TypeItem]s that reported errors to make sure that every such
+     * case is reported.
+     */
+    private var errorCount = 0
+
+    /**
+     * Report a recoverable error.
+     *
+     * This keeps a count of how many were reported so that [CacheEntry.getTypeItem] can use that to
+     * determine if any errors were found while parsing a type ([errorCount] increased) and so
+     * prevent it from being cached which would suppress any more errors with that type string.
+     */
+    private val errorReporter: SignatureErrorReporter =
+        object : SignatureErrorReporter {
+            override fun report(
+                issue: Issues.Issue,
+                message: String,
+            ) {
+                delegateErrorReporter.report(issue, message)
+                errorCount += 1
+            }
+        }
 
     /**
      * The cache key, incorporates some information from [ContextNullability] and [kotlinStyleNulls]
@@ -786,8 +812,17 @@ internal class TextTypeParser(
                     null
                 }
 
-            // Parse the [type] to produce a [TypeItem].
+            // Remember the number of errors that have been reported so far.
+            val startErrorCount = errorCount
+
+            // Parse the [type] to produce a [TypeItem]. This may report errors.
             val typeItem = createTypeItem(typeParameterScope)
+
+            // If the error count is different then do not cache this.
+            if (errorCount != startErrorCount) {
+                return typeItem
+            }
+
             cacheSize++
 
             // Find the scope for caching if it was not found above.

@@ -485,15 +485,14 @@ class ApiFileTest : BaseTextCodebaseTest() {
         ) {
             assertThat(reportedIssues)
                 .isEqualTo(
-                    // TODO(b/394789173): It should also report issues with `int?` for `FIELD2` and
-                    //   `? blah1` for `Bar` but is not because the types have been cached. Caching
-                    //   should be disabled for types that fail so that all similar issues are
-                    //   reported.
                     """
                         MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
                         MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
                         MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
                         MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [SignatureFileError]
+                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
                     """
                         .trimIndent()
                 )
