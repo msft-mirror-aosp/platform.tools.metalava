@@ -198,6 +198,7 @@ Available Issues                             |  Category                |   Defa
   ServiceName                                |  api_lint                |   error
   SetterReturnsThis                          |  api_lint                |   warning
   ShowingMemberInHiddenClass                 |  api_lint                |   error
+  SignatureFileError                         |  unknown                 |   error
   SingleMethodInterface                      |  api_lint                |   error
   SingletonConstructor                       |  api_lint                |   error
   SingularCallback                           |  api_lint                |   error

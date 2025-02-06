@@ -38,38 +38,40 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test mixture of kotlinStyleNulls settings`() {
-        val exception =
-            assertThrows(ApiParseException::class.java) {
-                runSignatureTest(
-                    signature(
-                        "file1.txt",
-                        """
-                            // Signature format: 5.0
-                            // - kotlin-style-nulls=yes
-                            package test.pkg {
-                                public class Foo {
-                                    method void foo(Object);
-                                }
-                            }
-                        """
-                    ),
-                    signature(
-                        "file2.txt",
-                        """
-                            // Signature format: 5.0
-                            // - kotlin-style-nulls=no
-                            package test.pkg {
-                                public class Bar {
-                                    method void bar(Object);
-                                }
-                            }
-                        """
-                    )
-                ) {}
-            }
+        runSignatureTest(
+            signature(
+                "file1.txt",
+                """
+                    // Signature format: 5.0
+                    // - kotlin-style-nulls=yes
+                    package test.pkg {
+                        public class Foo {
+                            method void foo(Object);
+                        }
+                    }
+                """
+            ),
+            signature(
+                "file2.txt",
+                """
+                    // Signature format: 5.0
+                    // - kotlin-style-nulls=no
+                    package test.pkg {
+                        public class Bar {
+                            method void bar(Object);
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    "MAIN_SRC/file2.txt:1: error: Preceding file MAIN_SRC/file1.txt has different setting of kotlin-style-nulls which may cause issues [SignatureFileError]"
+                )
 
-        assertThat(exception.message)
-            .contains("Cannot mix signature files with different settings of kotlinStyleNulls")
+            codebase.assertClass("test.pkg.Foo")
+            codebase.assertClass("test.pkg.Bar")
+        }
     }
 
     @Test

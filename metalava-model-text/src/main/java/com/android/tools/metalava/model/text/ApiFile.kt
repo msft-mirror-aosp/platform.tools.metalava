@@ -64,6 +64,7 @@ import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -200,6 +201,26 @@ private constructor(
 ) {
 
     private val codebase = assembler.codebase
+
+    /**
+     * The [FileLocationTracker] for the current file being parsed.
+     *
+     * Set by [parseApiSingleFile].
+     */
+    private lateinit var fileLocationTracker: FileLocationTracker
+
+    /**
+     * Report recoverable errors encountered while parsing.
+     *
+     * Retrieves the location of the error from [fileLocationTracker].
+     */
+    private val errorReporter =
+        object : SignatureErrorReporter {
+            override fun report(issue: Issues.Issue, message: String) {
+                val location = fileLocationTracker.fileLocation()
+                codebase.reporter.report(issue, null, message, location)
+            }
+        }
 
     /**
      * Provides support for parsing and caching [TypeItem]s.
@@ -423,21 +444,6 @@ private constructor(
         apiText: String,
         apiVariant: ApiVariant,
     ) {
-        // Parse the header of the signature file to determine the format. If the signature file is
-        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
-        format =
-            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
-                ?: FileFormat.V2
-
-        // Disallow a mixture of kotlinStyleNulls settings.
-        if (kotlinStyleNulls == null) {
-            kotlinStyleNulls = format.kotlinStyleNulls
-        } else if (kotlinStyleNulls != format.kotlinStyleNulls) {
-            throw ApiParseException(
-                "Cannot mix signature files with different settings of kotlinStyleNulls"
-            )
-        }
-
         if (appending) {
             // When we're appending, and the content is empty, nothing to do.
             if (apiText.isBlank()) {
@@ -445,10 +451,37 @@ private constructor(
             }
         }
 
+        // Parse the header of the signature file to determine the format. If the signature file is
+        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
+        format =
+            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
+                ?: FileFormat.V2
+
         // Remember the API variant of the file being parsed.
         this.apiVariant = apiVariant
 
         val tokenizer = Tokenizer(path, apiText.toCharArray())
+
+        // Get the preceding tracker, if any.
+        val precedingTracker =
+            if (::fileLocationTracker.isInitialized) {
+                fileLocationTracker
+            } else {
+                null
+            }
+
+        // Set the file location tracker to provide location information about the current file.
+        fileLocationTracker = tokenizer
+
+        // Disallow a mixture of kotlinStyleNulls settings.
+        if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
+            val precedingFile = precedingTracker!!.fileLocation().path
+            errorReporter.report(
+                "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
+            )
+        }
+        kotlinStyleNulls = format.kotlinStyleNulls
+
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
