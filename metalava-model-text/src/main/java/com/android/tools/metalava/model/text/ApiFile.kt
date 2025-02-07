@@ -1512,6 +1512,9 @@ private constructor(
                 name = name,
                 containingClass = cl,
                 type = type,
+                // TODO(b/377733789): parse receiver and type parameter list, when they exist
+                receiver = null,
+                typeParameterList = TypeParameterList.NONE,
             )
         property.markForMainApiSurface()
         cl.addProperty(property)

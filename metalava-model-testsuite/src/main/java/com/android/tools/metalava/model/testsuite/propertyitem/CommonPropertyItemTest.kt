@@ -16,11 +16,14 @@
 
 package com.android.tools.metalava.model.testsuite.propertyitem
 
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -681,6 +684,12 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(valueClassExtension.setter).isNotNull()
             assertThat(valueClassExtension.backingField).isNull()
             assertThat(valueClassExtension.constructorParameter).isNull()
+
+            // the extension property receiver is a value class type, which gets mapped to its
+            // value type
+            valueClassExtension.receiver.assertPrimitiveTypeItem {
+                assertEquals(kind, PrimitiveTypeItem.Primitive.INT)
+            }
         }
     }
 
@@ -813,6 +822,52 @@ class CommonPropertyItemTest : BaseModelTest() {
             for (property in nonAbstractPropertiesFromAbstractClass) {
                 assertThat(property.modifiers.isAbstract()).isFalse()
                 assertThat(property.modifiers.isDefault()).isFalse()
+            }
+        }
+    }
+
+    @Test
+    fun `Test property receivers`() {
+        // TODO (b/377733789): add a signature case once it is possible to parse receivers
+        runCodebaseTest(
+            kotlin(
+                """
+                    @file:JvmName("Foo")
+                    package test.pkg
+                    val noReceiverProperty = 0
+                    // Extension properties can't have backing fields, so they need defined getters
+                    val Int.intProperty
+                        get() = 0
+                    val String.stringProperty
+                        get() = 0
+                    val Array<String>.stringArrayProperty
+                        get() = 0
+                    val List<String>.stringListProperty
+                        get() = 0
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertNull(fooClass.assertProperty("noReceiverProperty").receiver)
+
+            fooClass.assertProperty("intProperty").receiver.assertPrimitiveTypeItem {
+                assertEquals(kind, PrimitiveTypeItem.Primitive.INT)
+            }
+
+            fooClass.assertProperty("stringProperty").receiver.assertClassTypeItem {
+                assertTrue(isString())
+            }
+
+            fooClass.assertProperty("stringArrayProperty").receiver.assertArrayTypeItem {
+                componentType.assertClassTypeItem { assertTrue(isString()) }
+            }
+
+            fooClass.assertProperty("stringListProperty").receiver.assertClassTypeItem {
+                assertEquals(qualifiedName, "java.util.List")
+                arguments.single().assertWildcardItem {
+                    extendsBound.assertClassTypeItem { assertTrue(isString()) }
+                }
             }
         }
     }

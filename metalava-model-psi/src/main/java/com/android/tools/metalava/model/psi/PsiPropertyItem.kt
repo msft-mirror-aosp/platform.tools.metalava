@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtParameter
@@ -45,7 +46,9 @@ private constructor(
     getter: MethodItem?,
     setter: MethodItem?,
     constructorParameter: ParameterItem?,
-    backingField: FieldItem?
+    backingField: FieldItem?,
+    receiver: TypeItem?,
+    typeParameterList: TypeParameterList,
 ) :
     DefaultPropertyItem(
         codebase = codebase,
@@ -61,6 +64,8 @@ private constructor(
         setter = setter,
         constructorParameter = constructorParameter,
         backingField = backingField,
+        receiver = receiver,
+        typeParameterList = typeParameterList,
     ),
     PropertyItem,
     PsiItem {
@@ -136,7 +141,10 @@ private constructor(
                     getter = getter,
                     setter = setter,
                     constructorParameter = constructorParameter,
-                    backingField = backingField
+                    backingField = backingField,
+                    receiver = receiverType,
+                    // TODO(b/377733789): compute type parameter list
+                    typeParameterList = TypeParameterList.NONE,
                 )
             getter?.property = property
             setter?.property = property
