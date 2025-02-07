@@ -617,7 +617,7 @@ $signatureToJdiffHelp
             api =
                 """
                     package test.pkg {
-                      public class Test extends Number implements Comparable<Test> {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
                         field public static final int FIELD = 1;
                       }
                     }
@@ -636,7 +636,7 @@ $signatureToJdiffHelp
                      deprecated="not deprecated"
                      visibility="public"
                     >
-                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    <implements name="java.lang.Comparable&lt;test.pkg.Test>">
                     </implements>
                     <field name="FIELD"
                      type="int"
@@ -663,7 +663,7 @@ $signatureToJdiffHelp
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      public class Test extends Number implements Comparable<Test> {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
                         field public static final int FIELD = 1;
                       }
                     }
@@ -673,7 +673,7 @@ $signatureToJdiffHelp
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      public class Test extends Number implements Comparable<Test> {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
                       }
                     }
                 """
@@ -691,7 +691,7 @@ $signatureToJdiffHelp
                      deprecated="not deprecated"
                      visibility="public"
                     >
-                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    <implements name="java.lang.Comparable&lt;test.pkg.Test>">
                     </implements>
                     <field name="FIELD"
                      type="int"
