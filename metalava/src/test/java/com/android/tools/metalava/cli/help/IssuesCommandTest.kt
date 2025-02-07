@@ -215,6 +215,7 @@ Available Issues                             |  Category                |   Defa
   UnhiddenSystemApi                          |  api_lint                |   error
   UniqueKotlinOperator                       |  api_lint                |   error
   UnmatchedMergeAnnotation                   |  api_lint                |   error
+  UnqualifiedTypeError                       |  unknown                 |   hidden
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   error
   UseIcu                                     |  api_lint                |   warning

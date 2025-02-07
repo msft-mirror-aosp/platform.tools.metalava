@@ -32,6 +32,8 @@ object Issues {
 
     // Signature file parsing
     val SIGNATURE_FILE_ERROR by Issue(Severity.ERROR)
+    // TODO(b/394789173): Hide until AndroidX has disabled it.
+    val UNQUALIFIED_TYPE_ERROR by Issue(Severity.HIDDEN)
 
     // Compatibility issues
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.COMPATIBILITY)

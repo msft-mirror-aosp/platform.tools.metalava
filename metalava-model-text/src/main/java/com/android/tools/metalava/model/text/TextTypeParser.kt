@@ -51,6 +51,13 @@ internal class TextTypeParser(
     delegateErrorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
 ) {
     /**
+     * Tracks whether types that were unqualified and so implicitly treated as being part of the
+     * 'java.lang` package are actually part of that package. If they are not then an error is
+     * reported and it is not prefixed with `java.lang`.
+     */
+    private val javaLangPackage: JavaLangPackage = JavaLangPackage.DEFAULT
+
+    /**
      * A count of the errors reported through [errorReporter].
      *
      * This is used to prevent caching [TypeItem]s that reported errors to make sure that every such
@@ -429,8 +436,17 @@ internal class TextTypeParser(
                 // This is a nested type, add the prefix of the outer name
                 "${outerClassType.qualifiedName}.$name"
             } else if (!name.contains('.')) {
-                // Reverse the effect of [TypeItem.stripJavaLangPrefix].
-                "java.lang.$name"
+                val javaLangName = "java.lang.$name"
+                if (javaLangPackage.containsQualified(javaLangName)) {
+                    // Reverse the effect of [TypeItem.stripJavaLangPrefix].
+                    javaLangName
+                } else {
+                    errorReporter.report(
+                        Issues.UNQUALIFIED_TYPE_ERROR,
+                        "Unqualified type '$name' is not in 'java.lang' and is not a type parameter in scope"
+                    )
+                    name
+                }
             } else {
                 name
             }
