@@ -871,4 +871,158 @@ class CommonPropertyItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test property type parameters, receiver types`() {
+        // TODO (b/377733789): add a signature case once it is possible to parse type parameters
+        runCodebaseTest(
+            kotlin(
+                """
+                    @file:JvmName("Foo")
+                    package test.pkg
+                    val String.noTypeParameterProperty = 0
+                    // Property type parameters must be used in the receiver type
+                    // Extension properties can't have backing fields, so they need defined getters
+                    val <T> T.oneTypeParameterReceiver
+                        get() = 0
+                    val <T> List<T>.oneTypeParameterListReceiver
+                        get() = 0
+                    val <T : String> T.oneTypeParameterWithBoundsReceiver
+                        get() = 0
+                    val <T1, T2> Map<T1, T2>.twoTypeParameterMapReceiver
+                        get() = 0
+                    val <T1 : String, T2 : List<T1>> Map<T1, T2>.twoTypeParameterWithBoundsMapReceiver
+                        get() = 0
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noTypeParameterProperty = fooClass.assertProperty("noTypeParameterProperty")
+            assertThat(noTypeParameterProperty.typeParameterList).isEmpty()
+
+            // val <T> T.oneTypeParameterReceiver
+            val oneTypeParameterReceiver = fooClass.assertProperty("oneTypeParameterReceiver")
+            val oneTypeParameterReceiverT = oneTypeParameterReceiver.typeParameterList.single()
+            assertThat(oneTypeParameterReceiverT.name()).isEqualTo("T")
+            assertThat(oneTypeParameterReceiverT.typeBounds()).isEmpty()
+            assertThat(oneTypeParameterReceiverT.isReified()).isFalse()
+            oneTypeParameterReceiver.receiver.assertVariableTypeItem {
+                assertEquals(asTypeParameter, oneTypeParameterReceiverT)
+            }
+
+            // val <T> List<T>.oneTypeParameterListReceiver
+            val oneTypeParameterListReceiver =
+                fooClass.assertProperty("oneTypeParameterListReceiver")
+            val oneTypeParameterListReceiverT =
+                oneTypeParameterListReceiver.typeParameterList.single()
+            assertThat(oneTypeParameterListReceiverT.name()).isEqualTo("T")
+            assertThat(oneTypeParameterListReceiverT.typeBounds()).isEmpty()
+            assertThat(oneTypeParameterListReceiverT.isReified()).isFalse()
+            oneTypeParameterListReceiver.receiver.assertClassTypeItem {
+                assertEquals(qualifiedName, "java.util.List")
+                arguments.single().assertWildcardItem {
+                    extendsBound.assertVariableTypeItem {
+                        assertEquals(asTypeParameter, oneTypeParameterListReceiverT)
+                    }
+                }
+            }
+
+            // val <T : String> T.oneTypeParameterWithBoundsReceiver
+            val oneTypeParameterWithBoundsReceiver =
+                fooClass.assertProperty("oneTypeParameterWithBoundsReceiver")
+            val oneTypeParameterWithBoundsReceiverT =
+                oneTypeParameterWithBoundsReceiver.typeParameterList.single()
+            assertThat(oneTypeParameterWithBoundsReceiverT.name()).isEqualTo("T")
+            assertThat(oneTypeParameterWithBoundsReceiverT.typeBounds().single().isString())
+                .isTrue()
+            assertThat(oneTypeParameterWithBoundsReceiverT.isReified()).isFalse()
+            oneTypeParameterWithBoundsReceiver.receiver.assertVariableTypeItem {
+                assertEquals(asTypeParameter, oneTypeParameterReceiverT)
+            }
+
+            // val <T1, T2> Map<T1, T2>.twoTypeParameterMapReceiver
+            val twoTypeParameterMapReceiver = fooClass.assertProperty("twoTypeParameterMapReceiver")
+            val twoTypeParameterMapReceiverT1 = twoTypeParameterMapReceiver.typeParameterList[0]
+            assertThat(twoTypeParameterMapReceiverT1.name()).isEqualTo("T1")
+            assertThat(twoTypeParameterMapReceiverT1.typeBounds()).isEmpty()
+            assertThat(twoTypeParameterMapReceiverT1.isReified()).isFalse()
+            val twoTypeParameterMapReceiverT2 = twoTypeParameterMapReceiver.typeParameterList[1]
+            assertThat(twoTypeParameterMapReceiverT2.name()).isEqualTo("T2")
+            assertThat(twoTypeParameterMapReceiverT2.typeBounds()).isEmpty()
+            assertThat(twoTypeParameterMapReceiverT2.isReified()).isFalse()
+            twoTypeParameterMapReceiver.receiver.assertClassTypeItem {
+                assertEquals(qualifiedName, "java.util.Map")
+                assertEquals(arguments.size, 2)
+                arguments[0].assertVariableTypeItem {
+                    assertEquals(asTypeParameter, twoTypeParameterMapReceiverT1)
+                }
+                arguments[1].assertWildcardItem {
+                    extendsBound.assertVariableTypeItem {
+                        assertEquals(asTypeParameter, twoTypeParameterMapReceiverT2)
+                    }
+                }
+            }
+
+            // val <T1 : String, T2 : List<T1>> Map<T1, T2>.twoTypeParameterWithBoundsMapReceiver
+            val twoTypeParameterWithBoundsMapReceiver =
+                fooClass.assertProperty("twoTypeParameterWithBoundsMapReceiver")
+            val twoTypeParameterWithBoundsMapReceiverT1 =
+                twoTypeParameterWithBoundsMapReceiver.typeParameterList[0]
+            assertThat(twoTypeParameterWithBoundsMapReceiverT1.name()).isEqualTo("T1")
+            assertThat(twoTypeParameterWithBoundsMapReceiverT1.typeBounds().single().isString())
+                .isTrue()
+            assertThat(twoTypeParameterWithBoundsMapReceiverT1.isReified()).isFalse()
+            val twoTypeParameterWithBoundsMapReceiverT2 =
+                twoTypeParameterWithBoundsMapReceiver.typeParameterList[1]
+            assertThat(twoTypeParameterWithBoundsMapReceiverT2.name()).isEqualTo("T2")
+            twoTypeParameterWithBoundsMapReceiverT2.typeBounds().single().assertClassTypeItem {
+                assertEquals(qualifiedName, "java.util.List")
+                arguments.single().assertWildcardItem {
+                    extendsBound.assertVariableTypeItem {
+                        assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT1)
+                    }
+                }
+            }
+            assertThat(twoTypeParameterWithBoundsMapReceiverT2.isReified()).isFalse()
+            twoTypeParameterWithBoundsMapReceiver.receiver.assertClassTypeItem {
+                assertEquals(qualifiedName, "java.util.Map")
+                assertEquals(arguments.size, 2)
+                arguments[0].assertVariableTypeItem {
+                    assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT1)
+                }
+                arguments[1].assertWildcardItem {
+                    extendsBound.assertVariableTypeItem {
+                        assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT2)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Test property type parameters, property type`() {
+        // TODO (b/377733789): add a signature case once it is possible to parse type parameters
+        runCodebaseTest(
+            kotlin(
+                """
+                    @file:JvmName("Foo")
+                    package test.pkg
+                    val <T> T.typeParameterExtension
+                        get() = this
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            // Verify that the type parameter list is also used for the property type
+            val typeParameterExtension = fooClass.assertProperty("typeParameterExtension")
+            val typeParameterExtensionT = typeParameterExtension.typeParameterList.single()
+            assertThat(typeParameterExtensionT.name()).isEqualTo("T")
+            assertThat(typeParameterExtensionT.typeBounds()).isEmpty()
+            assertThat(typeParameterExtensionT.isReified()).isFalse()
+            typeParameterExtension.type().assertVariableTypeItem {
+                assertEquals(asTypeParameter, typeParameterExtensionT)
+            }
+        }
+    }
 }

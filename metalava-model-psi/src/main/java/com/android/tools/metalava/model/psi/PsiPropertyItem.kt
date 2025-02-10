@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.KtTypeParameterListOwner
 
 internal class PsiPropertyItem
 private constructor(
@@ -101,12 +102,21 @@ private constructor(
             codebase: PsiBasedCodebase,
             ktDeclaration: KtDeclaration,
             containingClass: ClassItem,
-            typeItemFactory: PsiTypeItemFactory,
+            containingTypeItemFactory: PsiTypeItemFactory,
             accessors: List<PsiMethodItem>,
             constructorParameter: PsiParameterItem? = null,
             backingField: PsiFieldItem? = null,
         ): PsiPropertyItem? {
             val name = ktDeclaration.name ?: return null
+
+            val (typeParameterList, typeItemFactory) =
+                PsiTypeParameterList.create(
+                    codebase,
+                    containingTypeItemFactory,
+                    "property $name",
+                    ktDeclaration as? KtTypeParameterListOwner
+                )
+
             // Compute the type of the receiver, if there is one. This will be used to find the
             // right accessors for the property.
             val receiverType =
@@ -143,8 +153,7 @@ private constructor(
                     constructorParameter = constructorParameter,
                     backingField = backingField,
                     receiver = receiverType,
-                    // TODO(b/377733789): compute type parameter list
-                    typeParameterList = TypeParameterList.NONE,
+                    typeParameterList = typeParameterList,
                 )
             getter?.property = property
             setter?.property = property
