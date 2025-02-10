@@ -80,6 +80,19 @@ class AndroidJarsToSignaturesCommand :
             .split(",")
             .map { list -> list?.map { ApiVersion.fromString(it) }?.toSet() }
 
+    private val apiSurfaces by
+        option(
+                help =
+                    """
+                        Comma separated list of api surfaces to convert. If unspecified then only
+                        `public` will be converted.
+                    """
+                        .trimIndent(),
+                metavar = "<api-surface-list>",
+            )
+            .split(",")
+            .map { list -> list?.toSet() ?: setOf("public") }
+
     override fun run() {
         // Make sure that none of the code called by this command accesses the global `options`
         // property.
@@ -97,6 +110,7 @@ class AndroidJarsToSignaturesCommand :
                         progressTracker,
                         signatureFormat.fileFormat,
                         apiVersions,
+                        apiSurfaces,
                     )
                     .convertJars(jarCodebaseLoader, androidRootDir)
             }

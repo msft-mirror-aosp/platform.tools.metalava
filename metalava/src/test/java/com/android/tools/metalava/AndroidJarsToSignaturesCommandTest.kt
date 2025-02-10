@@ -43,6 +43,8 @@ Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir
 Options:
   --api-versions <api-version-list>          Comma separated list of api versions to convert. If unspecified then all
                                              versions will be converted.
+  --api-surfaces <api-surface-list>          Comma separated list of api surfaces to convert. If unspecified then only
+                                             `public` will be converted.
   -h, -?, --help                             Show this message and exit
 
 $SIGNATURE_FORMAT_OPTIONS_HELP

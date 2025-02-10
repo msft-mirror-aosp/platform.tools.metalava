@@ -59,6 +59,7 @@ class ConvertJarsToSignatureFiles(
     private val progressTracker: ProgressTracker,
     private val fileFormat: FileFormat,
     private val apiVersions: Set<ApiVersion>?,
+    private val apiSurfaceNames: Set<String>,
 ) {
     fun convertJars(jarCodebaseLoader: JarCodebaseLoader, root: File) {
         val reporter = BasicReporter(stderr)
@@ -70,7 +71,16 @@ class ConvertJarsToSignatureFiles(
                 )
             )
 
-        val apiSurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
+        val apiSurfaces =
+            ApiSurfaces.build {
+                for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
+                    // The main surface is irrelevant at the moment because this always generates
+                    // the whole API surface. However, a main surface is required so this just uses
+                    // the first one as the main surface for now.
+                    val isMain = index == 0
+                    createSurface(apiSurfaceName, isMain = isMain)
+                }
+            }
 
         val jars =
             patternNode.scan(
