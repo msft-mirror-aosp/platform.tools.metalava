@@ -610,7 +610,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                  public class Foo<T extends java.util.Map<java.lang.Integer, java.lang.String>> extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
                     method public java.lang.String foo(java.lang.String...) throws java.lang.Exception;
                   }
                 }
@@ -630,7 +630,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                  public class Foo<T extends java.util.Map<java.lang.Integer, java.lang.String>> extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
                     method public String foo(java.lang.String...) throws java.lang.Exception;
                   }
                 }
@@ -650,7 +650,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public abstract class Foo extends java.util.AbstractList<String> implements Comparable<String> kotlin.collections.List<String> {
+                  public abstract class Foo<T extends java.util.Map<Integer, String>> extends java.util.AbstractList<String> implements Comparable<String> kotlin.collections.List<String> {
                     method public String foo(String...) throws Exception;
                   }
                 }

@@ -245,8 +245,21 @@ class SignatureWriter(
         orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
+    private val typeParameterItemStringConfiguration =
+        TypeStringConfiguration(
+            spaceBetweenParameters = true,
+            stripJavaLangPrefix =
+                // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
+                // behavior is not to strip `java.lang.` prefix in bounds.
+                when (fileFormat.stripJavaLangPrefix) {
+                    StripJavaLangPrefix.ALWAYS -> StripJavaLangPrefix.ALWAYS
+                    else -> StripJavaLangPrefix.NEVER
+                },
+        )
+
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        val typeListString = typeList.toSource()
+        val typeListString = typeList.toSource(typeParameterItemStringConfiguration)
         if (typeListString.isNotEmpty()) {
             write(typeListString)
             if (addSpace) {
