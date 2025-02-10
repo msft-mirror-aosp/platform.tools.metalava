@@ -246,7 +246,7 @@ class SignatureWriter(
     }
 
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        val typeListString = typeList.toString()
+        val typeListString = typeList.toSource()
         if (typeListString.isNotEmpty()) {
             write(typeListString)
             if (addSpace) {
