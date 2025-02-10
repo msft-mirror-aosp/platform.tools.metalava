@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
@@ -57,6 +58,7 @@ class ConvertJarsToSignatureFiles(
     private val stdout: PrintWriter,
     private val progressTracker: ProgressTracker,
     private val fileFormat: FileFormat,
+    private val apiVersions: Set<ApiVersion>?,
 ) {
     fun convertJars(jarCodebaseLoader: JarCodebaseLoader, root: File) {
         val reporter = BasicReporter(stderr)
@@ -74,7 +76,7 @@ class ConvertJarsToSignatureFiles(
             patternNode.scan(
                 PatternNode.ScanConfig(
                     dir = root,
-                    apiVersionFilter = null,
+                    apiVersionFilter = apiVersions?.let { it::contains },
                     apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
                 )
             )
