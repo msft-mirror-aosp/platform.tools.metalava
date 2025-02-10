@@ -74,7 +74,7 @@ class ConvertJarsToSignatureFiles(
             patternNode.scan(
                 PatternNode.ScanConfig(
                     dir = root,
-                    apiVersionRange = null,
+                    apiVersionFilter = null,
                     apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
                 )
             )
