@@ -71,6 +71,6 @@ interface TypeParameterItem {
     companion object {
         /** [TypeStringConfiguration] for use by [toSource]. */
         internal val SOURCE_TYPE_STRING_CONFIGURATION =
-            TypeStringConfiguration(spaceBetweenParameters = true)
+            TypeStringConfiguration(spaceBetweenTypeArguments = true)
     }
 }

@@ -248,7 +248,7 @@ class SignatureWriter(
     /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
     private val typeParameterItemStringConfiguration =
         TypeStringConfiguration(
-            spaceBetweenParameters = true,
+            spaceBetweenTypeArguments = true,
             stripJavaLangPrefix =
                 // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
                 // behavior is not to strip `java.lang.` prefix in bounds.
