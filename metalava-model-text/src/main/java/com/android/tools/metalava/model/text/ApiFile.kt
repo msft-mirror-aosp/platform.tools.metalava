@@ -1466,7 +1466,12 @@ private constructor(
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
+
+        // Get a TypeParameterList and accompanying TypeParameterScope
+        val (typeParameterList, typeItemFactory) =
+            parseTypeParameterList(tokenizer, classTypeItemFactory)
         token = tokenizer.current
+
         tokenizer.assertIdent(token)
 
         val typeString: String
@@ -1486,7 +1491,7 @@ private constructor(
             name = token
             token = tokenizer.requireToken()
         }
-        val type = classTypeItemFactory.getGeneralType(typeString)
+        val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
 
         if (";" != token) {
@@ -1499,9 +1504,9 @@ private constructor(
                 name = name,
                 containingClass = cl,
                 type = type,
-                // TODO(b/377733789): parse receiver and type parameter list, when they exist
+                // TODO(b/377733789): parse receiver, when it exists
                 receiver = null,
-                typeParameterList = TypeParameterList.NONE,
+                typeParameterList = typeParameterList,
             )
         property.markForMainApiSurface()
         cl.addProperty(property)

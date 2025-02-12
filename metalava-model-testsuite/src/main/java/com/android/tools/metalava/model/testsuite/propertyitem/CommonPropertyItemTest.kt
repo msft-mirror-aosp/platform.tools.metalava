@@ -1002,7 +1002,6 @@ class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
     fun `Test property type parameters, property type`() {
-        // TODO (b/377733789): add a signature case once it is possible to parse type parameters
         runCodebaseTest(
             kotlin(
                 """
@@ -1011,7 +1010,30 @@ class CommonPropertyItemTest : BaseModelTest() {
                     val <T> T.typeParameterExtension
                         get() = this
                 """
-            )
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo {
+                        method public static <T> T getTypeParameterExtension(T);
+                        property public static <T> T typeParameterExtension;
+                      }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        method public static <T> getTypeParameterExtension(receiver: T): T;
+                        property public static <T> typeParameterExtension: T;
+                      }
+                    }
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             // Verify that the type parameter list is also used for the property type
