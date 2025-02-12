@@ -1472,24 +1472,19 @@ private constructor(
             parseTypeParameterList(tokenizer, classTypeItemFactory)
         token = tokenizer.current
 
-        tokenizer.assertIdent(token)
-
         val typeString: String
-        val name: String
+        val receiverNamePair: Pair<TypeItem?, String>
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
-            name = parseNameWithColon(token, tokenizer)
-            token = tokenizer.requireToken()
-            tokenizer.assertIdent(token)
+            receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
+            token = tokenizer.current
             typeString = scanForTypeString(tokenizer, token)
             token = tokenizer.current
         } else {
             // Java style: parse the type, then the name.
             typeString = scanForTypeString(tokenizer, token)
+            receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
             token = tokenizer.current
-            tokenizer.assertIdent(token)
-            name = token
-            token = tokenizer.requireToken()
         }
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
@@ -1501,15 +1496,51 @@ private constructor(
             itemFactory.createPropertyItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                name = name,
+                name = receiverNamePair.second,
                 containingClass = cl,
                 type = type,
-                // TODO(b/377733789): parse receiver, when it exists
-                receiver = null,
+                receiver = receiverNamePair.first,
                 typeParameterList = typeParameterList,
             )
         property.markForMainApiSurface()
         cl.addProperty(property)
+    }
+
+    /**
+     * Starting from the current token of [tokenizer], parses the optional receiver type and then
+     * the name of a property.
+     *
+     * After the method returns, the caller should continue processing at the new current token of
+     * [tokenizer], which will be the token after
+     */
+    private fun parsePropertyReceiverAndName(
+        tokenizer: Tokenizer,
+        typeItemFactory: TextTypeItemFactory
+    ): Pair<TypeItem?, String> {
+        // If there's no receiver, scanning for the type string should just return the name.
+        // If there is a receiver, because of how the tokens are broken up, it should return
+        // "receiver.name", which can then be split on the last "." to the receiver and name.
+        val receiverAndName = scanForTypeString(tokenizer, tokenizer.current)
+        val namePossiblyWithColon: String
+        val receiverTypeString: String?
+        if (receiverAndName.contains(".")) {
+            namePossiblyWithColon = receiverAndName.substringAfterLast(".")
+            receiverTypeString = receiverAndName.substringBeforeLast(".")
+        } else {
+            namePossiblyWithColon = receiverAndName
+            receiverTypeString = null
+        }
+
+        val name =
+            if (format.kotlinNameTypeOrder) {
+                parseNameWithColon(namePossiblyWithColon, tokenizer)
+            } else {
+                tokenizer.assertIdent(namePossiblyWithColon)
+                namePossiblyWithColon
+            }
+        val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
+
+        return receiverType to name
     }
 
     /**
