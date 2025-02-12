@@ -1046,17 +1046,11 @@ private constructor(
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
-        token = tokenizer.current
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) =
-            if ("<" == token) {
-                parseTypeParameterList(tokenizer, classTypeItemFactory).also {
-                    token = tokenizer.requireToken()
-                }
-            } else {
-                TypeParameterListAndFactory(TypeParameterList.NONE, classTypeItemFactory)
-            }
+            parseTypeParameterList(tokenizer, classTypeItemFactory)
+        token = tokenizer.current
 
         tokenizer.assertIdent(token)
         val name: String =
@@ -1112,18 +1106,11 @@ private constructor(
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
-        token = tokenizer.current
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
-            if ("<" == token) {
-                parseTypeParameterList(tokenizer, classTypeItemFactory).also {
-                    token = tokenizer.requireToken()
-                }
-            } else {
-                TypeParameterListAndFactory(TypeParameterList.NONE, classTypeItemFactory)
-            }
-
+            parseTypeParameterList(tokenizer, classTypeItemFactory)
+        token = tokenizer.current
         tokenizer.assertIdent(token)
 
         val returnTypeString: String
@@ -1520,11 +1507,26 @@ private constructor(
         cl.addProperty(property)
     }
 
+    /**
+     * Parses a type parameter list enclosed in "<>", if one exists.
+     *
+     * Starts processing from the current token of [tokenizer]. If that token is not "<", returns an
+     * empty type parameter list.
+     *
+     * After the method returns, the caller should continue processing at the new current token of
+     * [tokenizer], which will be the token after the type parameter list, if it exists, or the same
+     * as the original current token, if there was no type parameter list.
+     */
     private fun parseTypeParameterList(
         tokenizer: Tokenizer,
         enclosingTypeItemFactory: TextTypeItemFactory,
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        var token: String
+        var token: String = tokenizer.current
+        // No type parameters to parse. The current token is unchanged
+        if ("<" != token) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+        }
+
         val start = tokenizer.offset() - 1
         var balance = 1
         while (balance > 0) {
@@ -1536,6 +1538,9 @@ private constructor(
             }
         }
         val typeParameterListString = tokenizer.getStringFromOffset(start)
+        // Set the tokenizer to the next token, so that the caller should continue processing at
+        // tokenizer.current (in alignment with the no type parameter case).
+        tokenizer.requireToken()
         return if (typeParameterListString.isEmpty()) {
             TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         } else {
