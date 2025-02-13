@@ -480,11 +480,10 @@ class PatternNodeTest : TemporaryFolderOwner {
             node.scan(
                 PatternNode.ScanConfig(rootDir),
             )
-        // TODO(b/394597358): Extensions should come after the primary API.
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=extensions/1/module.txt.txt, version=1, extension=true, module='module.txt')
                 MatchedPatternFile(file=1.7/module.txt.txt, version=1.7, module='module.txt')
+                MatchedPatternFile(file=extensions/1/module.txt.txt, version=1, extension=true, module='module.txt')
             """
         )
     }
