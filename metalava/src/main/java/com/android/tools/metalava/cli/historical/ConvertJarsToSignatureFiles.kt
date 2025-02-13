@@ -24,7 +24,6 @@ import com.android.tools.metalava.NullnessMigration
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.apilevels.ApiVersion
-import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.createFilteringVisitorForSignatures
@@ -74,13 +73,6 @@ class ConvertJarsToSignatureFiles(
 ) {
     private val reporter = BasicReporter(stderr)
 
-    private val patternNode =
-        PatternNode.parsePatterns(
-            listOf(
-                "prebuilts/sdk/{version:major.minor?}/{surface}/android.jar",
-            )
-        )
-
     private val apiSurfaces =
         ApiSurfaces.build {
             for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
@@ -93,29 +85,40 @@ class ConvertJarsToSignatureFiles(
         }
 
     fun convertJars() {
-        val jars =
-            patternNode.scan(
-                PatternNode.ScanConfig(
-                    dir = root,
-                    apiVersionFilter = apiVersions?.let { it::contains },
-                    apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
-                )
+        val scanConfig =
+            PatternNode.ScanConfig(
+                dir = root,
+                apiVersionFilter = apiVersions?.let { it::contains },
+                apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
             )
 
-        for (matchedPatternFile in jars) {
-            convertJar(matchedPatternFile)
+        val historicalApis =
+            HistoricalApiVersionInfo.scan(
+                reporter,
+                jarFilePattern = "prebuilts/sdk/{version:major.minor?}/{surface}/android.jar",
+                signatureFilePattern =
+                    "prebuilts/sdk/{version:major.minor?}/{surface}/api/android.txt",
+                scanConfig,
+            )
+
+        for (historicalApi in historicalApis) {
+            for (surfaceInfo in historicalApi.infoBySurface.values) {
+                convertJar(historicalApi.version, surfaceInfo)
+            }
         }
     }
 
-    /** Convert a single jar in [matchedPatternFile] into its corresponding signature file. */
-    private fun convertJar(matchedPatternFile: MatchedPatternFile) {
-        val relativeFile = matchedPatternFile.file
-        val apiJar = root.resolve(relativeFile)
-        val relativeSignatureFile =
-            relativeFile.parentFile.resolve("api/${apiJar.nameWithoutExtension}.txt")
+    /**
+     * Convert a single jar for [version] in [SurfaceInfo.jarFile] into its corresponding signature
+     * file, i.e. [SurfaceInfo.signatureFile].
+     */
+    private fun convertJar(version: ApiVersion, surfaceInfo: SurfaceInfo) {
+        val relativeJarFile = surfaceInfo.jarFile
+        val jarFile = root.resolve(relativeJarFile)
+        val relativeSignatureFile = surfaceInfo.signatureFile
         val signatureFile = root.resolve(relativeSignatureFile)
 
-        progressTracker.progress("Writing signature files $relativeSignatureFile for $apiJar")
+        progressTracker.progress("Writing signature files $relativeSignatureFile for $jarFile")
 
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
@@ -126,9 +129,9 @@ class ConvertJarsToSignatureFiles(
             )
         val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
-        val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
+        val jarCodebase = jarCodebaseLoader.loadFromJarFile(jarFile)
 
-        if (matchedPatternFile.version.major >= 28) {
+        if (version.major >= 28) {
             // As of API 28 we'll put nullness annotations into the jar but some of them may be
             // @RecentlyNullable/@RecentlyNonNull. Translate these back into normal
             // @Nullable/@NonNull
@@ -166,7 +169,7 @@ class ConvertJarsToSignatureFiles(
 
         // Read deprecated attributes. Seem to be missing from code model; try to read via ASM
         // instead since it must clearly be there.
-        markDeprecated(jarCodebase, apiJar, apiJar.path)
+        markDeprecated(jarCodebase, jarFile, jarFile.path)
 
         // ASM doesn't seem to pick up everything that's actually there according to javap. So as
         // another fallback, read from the existing signature files:
