@@ -113,8 +113,10 @@ class AndroidJarsToSignaturesCommand :
                         signatureFormat.fileFormat,
                         apiVersions,
                         apiSurfaces,
+                        jarCodebaseLoader,
+                        androidRootDir,
                     )
-                    .convertJars(jarCodebaseLoader, androidRootDir)
+                    .convertJars()
             }
     }
 }
