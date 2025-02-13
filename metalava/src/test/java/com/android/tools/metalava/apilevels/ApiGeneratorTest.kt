@@ -17,6 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_API_VERSION_NAMES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
@@ -31,6 +32,7 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
+import com.android.tools.metalava.testing.xml
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -80,8 +82,23 @@ class ApiGeneratorTest : DriverTest() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         check(
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-surfaces>
+                                    <api-surface name="public"/>
+                                </api-surfaces>
+                            </config>
+                        """,
+                    )
+                ),
             extraArguments =
                 arrayOf(
+                    ARG_API_SURFACE,
+                    "public",
                     ARG_GENERATE_API_LEVELS,
                     apiVersionsXml.path,
                     ARG_SDK_INFO_FILE,
@@ -232,6 +249,28 @@ class ApiGeneratorTest : DriverTest() {
                     "${testPrebuiltsRoot.path}/{version:level}/public/android.jar",
                     ARG_ANDROID_JAR_PATTERN,
                     "${testPrebuiltsRoot.path}/extensions/{version:extension}/*/{module}.jar",
+                ),
+        )
+    }
+
+    @Test
+    fun `Generate API from signature files using --generate-api-levels`() {
+        val testdataDir = File(System.getenv("METALAVA_TESTDATA_DIR"))
+        if (!testdataDir.isDirectory) {
+            fail("testdata directory not found: $testdataDir")
+        }
+
+        val prebuiltsSdkDir = testdataDir.resolve("prebuilts/sdk")
+
+        checkGenerateFromTestFiles(
+            sdkExtensionsInfo =
+                testdataDir.resolve("prebuilts-sdk-test/sdk-extensions-info.xml").path,
+            extraArguments =
+                arrayOf(
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$prebuiltsSdkDir/{version:level}/{surface}/api.txt",
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$prebuiltsSdkDir/extensions/{version:extension}/{surface}/{module}.txt",
                 ),
         )
     }
