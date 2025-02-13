@@ -104,9 +104,11 @@ class MainCommand(
             defaultBaselineFileProvider = { getDefaultBaselineFile() },
         )
 
+    private val configFileOptions by ConfigFileOptions()
+
     private val apiSelectionOptions: ApiSelectionOptions by
         ApiSelectionOptions(
-            apiSurfacesConfigProvider = { optionGroup.config.apiSurfaces },
+            apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
             checkSurfaceConsistencyProvider = {
                 val sources = optionGroup.sources
                 // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
@@ -173,6 +175,7 @@ class MainCommand(
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
             generalReportingOptions = generalReportingOptions,
+            configFileOptions = configFileOptions,
             apiSelectionOptions = apiSelectionOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
