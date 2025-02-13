@@ -170,21 +170,19 @@ class ConvertJarsToSignatureFiles(
 
         // ASM doesn't seem to pick up everything that's actually there according to javap. So as
         // another fallback, read from the existing signature files:
-        if (signatureFile.isFile) {
-            try {
-                val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(signatureFile))
-                val visitor =
-                    object : ComparisonVisitor() {
-                        override fun compareItems(old: Item, new: Item) {
-                            if (old.originallyDeprecated && old !is PackageItem) {
-                                new.deprecateIfRequired("previous signature file for $old")
-                            }
+        try {
+            val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(signatureFile))
+            val visitor =
+                object : ComparisonVisitor() {
+                    override fun compareItems(old: Item, new: Item) {
+                        if (old.originallyDeprecated && old !is PackageItem) {
+                            new.deprecateIfRequired("previous signature file for $old")
                         }
                     }
-                CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
-            } catch (e: Exception) {
-                throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
-            }
+                }
+            CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
+        } catch (e: Exception) {
+            throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
         }
 
         createReportFile(progressTracker, jarCodebase, signatureFile, "API") { printWriter ->
