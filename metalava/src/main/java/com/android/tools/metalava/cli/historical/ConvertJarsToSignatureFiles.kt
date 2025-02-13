@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.historical
 
 import com.android.SdkConstants
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.JarCodebaseLoader
+import com.android.tools.metalava.NullnessMigration
+import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
+import com.android.tools.metalava.createFilteringVisitorForSignatures
+import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem

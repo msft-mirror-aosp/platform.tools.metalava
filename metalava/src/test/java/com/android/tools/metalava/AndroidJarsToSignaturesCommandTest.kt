@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.FileFormat
 import java.io.File
