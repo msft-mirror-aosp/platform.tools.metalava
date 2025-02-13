@@ -731,6 +731,23 @@ class SignatureInputOutputTest : Assertions {
         )
     }
 
+    @Test
+    fun `Check order of SuppressCompatibility annotation`() {
+        val api =
+            """
+                // Signature format: 5.0
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalBar public final class FancyBar {
+                    ctor public FancyBar();
+                    method @SuppressCompatibility @ReturnThis public test.pkg.FancyBar fancy(@SuppressCompatibility int);
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)
