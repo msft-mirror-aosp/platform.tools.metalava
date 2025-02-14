@@ -67,7 +67,7 @@ class ExtractAnnotations(
     private val outputFile: File,
 ) :
     ApiVisitor(
-        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
@@ -160,6 +160,7 @@ class ExtractAnnotations(
     private fun addItem(item: Item, annotation: AnnotationItem) {
         val pkg =
             when (item) {
+                is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
                 is ParameterItem -> item.containingCallable().containingClass().containingPackage()
                 else -> return
@@ -173,6 +174,10 @@ class ExtractAnnotations(
                     new
                 }
         list.add(Pair(item, annotation))
+    }
+
+    override fun visitClass(cls: ClassItem) {
+        checkItem(cls)
     }
 
     override fun visitField(field: FieldItem) {

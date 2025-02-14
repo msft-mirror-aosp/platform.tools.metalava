@@ -28,9 +28,14 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
@@ -73,6 +78,7 @@ class SignatureWriter(
 
     override fun afterVisitPackage(pkg: PackageItem) {
         write("}\n\n")
+        writer.flush()
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
@@ -115,8 +121,13 @@ class SignatureWriter(
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
+        writeTypeParameterList(property.typeParameterList, addSpace = true)
         if (fileFormat.kotlinNameTypeOrder) {
             // Kotlin style: write the name of the property, then the type.
+            property.receiver?.let {
+                writeType(it)
+                write(".")
+            }
             write(property.name())
             write(": ")
             writeType(property.type())
@@ -124,6 +135,10 @@ class SignatureWriter(
             // Java style: write the type, then the name of the property.
             writeType(property.type())
             write(" ")
+            property.receiver?.let {
+                writeType(it)
+                write(".")
+            }
             write(property.name())
         }
         write(";\n")
@@ -189,7 +204,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item.actualItem)
+        modifierListWriter.write(item)
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
@@ -205,14 +220,24 @@ class SignatureWriter(
         writeExtendsOrImplementsType(superClassType)
     }
 
+    /**
+     * Legacy [TypeStringConfiguration] when writing super types in [writeExtendsOrImplementsType].
+     */
+    private val legacySuperTypeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+        )
+
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
-        val superClassString =
-            typeItem.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            )
         write(" ")
-        write(superClassString)
+
+        if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) {
+            writeType(typeItem)
+        } else {
+            val superClassString = typeItem.toTypeString(legacySuperTypeStringConfiguration)
+            write(superClassString)
+        }
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
@@ -231,8 +256,21 @@ class SignatureWriter(
         orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
+    private val typeParameterItemStringConfiguration =
+        TypeStringConfiguration(
+            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing != TypeArgumentSpacing.NONE,
+            stripJavaLangPrefix =
+                // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
+                // behavior is not to strip `java.lang.` prefix in bounds.
+                when (fileFormat.stripJavaLangPrefix) {
+                    StripJavaLangPrefix.ALWAYS -> StripJavaLangPrefix.ALWAYS
+                    else -> StripJavaLangPrefix.NEVER
+                },
+        )
+
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        val typeListString = typeList.toString()
+        val typeListString = typeList.toSource(typeParameterItemStringConfiguration)
         if (typeListString.isNotEmpty()) {
             write(typeListString)
             if (addSpace) {
@@ -286,16 +324,21 @@ class SignatureWriter(
         write(")")
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeType]. */
+    private val typeStringConfiguration =
+        TypeStringConfiguration(
+            annotations = fileFormat.includeTypeUseAnnotations,
+            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing == TypeArgumentSpacing.SPACE,
+            stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
+        )
+
     private fun writeType(type: TypeItem?) {
         type ?: return
 
-        var typeString =
-            type.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            )
+        var typeString = type.toTypeString(typeStringConfiguration)
 
-        // Strip java.lang. prefix
+        // Strip androidx.annotation. prefix from annotations.
         typeString = TypeItem.shortenTypes(typeString)
 
         write(typeString)
@@ -309,7 +352,8 @@ class SignatureWriter(
                 if (i > 0) {
                     write(", ")
                 }
-                write(type.toTypeString())
+                if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) writeType(type)
+                else write(type.toTypeString())
             }
         }
     }
@@ -376,10 +420,9 @@ fun createFilteringVisitorForSignatures(
     apiType: ApiType,
     preFiltered: Boolean,
     showUnannotated: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val filterEmit = apiType.getEmitFilter(apiVisitorConfig.apiPredicateConfig)
-    val filterReference = apiType.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
+    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
@@ -390,10 +433,8 @@ fun createFilteringVisitorForSignatures(
         callableComparator = fileFormat.overloadedMethodOrder.comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
         showUnannotated = showUnannotated,
-        config = apiVisitorConfig,
     )
 }

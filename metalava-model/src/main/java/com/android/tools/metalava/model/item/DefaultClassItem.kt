@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -39,7 +38,7 @@ import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
-    codebase: MutableCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: BaseModifierList,
@@ -55,7 +54,7 @@ open class DefaultClassItem(
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
 ) :
-    DefaultItem(
+    DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
@@ -97,7 +96,8 @@ open class DefaultClassItem(
         }
     }
 
-    override fun getSourceFile() = source
+    /** If [source] is not set and this is a nested class then try the containing class. */
+    override fun sourceFile() = source ?: containingClass?.sourceFile()
 
     final override fun containingPackage(): PackageItem = containingPackage
 

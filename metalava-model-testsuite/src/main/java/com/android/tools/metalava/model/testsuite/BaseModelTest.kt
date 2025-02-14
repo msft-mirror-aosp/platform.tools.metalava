@@ -18,11 +18,17 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import org.junit.Rule
@@ -143,51 +149,77 @@ abstract class BaseModelTest() :
 
     inner class DefaultCodebaseContext(
         override val codebase: Codebase,
-        private val mainSourceDir: File,
+        private val fileToSymbol: Map<File, String>,
     ) : CodebaseContext {
         override fun removeTestSpecificDirectories(string: String): String {
-            return cleanupString(string, mainSourceDir)
+            return replaceFileWithSymbol(string, fileToSymbol)
         }
     }
 
+    /** Additional properties that affect the behavior of the test. */
+    data class TestFixture(
+        /** The [AnnotationManager] to use when creating a [Codebase]. */
+        val annotationManager: AnnotationManager = DefaultAnnotationManager(),
+
+        /**
+         * The optional [PackageFilter] that defines which packages can contribute to the API. If
+         * this is unspecified then all packages can contribute to the API.
+         */
+        val apiPackages: PackageFilter? = null,
+
+        /** The set of [ApiSurfaces] used in the test. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The [Reporter] to use for issues found creating the [Codebase]. */
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
+    ) {
+        /** The [Codebase.Config] to use when creating a [Codebase] to test. */
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+                apiSurfaces = apiSurfaces,
+                reporter = reporter,
+            )
+    }
+
     /**
-     * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
-     * [Codebase].
-     *
-     * The [InputSet] that is selected is the one whose [InputSet.inputFormat] is the same as the
-     * current [inputFormat]. There can be at most one of those.
+     * Create a [Codebase] from any supplied [inputSets] whose [InputSet.inputFormat] is the same as
+     * the current [inputFormat], and then runs a test on each [Codebase].
      */
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
-        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
+        projectDescription: TestFile?,
+        testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
-        // Run the input set that matches the current inputFormat, if there is one.
-        inputSets
-            .singleOrNull { it.inputFormat == inputFormat }
-            ?.let { inputSet ->
-                val mainSourceDir = sourceDir(inputSet)
+        // Run the input sets that match the current inputFormat.
+        for (inputSet in inputSets.filter { it.inputFormat == inputFormat }) {
+            val mainSourceDir = sourceDir(inputSet)
+            val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
-                val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
+            val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
 
-                val commonSourceDir =
-                    commonSourcesByInputFormat[inputFormat]?.let { commonInputSet ->
-                        sourceDir(commonInputSet)
-                    }
-
-                val inputs =
-                    ModelSuiteRunner.TestInputs(
-                        inputFormat = inputSet.inputFormat,
-                        modelOptions = codebaseCreatorConfig.modelOptions,
-                        mainSourceDir = mainSourceDir,
-                        additionalMainSourceDir = additionalSourceDir,
-                        commonSourceDir = commonSourceDir,
+            val inputs =
+                ModelSuiteRunner.TestInputs(
+                    inputFormat = inputSet.inputFormat,
+                    modelOptions = codebaseCreatorConfig.modelOptions,
+                    mainSourceDir = mainSourceDir,
+                    additionalMainSourceDir = additionalSourceDir,
+                    testFixture = testFixture,
+                    projectDescription = projectDescriptionFile,
+                )
+            runner.createCodebaseAndRun(inputs) { codebase ->
+                val context =
+                    DefaultCodebaseContext(
+                        codebase,
+                        buildMap {
+                            this[mainSourceDir.dir] = "MAIN_SRC"
+                            additionalSourceDir?.dir?.let { dir -> this[dir] = "ADDITIONAL_SRC" }
+                        }
                     )
-                runner.createCodebaseAndRun(inputs) { codebase ->
-                    val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
-                    context.test()
-                }
+                context.test()
             }
+        }
     }
 
     private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
@@ -212,12 +244,12 @@ abstract class BaseModelTest() :
      */
     fun runCodebaseTest(
         vararg sources: TestFile,
-        commonSources: Array<TestFile> = emptyArray(),
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
-            commonSources = testFilesToInputSets(commonSources),
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -230,30 +262,14 @@ abstract class BaseModelTest() :
      */
     fun runCodebaseTest(
         vararg sources: InputSet,
-        commonSources: Array<InputSet> = emptyArray(),
-        test: CodebaseContext.() -> Unit,
-    ) {
-        runCodebaseTest(
-            sources = sources,
-            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
-            test = test,
-        )
-    }
-
-    /**
-     * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
-     * that [Codebase].
-     *
-     * The [sources] array should have at most one [InputSet] of each [InputFormat].
-     */
-    private fun runCodebaseTest(
-        vararg sources: InputSet,
-        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
+        projectDescription: TestFile? = null,
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
-            commonSourcesByInputFormat = commonSourcesByInputFormat,
+            projectDescription = projectDescription,
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -267,13 +283,14 @@ abstract class BaseModelTest() :
      */
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
-        commonSources: Array<TestFile> = emptyArray(),
+        projectDescription: TestFile? = null,
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
-            commonSourcesByInputFormat =
-                testFilesToInputSets(commonSources).associateBy { it.inputFormat },
+            projectDescription = projectDescription,
+            testFixture = testFixture,
             test = test,
         )
     }
@@ -286,30 +303,14 @@ abstract class BaseModelTest() :
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
-        commonSources: Array<InputSet> = emptyArray(),
-        test: CodebaseContext.() -> Unit,
-    ) {
-        runSourceCodebaseTest(
-            sources = sources,
-            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
-            test = test,
-        )
-    }
-
-    /**
-     * Create a [Codebase] from one of the supplied [sources] [InputSet]s and then run the [test] on
-     * that [Codebase].
-     *
-     * The [sources] array should have at most one [InputSet] of each [InputFormat].
-     */
-    private fun runSourceCodebaseTest(
-        vararg sources: InputSet,
-        commonSourcesByInputFormat: Map<InputFormat, InputSet>,
+        projectDescription: TestFile? = null,
+        testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
-            commonSourcesByInputFormat = commonSourcesByInputFormat,
+            projectDescription = projectDescription,
+            testFixture = testFixture,
             test = test,
         )
     }

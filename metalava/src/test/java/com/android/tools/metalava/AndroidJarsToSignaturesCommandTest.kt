@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.FileFormat
 import java.io.File
@@ -41,6 +42,10 @@ Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir
   It does this by reading the API defined in the corresponding `android.jar` files.
 
 Options:
+  --api-versions <api-version-list>          Comma separated list of api versions to convert. If unspecified then all
+                                             versions will be converted.
+  --api-surfaces <api-surface-list>          Comma separated list of api surfaces to convert. If unspecified then only
+                                             `public` will be converted.
   -h, -?, --help                             Show this message and exit
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
@@ -83,9 +88,6 @@ Arguments:
             // Copy the android.jar into a temporary folder structure.
             val androidRootDir = folder("android-root-dir")
 
-            fun oldAndroidJarFile(apiVersion: Int): String {
-                return "prebuilts/tools/common/api-versions/android-$apiVersion/android.jar"
-            }
             fun currentVersionDir(apiVersion: Int): String {
                 return "prebuilts/sdk/$apiVersion/public"
             }
@@ -106,21 +108,12 @@ Arguments:
             )
             val apiVersionsInfo = mutableListOf<ApiVersionInfo>()
 
-            // The first few android.jars are not in prebuilts/sdk
-            // However, the android.txt files are still output to prebuilts/sdk.
-            for (apiVersion in 1..3) {
-                val versionJar = androidRootDir.resolve(oldAndroidJarFile(apiVersion))
-                // Add to the list of api versions.
-                apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar))
-            }
-            // The remaining android.jars are in prebuilts/sdk/<N>/public/android.jar.
-            for (apiVersion in 4..5) {
+            // All android.jars are in prebuilts/sdk/<N>/public/android.jar.
+            for (apiVersion in 1..5) {
                 val versionJar = androidRootDir.resolve(currentAndroidJarFile(apiVersion))
 
-                // Some android.jar files already have a corresponding android.txt file.
-                val androidTxtFile =
-                    if (apiVersion == 5) androidRootDir.resolve(currentApiTxtFile(apiVersion))
-                    else null
+                // All android.jar files already have a corresponding android.txt file.
+                val androidTxtFile = androidRootDir.resolve(currentApiTxtFile(apiVersion))
 
                 // Add to the list of api versions.
                 apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar, androidTxtFile))

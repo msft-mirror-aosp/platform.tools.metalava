@@ -53,7 +53,7 @@ private constructor(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     implicitConstructor: Boolean = false,
-    override val isPrimary: Boolean = false
+    isPrimary: Boolean = false
 ) :
     DefaultConstructorItem(
         codebase = codebase,
@@ -70,6 +70,7 @@ private constructor(
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
         implicitConstructor = implicitConstructor,
+        isPrimary = isPrimary,
     ),
     PsiCallableItem {
 
@@ -79,7 +80,7 @@ private constructor(
             containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
-            psiParametersGetter: (PsiMethod) -> List<PsiParameter> = { it.psiParameters },
+            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
@@ -121,7 +122,7 @@ private constructor(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             constructorTypeItemFactory,
-                            psiParametersGetter(psiMethod),
+                            psiParameters,
                         )
                     },
                     returnType = containingClass.type(),
@@ -165,7 +166,12 @@ private constructor(
             return item
         }
 
-        private val UMethod.isPrimaryConstructor: Boolean
+        /**
+         * Whether the [UMethod] is the primary constructor of a Kotlin class. A primary constructor
+         * is declared in the class header, and all other constructors must delegate to it (see
+         * https://kotlinlang.org/docs/classes.html#constructors).
+         */
+        internal val UMethod.isPrimaryConstructor: Boolean
             get() = sourcePsi is KtPrimaryConstructor || sourcePsi is KtClassOrObject
     }
 }

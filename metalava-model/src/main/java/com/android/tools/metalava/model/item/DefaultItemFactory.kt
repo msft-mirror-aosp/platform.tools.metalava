@@ -127,6 +127,7 @@ class DefaultItemFactory(
         throwsTypes: List<ExceptionTypeItem>,
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         implicitConstructor: Boolean,
+        isPrimary: Boolean = false,
     ): ConstructorItem =
         DefaultConstructorItem(
             codebase,
@@ -143,6 +144,7 @@ class DefaultItemFactory(
             throwsTypes,
             callableBodyFactory,
             implicitConstructor,
+            isPrimary,
         )
 
     /** Create a [FieldItem]. */
@@ -237,6 +239,12 @@ class DefaultItemFactory(
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
+        receiver: TypeItem?,
+        typeParameterList: TypeParameterList,
+        getter: MethodItem? = null,
+        setter: MethodItem? = null,
+        constructorParameter: ParameterItem? = null,
+        backingField: FieldItem? = null,
     ): PropertyItem =
         DefaultPropertyItem(
             codebase,
@@ -248,6 +256,12 @@ class DefaultItemFactory(
             name,
             containingClass,
             type,
+            getter,
+            setter,
+            constructorParameter,
+            backingField,
+            receiver,
+            typeParameterList,
         )
 
     /**
@@ -266,7 +280,6 @@ class DefaultItemFactory(
     ) =
         DefaultTypeParameterItem(
             codebase,
-            defaultItemLanguage,
             modifiers,
             name,
             isReified,

@@ -22,7 +22,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -36,38 +38,40 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test mixture of kotlinStyleNulls settings`() {
-        val exception =
-            assertThrows(ApiParseException::class.java) {
-                runSignatureTest(
-                    signature(
-                        "file1.txt",
-                        """
-                            // Signature format: 5.0
-                            // - kotlin-style-nulls=yes
-                            package test.pkg {
-                                public class Foo {
-                                    method void foo(Object);
-                                }
-                            }
-                        """
-                    ),
-                    signature(
-                        "file2.txt",
-                        """
-                            // Signature format: 5.0
-                            // - kotlin-style-nulls=no
-                            package test.pkg {
-                                public class Bar {
-                                    method void bar(Object);
-                                }
-                            }
-                        """
-                    )
-                ) {}
-            }
+        runSignatureTest(
+            signature(
+                "file1.txt",
+                """
+                    // Signature format: 5.0
+                    // - kotlin-style-nulls=yes
+                    package test.pkg {
+                        public class Foo {
+                            method void foo(Object);
+                        }
+                    }
+                """
+            ),
+            signature(
+                "file2.txt",
+                """
+                    // Signature format: 5.0
+                    // - kotlin-style-nulls=no
+                    package test.pkg {
+                        public class Bar {
+                            method void bar(Object);
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    "MAIN_SRC/file2.txt:1: error: Preceding file MAIN_SRC/file1.txt has different setting of kotlin-style-nulls which may cause issues [SignatureFileError]"
+                )
 
-        assertThat(exception.message)
-            .contains("Cannot mix signature files with different settings of kotlinStyleNulls")
+            codebase.assertClass("test.pkg.Foo")
+            codebase.assertClass("test.pkg.Bar")
+        }
     }
 
     @Test
@@ -217,8 +221,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 "other.UnknownException",
                 "java.lang.Throwable",
             )
-        val codebase =
-            ApiFile.parseApi(
+        val signatureFile =
+            SignatureFile.fromText(
                 "api.txt",
                 """
                     // Signature format: 2.0
@@ -228,7 +232,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         }
                     }
                 """
-                    .trimIndent(),
+            )
+
+        val codebase =
+            ApiFile.parseApi(
+                listOf(signatureFile),
                 classResolver = testClassResolver,
             )
 
@@ -458,6 +466,78 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
+    fun `Test type parser issues - kotlin-style-nulls=no`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public abstract class Foo implements Comparable<? blah1> {
+                            field public static final int? FIELD1 = 0;
+                            method public void foo(Comparable<test.pkg.Foo>blah2);
+                            field public static final int? FIELD2 = 0;
+                        }
+                        public abstract class Bar implements Comparable<? blah1> {
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    """
+                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
+                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [SignatureFileError]
+                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
+                    """
+                        .trimIndent()
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val barClass = codebase.assertClass("test.pkg.Bar")
+
+            // Implements lists should drop blah1 and be an unbounded wildcard.
+            assertThat(fooClass.interfaceTypes().map { it.toString() })
+                .isEqualTo(listOf("java.lang.Comparable<?>"))
+            assertThat(barClass.interfaceTypes().map { it.toString() })
+                .isEqualTo(listOf("java.lang.Comparable<?>"))
+
+            // The type of Foo.FIELD1 should just be `int`.
+            assertThat(fooClass.assertField("FIELD1").type().toString()).isEqualTo("int")
+        }
+    }
+
+    @Test
+    fun `Test type parser issues - kotlin-style-nulls=yes`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                        public abstract class Foo {
+                            field public static final int? FIELD1 = 0;
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]"
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // The type of FIELD1 should just be `int`.
+            assertThat(fooClass.assertField("FIELD1").type().toString()).isEqualTo("int")
+        }
+    }
+
+    @Test
     fun testTypeParameterNames() {
         assertThat(ApiFile.extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
         assertThat(ApiFile.extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")
@@ -481,7 +561,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test for current API surface`() {
+    fun `Test for main API surface`() {
         val testFiles =
             listOf(
                 signature(
@@ -525,17 +605,29 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
         val signatureFiles =
-            files.map { file ->
-                SignatureFile(file, forCurrentApiSurface = file.name == "current.txt")
-            }
+            SignatureFile.fromFiles(
+                files,
+                forMainApiSurfacePredicate = { _, file -> file.name == "current.txt" },
+            )
 
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = noOpAnnotationManager,
+                apiSurfaces = apiSurfaces,
+            )
         val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
-        val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)
+        val codebase =
+            ApiFile.parseApi(
+                signatureFiles,
+                codebaseConfig = codebaseConfig,
+                classResolver = classResolver,
+            )
 
         val current = buildList {
             codebase.accept(
-                object : BaseItemVisitor() {
-                    override fun visitItem(item: Item) {
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
                         if (item.emit) {
                             add(item)
                         }
@@ -549,11 +641,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
-                parameter currentCtorParameter
                 method test.pkg.Foo.extensibleMethod(int)
-                parameter parameter
                 method test.pkg.Foo.currentMethod(int)
-                parameter currentMethodParameter
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
@@ -566,7 +655,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val signatureFile = SignatureFile.fromText("other.txt", "// Signature format: 2.0")
+                val codebase = ApiFile.parseApi(listOf(signatureFile))
                 val delegate = codebase.resolveClass(name)!!
                 return TestClassItem(delegate)
             }

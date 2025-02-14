@@ -20,10 +20,14 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPropertyItem(
@@ -36,6 +40,12 @@ open class DefaultPropertyItem(
     name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
+    override val getter: MethodItem?,
+    override val setter: MethodItem?,
+    override val constructorParameter: ParameterItem?,
+    override val backingField: FieldItem?,
+    override val receiver: TypeItem?,
+    override val typeParameterList: TypeParameterList,
 ) :
     DefaultMemberItem(
         codebase,

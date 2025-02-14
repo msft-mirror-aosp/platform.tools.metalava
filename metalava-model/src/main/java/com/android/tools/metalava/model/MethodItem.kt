@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.function.Predicate
-
 @MetalavaApi
 interface MethodItem : CallableItem, InheritableItem {
     /**
@@ -26,6 +24,15 @@ interface MethodItem : CallableItem, InheritableItem {
      */
     val property: PropertyItem?
         get() = null
+
+    override val effectivelyDeprecated: Boolean
+        get() =
+            originallyDeprecated ||
+                containingClass().effectivelyDeprecated ||
+                // Accessors inherit deprecation from their properties. Uses originallyDeprecated to
+                // prevent a cycle because effectivelyDeprecated on the property checks the getter.
+                // Also prevents deprecation from propagating getter -> property -> setter.
+                property?.originallyDeprecated == true
 
     @Deprecated(
         message =
@@ -81,7 +88,7 @@ interface MethodItem : CallableItem, InheritableItem {
      */
     override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
-    fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? {
+    fun findPredicateSuperMethod(predicate: FilterPredicate): MethodItem? {
         val superMethods = superMethods()
         for (method in superMethods) {
             if (predicate.test(method)) {

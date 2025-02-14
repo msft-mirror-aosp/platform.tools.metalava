@@ -22,10 +22,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.signature
 import org.junit.Assert.assertEquals
@@ -38,75 +36,77 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
 
     @Test
     fun `prefer first's real children even when first is only implied`() {
+        val newSignatureFiles =
+            listOf(
+                SignatureFile.fromText(
+                    "first.txt",
+                    """
+                        // Signature format: 2.0
+                        package pkg {
+                            public class Outer.Inner {
+                                method public pkg.TypeInFirst foobar();
+                            }
+                            public class TypeInFirst {
+                            }
+                        }
+                    """
+                ),
+                SignatureFile.fromText(
+                    "second.txt",
+                    """
+                        // Signature format: 2.0
+                        package pkg {
+                            public class Outer {
+                            }
+                            public class Outer.Inner {
+                                method public pkg.TypeInSecond foobar();
+                            }
+                            public class TypeInSecond {
+                            }
+                        }
+                    """
+                ),
+            )
         val new =
             MergedCodebase(
-                listOf(
-                    ApiFile.parseApi(
-                        "first.txt",
-                        """
-                        // Signature format: 2.0
-                        package pkg {
-                            public class Outer.Inner {
-                                method public TypeInFirst foobar();
-                            }
-                        }
-                        """
-                            .trimIndent()
-                    ),
-                    ApiFile.parseApi(
-                        "second.txt",
-                        """
-                        // Signature format: 2.0
-                        package pkg {
-                            public class Outer {
-                            }
-                            public class Outer.Inner {
-                                method public TypeInSecond foobar();
-                            }
-                        }
-                        """
-                            .trimIndent()
-                    )
-                )
+                // Parse each signature file on its own.
+                newSignatureFiles.map { ApiFile.parseApi(listOf(it)) }
             )
-        val old =
-            MergedCodebase(
-                listOf(
-                    ApiFile.parseApi(
-                        "old.txt",
-                        """
-                        // Signature format: 2.0
-                        package pkg {
-                            public class Outer {
-                            }
-                            public class Outer.Inner {
-                            }
+
+        val oldSignatureFile =
+            SignatureFile.fromText(
+                "old.txt",
+                """
+                    // Signature format: 2.0
+                    package pkg {
+                        public class Outer {
                         }
-                        """
-                            .trimIndent()
-                    ),
-                )
+                        public class Outer.Inner {
+                        }
+                    }
+                """
             )
+        val old = MergedCodebase(listOf(ApiFile.parseApi(listOf(oldSignatureFile))))
         var methodType: String? = null
-        CodebaseComparator(ApiVisitor.Config())
+        CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
-                    override fun added(new: MethodItem) {
+                    override fun addedMethodItem(new: MethodItem) {
                         methodType = new.type().toSimpleType()
                     }
                 },
                 old,
                 new
             )
-        assertEquals("TypeInFirst", methodType)
+        assertEquals("pkg.TypeInFirst", methodType)
     }
 
     @Test
     fun `Test make sure that method with emit=false is ignored during comparison`() {
 
         fun TestFile.readCodebase(): Codebase {
-            val signatureFile = SignatureFile(createFile(temporaryFolder.root))
-            return ApiFile.parseApi(signatureFile, noOpAnnotationManager)
+            val signatureFiles = SignatureFile.fromFiles(createFile(temporaryFolder.root))
+            return ApiFile.parseApi(signatureFiles, Codebase.Config.NOOP)
         }
 
         val signatureFile =
@@ -134,18 +134,18 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
 
         // Compare the two.
         val differences = mutableListOf<String>()
-        CodebaseComparator(ApiVisitor.Config())
+        CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
-                    override fun compare(old: MethodItem, new: MethodItem) {
+                    override fun compareMethodItems(old: MethodItem, new: MethodItem) {
                         differences += "$old was changed"
                     }
 
-                    override fun added(new: MethodItem) {
+                    override fun addedMethodItem(new: MethodItem) {
                         differences += "$new was added"
                     }
 
-                    override fun removed(old: MethodItem, from: ClassItem?) {
+                    override fun removedMethodItem(old: MethodItem, from: ClassItem) {
                         differences += "$old was removed"
                     }
                 },

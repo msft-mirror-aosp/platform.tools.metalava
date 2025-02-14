@@ -41,11 +41,12 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
@@ -55,6 +56,7 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.source.SourceParser
@@ -101,11 +103,7 @@ class AnnotationsMerger(
     fun mergeInclusionAnnotationsFromFiles(files: List<File>) {
         mergeAll(
             files,
-            {
-                throw MetalavaCliException(
-                    "External inclusion annotations files must be .java, found ${it.path}"
-                )
-            },
+            { cliError("External inclusion annotations files must be .java, found ${it.path}") },
             ::mergeInclusionAnnotationsFromCodebase
         )
     }
@@ -134,9 +132,10 @@ class AnnotationsMerger(
                 val javaStubsCodebase =
                     sourceParser.parseSources(
                         SourceSet(javaStubFiles, roots),
-                        SourceSet.empty(),
                         "Codebase loaded from stubs",
-                        classPath = options.classpath
+                        classPath = options.classpath,
+                        apiPackages = options.apiPackages,
+                        projectDescription = null,
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
             }
@@ -242,14 +241,14 @@ class AnnotationsMerger(
         try {
             val signatureCodebase =
                 ApiFile.parseApi(
-                    SignatureFile.fromFile(file),
-                    codebase.annotationManager,
+                    SignatureFile.fromFiles(file),
+                    codebase.config,
                     "Signature files for annotation merger: loaded from $file"
                 )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $file: ${ex.message}"
-            throw MetalavaCliException(message)
+            cliError(message)
         }
     }
 
@@ -268,7 +267,7 @@ class AnnotationsMerger(
     private fun mergeQualifierAnnotationsFromCodebase(externalCodebase: Codebase) {
         val visitor =
             object : ComparisonVisitor() {
-                override fun compare(old: Item, new: Item) {
+                override fun compareItems(old: Item, new: Item) {
                     val itemAnnotations = old.modifiers.annotations()
                     mergeQualifierAnnotations(itemAnnotations, new)
                     old.type()?.let {
@@ -279,7 +278,7 @@ class AnnotationsMerger(
                     }
                 }
 
-                override fun removed(old: Item, from: Item?) {
+                override fun removedItem(old: SelectableItem, from: SelectableItem?) {
                     // Do not report missing items if there are no annotations to copy.
                     if (old.modifiers.annotations().isEmpty()) {
                         old.type()?.let { typeItem ->
@@ -296,10 +295,7 @@ class AnnotationsMerger(
                 }
             }
 
-        CodebaseComparator(
-                apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-            )
-            .compare(visitor, externalCodebase, codebase)
+        CodebaseComparator().compare(visitor, externalCodebase, codebase)
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
@@ -611,10 +607,9 @@ class AnnotationsMerger(
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
                             val filterEmit =
-                                ApiVisitor(
-                                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                                    )
-                                    .filterEmit
+                                ApiVisitor.defaultEmitFilter(
+                                    @Suppress("DEPRECATION") options.apiPredicateConfig,
+                                )
 
                             // Attempt with reflection
                             var first = true
