@@ -548,6 +548,66 @@ private constructor(
         }
     }
 
+    /**
+     * Creates a type alias in the [pkg] with the [modifiers].
+     *
+     * It is expected that the starting position of the [tokenizer] is the "typealias" keyword, and
+     * the next token will be the name and option type parameter list.
+     *
+     * When the method returns, the current [tokenizer] position will be the ";" at the end of the
+     * typealias line.
+     */
+    private fun parseTypeAlias(
+        pkg: DefaultPackageItem,
+        tokenizer: Tokenizer,
+        modifiers: MutableModifierList,
+        location: FileLocation
+    ) {
+        var token = tokenizer.requireToken()
+        tokenizer.assertIdent(token)
+
+        val typeParameterListIndex = token.indexOf("<")
+
+        val (name, typeParameterList, typeItemFactory) =
+            if (typeParameterListIndex == -1) {
+                Triple(token, TypeParameterList.NONE, globalTypeItemFactory)
+            } else {
+                val name = token.substring(0, typeParameterListIndex)
+                val typeParameterListAndFactory =
+                    createTypeParameterList(
+                        globalTypeItemFactory,
+                        "typealias $name",
+                        token.substring(typeParameterListIndex)
+                    )
+                Triple(
+                    name,
+                    typeParameterListAndFactory.typeParameterList,
+                    typeParameterListAndFactory.factory
+                )
+            }
+
+        token = tokenizer.requireToken()
+        if ("=" != token) {
+            throw ApiParseException("expected = found $token", tokenizer)
+        }
+
+        val typeString = scanForTypeString(tokenizer, tokenizer.requireToken())
+        token = tokenizer.current
+        if (";" != token) {
+            throw ApiParseException("expected ; found $token", tokenizer)
+        }
+
+        val type = typeItemFactory.getGeneralType(typeString)
+        itemFactory.createTypeAliasItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            qualifiedName = pkg.qualifiedName() + "." + name,
+            containingPackage = pkg,
+            aliasedType = type,
+            typeParameterList = typeParameterList,
+        )
+    }
+
     private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
@@ -584,8 +644,17 @@ private constructor(
                 superClassType = globalTypeItemFactory.superEnumType
                 token = tokenizer.requireToken()
             }
+            "typealias" -> {
+                // Type aliases aren't classes, but they are defined at the same level as classes
+                parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
+                // Don't continue creating a class item
+                return
+            }
             else -> {
-                throw ApiParseException("missing class or interface. got: $token", tokenizer)
+                throw ApiParseException(
+                    "expected one of class, interface, @interface, enum, or typealias; found: $token",
+                    tokenizer
+                )
             }
         }
         tokenizer.assertIdent(token)
