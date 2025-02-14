@@ -17,107 +17,311 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import java.util.ServiceLoader
-import kotlin.test.assertNotNull
-import kotlin.test.fail
-import org.junit.AssumptionViolatedException
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
+import com.android.tools.metalava.testing.TemporaryFolderOwner
+import java.io.File
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import org.junit.rules.TestRule
-import org.junit.runner.Description
+import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.runners.model.Statement
+import org.junit.runners.Parameterized.Parameter
 
 /**
  * Base class for tests that verify the behavior of model implementations.
  *
- * This is parameterized by the runners as even though the tests are run in different projects the
- * test results are collated and reported together. Having the runner in the test name makes it
- * easier to differentiate them.
+ * This is parameterized by [CodebaseCreatorConfig] as even though the tests are run in different
+ * projects the test results are collated and reported together. Having the parameters in the test
+ * name makes it easier to differentiate them.
  *
  * Note: In the top-level test report produced by Gradle it appears to just display whichever test
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
  */
-abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
+@RunWith(ModelTestSuiteRunner::class)
+abstract class BaseModelTest() :
+    CodebaseCreatorConfigAware<ModelSuiteRunner>, TemporaryFolderOwner, Assertions {
 
-    @get:Rule val temporaryFolder = TemporaryFolder()
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * The basic process is that each test class gets given a list of parameters. There are two ways
+     * to do that, through field injection or via constructor. If any fields in the test class
+     * hierarchy are annotated with the [Parameter] annotation then field injection is used,
+     * otherwise they are passed via constructor.
+     *
+     * The [Parameter] specifies the index within the list of parameters of the parameter that
+     * should be inserted into the field. The number of [Parameter] annotated fields must be the
+     * same as the number of parameters in the list and each index within the list must be specified
+     * by exactly one [Parameter].
+     *
+     * The life-cycle of a parameterized test class is as follows:
+     * 1. The test class instance is created.
+     * 2. The parameters are injected into the [Parameter] annotated fields.
+     * 3. Follows the normal test class life-cycle.
+     */
+    final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<ModelSuiteRunner>
 
-    @get:Rule val selectTestsForRunner: TestRule = SelectTestsForRunner(runner)
+    /** The [ModelSuiteRunner] that this test must use. */
+    private val runner
+        get() = codebaseCreatorConfig.creator
 
-    companion object {
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun runners(): Iterable<ModelSuiteRunner> {
-            val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
-            val list = loader.toList()
-            if (list.isEmpty()) {
-                fail("No runners found")
-            }
-            return list
+    /**
+     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
+     * other [InputFormat]s.
+     */
+    protected val inputFormat
+        get() = codebaseCreatorConfig.inputFormat
+
+    @get:Rule override val temporaryFolder = TemporaryFolder()
+
+    /**
+     * Set of inputs for a test.
+     *
+     * Currently, this is limited to one file but in future it may be more.
+     */
+    data class InputSet(
+        /** The [InputFormat] of the [testFiles]. */
+        val inputFormat: InputFormat,
+
+        /** The [TestFile]s to explicitly pass to code being tested. */
+        val testFiles: List<TestFile>,
+
+        /** The optional [TestFile]s to pass on source path. */
+        val additionalTestFiles: List<TestFile>?,
+    )
+
+    /** Create an [InputSet] from a list of [TestFile]s. */
+    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
+
+    /**
+     * Create an [InputSet].
+     *
+     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
+     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
+     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
+     */
+    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
+        if (testFiles.isEmpty()) {
+            throw IllegalStateException("Must provide at least one source file")
         }
+
+        val inputFormat =
+            testFiles
+                .asSequence()
+                // Map to path.
+                .map { it.targetRelativePath }
+                // Ignore HTML files.
+                .filter { !it.endsWith(".html") }
+                // Map to InputFormat.
+                .map { InputFormat.fromFilename(it) }
+                // Combine InputFormats to produce a single one, may throw an exception if they
+                // are incompatible.
+                .reduce { if1, if2 -> if1.combineWith(if2) }
+
+        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
     }
 
     /**
-     * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
-     * test on that [Codebase].
-     *
-     * This must be called with [signature] and [source] contents that are equivalent so that the
-     * test can have the same behavior on models that consume the different formats. Subclasses of
-     * this must implement this method consuming at least one of them to create a [Codebase] on
-     * which the test is run.
+     * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
-    fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit,
+    interface CodebaseContext {
+        /** The newly created [Codebase]. */
+        val codebase: Codebase
+
+        /** Replace any test run specific directories in [string] with a placeholder string. */
+        fun removeTestSpecificDirectories(string: String): String
+    }
+
+    inner class DefaultCodebaseContext(
+        override val codebase: Codebase,
+        private val fileToSymbol: Map<File, String>,
+    ) : CodebaseContext {
+        override fun removeTestSpecificDirectories(string: String): String {
+            return replaceFileWithSymbol(string, fileToSymbol)
+        }
+    }
+
+    /** Additional properties that affect the behavior of the test. */
+    data class TestFixture(
+        /** The [AnnotationManager] to use when creating a [Codebase]. */
+        val annotationManager: AnnotationManager = DefaultAnnotationManager(),
+
+        /**
+         * The optional [PackageFilter] that defines which packages can contribute to the API. If
+         * this is unspecified then all packages can contribute to the API.
+         */
+        val apiPackages: PackageFilter? = null,
+
+        /** The set of [ApiSurfaces] used in the test. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The [Reporter] to use for issues found creating the [Codebase]. */
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
     ) {
-        val tempDir = temporaryFolder.newFolder()
-        runner.createCodebaseAndRun(tempDir, signature, source, test)
+        /** The [Codebase.Config] to use when creating a [Codebase] to test. */
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+                apiSurfaces = apiSurfaces,
+                reporter = reporter,
+            )
     }
 
-    /** Get the class from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertClass(qualifiedName: String): ClassItem {
-        val classItem = findClass(qualifiedName)
-        assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
-        return classItem
-    }
-}
+    /**
+     * Create a [Codebase] from any supplied [inputSets] whose [InputSet.inputFormat] is the same as
+     * the current [inputFormat], and then runs a test on each [Codebase].
+     */
+    private fun createCodebaseFromInputSetAndRun(
+        inputSets: Array<out InputSet>,
+        projectDescription: TestFile?,
+        testFixture: TestFixture,
+        test: CodebaseContext.() -> Unit,
+    ) {
+        // Run the input sets that match the current inputFormat.
+        for (inputSet in inputSets.filter { it.inputFormat == inputFormat }) {
+            val mainSourceDir = sourceDir(inputSet)
+            val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
-/**
- * Annotation which can be used to ignore tests on any runner whose name matches one of the values
- * in [value].
- *
- * An empty list means that the test will not be ignored on any runner.
- *
- * If the annotation is present on a test method than it will just affect that one method. If it is
- * present on a test class then it will affect all tests in that class which do not have their own
- * annotation. If they do have their own then that will be used and the class annotation will be
- * ignored.
- */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
-annotation class IgnoreForRunner(
-    /** A list of runner names on which the test should be ignored. */
-    vararg val value: String,
-)
+            val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
 
-/** A JUnit [TestRule] that implements the behavior of [IgnoreForRunner]. */
-private class SelectTestsForRunner(private val runner: ModelSuiteRunner) : TestRule {
-    override fun apply(base: Statement, description: Description): Statement {
-        val ignore =
-            description.getAnnotation(IgnoreForRunner::class.java)
-                ?: description.testClass.getAnnotation(IgnoreForRunner::class.java)
-        if (ignore != null && ignore.value.contains(runner.toString())) {
-            return object : Statement() {
-                override fun evaluate() {
-                    throw AssumptionViolatedException("Not supported by runner $runner")
-                }
+            val inputs =
+                ModelSuiteRunner.TestInputs(
+                    inputFormat = inputSet.inputFormat,
+                    modelOptions = codebaseCreatorConfig.modelOptions,
+                    mainSourceDir = mainSourceDir,
+                    additionalMainSourceDir = additionalSourceDir,
+                    testFixture = testFixture,
+                    projectDescription = projectDescriptionFile,
+                )
+            runner.createCodebaseAndRun(inputs) { codebase ->
+                val context =
+                    DefaultCodebaseContext(
+                        codebase,
+                        buildMap {
+                            this[mainSourceDir.dir] = "MAIN_SRC"
+                            additionalSourceDir?.dir?.let { dir -> this[dir] = "ADDITIONAL_SRC" }
+                        }
+                    )
+                context.test()
             }
         }
-
-        return base
     }
+
+    private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
+        return sourceDir(inputSet.testFiles)
+    }
+
+    private fun sourceDir(testFiles: List<TestFile>): ModelSuiteRunner.SourceDir {
+        val tempDir = temporaryFolder.newFolder()
+        return ModelSuiteRunner.SourceDir(dir = tempDir, contents = testFiles)
+    }
+
+    private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
+        return testFiles.map { inputSet(it) }.toTypedArray()
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] and then run the [test] on that
+     * [Codebase].
+     *
+     * The [sources] array should have at most one [TestFile] whose extension matches an
+     * [InputFormat.extension].
+     */
+    fun runCodebaseTest(
+        vararg sources: TestFile,
+        testFixture: TestFixture = TestFixture(),
+        test: CodebaseContext.() -> Unit,
+    ) {
+        runCodebaseTest(
+            sources = testFilesToInputSets(sources),
+            testFixture = testFixture,
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
+     * that [Codebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    fun runCodebaseTest(
+        vararg sources: InputSet,
+        projectDescription: TestFile? = null,
+        testFixture: TestFixture = TestFixture(),
+        test: CodebaseContext.() -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            inputSets = sources,
+            projectDescription = projectDescription,
+            testFixture = testFixture,
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] and then run the [test] on that
+     * [Codebase].
+     *
+     * The [sources] array should have at most one [TestFile] whose extension matches an
+     * [InputFormat.extension].
+     */
+    fun runSourceCodebaseTest(
+        vararg sources: TestFile,
+        projectDescription: TestFile? = null,
+        testFixture: TestFixture = TestFixture(),
+        test: CodebaseContext.() -> Unit,
+    ) {
+        runSourceCodebaseTest(
+            sources = testFilesToInputSets(sources),
+            projectDescription = projectDescription,
+            testFixture = testFixture,
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] [InputSet]s and then run the [test] on
+     * that [Codebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    fun runSourceCodebaseTest(
+        vararg sources: InputSet,
+        projectDescription: TestFile? = null,
+        testFixture: TestFixture = TestFixture(),
+        test: CodebaseContext.() -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            inputSets = sources,
+            projectDescription = projectDescription,
+            testFixture = testFixture,
+            test = test,
+        )
+    }
+
+    /**
+     * Create a signature [TestFile] with the supplied [contents] in a file with a path of
+     * `api.txt`.
+     */
+    fun signature(contents: String): TestFile = signature("api.txt", contents)
+
+    /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
+    fun signature(to: String, contents: String): TestFile =
+        TestFiles.source(to, contents.trimIndent())
 }
