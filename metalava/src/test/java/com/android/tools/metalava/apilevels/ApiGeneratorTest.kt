@@ -354,10 +354,16 @@ class ApiGeneratorTest : DriverTest() {
                 arrayOf(
                     TestFiles.jar("test.jar"),
                 ),
-            // TODO(b/378479241): Avoid this failure.
-            expectedFail =
-                "Aborting: Configuration of `<api-surface name=\"system\">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true",
         )
+
+        val expected =
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="33">
+                </api>
+            """
+
+        apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
     @Test

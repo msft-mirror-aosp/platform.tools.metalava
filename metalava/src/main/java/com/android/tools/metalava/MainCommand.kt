@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -120,9 +119,15 @@ class MainCommand(
                 // and depending on other options they may be significant or not.
                 //
                 // The --show* options are always significant if sources are provided, and they are
-                // not signature files. If they are signature files then the --show* options are not
-                // significant because signature files are already pre-filtered.
-                sources.isNotEmpty() && !sources[0].path.endsWith(DOT_TXT)
+                // not signature files or jar files. If they are signature files then the --show*
+                // options are not significant because signature files are already pre-filtered. If
+                // they are jar files then they are almost certainly stubs and so the --show*
+                // options are not significant because stub jar files are are also already
+                // pre-filtered.
+                sources.isNotEmpty() &&
+                    sources[0].extension.let { extension ->
+                        extension != "jar" && extension != "txt"
+                    }
             },
         )
 
