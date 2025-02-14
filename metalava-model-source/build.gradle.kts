@@ -29,9 +29,11 @@ dependencies {
     implementation(project(":metalava-reporter"))
 
     testFixturesImplementation(project(":metalava-model"))
+    testFixturesImplementation(testFixtures(project(":metalava-model")))
     testFixturesImplementation(project(":metalava-model-testsuite"))
     testFixturesImplementation(project(":metalava-reporter"))
     testFixturesImplementation(libs.androidLintTests)
+    testFixturesImplementation(project(":metalava-testing"))
 
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)

@@ -39,35 +39,49 @@ interface PropertyItem : MemberItem {
     /** The type of this property */
     override fun type(): TypeItem
 
+    /** The receiver type of this property, if one exists. */
+    val receiver: TypeItem?
+
+    /** The type parameters of this property. */
+    val typeParameterList: TypeParameterList
+
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
+        containingClass().findCorrespondingItemIn(codebase)?.properties()?.find {
+            it.name() == name()
+        }
+
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PropertyItem) return false
 
-        val type = type()
-        visitor.visitType(type, this)
-        visitor.afterVisitType(type, this)
+        return name() == other.name() && containingClass() == other.containingClass()
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
     }
 
-    override fun requiresNullnessInfo(): Boolean {
-        if (type().primitive) {
-            return false
-        }
+    override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
 
-        return true
-    }
+    // Inherit deprecation from the getter
+    override val effectivelyDeprecated: Boolean
+        get() =
+            originallyDeprecated ||
+                if (getter == null) {
+                    containingClass().effectivelyDeprecated
+                } else {
+                    getter!!.effectivelyDeprecated
+                }
 
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->

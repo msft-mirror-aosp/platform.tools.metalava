@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import java.io.File
 
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
@@ -31,28 +32,30 @@ interface SourceParser {
     fun getClassResolver(classPath: List<File>): ClassResolver
 
     /**
-     * Parse a set of sources into a [SourceCodebase].
+     * Parse a set of sources into a [Codebase].
      *
-     * @param sources the list of source files.
+     * @param sourceSet the list of source files and root directories.
      * @param description the description to use for [Codebase.description].
-     * @param sourcePath a possibly empty list of root directories within which sources files may be
-     *   found.
      * @param classPath the possibly empty list of jar files which may provide additional classes
      *   referenced by the sources.
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
+     * @param projectDescription Lint project model that can describe project structures in detail.
+     *   Only supported by the PSI model.
      */
     fun parseSources(
-        sources: List<File>,
+        sourceSet: SourceSet,
         description: String,
-        sourcePath: List<File>,
         classPath: List<File>,
-    ): SourceCodebase
+        apiPackages: PackageFilter?,
+        projectDescription: File?,
+    ): Codebase
 
     /**
-     * Load a [SourceCodebase] from a single jar.
+     * Load a [Codebase] from a single jar.
      *
-     * @param apiJar the jar file from which the [SourceCodebase] will be loaded.
-     * @param preFiltered true if the jar file contains classes which have already been filtered to
-     *   include only those classes that form an API surface, e.g. a stubs jar file.
+     * @param apiJar the jar file from which the [Codebase] will be loaded.
      */
-    fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase
+    fun loadFromJar(apiJar: File): Codebase
 }

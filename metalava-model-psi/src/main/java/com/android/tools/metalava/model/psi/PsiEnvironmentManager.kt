@@ -17,10 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.reporter.Reporter
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.util.Disposer
@@ -28,6 +28,8 @@ import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import java.io.File
+import kotlin.io.path.createTempDirectory
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
@@ -35,6 +37,27 @@ class PsiEnvironmentManager(
     private val disableStderrDumping: Boolean = false,
     private val forTesting: Boolean = false,
 ) : EnvironmentManager {
+
+    /**
+     * True if this is responsible for creating and this owning the application environment.
+     *
+     * This is needed to allow a [PsiEnvironmentManager] to be created while using another
+     * [PsiEnvironmentManager], e.g. in tests that require two [Codebase]s.
+     */
+    private val ownApplicationEnvironment: Boolean =
+        KotlinCoreEnvironment.applicationEnvironment == null
+
+    /**
+     * An empty directory, used when it is necessary to create an environment without any source.
+     * Simply providing an empty list of source roots will cause it to use the current working
+     * directory.
+     */
+    internal val emptyDir by lazy {
+        val path = createTempDirectory()
+        val file = path.toFile()
+        file.deleteOnExit()
+        file
+    }
 
     /**
      * Determines whether the manager has been closed. Used to prevent creating new environments
@@ -47,6 +70,7 @@ class PsiEnvironmentManager(
 
     init {
         if (forTesting) {
+            System.setProperty("java.awt.headless", "true")
             Disposer.setDebugMode(true)
         }
     }
@@ -102,20 +126,20 @@ class PsiEnvironmentManager(
     }
 
     override fun createSourceParser(
-        reporter: Reporter,
-        annotationManager: AnnotationManager,
+        codebaseConfig: Codebase.Config,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
-        useK2Uast: Boolean,
+        modelOptions: ModelOptions,
+        allowReadingComments: Boolean,
         jdkHome: File?,
     ): SourceParser {
         return PsiSourceParser(
             psiEnvironmentManager = this,
-            reporter = reporter,
-            annotationManager = annotationManager,
+            codebaseConfig = codebaseConfig,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
-            useK2Uast = useK2Uast,
+            useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
+            allowReadingComments = allowReadingComments,
             jdkHome = jdkHome,
         )
     }
@@ -130,10 +154,16 @@ class PsiEnvironmentManager(
             }
         }
         uastEnvironments.clear()
-        UastEnvironment.disposeApplicationEnvironment()
 
-        if (forTesting) {
-            Disposer.assertIsEmpty(true)
+        // Only dispose of the application environment if this object was responsible for creating.
+        // If it was not then there is no point in checking to make sure that [Disposer] is empty
+        // because it will include items that have not yet been disposed of by the
+        // [PsiEnvironmentManager] which does own the application environment.
+        if (ownApplicationEnvironment) {
+            UastEnvironment.disposeApplicationEnvironment()
+            if (forTesting) {
+                Disposer.assertIsEmpty(true)
+            }
         }
     }
 

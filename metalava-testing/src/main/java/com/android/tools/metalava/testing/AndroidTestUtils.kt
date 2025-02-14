@@ -37,8 +37,34 @@ private fun getAndroidJarFromEnv(apiLevel: Int): File {
  */
 private fun File.isMetalavaRootDir(): Boolean = resolve("metalava-model").isDirectory
 
+/** Get a [File] for the public `android.jar` of the specified [apiLevel]. */
 fun getAndroidJar(apiLevel: Int = API_LEVEL): File {
-    // This is either running in tools/metalava or tools/metalava/subproject-dir andwe need to look
+    val androidDir = getAndroidDir()
+
+    val localFile = androidDir.resolve("prebuilts/sdk/$apiLevel/public/android.jar")
+    if (localFile.exists()) {
+        return localFile
+    } else {
+        val androidJar = File("../../prebuilts/sdk/$apiLevel/android.jar")
+        if (androidJar.exists()) return androidJar
+        return getAndroidJarFromEnv(apiLevel)
+    }
+}
+
+/** Get a [File] for the [apiSurface] `android.txt` of the specified [apiLevel]. */
+fun getAndroidTxt(apiLevel: Int = API_LEVEL, apiSurface: String = "public"): File {
+    val androidDir = getAndroidDir()
+
+    val localFile = androidDir.resolve("prebuilts/sdk/$apiLevel/$apiSurface/api/android.txt")
+    if (!localFile.exists()) {
+        error("Missing ${localFile.absolutePath} file in the SDK")
+    }
+
+    return localFile
+}
+
+private fun getMetalavaDir(): File {
+    // This is either running in tools/metalava or tools/metalava/subproject-dir and we need to look
     // in prebuilts/sdk, so first find tools/metalava then resolve relative to that.
     val cwd = File("").absoluteFile
     val metalavaDir =
@@ -50,12 +76,12 @@ fun getAndroidJar(apiLevel: Int = API_LEVEL): File {
                 throw IllegalArgumentException("Could not find metalava-model in $cwd")
             }
         }
-    val localFile = metalavaDir.resolve("../../prebuilts/sdk/$apiLevel/public/android.jar")
-    if (localFile.exists()) {
-        return localFile
-    } else {
-        val androidJar = File("../../prebuilts/sdk/$apiLevel/android.jar")
-        if (androidJar.exists()) return androidJar
-        return getAndroidJarFromEnv(apiLevel)
-    }
+    return metalavaDir
 }
+
+/**
+ * The root directory containing the Android source.
+ *
+ * This is used to retrieve files from the `prebuilts` directory for testing.
+ */
+fun getAndroidDir() = getMetalavaDir().resolve("../../")
