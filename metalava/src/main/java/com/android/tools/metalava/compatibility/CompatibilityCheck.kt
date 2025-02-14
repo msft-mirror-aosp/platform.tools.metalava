@@ -37,10 +37,13 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.options
@@ -556,6 +559,25 @@ class CompatibilityCheck(
                 new,
                 "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
                     "${describe(new)}: Incompatible change"
+            )
+        }
+    }
+
+    override fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {
+        if (old.type() != new.type()) {
+            val typeStringConfiguration =
+                TypeStringConfiguration(
+                    annotations = true,
+                    kotlinStyleNulls = true,
+                    spaceBetweenTypeArguments = true,
+                    stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS
+                )
+            val oldTypeString = old.type().toTypeString(typeStringConfiguration)
+            val newTypeString = new.type().toTypeString(typeStringConfiguration)
+            report(
+                Issues.CHANGED_TYPE,
+                new,
+                "${describe(new, capitalize = true)} has changed type from $oldTypeString to $newTypeString"
             )
         }
     }
@@ -1095,6 +1117,10 @@ class CompatibilityCheck(
                 else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
+    }
+
+    override fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {
+        handleRemoved(Issues.REMOVED_TYPE_ALIAS, old)
     }
 
     private fun report(
