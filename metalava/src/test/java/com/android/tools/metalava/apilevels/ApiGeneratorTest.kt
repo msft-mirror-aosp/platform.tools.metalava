@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_API_VERSION_NAMES
@@ -315,6 +316,48 @@ class ApiGeneratorTest : DriverTest() {
         """
 
         apiVersionsXml.checkApiVersionsXmlContent(expected)
+    }
+
+    @Test
+    fun `Generate API for system surface from jar`() {
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-surfaces>
+                                    <api-surface name="public"/>
+                                    <api-surface name="system" extends="public"/>
+                                </api-surfaces>
+                            </config>
+                        """,
+                    )
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_API_SURFACE,
+                    "system",
+                    ARG_GENERATE_API_LEVELS,
+                    apiVersionsXml.path,
+                    ARG_FIRST_VERSION,
+                    "30",
+                    ARG_CURRENT_VERSION,
+                    "32",
+                    ARG_CURRENT_CODENAME,
+                    "Foo"
+                ),
+            sourceFiles =
+                arrayOf(
+                    TestFiles.jar("test.jar"),
+                ),
+            // TODO(b/378479241): Avoid this failure.
+            expectedFail =
+                "Aborting: Configuration of `<api-surface name=\"system\">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true",
+        )
     }
 
     @Test
