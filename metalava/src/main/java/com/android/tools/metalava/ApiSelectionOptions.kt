@@ -275,18 +275,34 @@ class ApiSelectionOptions(
             }
 
             // Create the ApiSurfaces from the configured API surfaces.
-            return ApiSurfaces.build {
-                // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
-                // through `extends`) come before the surfaces that reference them. This ensures
-                // that the `extends` can be resolved to an existing `ApiSurface`.
-                for (surfaceConfig in apiSurfacesConfig.contributesTo(targetApiSurfaceConfig)) {
-                    createSurface(
-                        name = surfaceConfig.name,
-                        extends = surfaceConfig.extends,
-                        isMain = surfaceConfig.name == targetApiSurface,
-                    )
-                }
-            }
+            return apiSurfacesFromConfig(
+                apiSurfacesConfig.contributesTo(targetApiSurfaceConfig),
+                targetApiSurface
+            )
         }
     }
 }
+
+/**
+ * Create [ApiSurfaces] from a collection of [ApiSurfaceConfig]s.
+ *
+ * The [ApiSurfaceConfig]s must be in order such that every [ApiSurfaceConfig] comes before any
+ * [ApiSurfaceConfig] that extends it. It must also be complete such that the collection must
+ * contain every [ApiSurfaceConfig] that is extended by another in the collection.
+ */
+private fun apiSurfacesFromConfig(
+    surfaceConfigs: Collection<ApiSurfaceConfig>,
+    targetApiSurface: String?
+) =
+    ApiSurfaces.build {
+        // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
+        // through `extends`) come before the surfaces that reference them. This ensures
+        // that the `extends` can be resolved to an existing `ApiSurface`.
+        for (surfaceConfig in surfaceConfigs) {
+            createSurface(
+                name = surfaceConfig.name,
+                extends = surfaceConfig.extends,
+                isMain = surfaceConfig.name == targetApiSurface,
+            )
+        }
+    }
