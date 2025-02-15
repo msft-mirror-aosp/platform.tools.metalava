@@ -30,6 +30,7 @@ import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
@@ -83,19 +84,7 @@ class ApiGeneratorTest : DriverTest() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         check(
-            configFiles =
-                arrayOf(
-                    xml(
-                        "config.xml",
-                        """
-                            <config xmlns="http://www.google.com/tools/metalava/config">
-                                <api-surfaces>
-                                    <api-surface name="public"/>
-                                </api-surfaces>
-                            </config>
-                        """,
-                    )
-                ),
+            configFiles = arrayOf(KnownConfigFiles.configPublicSurface),
             extraArguments =
                 arrayOf(
                     ARG_API_SURFACE,
@@ -323,20 +312,7 @@ class ApiGeneratorTest : DriverTest() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         check(
-            configFiles =
-                arrayOf(
-                    xml(
-                        "config.xml",
-                        """
-                            <config xmlns="http://www.google.com/tools/metalava/config">
-                                <api-surfaces>
-                                    <api-surface name="public"/>
-                                    <api-surface name="system" extends="public"/>
-                                </api-surfaces>
-                            </config>
-                        """,
-                    )
-                ),
+            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
             extraArguments =
                 arrayOf(
                     ARG_API_SURFACE,
