@@ -52,13 +52,12 @@ class SignatureToDexCommandTest :
             args += listOf("signature-to-dex")
 
             for ((index, signature) in signatures.withIndex()) {
-                val apiFile = inputFile("api$index.txt", signature.trimIndent())
-                args += apiFile.path
+                args += inputFile("api$index.txt", signature.trimIndent())
             }
 
             val outFile = outputFile("out.dex")
             args += ARG_OUT
-            args += outFile.path
+            args += outFile
 
             verify { assertEquals(expectedDex.trimIndent(), outFile.readText().trim()) }
         }

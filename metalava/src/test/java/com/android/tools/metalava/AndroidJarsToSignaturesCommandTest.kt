@@ -65,7 +65,7 @@ Arguments:
             val notAndroidRoot = folder("not-android-root")
 
             args += "android-jars-to-signatures"
-            args += notAndroidRoot.path
+            args += notAndroidRoot
 
             expectedStderr =
                 """
@@ -135,7 +135,7 @@ Arguments:
             }
 
             args += "android-jars-to-signatures"
-            args += androidRootDir.path
+            args += androidRootDir
 
             // Verify that all generated android.txt files have the correct content. They are
             // currently all the same.

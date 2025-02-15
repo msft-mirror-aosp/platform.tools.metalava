@@ -71,7 +71,7 @@ Arguments:
                 )
 
             val target = getOrCreateFolder("private-annotations")
-            args += target.path
+            args += target
 
             verify {
                 // Source retention explicitly listed: Shouldn't exist
@@ -157,8 +157,7 @@ Arguments:
                     source.path,
                 )
 
-            val target = getOrCreateFolder("private-annotations")
-            args += target.path
+            args += getOrCreateFolder("private-annotations")
 
             expectedStderr =
                 "Aborting: TESTROOT/annotations-copy/android/annotation/Unknown.java: Found annotation with unknown desired retention: android.annotation.Unknown"

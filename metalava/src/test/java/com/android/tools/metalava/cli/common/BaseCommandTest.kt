@@ -99,6 +99,33 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     val args = mutableListOf<String>()
 
     /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(arg: Any) {
+        add(arg.toString())
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(args: Iterable<Any>) {
+        args.mapTo(this) { it.toString() }
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(args: Array<Any>) {
+        args.mapTo(this) { it.toString() }
+    }
+
+    /**
      * The expected output, defaults to an empty string.
      *
      * This will be checked after running the test.

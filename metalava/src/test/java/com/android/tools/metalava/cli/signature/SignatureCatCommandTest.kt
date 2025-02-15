@@ -99,29 +99,27 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                 listOf(
                     "signature-cat",
                     inputFile(
-                            "foo.txt",
-                            """
+                        "foo.txt",
+                        """
                             // Signature format: 2.0
                             package test.pkg {
                               public interface Foo {
                               }
                             }
                         """
-                                .trimIndent()
-                        )
-                        .path,
+                            .trimIndent()
+                    ),
                     inputFile(
-                            "bar.txt",
-                            """
+                        "bar.txt",
+                        """
                             // Signature format: 2.0
                             package test.pkg {
                               public interface Bar {
                               }
                             }
                         """
-                                .trimIndent()
-                        )
-                        .path,
+                            .trimIndent()
+                    ),
                 )
 
             // Stdin should be ignored when files are provided on the command line.
@@ -206,9 +204,9 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
             args +=
                 listOf(
                     "signature-cat",
-                    inputFile("current.txt", signature).path,
+                    inputFile("current.txt", signature),
                     "--output-file",
-                    outputFile.path
+                    outputFile,
                 )
 
             verify {
