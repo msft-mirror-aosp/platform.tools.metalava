@@ -98,7 +98,7 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
             args +=
                 listOf(
                     "signature-cat",
-                    inputFile(
+                    unindentedInputFile(
                         "foo.txt",
                         """
                             // Signature format: 2.0
@@ -107,9 +107,8 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                               }
                             }
                         """
-                            .trimIndent()
                     ),
-                    inputFile(
+                    unindentedInputFile(
                         "bar.txt",
                         """
                             // Signature format: 2.0
@@ -118,7 +117,6 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                               }
                             }
                         """
-                            .trimIndent()
                     ),
                 )
 
@@ -197,14 +195,13 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                   }
                 }
             """
-                .trimIndent()
 
         commandTest {
             val outputFile = outputFile("cat.txt")
             args +=
                 listOf(
                     "signature-cat",
-                    inputFile("current.txt", signature),
+                    unindentedInputFile("current.txt", signature),
                     "--output-file",
                     outputFile,
                 )

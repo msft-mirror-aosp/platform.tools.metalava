@@ -149,7 +149,7 @@ Arguments:
             val source = getOrCreateFolder("annotations-copy")
             stubAnnotationsDir.copyRecursively(source)
             assertTrue(source.path, source.isDirectory)
-            inputFile("android/annotation/Unknown.java", fooSource, source)
+            unindentedInputFile("android/annotation/Unknown.java", fooSource, source)
 
             args +=
                 listOf(

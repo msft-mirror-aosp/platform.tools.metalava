@@ -174,6 +174,15 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     }
 
     /**
+     * Create a file that can be passed as an input to a command.
+     *
+     * @param contents the contents of the file, will have [String.trimIndent] called before passing
+     *   to [inputFile].
+     */
+    fun unindentedInputFile(name: String, contents: String, parentDir: File? = null) =
+        inputFile(name, contents.trimIndent(), parentDir)
+
+    /**
      * Get the path to a file that can be passed as an output from a command.
      *
      * @param name the name of the file, relative to parentDir.

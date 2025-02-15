@@ -52,7 +52,7 @@ class SignatureToDexCommandTest :
             args += listOf("signature-to-dex")
 
             for ((index, signature) in signatures.withIndex()) {
-                args += inputFile("api$index.txt", signature.trimIndent())
+                args += unindentedInputFile("api$index.txt", signature)
             }
 
             val outFile = outputFile("out.dex")

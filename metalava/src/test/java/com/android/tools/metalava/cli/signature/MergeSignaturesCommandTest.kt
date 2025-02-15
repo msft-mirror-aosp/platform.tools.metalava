@@ -38,7 +38,7 @@ class MergeSignaturesCommandTest :
                 args +=
                     inputFile(
                         "api${i + 1}.txt",
-                        prepareSignatureFileForTest(contents.trimIndent(), FileFormat.V2)
+                        prepareSignatureFileForTest(contents, FileFormat.V2)
                     )
             }
 

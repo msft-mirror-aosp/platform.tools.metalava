@@ -913,11 +913,11 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
             // Create a unique folder to allow multiple configs to be run in the same test.
             val folder = commandTestConfig.folder("jdiff-conversion")
 
-            args += inputFile("api.txt", api.trimIndent(), parentDir = folder)
+            args += unindentedInputFile("api.txt", api, parentDir = folder)
 
             baseApi?.let {
                 args += "--base-api"
-                args += inputFile("base-api.txt", it.trimIndent(), parentDir = folder)
+                args += unindentedInputFile("base-api.txt", it, parentDir = folder)
             }
 
             val xmlFile = outputFile("api.xml", parentDir = folder)
