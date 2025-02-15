@@ -89,7 +89,7 @@ class ConvertJarsToSignatureFiles(
             PatternNode.ScanConfig(
                 dir = root,
                 apiVersionFilter = apiVersions?.let { it::contains },
-                apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
+                apiSurfaceByName = apiSurfaces.byName,
             )
 
         val historicalApis =
