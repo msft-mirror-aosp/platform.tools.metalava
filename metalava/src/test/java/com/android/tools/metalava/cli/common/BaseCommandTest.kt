@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.run
@@ -97,6 +98,11 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      * a single test.
      */
     val args = mutableListOf<String>()
+
+    /** Add a [TestFile] to [args] by creating a [File] and adding its [File.path]. */
+    operator fun MutableList<String>.plusAssign(testFile: TestFile) {
+        this += testFile.createFile(test.temporaryFolder.root)
+    }
 
     /**
      * Make it easy to add anything to the [args] list by automatically calling [toString] on it.

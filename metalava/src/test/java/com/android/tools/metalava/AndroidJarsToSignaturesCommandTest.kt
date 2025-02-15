@@ -48,11 +48,13 @@ Options:
                                              `public` will be converted.
   -h, -?, --help                             Show this message and exit
 
+$CONFIG_FILE_OPTIONS_HELP
+
 $SIGNATURE_FORMAT_OPTIONS_HELP
 
 Arguments:
   <android-root-dir>                         The root directory of the Android source tree. The new signature files will
-                                             be generated in the `prebuilts/sdk/<api>/public/api/android.txt`
+                                             be generated in the `prebuilts/sdk/<api>/<surface>/api/android.txt`
                                              sub-directories.
             """
                     .trimIndent()
@@ -136,6 +138,9 @@ Arguments:
 
             args += "android-jars-to-signatures"
             args += androidRootDir
+
+            args += ARG_CONFIG_FILE
+            args += KnownConfigFiles.configPublicAndSystemSurfaces
 
             // Verify that all generated android.txt files have the correct content. They are
             // currently all the same.

@@ -290,7 +290,7 @@ class ApiSelectionOptions(
  * [ApiSurfaceConfig] that extends it. It must also be complete such that the collection must
  * contain every [ApiSurfaceConfig] that is extended by another in the collection.
  */
-private fun apiSurfacesFromConfig(
+internal fun apiSurfacesFromConfig(
     surfaceConfigs: Collection<ApiSurfaceConfig>,
     targetApiSurface: String?
 ) =
