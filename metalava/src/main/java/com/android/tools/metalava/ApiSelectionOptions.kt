@@ -253,7 +253,7 @@ class ApiSelectionOptions(
 
             val targetApiSurfaceConfig =
                 apiSurfacesConfig.getByNameOrError(targetApiSurface) {
-                    "$ARG_API_SURFACE (`$targetApiSurface`) does not match an <api-surface> in a --config-file"
+                    "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a --config-file"
                 }
 
             val extendedSurface = targetApiSurfaceConfig.extends
