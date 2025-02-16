@@ -312,7 +312,11 @@ class ApiLevelsGenerationOptions(
         // Find all the android.jar files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = firstApiVersion.rangeTo(lastApiVersion)
-        val scanConfig = PatternNode.ScanConfig(dir = dir, apiVersionRange = versionRange)
+        val scanConfig =
+            PatternNode.ScanConfig(
+                dir = dir,
+                apiVersionFilter = versionRange::contains,
+            )
         return patternNode.scan(scanConfig)
     }
 
@@ -357,7 +361,7 @@ class ApiLevelsGenerationOptions(
             val matchedFiles = scanForJarFiles(fileForPathInner("."), androidJarPatterns)
 
             // Split the files into Android jar files and extension jar files.
-            val (androidJarFiles, extensionJarFiles) = matchedFiles.partition { it.module == null }
+            val (extensionJarFiles, androidJarFiles) = matchedFiles.partition { it.extension }
 
             // Get a VersionedApi for each of the Android jar files.
             val versionedHistoricalApis = constructVersionedApisForAndroidJars(androidJarFiles)
@@ -569,7 +573,8 @@ class ApiLevelsGenerationOptions(
             // Create VersionedApis for the signature files and the source codebase.
             val versionedApis = buildList {
                 matchedPatternFiles.mapTo(this) {
-                    VersionedSignatureApi(signatureFileLoader, it.file, it.version)
+                    val updater = ApiHistoryUpdater.forApiVersion(it.version)
+                    VersionedSignatureApi(signatureFileLoader, listOf(it.file), updater)
                 }
                 // Add a VersionedSourceApi for the source code.
                 add(VersionedSourceApi(codebaseFragmentProvider, sourceVersion))
