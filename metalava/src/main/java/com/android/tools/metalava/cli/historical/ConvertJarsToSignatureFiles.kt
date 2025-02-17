@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -42,6 +43,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
+import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -181,20 +183,39 @@ class ConvertJarsToSignatureFiles(
             throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
         }
 
-        createReportFile(progressTracker, jarCodebase, signatureFile, "API") { printWriter ->
-            val signatureWriter =
-                SignatureWriter(
-                    writer = printWriter,
-                    fileFormat = fileFormat,
-                )
+        val jarCodebaseFragment =
+            CodebaseFragment.create(
+                jarCodebase,
+                { delegate ->
+                    createFilteringVisitorForSignatures(
+                        delegate = delegate,
+                        fileFormat = fileFormat,
+                        apiType = ApiType.PUBLIC_API,
+                        preFiltered = jarCodebase.preFiltered,
+                        showUnannotated = false,
+                        apiPredicateConfig = ApiPredicate.Config()
+                    )
+                }
+            )
 
-            createFilteringVisitorForSignatures(
-                delegate = signatureWriter,
+        val extendsInfo = surfaceInfo.extends
+        val outputCodebaseFragment =
+            if (extendsInfo == null) jarCodebaseFragment
+            else {
+                val signatureFiles = extendsInfo.contributingSignatureFiles()
+                val extendedCodebase = signatureFileLoader.load(signatureFiles)
+
+                SnapshotDeltaMaker.createDelta(
+                    base = extendedCodebase,
+                    codebaseFragment = jarCodebaseFragment,
+                )
+            }
+
+        createReportFile(progressTracker, outputCodebaseFragment, signatureFile, "API") {
+            printWriter ->
+            SignatureWriter(
+                writer = printWriter,
                 fileFormat = fileFormat,
-                apiType = ApiType.PUBLIC_API,
-                preFiltered = jarCodebase.preFiltered,
-                showUnannotated = false,
-                apiPredicateConfig = ApiPredicate.Config()
             )
         }
     }

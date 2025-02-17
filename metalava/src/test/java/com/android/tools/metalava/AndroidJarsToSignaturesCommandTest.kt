@@ -282,7 +282,6 @@ Arguments:
                         """
                     )
 
-                // TODO(b/396431439): Should not include public constructor and method.
                 root
                     .resolve(currentApiTxtFile(3, "system"))
                     .assertSignatureContents(
@@ -290,8 +289,6 @@ Arguments:
                             // Signature format: 2.0
                             package test.pkg {
                               public class Public {
-                                ctor public Public();
-                                method public void publicMethod();
                                 method public void systemMethod();
                               }
                             }
