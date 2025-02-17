@@ -108,12 +108,10 @@ class ConvertJarsToSignatureFiles(
      * file, i.e. [SurfaceInfo.signatureFile].
      */
     private fun convertJar(version: ApiVersion, surfaceInfo: SurfaceInfo) {
-        val relativeJarFile = surfaceInfo.jarFile
-        val jarFile = root.resolve(relativeJarFile)
-        val relativeSignatureFile = surfaceInfo.signatureFile
-        val signatureFile = root.resolve(relativeSignatureFile)
+        val jarFile = surfaceInfo.jarFile
+        val signatureFile = surfaceInfo.signatureFile
 
-        progressTracker.progress("Writing signature files $relativeSignatureFile for $jarFile")
+        progressTracker.progress("Writing signature files $signatureFile for $jarFile")
 
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
