@@ -41,7 +41,6 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
@@ -174,7 +173,11 @@ class ConvertJarsToSignatureFiles(
         // ASM doesn't seem to pick up everything that's actually there according to javap. So as
         // another fallback, read from the existing signature files:
         try {
-            val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(signatureFile))
+            // Read all the signature files that contribute to this surface to ensure that any
+            // deprecated classes in the extended surface are also deprecated in the extending
+            // surface.
+            val signatureFiles = surfaceInfo.contributingSignatureFiles()
+            val oldCodebase = signatureFileLoader.load(signatureFiles)
             val visitor =
                 object : ComparisonVisitor() {
                     override fun compareItems(old: Item, new: Item) {
@@ -185,7 +188,7 @@ class ConvertJarsToSignatureFiles(
                 }
             CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
         } catch (e: Exception) {
-            throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
+            throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
 
         val jarCodebaseFragment =
