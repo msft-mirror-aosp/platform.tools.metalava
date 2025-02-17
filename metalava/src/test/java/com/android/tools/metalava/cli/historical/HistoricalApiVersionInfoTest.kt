@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.cli.historical
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.apiSurfacesFromConfig
 import com.android.tools.metalava.apilevels.PatternNode
+import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -41,6 +45,10 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                         append("      signatureFile=")
                             .append(surfaceInfo.signatureFile)
                             .append(",\n")
+                        val extendsInfo = surfaceInfo.extends
+                        if (extendsInfo != null) {
+                            append("      extends=${extendsInfo.surface.name},\n")
+                        }
                         append("    )\n")
                     }
                     append("  },\n")
@@ -49,20 +57,15 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
             }
             .let { replaceFileWithSymbol(it) }
 
+    private fun buildApiSurfacesFromConfig(configFile: TestFile): ApiSurfaces {
+        val config = ConfigParser.parse(listOf(configFile.createFile(temporaryFolder.newFolder())))
+        val surfaceConfigs =
+            config.apiSurfaces ?: error("No <api-surface/>s specified in config file")
+        return apiSurfacesFromConfig(surfaceConfigs.apiSurfaceList, "public")
+    }
+
     private fun scanForHistoricalApiVersionInfo(root: File): List<HistoricalApiVersionInfo> {
-        val apiSurfaceNames = listOf("public", "system")
-
-        val apiSurfaces =
-            ApiSurfaces.build {
-                for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
-                    // The main surface is irrelevant at the moment because this always generates
-                    // the whole API surface. However, a main surface is required so this just uses
-                    // the first one as the main surface for now.
-                    val isMain = index == 0
-                    createSurface(apiSurfaceName, isMain = isMain)
-                }
-            }
-
+        val apiSurfaces = buildApiSurfacesFromConfig(KnownConfigFiles.configPublicAndSystemSurfaces)
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = root,
@@ -124,6 +127,7 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                     SurfaceInfo(
                       jarFile=TESTROOT/2/system/api.jar,
                       signatureFile=TESTROOT/2/system/api/api.txt,
+                      extends=public,
                     )
                   },
                 )
