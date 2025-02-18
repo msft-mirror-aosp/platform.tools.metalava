@@ -54,6 +54,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.psi.PsiModifierItem.isFromInterface
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -241,36 +242,7 @@ internal object PsiModifierItem {
     }
 
     private fun computeFlag(element: PsiModifierListOwner, modifierList: PsiModifierList): Int {
-        var flags = 0
-        if (modifierList.hasModifierProperty(PsiModifier.STATIC)) {
-            flags = flags or STATIC
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.ABSTRACT)) {
-            flags = flags or ABSTRACT
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.FINAL)) {
-            flags = flags or FINAL
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.NATIVE)) {
-            flags = flags or NATIVE
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.SYNCHRONIZED)) {
-            flags = flags or SYNCHRONIZED
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.STRICTFP)) {
-            flags = flags or STRICT_FP
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.TRANSIENT)) {
-            flags = flags or TRANSIENT
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.VOLATILE)) {
-            flags = flags or VOLATILE
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.DEFAULT)) {
-            flags = flags or DEFAULT
-        }
-
-        // Look for special Kotlin keywords
+        // Look for a KtModifierList to compute visibility and Kotlin-specific modifiers.
         var ktModifierList: KtModifierList? = null
         val sourcePsi = (element as? UElement)?.sourcePsi
         when (modifierList) {
@@ -283,6 +255,9 @@ internal object PsiModifierItem {
                 }
             }
         }
+
+        // Compute flags that exist in java.
+        var flags = javaFlags(modifierList)
 
         // Merge in the visibility flags.
         val visibilityFlags = visibilityFlags(modifierList, ktModifierList, element, sourcePsi)
@@ -386,6 +361,42 @@ internal object PsiModifierItem {
         return visibilityFlags
     }
 
+    /**
+     * Computes flags that exist in Java, excluding visibility flags. These are for both Java and
+     * Kotlin source elements.
+     */
+    private fun javaFlags(modifierList: PsiModifierList): Int {
+        var flags = 0
+        if (modifierList.hasModifierProperty(PsiModifier.STATIC)) {
+            flags = flags or STATIC
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.ABSTRACT)) {
+            flags = flags or ABSTRACT
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.FINAL)) {
+            flags = flags or FINAL
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.NATIVE)) {
+            flags = flags or NATIVE
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.SYNCHRONIZED)) {
+            flags = flags or SYNCHRONIZED
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.STRICTFP)) {
+            flags = flags or STRICT_FP
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.TRANSIENT)) {
+            flags = flags or TRANSIENT
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.VOLATILE)) {
+            flags = flags or VOLATILE
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.DEFAULT)) {
+            flags = flags or DEFAULT
+        }
+        return flags
+    }
+
     /** Computes Kotlin-specific flags. */
     private fun kotlinFlags(hasModifier: (KtModifierKeywordToken) -> Boolean): Int {
         var flags = 0
@@ -433,31 +444,18 @@ internal object PsiModifierItem {
 
     /** Creates Java-equivalent flags for the Kotlin element. */
     private fun javaFlagsForKotlinElement(ktDeclaration: KtDeclaration): Int {
-        // const values are static, and anything in a file-facade class (which top level KtElements
-        // are) is also static
         return if (
+            // const values are static, and anything in a file-facade class (which top level
+            // [KtDeclaration]s are) is also static
             ktDeclaration.hasModifier(KtTokens.CONST_KEYWORD) ||
                 ktDeclaration.isTopLevelKtOrJavaMember()
         ) {
             FINAL or STATIC
-        } else if (ktDeclaration.isAbstractProperty()) {
-            // Declarations with the abstract keyword are abstract, and so are annotation class
-            // properties.
+        } else if (ktDeclaration.isAbstract()) {
             ABSTRACT
-        } else if (
-            ktDeclaration.isFromInterface() &&
-                ktDeclaration is KtProperty &&
-                ktDeclaration.getter?.hasBody() == true
-        ) {
-            // Interface properties can't have backing fields, so they are abstract unless there is
-            // a defined getter. If there is a defined getter, there's a default implementation.
+        } else if (ktDeclaration.isDefault()) {
             DEFAULT
-        } else if (
-            ktDeclaration.hasModifier(KtTokens.FINAL_KEYWORD) ||
-                (!ktDeclaration.hasModifier(KtTokens.OPEN_KEYWORD) &&
-                    !ktDeclaration.hasModifier(KtTokens.OVERRIDE_KEYWORD))
-        ) {
-            // Kotlin elements are final unless declared otherwise.
+        } else if (ktDeclaration.isFinal()) {
             FINAL
         } else {
             0
@@ -475,10 +473,30 @@ internal object PsiModifierItem {
      * - if the definition is an annotation property
      * - if the definition is an interface property without a defined getter
      */
-    private fun KtDeclaration.isAbstractProperty(): Boolean {
+    private fun KtDeclaration.isAbstract(): Boolean {
         return hasModifier(KtTokens.ABSTRACT_KEYWORD) ||
             (containingClassOrObject as? KtClass)?.isAnnotation() == true ||
             (this is KtProperty && isFromInterface() && getter?.hasBody() != true)
+    }
+
+    /**
+     * Checks if the [KtDeclaration] needs the default modifier:
+     * - if the definition is an interface property with a defined getter (interface properties
+     *   cannot have backing fields, so this is the only way they can have a default implementation)
+     */
+    private fun KtDeclaration.isDefault(): Boolean {
+        return isFromInterface() && this is KtProperty && getter?.hasBody() == true
+    }
+
+    /**
+     * Checks if the [KtDeclaration] needs the final modifier. This should only be called if the
+     * definition does not need the abstract or default modifiers.
+     * - if the definition uses the final keyword
+     * - if the definition does not use the open keyword and does not use the override keyword
+     */
+    private fun KtDeclaration.isFinal(): Boolean {
+        return hasModifier(KtTokens.FINAL_KEYWORD) ||
+            (!hasModifier(KtTokens.OPEN_KEYWORD) && !hasModifier(KtTokens.OVERRIDE_KEYWORD))
     }
 
     /**
