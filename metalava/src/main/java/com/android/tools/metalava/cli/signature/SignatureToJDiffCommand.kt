@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -148,12 +149,9 @@ class SignatureToJDiffCommand :
         val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFile))
 
         val apiPredicateConfig = ApiPredicate.Config()
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
         val strip = strip
-        val apiReference =
-            if (strip) apiType.getEmitFilter(apiPredicateConfig)
-            else apiType.getReferenceFilter(apiPredicateConfig)
+        val apiEmit = FilterPredicate { it.emit }
+        val apiReference = if (strip) apiEmit else FilterPredicate { true }
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
         val baseFile = baseApiFile
 
