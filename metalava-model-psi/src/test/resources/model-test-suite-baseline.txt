@@ -10,6 +10,14 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
+  Modifiers on APIs using value classes in an abstract class[kotlin,k2]
+  Modifiers on APIs using value classes in an interface[kotlin,k2]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonInlineMethodTest
+  Test modifiers on inline reified fun[kotlin,k1]
+  Test modifiers on inline reified fun[kotlin,k2]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]
