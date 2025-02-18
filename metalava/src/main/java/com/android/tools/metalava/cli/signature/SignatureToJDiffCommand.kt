@@ -26,9 +26,11 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.createFilteringVisitorForJDiffWriter
 import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
@@ -164,20 +166,27 @@ class SignatureToJDiffCommand :
                 signatureApi
             }
 
-        // See JDiff's XMLToAPI#nameAPI
-        val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(
-                    writer = printWriter,
-                    apiName = apiName,
-                )
-                .createFilteringVisitor(
+        val outputFragment =
+            CodebaseFragment.create(outputApi) { delegate ->
+                createFilteringVisitorForJDiffWriter(
+                    delegate,
                     apiFilters = apiFilters,
                     preFiltered = signatureApi.preFiltered && !strip,
                     showUnannotated = false,
-                    // Historically, the super class type has not been filtered.
+                    // Historically, the super class type has not been filtered when generating
+                    // JDiff files, so do not filter here even though it could result in undefined
+                    // types being included in the JDiff file.
                     filterSuperClassType = false,
                 )
+            }
+
+        // See JDiff's XMLToAPI#nameAPI
+        val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
+        createReportFile(progressTracker, outputFragment, xmlFile, "JDiff File") { printWriter ->
+            JDiffXmlWriter(
+                writer = printWriter,
+                apiName = apiName,
+            )
         }
     }
 }
