@@ -78,8 +78,10 @@ import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -257,7 +259,19 @@ internal object PsiModifierItem {
         }
 
         // Compute flags that exist in java.
-        var flags = javaFlags(modifierList)
+        var flags =
+            if (
+                element is KotlinUMethodWithFakeLightDelegateBase<*> && sourcePsi is KtDeclaration
+            ) {
+                // Fake elements from kotlin (e.g. methods that use value class types) may not have
+                // the correct modifiers (https://youtrack.jetbrains.com/issue/KTIJ-33047). Compute
+                // them directly from the source instead.
+                // Use the property element directly for accessors because some values aren't
+                // defined for accessors (e.g. containingClassOrObject is null).
+                javaFlagsForKotlinElement((sourcePsi as? KtPropertyAccessor)?.property ?: sourcePsi)
+            } else {
+                javaFlags(modifierList)
+            }
 
         // Merge in the visibility flags.
         val visibilityFlags = visibilityFlags(modifierList, ktModifierList, element, sourcePsi)
@@ -472,20 +486,24 @@ internal object PsiModifierItem {
      * - if the definition used the abstract modifier
      * - if the definition is an annotation property
      * - if the definition is an interface property without a defined getter
+     * - if the definition is an interface function without a body
      */
     private fun KtDeclaration.isAbstract(): Boolean {
         return hasModifier(KtTokens.ABSTRACT_KEYWORD) ||
             (containingClassOrObject as? KtClass)?.isAnnotation() == true ||
-            (this is KtProperty && isFromInterface() && getter?.hasBody() != true)
+            (this is KtProperty && isFromInterface() && getter?.hasBody() != true) ||
+            (this is KtFunction && isFromInterface() && !hasBody())
     }
 
     /**
      * Checks if the [KtDeclaration] needs the default modifier:
      * - if the definition is an interface property with a defined getter (interface properties
      *   cannot have backing fields, so this is the only way they can have a default implementation)
+     * - if the definition is an interface function with a body
      */
     private fun KtDeclaration.isDefault(): Boolean {
-        return isFromInterface() && this is KtProperty && getter?.hasBody() == true
+        return isFromInterface() &&
+            ((this is KtProperty && getter?.hasBody() == true) || (this is KtFunction && hasBody()))
     }
 
     /**
@@ -493,10 +511,14 @@ internal object PsiModifierItem {
      * definition does not need the abstract or default modifiers.
      * - if the definition uses the final keyword
      * - if the definition does not use the open keyword and does not use the override keyword
+     * - the definition is not a constructor -- the final modifier isn't needed for constructors as
+     *   constructors can never be overridden
      */
     private fun KtDeclaration.isFinal(): Boolean {
         return hasModifier(KtTokens.FINAL_KEYWORD) ||
-            (!hasModifier(KtTokens.OPEN_KEYWORD) && !hasModifier(KtTokens.OVERRIDE_KEYWORD))
+            (!hasModifier(KtTokens.OPEN_KEYWORD) &&
+                !hasModifier(KtTokens.OVERRIDE_KEYWORD) &&
+                this !is KtConstructor<*>)
     }
 
     /**

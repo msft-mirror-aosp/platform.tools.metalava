@@ -52,10 +52,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes[turbine]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
-  Modifiers on APIs using value classes in an abstract class[psi,kotlin,k2]
-  Modifiers on APIs using value classes in an interface[psi,kotlin,k2]
-
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k1]
   Test getTopLevelClassesFromSource[psi,java,k2]
@@ -70,10 +66,6 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine]
   test non final field with default value as constant expression[turbine]
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonInlineMethodTest
-  Test modifiers on inline reified fun[psi,kotlin,k1]
-  Test modifiers on inline reified fun[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test no default value[psi,java,k1]
