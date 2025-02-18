@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiPrimitiveType
@@ -58,8 +59,12 @@ internal class PsiPrimitiveTypeItem(
     override val kind: PrimitiveTypeItem.Primitive,
     modifiers: TypeModifiers,
 ) : PrimitiveTypeItem, PsiTypeItem(psiType, modifiers) {
-    override fun duplicate(): PsiPrimitiveTypeItem =
-        PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers.duplicate())
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers)"),
+    )
+    override fun duplicate(modifiers: TypeModifiers): PsiPrimitiveTypeItem =
+        PsiPrimitiveTypeItem(psiType = psiType, kind = kind, modifiers = modifiers)
 }
 
 /** A [PsiTypeItem] backed by a [PsiArrayType]. */
@@ -69,12 +74,16 @@ internal class PsiArrayTypeItem(
     override val isVarargs: Boolean,
     modifiers: TypeModifiers,
 ) : ArrayTypeItem, PsiTypeItem(psiType, modifiers) {
-    override fun duplicate(componentType: TypeItem): ArrayTypeItem =
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
+    )
+    override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
             psiType = psiType,
             componentType = componentType,
             isVarargs = isVarargs,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers,
         )
 }
 
@@ -85,16 +94,25 @@ internal open class PsiClassTypeItem(
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
-    final override val className: String,
     modifiers: TypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(psiType, modifiers) {
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
         lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
 
     override fun asClass() = asClassCache
 
+    override fun isFunctionalType(): Boolean {
+        return LambdaUtil.isFunctionalType(psiType)
+    }
+
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
+    )
     override fun duplicate(
+        modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem =
@@ -104,8 +122,7 @@ internal open class PsiClassTypeItem(
             qualifiedName = qualifiedName,
             arguments = arguments,
             outerClassType = outerClassType,
-            className = className,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers,
         )
 }
 
@@ -115,7 +132,6 @@ internal class PsiLambdaTypeItem(
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
     outerClassType: ClassTypeItem?,
-    className: String,
     modifiers: TypeModifiers,
     override val isSuspend: Boolean,
     override val receiverType: TypeItem?,
@@ -128,12 +144,16 @@ internal class PsiLambdaTypeItem(
         qualifiedName = qualifiedName,
         arguments = arguments,
         outerClassType = outerClassType,
-        className = className,
         modifiers = modifiers,
     ),
     LambdaTypeItem {
 
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
+    )
     override fun duplicate(
+        modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem {
@@ -143,8 +163,7 @@ internal class PsiLambdaTypeItem(
             qualifiedName = qualifiedName,
             arguments = arguments,
             outerClassType = outerClassType,
-            className = className,
-            modifiers = modifiers.duplicate(),
+            modifiers = modifiers,
             isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
@@ -162,10 +181,14 @@ internal class PsiVariableTypeItem(
 
     override val name: String = asTypeParameter.name()
 
-    override fun duplicate(): PsiVariableTypeItem =
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers)"),
+    )
+    override fun duplicate(modifiers: TypeModifiers): PsiVariableTypeItem =
         PsiVariableTypeItem(
             psiType = psiType,
-            modifiers = modifiers.duplicate(),
+            modifiers = modifiers,
             asTypeParameter = asTypeParameter,
         )
 }
@@ -177,7 +200,12 @@ internal class PsiWildcardTypeItem(
     override val superBound: ReferenceTypeItem?,
     modifiers: TypeModifiers,
 ) : WildcardTypeItem, PsiTypeItem(psiType, modifiers) {
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)")
+    )
     override fun duplicate(
+        modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): WildcardTypeItem =
@@ -185,6 +213,6 @@ internal class PsiWildcardTypeItem(
             psiType = psiType,
             extendsBound = extendsBound,
             superBound = superBound,
-            modifiers = modifiers.duplicate()
+            modifiers = modifiers,
         )
 }

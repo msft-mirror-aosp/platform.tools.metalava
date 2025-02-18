@@ -25,7 +25,6 @@ class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
     fun `Test help`() {
         commandTest {
             args += listOf("help", "issues")
-
             expectedStdout =
                 """
 Usage: metalava help issues <issue>?
@@ -59,7 +58,6 @@ Available Issues                             |  Category                |   Defa
   BecameUnchecked                            |  compatibility           |   error
   BothPackageInfoAndHtml                     |  documentation           |   warning
   BroadcastBehavior                          |  documentation           |   error
-  BrokenArtifactFile                         |  documentation           |   error
   BuilderSetStyle                            |  api_lint                |   warning
   CallbackInterface                          |  api_lint                |   hidden
   CallbackMethodName                         |  api_lint                |   error
@@ -72,21 +70,18 @@ Available Issues                             |  Category                |   Defa
   ChangedScope                               |  compatibility           |   error
   ChangedStatic                              |  compatibility           |   error
   ChangedSuperclass                          |  compatibility           |   error
-  ChangedSynchronized                        |  compatibility           |   hidden
   ChangedThrows                              |  compatibility           |   error
-  ChangedTransient                           |  compatibility           |   error
   ChangedType                                |  compatibility           |   error
   ChangedValue                               |  compatibility           |   error
   ChangedVolatile                            |  compatibility           |   error
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
+  ConditionalRequiresPermissionNotExplained  |  api_lint                |   hidden
   ConfigFieldName                            |  api_lint                |   error
-  ConflictingShowAnnotations                 |  unknown                 |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
-  DefaultValueChange                         |  api_lint                |   error
+  DefaultValueChange                         |  compatibility           |   error
   Deprecated                                 |  documentation           |   hidden
-  DeprecatedOption                           |  unknown                 |   warning
   DeprecationMismatch                        |  documentation           |   error
   DocumentExceptions                         |  api_lint                |   error
   DuplicateSourceClass                       |  unknown                 |   warning
@@ -95,11 +90,11 @@ Available Issues                             |  Category                |   Defa
   EqualsAndHashCode                          |  api_lint                |   error
   ExceptionName                              |  api_lint                |   error
   ExecutorRegistration                       |  api_lint                |   warning
-  ExtendsDeprecated                          |  unknown                 |   hidden
+  ExtendsDeprecated                          |  api_lint                |   hidden
   ExtendsError                               |  api_lint                |   error
   FlaggedApiLiteral                          |  api_lint                |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                |   error
-  ForbiddenTag                               |  unknown                 |   error
+  ForbiddenTag                               |  documentation           |   error
   FractionFloat                              |  api_lint                |   error
   FunRemoval                                 |  compatibility           |   error
   GenericCallbacks                           |  api_lint                |   error
@@ -108,13 +103,14 @@ Available Issues                             |  Category                |   Defa
   GetterSetterNames                          |  api_lint                |   error
   GetterSetterNullability                    |  api_lint                |   warning_error_when_new
   HeavyBitSet                                |  api_lint                |   error
-  HiddenAbstractMethod                       |  unknown                 |   error
+  HiddenAbstractMethod                       |  api_lint                |   error
   HiddenSuperclass                           |  documentation           |   warning
   HiddenTypeParameter                        |  documentation           |   warning
   HiddenTypedefConstant                      |  unknown                 |   error
   IgnoringSymlink                            |  unknown                 |   info
-  IllegalStateException                      |  api_lint                |   warning
+  InconsistentMergeAnnotation                |  api_lint                |   warning_error_when_new
   InfixRemoval                               |  compatibility           |   error
+  InheritChangesSignature                    |  unknown                 |   warning_error_when_new
   IntDef                                     |  documentation           |   hidden
   IntentBuilderName                          |  api_lint                |   warning
   IntentName                                 |  api_lint                |   error
@@ -122,11 +118,14 @@ Available Issues                             |  Category                |   Defa
   InternalClasses                            |  api_lint                |   error
   InternalError                              |  unknown                 |   error
   InternalField                              |  api_lint                |   error
+  InvalidEnvironmentInRestrictedForEnvironment
+                                             |  api_lint                |   error
   InvalidFeatureEnforcement                  |  documentation           |   error
   InvalidNullConversion                      |  compatibility           |   error
   InvalidNullabilityAnnotation               |  unknown                 |   error
   InvalidNullabilityAnnotationWarning        |  unknown                 |   warning
   InvalidNullabilityOverride                 |  api_lint                |   error
+  InvalidPackage                             |  unknown                 |   error
   InvalidSyntax                              |  unknown                 |   error
   IoError                                    |  unknown                 |   error
   KotlinDefaultParameterOrder                |  api_lint                |   error
@@ -142,6 +141,7 @@ Available Issues                             |  Category                |   Defa
   MinMaxConstant                             |  api_lint                |   warning
   MissingBuildMethod                         |  api_lint                |   warning
   MissingColumn                              |  documentation           |   warning
+  MissingFromValue                           |  api_lint                |   error
   MissingGetterMatchingBuilder               |  api_lint                |   warning
   MissingInnerNullability                    |  api_lint                |   hidden
   MissingJvmstatic                           |  api_lint                |   warning
@@ -149,7 +149,6 @@ Available Issues                             |  Category                |   Defa
   MissingPermission                          |  documentation           |   error
   MultipleThreadAnnotations                  |  documentation           |   error
   MutableBareField                           |  api_lint                |   error
-  NoArtifactData                             |  documentation           |   hidden
   NoByteOrShort                              |  api_lint                |   warning
   NoClone                                    |  api_lint                |   error
   NoSettingsProvider                         |  api_lint                |   hidden
@@ -174,9 +173,8 @@ Available Issues                             |  Category                |   Defa
   ProtectedMember                            |  api_lint                |   error
   PublicTypedef                              |  api_lint                |   error
   RawAidl                                    |  api_lint                |   error
-  ReferencesDeprecated                       |  unknown                 |   hidden
-  ReferencesHidden                           |  unknown                 |   error
-  RegistrationName                           |  api_lint                |   error
+  ReferencesDeprecated                       |  api_lint                |   hidden
+  ReferencesHidden                           |  api_lint                |   error
   RemovedAnnotation                          |  compatibility           |   error
   RemovedClass                               |  compatibility           |   error
   RemovedDeprecatedClass                     |  compatibility           |   inherit
@@ -199,7 +197,8 @@ Available Issues                             |  Category                |   Defa
   SdkConstant                                |  documentation           |   error
   ServiceName                                |  api_lint                |   error
   SetterReturnsThis                          |  api_lint                |   warning
-  ShowingMemberInHiddenClass                 |  unknown                 |   error
+  ShowingMemberInHiddenClass                 |  api_lint                |   error
+  SignatureFileError                         |  unknown                 |   error
   SingleMethodInterface                      |  api_lint                |   error
   SingletonConstructor                       |  api_lint                |   error
   SingularCallback                           |  api_lint                |   error
@@ -213,16 +212,17 @@ Available Issues                             |  Category                |   Defa
   TopLevelBuilder                            |  api_lint                |   warning
   UnavailableSymbol                          |  documentation           |   warning
   UnflaggedApi                               |  api_lint                |   hidden
-  UnhiddenSystemApi                          |  unknown                 |   error
+  UnhiddenSystemApi                          |  api_lint                |   error
   UniqueKotlinOperator                       |  api_lint                |   error
-  UnmatchedMergeAnnotation                   |  unknown                 |   error
-  UnresolvedClass                            |  documentation           |   error
+  UnmatchedMergeAnnotation                   |  api_lint                |   error
+  UnqualifiedTypeError                       |  unknown                 |   hidden
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   error
   UseIcu                                     |  api_lint                |   warning
   UseParcelFileDescriptor                    |  api_lint                |   error
   UserHandle                                 |  api_lint                |   warning
   UserHandleName                             |  api_lint                |   warning
+  ValueClassDefinition                       |  api_lint                |   error
   VarargRemoval                              |  compatibility           |   error
   VisiblySynchronized                        |  api_lint                |   error
 """

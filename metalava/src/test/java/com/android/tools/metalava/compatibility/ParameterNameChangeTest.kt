@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.supportParameterName
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -40,7 +40,7 @@ class ParameterNameChangeTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Foo {
-                        method public void bar(Int toast);
+                        method public void bar(int toast);
                       }
                     }
                 """,
@@ -48,7 +48,7 @@ class ParameterNameChangeTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Foo {
-                        method public void bar(Int bread);
+                        method public void bar(int bread);
                       }
                     }
                 """,
@@ -144,9 +144,10 @@ class ParameterNameChangeTest : DriverTest() {
                             }
                         """
                     ),
-                    supportParameterName
+                    supportParameterName,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 

@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
+import com.android.tools.metalava.reporter.DefaultReporter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -87,8 +88,7 @@ class MainCommand(
     private val sourceOptions by SourceOptions()
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by
-        IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
+    private val issueReportingOptions by IssueReportingOptions(commonOptions)
 
     private val commonBaselineOptions by
         CommonBaselineOptions(
@@ -104,7 +104,34 @@ class MainCommand(
             defaultBaselineFileProvider = { getDefaultBaselineFile() },
         )
 
-    private val apiSelectionOptions by ApiSelectionOptions()
+    private val configFileOptions by ConfigFileOptions()
+
+    private val apiSelectionOptions: ApiSelectionOptions by
+        ApiSelectionOptions(
+            apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
+            checkSurfaceConsistencyProvider = {
+                val sources = optionGroup.sources
+                // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
+                // is used. As do the --api-surface and API surfaces defined in a config file. In
+                // the long term the former will be discarded in favor of the latter but during the
+                // transition it is important that they are consistent. Consistency is important
+                // when the --show* options are significant, i.e. affect the output of Metalava.
+                // Unfortunately, they can be significant even if they are not specified, i.e. if
+                // none of them are specified then it behaves as if --show-unannotated was specified
+                // and depending on other options they may be significant or not.
+                //
+                // The --show* options are always significant if sources are provided, and they are
+                // not signature files or jar files. If they are signature files then the --show*
+                // options are not significant because signature files are already pre-filtered. If
+                // they are jar files then they are almost certainly stubs and so the --show*
+                // options are not significant because stub jar files are are also already
+                // pre-filtered.
+                sources.isNotEmpty() &&
+                    sources[0].extension.let { extension ->
+                        extension != "jar" && extension != "txt"
+                    }
+            },
+        )
 
     /** API lint options. */
     private val apiLintOptions by
@@ -129,22 +156,33 @@ class MainCommand(
     /** Stub generation options. */
     private val stubGenerationOptions by StubGenerationOptions()
 
+    /** Api levels generation options. */
+    private val apiLevelsGenerationOptions by
+        ApiLevelsGenerationOptions(
+            executionEnvironment = executionEnvironment,
+            earlyOptions = commonOptions,
+            apiSurfacesProvider = { apiSelectionOptions.apiSurfaces },
+        )
+
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
     internal val optionGroup by
         Options(
+            executionEnvironment = executionEnvironment,
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
             generalReportingOptions = generalReportingOptions,
+            configFileOptions = configFileOptions,
             apiSelectionOptions = apiSelectionOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
             stubGenerationOptions = stubGenerationOptions,
+            apiLevelsGenerationOptions = apiLevelsGenerationOptions,
         )
 
     override fun run() {
@@ -174,7 +212,7 @@ class MainCommand(
         val remainingArgs = flags.toTypedArray()
 
         // Parse any remaining arguments
-        optionGroup.parse(executionEnvironment, remainingArgs)
+        optionGroup.parse(remainingArgs)
 
         // Update the global options.
         @Suppress("DEPRECATION")
@@ -185,21 +223,21 @@ class MainCommand(
             executionEnvironment.testEnvironment?.sourceModelProvider
             // Otherwise, use the one specified on the command line, or the default.
             ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
-        sourceModelProvider
-            .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-            .use { processFlags(executionEnvironment, it, progressTracker) }
 
-        if (
-            optionGroup.allReporters.any { it.hasErrors() } &&
-                !commonBaselineOptions.passBaselineUpdates
-        ) {
+        try {
+            sourceModelProvider
+                .createEnvironmentManager(executionEnvironment.disableStderrDumping())
+                .use { processFlags(executionEnvironment, it, progressTracker) }
+        } finally {
+            // Write all saved reports. Do this even if the previous code threw an exception.
+            optionGroup.allReporters.forEach { it.writeSavedReports() }
+        }
+
+        val allReporters = optionGroup.allReporters
+        if (allReporters.any { it.hasErrors() } && !commonBaselineOptions.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (issueReportingOptions.repeatErrorsMax > 0) {
-                repeatErrors(
-                    stderr,
-                    optionGroup.allReporters,
-                    issueReportingOptions.repeatErrorsMax
-                )
+                repeatErrors(stderr, allReporters, issueReportingOptions.repeatErrorsMax)
             }
 
             // Make sure that the process exits with an error code.

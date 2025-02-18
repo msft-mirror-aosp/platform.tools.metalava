@@ -237,28 +237,23 @@ private constructor(
         val separateLines =
             target != AnnotationTarget.SIGNATURE_FILE &&
                 when (item) {
-                    is MethodItem,
+                    is CallableItem,
                     is ClassItem,
                     is PackageItem -> true
                     is FieldItem -> item.isEnumConstant()
                     else -> false
                 }
 
+        val list = item.modifiers
+        var annotations = list.annotations()
+
         // Do not write deprecate or suppress compatibility annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
                 when {
-                    // Do not write @Deprecated for a removed item unless it was explicitly marked
-                    // as deprecated.
-                    item.removed -> item.originallyDeprecated
                     // Do not write @Deprecated for a parameter unless it was explicitly marked
                     // as deprecated.
                     item is ParameterItem -> item.originallyDeprecated
-                    // Do not write @Deprecated for a field if it was inherited from another class
-                    // and was not explicitly qualified.
-                    item is FieldItem ->
-                        if (item.inheritedFromAncestor) item.originallyDeprecated
-                        else item.effectivelyDeprecated
                     else -> item.effectivelyDeprecated
                 }
             if (writeDeprecated) {
@@ -266,15 +261,16 @@ private constructor(
                 writer.write(if (separateLines) "\n" else " ")
             }
 
-            if (item.hasSuppressCompatibilityMetaAnnotation()) {
+            if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
                 writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
                 writer.write(if (separateLines) "\n" else " ")
             }
         }
 
-        val list = item.modifiers
-        var annotations = list.annotations()
-
+        // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was
+        // already written out above.
+        annotations =
+            annotations.filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
         // Ensure stable signature file order
         if (annotations.size > 1) {
             annotations = annotations.sortedBy { it.qualifiedName }
@@ -302,7 +298,7 @@ private constructor(
                     // Special cased in stubs and signature files: emitted first
                     continue
                 } else {
-                    val typedefMode = list.codebase.annotationManager.typedefMode
+                    val typedefMode = item.codebase.annotationManager.typedefMode
                     if (typedefMode == TypedefMode.INLINE) {
                         val typedef = annotation.findTypedefAnnotation()
                         if (typedef != null) {
@@ -396,3 +392,12 @@ private constructor(
  * Because this is used in API files, it needs to maintain compatibility.
  */
 const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
+
+/**
+ * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+ *
+ * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it doesn't
+ * need to maintain compatibility.
+ */
+internal val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+    AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)

@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.FieldValue
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem {
+interface FieldItem : MemberItem, InheritableItem {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null
@@ -32,6 +33,9 @@ interface FieldItem : MemberItem {
         superMethods: Boolean,
         duplicate: Boolean,
     ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
+
+    /** The optional value of this [FieldItem]. */
+    val fieldValue: FieldValue?
 
     /**
      * The initial/constant value, if any. If [requireConstant] the initial value will only be
@@ -56,6 +60,17 @@ interface FieldItem : MemberItem {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FieldItem) return false
+
+        return name() == other.name() && containingClass() == other.containingClass()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
     }
 
     override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
@@ -94,14 +109,32 @@ interface FieldItem : MemberItem {
         return false
     }
 
+    /**
+     * Warn if companion constants are not marked with @JvmField.
+     *
+     * Checks the field to see if it is a companion object constant and if it is then make sure that
+     * it is annotated with `@JvmField`, reporting an issue otherwise.
+     *
+     * TODO: This should probably be in a PSI specific API Lint check (when they are supported) but
+     *   it is here for now to avoid dependencies on PSI specific code in API Lint.
+     */
+    fun ensureCompanionFieldJvmField() {}
+
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
         }
+
+        /**
+         * Comparator that will order [FieldItem]s such that those for which
+         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
+         */
+        val comparatorEnumConstantFirst: java.util.Comparator<FieldItem> =
+            Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 
     /**
-     * If this field has an initial value, it just writes ";", otherwise it writes " = value;" with
+     * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
      * the correct Java syntax for the initial value
      */
     fun writeValueWithSemicolon(

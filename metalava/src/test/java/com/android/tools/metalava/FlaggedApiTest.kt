@@ -18,8 +18,10 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import kotlin.test.assertEquals
@@ -93,8 +95,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun configurations(): Iterable<Configuration> =
-            Surface.values().flatMap { surface ->
-                Flagged.values().map { flagged ->
+            Surface.entries.flatMap { surface ->
+                Flagged.entries.map { flagged ->
                     Configuration(
                         surface = surface,
                         flagged = flagged,
@@ -233,8 +235,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
         val args =
             arrayOf(
-                ARG_HIDE_PACKAGE,
-                "android.annotation",
                 "--warning",
                 "UnflaggedApi",
                 *apiVersionsArgs,
@@ -258,6 +258,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         addAll(sourceFiles)
                         addAll(annotationsList)
                         add(flagsFile)
+                        // Hide android.annotation classes.
+                        add(KnownSourceFiles.androidAnnotationHide)
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
@@ -289,7 +291,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      * surfaces in that order.
      */
     private fun contributingSurfaces(apiSurfaces: Map<Surface, String>) =
-        Surface.values().filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
+        Surface.entries.filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
 
     @Test
     fun `Basic test that FlaggedApi annotated items can be hidden`() {
@@ -1324,6 +1326,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         public void nativeMethod() { throw new RuntimeException("Stub!"); }
                         public static final int field;
+                        static { field = 0; }
                         }
                     """
                 ),
@@ -1391,7 +1394,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Foo" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
@@ -1422,7 +1425,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Foo" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
@@ -1695,7 +1698,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Bar" since="33" deprecated="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
@@ -1740,7 +1743,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Bar" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>

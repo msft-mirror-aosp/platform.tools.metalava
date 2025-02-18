@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -44,6 +45,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -59,7 +62,6 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -82,6 +84,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -113,7 +117,6 @@ class NullnessMigrationTest : DriverTest() {
                         """,
                     )
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -135,6 +138,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -165,7 +170,6 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -191,6 +195,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -239,7 +245,6 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -265,6 +270,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -293,7 +300,6 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -376,8 +382,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     """
@@ -431,8 +438,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     """
@@ -480,8 +488,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
                 """
@@ -503,11 +512,11 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char @androidx.annotation.RecentlyNonNull [] a, int index) { throw new RuntimeException("Stub!"); }
-                                public <T> T @android.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
                                 @androidx.annotation.NonNull
                                 public static java.lang.String newMethod(@android.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                                public <T> T @android.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
+                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),
@@ -520,11 +529,11 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char[] a, int index) { throw new RuntimeException("Stub!"); }
-                                public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
                                 @android.annotation.NonNull
                                 public static java.lang.String newMethod(@android.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                                public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
+                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),
@@ -553,8 +562,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
                 """
@@ -576,9 +586,9 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char @androidx.annotation.RecentlyNonNull [] a, int index) { throw new RuntimeException("Stub!"); }
                                 public <T> T @androidx.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
+                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),
@@ -591,9 +601,9 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char[] a, int index) { throw new RuntimeException("Stub!"); }
                                 public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
+                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),
@@ -614,7 +624,7 @@ class NullnessMigrationTest : DriverTest() {
                             import androidx.annotation.NonNull;
                             import java.lang.reflect.TypeVariable;
 
-                            public class Foo {
+                            public class Foo<T> {
                                 @NonNull public java.lang.reflect.Constructor<?> @NonNull [] getConstructors() {
                                     return null;
                                 }
@@ -627,18 +637,19 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
                     package test.pkg {
-                      public class Foo {
+                      public class Foo<T> {
                         ctor public Foo();
                         method public java.lang.reflect.Constructor<?>[] getConstructors();
-                        method public synchronized java.lang.reflect.TypeVariable<@java.lang.Class<T>>[] getTypeParameters();
+                        method public synchronized java.lang.reflect.TypeVariable<java.lang.Class<T>>[] getTypeParameters();
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             stubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(
@@ -646,7 +657,7 @@ class NullnessMigrationTest : DriverTest() {
                             """
                                 package test.pkg;
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                public class Foo {
+                                public class Foo<T> {
                                 public Foo() { throw new RuntimeException("Stub!"); }
                                 @androidx.annotation.RecentlyNonNull
                                 public java.lang.reflect.Constructor<?> @androidx.annotation.RecentlyNonNull [] getConstructors() { throw new RuntimeException("Stub!"); }
@@ -662,7 +673,7 @@ class NullnessMigrationTest : DriverTest() {
                             """
                                 package test.pkg;
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                public class Foo {
+                                public class Foo<T> {
                                 public Foo() { throw new RuntimeException("Stub!"); }
                                 @androidx.annotation.RecentlyNonNull
                                 public java.lang.reflect.Constructor<?>[] getConstructors() { throw new RuntimeException("Stub!"); }
@@ -691,7 +702,7 @@ class NullnessMigrationTest : DriverTest() {
                             import androidx.annotation.Nullable;
 
                             public interface Appendable {
-                                @NonNull Appendable append(@Nullable java.lang.CharSequence csq) throws IOException;
+                                @NonNull Appendable append(@Nullable java.lang.CharSequence csq) throws java.io.IOException;
                             }
                         """
                     ),
@@ -733,7 +744,7 @@ class NullnessMigrationTest : DriverTest() {
                     """
                         package test.pkg {
                           public interface Appendable {
-                            method public Appendable append(java.lang.CharSequence csq) throws IOException;
+                            method public Appendable append(java.lang.CharSequence csq) throws java.io.IOException;
                           }
                           public class PublicClass {
                             ctor public PublicClass(String);
@@ -760,7 +771,7 @@ class NullnessMigrationTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Appendable {
                             @androidx.annotation.RecentlyNonNull
-                            public test.pkg.Appendable append(@androidx.annotation.RecentlyNullable java.lang.CharSequence csq);
+                            public test.pkg.Appendable append(@androidx.annotation.RecentlyNullable java.lang.CharSequence csq) throws java.io.IOException;
                             }
                         """
                     ),
