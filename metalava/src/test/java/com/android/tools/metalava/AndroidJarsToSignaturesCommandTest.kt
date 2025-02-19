@@ -358,22 +358,11 @@ Arguments:
                         """
                     )
 
-                // TODO(b/396431439): A delta between two identical jars should be empty. The
-                //   reason why the constructor is removed is because SnapshotDeltaMaker ignores
-                //   differences in annotations/modifiers in anything other than classes. The
-                //   reason the class is not removed is because while it is deprecated here there
-                //   are differences in the annotations between the class from the signature file
-                //   and the class from the jar. The former has an `@Deprecated` annotation but the
-                //   latter does not.
                 root
                     .resolve(currentApiTxtFile(3, "system"))
                     .assertSignatureContents(
                         """
                             // Signature format: 2.0
-                            package test.pkg {
-                              @Deprecated public class Foo {
-                              }
-                            }
                         """
                     )
             }

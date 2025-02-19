@@ -31,9 +31,11 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
@@ -309,7 +311,18 @@ class ConvertJarsToSignatureFiles(
         this ?: return
         if (!originallyDeprecated) {
             // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
-            mutateModifiers { setDeprecated(true) }
+            mutateModifiers {
+                setDeprecated(true)
+                // Add a Deprecated annotation to be consistent with model providers.
+                addAnnotation(
+                    DefaultAnnotationItem.create(
+                        codebase,
+                        JAVA_LANG_DEPRECATED,
+                        emptyList(),
+                        context = this@deprecateIfRequired
+                    )
+                )
+            }
             progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }
