@@ -15,58 +15,62 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
-import java.io.PrintStream
 import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
 
-/** Represents the whole Android API. */
-class Api(private val mMin: Int) : ApiElement("Android API") {
+/**
+ * Represents the whole Android API.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ */
+class Api(val useInternalNames: Boolean) : ParentApiElement {
+    /**
+     * This has to behave as if it exists since before any specific version (so that every class
+     * always specifies its `since` attribute.
+     */
+    override val since: ApiVersion = ApiVersion.LOWEST
+
+    override var lastPresentIn = since
+        private set
+
+    override val sdks: String? = null
+
+    override val deprecatedIn: ApiVersion? = null
+
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
-     * Prints the whole API definition to a stream.
+     * Updates this with information for a specific API version.
      *
-     * @param stream the stream to print the XML elements to
+     * @param apiVersion an API version that this contains.
      */
-    fun print(stream: PrintStream, sdkIdentifiers: Set<SdkIdentifier>) {
-        stream.print("<api version=\"3\"")
-        if (mMin > 1) {
-            stream.print(" min=\"$mMin\"")
+    fun update(apiVersion: ApiVersion) {
+        // Track the last version added to this.
+        if (lastPresentIn < apiVersion) {
+            lastPresentIn = apiVersion
         }
-        stream.println(">")
-        for ((id, shortname, name, reference) in sdkIdentifiers) {
-            stream.println(
-                String.format(
-                    "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
-                    id,
-                    shortname,
-                    name,
-                    reference
-                )
-            )
-        }
-        print(mClasses.values, "class", "\t", stream)
-        printClosingTag("api", "", stream)
     }
 
+    override fun toString() = "Android Api"
+
     /**
-     * Adds or updates a class.
+     * Updates the [ApiClass] for the class called [name], creating and adding one if necessary.
      *
      * @param name the name of the class
-     * @param version an API version in which the class existed
+     * @param updater the [ApiHistoryUpdater] that will update the element with information about
+     *   the version to which it belongs.
      * @param deprecated whether the class was deprecated in the API version
      * @return the newly created or a previously existed class
      */
-    fun addClass(name: String, version: Int, deprecated: Boolean): ApiClass {
-        var classElement = mClasses[name]
-        if (classElement == null) {
-            classElement = ApiClass(name, version, deprecated)
-            mClasses[name] = classElement
-        } else {
-            classElement.update(version, deprecated)
-        }
+    fun updateClass(
+        name: String,
+        updater: ApiHistoryUpdater,
+        deprecated: Boolean,
+    ): ApiClass {
+        val existing = mClasses[name]
+        val classElement = existing ?: ApiClass(name).apply { mClasses[name] = this }
+        updater.update(classElement, deprecated)
         return classElement
     }
 
@@ -85,29 +89,55 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
     val classes: Collection<ApiClass>
         get() = Collections.unmodifiableCollection(mClasses.values)
 
-    fun backfillHistoricalFixes() {
-        backfillSdkExtensions()
-    }
+    /**
+     * Patch up the `android.os.ext.SdkExtensions` history to improve backward compatibility.
+     *
+     * This does nothing if the class is not defined in this [Api].
+     */
+    fun patchSdkExtensionsHistory() {
+        val sdkExtensions =
+            findClass("android/os/ext/SdkExtensions")
+            // This is either for the module-lib/system-server (null) or for a non-Android API.
+            // Either way it does not need patching.
+            ?: return
 
-    private fun backfillSdkExtensions() {
-        // SdkExtensions.getExtensionVersion was added in 30/R, but was a SystemApi
-        // to avoid publishing the versioning API publicly before there was any
-        // valid use for it.
-        // getAllExtensionsVersions was added as part of 31/S
-        // The class and its APIs were made public between S and T, but we pretend
-        // here like it was always public, for maximum backward compatibility.
-        val sdkExtensions = findClass("android/os/ext/SdkExtensions")
-        if (sdkExtensions != null && sdkExtensions.since != 30 && sdkExtensions.since != 33) {
+        val sdk30 = ApiVersion.fromLevel(30)
+        val sdk31 = ApiVersion.fromLevel(31)
+        val sdk33 = ApiVersion.fromLevel(33)
+        val sdkExtensionsSince = sdkExtensions.since
+        if (sdkExtensionsSince != sdk30 && sdkExtensionsSince != sdk33) {
             throw AssertionError("Received unexpected historical data")
-        } else if (sdkExtensions == null || sdkExtensions.since == 30) {
-            // This is the system API db (30), or module-lib/system-server dbs (null)
-            // They don't need patching.
-            return
+        } else if (sdkExtensionsSince == sdk30) {
+            // This is the system API db (30). The class does not need patching but the members do.
+            // Drop through.
+        } else {
+            // The class was added in 30/R, but was a SystemApi to avoid publishing the versioning
+            // API publicly before there was any valid use for it. It was made public between S and
+            // T, but we pretend here like it was always public, for maximum backward compatibility.
+            sdkExtensions.update(sdk30, false)
         }
-        sdkExtensions.update(30, false)
-        sdkExtensions.addSuperClass("java/lang/Object", 30)
-        sdkExtensions.getMethod("getExtensionVersion(I)I")!!.update(30, false)
-        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;")!!.update(31, false)
+
+        val sdk30Updater = ApiHistoryUpdater.forApiVersion(sdk30)
+        val sdk31Updater = ApiHistoryUpdater.forApiVersion(sdk31)
+
+        // Remove the sdks attribute from the extends for public and system.
+        sdkExtensions.updateSuperClass("java/lang/Object", sdk30Updater).apply {
+            // Pretend this was not added in any extension.
+            clearSdkExtensionInfo()
+        }
+
+        // getExtensionVersion was added in 30/R along with the class, and just like the class we
+        // pretend it was always public.
+        sdkExtensions.updateMethod("getExtensionVersion(I)I", sdk30Updater, false)
+
+        // getAllExtensionsVersions was added as part of 31/S SystemApi. Just like for the class
+        // we pretend it was always public.
+        sdkExtensions
+            .updateMethod("getAllExtensionVersions()Ljava/util/Map;", sdk31Updater, false)
+            .apply {
+                // Pretend this was not added in any extension.
+                clearSdkExtensionInfo()
+            }
     }
 
     /**
@@ -117,25 +147,24 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
      * that have interfaces, we check up the inheritance chain to see if it has already been
      * introduced in a super class at an earlier API level.
      */
-    fun removeImplicitInterfaces() {
+    private fun removeImplicitInterfaces() {
         for (classElement in mClasses.values) {
             classElement.removeImplicitInterfaces(mClasses)
         }
     }
 
     /** @see ApiClass.removeOverridingMethods */
-    fun removeOverridingMethods() {
+    private fun removeOverridingMethods() {
         for (classElement in mClasses.values) {
             classElement.removeOverridingMethods(mClasses)
         }
     }
 
-    fun inlineFromHiddenSuperClasses() {
+    private fun inlineFromHiddenSuperClasses() {
         val hidden: MutableMap<String, ApiClass> = HashMap()
         for (classElement in mClasses.values) {
-            if (
-                classElement.hiddenUntil < 0
-            ) { // hidden in the .jar files? (mMax==codebase, -1: jar files)
+            if (classElement.alwaysHidden) {
+                // hidden in the .jar files? (mMax==codebase, -1: jar files)
                 hidden[classElement.name] = classElement
             }
         }
@@ -144,7 +173,7 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
         }
     }
 
-    fun prunePackagePrivateClasses() {
+    private fun prunePackagePrivateClasses() {
         for (cls in mClasses.values) {
             cls.removeHiddenSuperClasses(mClasses)
         }

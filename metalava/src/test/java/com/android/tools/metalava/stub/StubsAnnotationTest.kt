@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.libcoreNonNullSource
@@ -26,6 +25,7 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.requiresApiSource
 import com.android.tools.metalava.supportParameterName
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -324,8 +324,6 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 arrayOf(
                     ARG_PASS_THROUGH_ANNOTATION,
                     "androidx.annotation.RequiresApi,androidx.annotation.Nullable",
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation"
                 ),
             sourceFiles =
                 arrayOf(
@@ -342,7 +340,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     ),
                     supportParameterName,
                     requiresApiSource,
-                    androidxNullableSource
+                    androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             source =
                 """
@@ -350,10 +350,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                @androidx.annotation.RequiresApi(21)
-                public void testMethod() { throw new RuntimeException("Stub!"); }
                 @androidx.annotation.Nullable
                 public java.lang.String anotherTestMethod() { throw new RuntimeException("Stub!"); }
+                @androidx.annotation.RequiresApi(21)
+                public void testMethod() { throw new RuntimeException("Stub!"); }
                 }
                  """
         )
@@ -515,6 +515,22 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
                 @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD})
                 public @interface ExportedProperty {
+                public java.lang.String category() default "";
+                public float floating() default 1.0f;
+                public boolean formatToHexString() default false;
+                public double from() default java.lang.Double.NEGATIVE_INFINITY;
+                public double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
+                public boolean hasAdjacentMapping() default false;
+                public int integer() default 1;
+                public double large_floating() default 1.0;
+                public long large_integer() default 1L;
+                public char letter() default 'a';
+                public char[] letters1() default {};
+                public char[] letters2() default {'a', 'b', 'c'};
+                public int math() default 7;
+                public short medium() default 1;
+                public java.lang.Class<? extends java.lang.Number> myCls() default java.lang.Integer.class;
+                public java.lang.String prefix() default "";
                 /**
                  * When resolveId is true, and if the annotated field/method return value
                  * is an int, the value is converted to an Android's resource name.
@@ -523,25 +539,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                  * resource name, false otherwise
                  */
                 public boolean resolveId() default false;
-                public java.lang.String prefix() default "";
-                public java.lang.String category() default "";
-                public boolean formatToHexString() default false;
-                public boolean hasAdjacentMapping() default false;
-                public java.lang.Class<? extends java.lang.Number> myCls() default java.lang.Integer.class;
-                public char[] letters1() default {};
-                public char[] letters2() default {'a', 'b', 'c'};
-                public double from() default java.lang.Double.NEGATIVE_INFINITY;
-                public double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
-                public test.pkg.ExportedProperty.InnerAnnotation value() default @test.pkg.ExportedProperty.InnerAnnotation;
-                public char letter() default 'a';
-                public int integer() default 1;
-                public long large_integer() default 1L;
-                public float floating() default 1.0f;
-                public double large_floating() default 1.0;
                 public byte small() default 1;
-                public short medium() default 1;
-                public int math() default 7;
                 public int unit() default test.pkg.ExportedProperty.PX;
+                public test.pkg.ExportedProperty.InnerAnnotation value() default @test.pkg.ExportedProperty.InnerAnnotation;
                 public static final int DP = 0; // 0x0
                 public static final int PX = 1; // 0x1
                 public static final int SP = 2; // 0x2
@@ -687,6 +687,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @Deprecated
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
+                    @Deprecated
                     Foo() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -758,6 +759,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @test.pkg.MyClassRetentionAnnotation
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
+                    @Deprecated
                     Foo() { throw new RuntimeException("Stub!"); }
                     @Deprecated
                     public void bar() { throw new RuntimeException("Stub!"); }

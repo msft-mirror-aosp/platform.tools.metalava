@@ -67,7 +67,7 @@ class ApiFromTextTest : DriverTest() {
             // Signature format: 3.0
             package abc {
               public final class PopupKt {
-                method public static void DropdownPopup(Type ident = SomeFunc(SomeVal, SomeVal));
+                method public static void DropdownPopup(String ident = SomeFunc(SomeVal, SomeVal));
               }
             }
         """
@@ -128,7 +128,7 @@ class ApiFromTextTest : DriverTest() {
                 ctor public Foo();
                 method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
                 method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                method public void method3(str: String = "unbalanced), string", str2: String = ",");
+                method public void method3(String str = "unbalanced), string", String str2 = ",");
               }
             }
         """
@@ -375,6 +375,7 @@ class ApiFromTextTest : DriverTest() {
     fun `Test inner classes`() {
         val source =
             """
+                // Signature format: 5.0
                 package test.pkg {
                   public abstract class Foo {
                     ctor public Foo();
@@ -382,17 +383,17 @@ class ApiFromTextTest : DriverTest() {
                     method @Deprecated public static final void method2();
                   }
                   @Deprecated protected static final class Foo.Inner1 {
-                    ctor protected Foo.Inner1();
+                    ctor @Deprecated protected Foo.Inner1();
                   }
                   @Deprecated protected abstract static class Foo.Inner2 {
-                    ctor protected Foo.Inner2();
+                    ctor @Deprecated protected Foo.Inner2();
                   }
                   @Deprecated protected static interface Foo.Inner3 {
-                    method public default void method3();
-                    method public abstract static void method4(int);
+                    method @Deprecated public default void method3();
+                    method @Deprecated public static void method4(int);
                   }
                 }
-                """
+            """
 
         check(signatureSource = source, api = source)
     }

@@ -18,8 +18,10 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import kotlin.test.assertEquals
@@ -42,7 +44,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments = surface.args + flagged.args
+        val extraArguments = (surface.args + flagged.args)
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -79,11 +81,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
         /**
          * Represents an API without flagged APIs apart from those flagged APIs that are part of
-         * feature `foo/bar`.
+         * feature `foo_bar`.
          */
         WITHOUT_APART_FROM_FOO_BAR_APIS(
-            "without flagged api, with foo/bar",
-            WITHOUT.args + listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("foo/bar")""")
+            "without flagged api, with foo_bar",
+            WITHOUT.args +
+                listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")""")
         ),
     }
 
@@ -92,8 +95,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun configurations(): Iterable<Configuration> =
-            Surface.values().flatMap { surface ->
-                Flagged.values().map { flagged ->
+            Surface.entries.flatMap { surface ->
+                Flagged.entries.map { flagged ->
                     Configuration(
                         surface = surface,
                         flagged = flagged,
@@ -116,6 +119,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
          * with an empty string.
          */
         val flaggedApiInStubsRegex = """@android\.annotation\.FlaggedApi\([^)]+\)[\n ]""".toRegex()
+
+        private val flagsFile =
+            java(
+                """
+                package test.pkg.flags;
+
+                /** @hide */
+                public class Flags {
+                    public static final String FLAG_FOO_BAR = "test.pkg.flags.foo_bar";
+                }
+            """
+            )
     }
 
     @Suppress("ArrayInDataClass")
@@ -220,8 +235,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
         val args =
             arrayOf(
-                ARG_HIDE_PACKAGE,
-                "android.annotation",
                 "--warning",
                 "UnflaggedApi",
                 *apiVersionsArgs,
@@ -244,6 +257,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 buildList {
                         addAll(sourceFiles)
                         addAll(annotationsList)
+                        add(flagsFile)
+                        // Hide android.annotation classes.
+                        add(KnownSourceFiles.androidAnnotationHide)
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
@@ -275,25 +291,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      * surfaces in that order.
      */
     private fun contributingSurfaces(apiSurfaces: Map<Surface, String>) =
-        Surface.values().filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
+        Surface.entries.filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
 
     @Test
     fun `Basic test that FlaggedApi annotated items can be hidden`() {
 
         checkFlaggedApis(
-            java(
-                """
-                    package test.pkg.flags;
-
-                    import android.annotation.FlaggedApi;
-                    import android.annotation.SystemApi;
-
-                    public class Flags {
-                        private Flags() {}
-                        public static final String FOO_BAR = "foo/bar";
-                    }
-                """
-            ),
             java(
                 """
                     package test.pkg;
@@ -303,12 +306,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     import test.pkg.flags.Flags;
 
                     public class Foo {
-                        @FlaggedApi(Flags.FOO_BAR)
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedPublicApi() {}
 
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi(Flags.FOO_BAR)
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedSystemApi() {}
                     }
                 """
@@ -336,7 +339,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 package test.pkg {
                                   public class Foo {
                                     ctor public Foo();
-                                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedPublicApi();
                                   }
                                 }
                             """,
@@ -348,7 +351,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     public class Foo {
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    @android.annotation.FlaggedApi("foo/bar")
+                                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                     public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -388,7 +391,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public class Foo {
-                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedSystemApi();
                                   }
                                 }
                             """,
@@ -400,10 +403,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                                         public class Foo {
                                         public Foo() { throw new RuntimeException("Stub!"); }
-                                        @android.annotation.FlaggedApi("foo/bar")
+                                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
                                         /** @hide */
-                                        @android.annotation.FlaggedApi("foo/bar")
+                                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
                                         }
                                     """
@@ -443,8 +446,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Foo {
                     }
                 """
@@ -455,11 +459,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     public class Bar {
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedSystemApi(@android.annotation.NonNull Foo foo) {}
                     }
                 """
@@ -488,7 +493,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   public class Bar {
                                     ctor public Bar();
                                   }
-                                  @FlaggedApi("foo/bar") public class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
                                     ctor public Foo();
                                   }
                                 }
@@ -515,7 +520,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public class Bar {
-                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
                                   }
                                 }
                             """,
@@ -541,14 +546,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     public class Foo {
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedMethod() {}
 
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void systemFlaggedMethod() {}
                     }
                 """
@@ -600,7 +606,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                   public class Foo {
                                     ctor public Foo();
-                                    method @FlaggedApi("foo/bar") public void flaggedMethod();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedMethod();
                                   }
                                 }
                             """,
@@ -629,7 +635,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public class Foo {
-                                    method @FlaggedApi("foo/bar") public void systemFlaggedMethod();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void systemFlaggedMethod();
                                   }
                                 }
                             """,
@@ -711,11 +717,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     /**
                      * @hide
                      */
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     @SystemApi
                     public final class Foo {
                         /**
@@ -764,7 +771,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @FlaggedApi("foo/bar") public final class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
                                   }
@@ -783,7 +790,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                      * @hide
                                      */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                    @android.annotation.FlaggedApi("foo/bar")
+                                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                     public final class Foo {
                                     /**
                                      * @hide
@@ -831,7 +838,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @android.annotation.FlaggedApi("foo/bar")
+                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -858,8 +865,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
@@ -911,7 +919,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @FlaggedApi("foo/bar") public final class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
                                     field public final int field = 2; // 0x2
@@ -1022,7 +1030,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @android.annotation.FlaggedApi("foo/bar")
+                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -1051,10 +1059,11 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     /** @hide */
                     @SystemApi
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
@@ -1106,7 +1115,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @FlaggedApi("foo/bar") public final class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
                                     field public final int field = 2; // 0x2
@@ -1186,7 +1195,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public interface Foo {
-                        @android.annotation.FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
                         }
                     """
                 ),
@@ -1211,9 +1220,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     public interface Foo {
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         int CONSTANT = 1;
                     }
                 """
@@ -1239,7 +1249,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public interface Foo {
-                                    field @FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
+                                    field @FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
                                   }
                                 }
                             """,
@@ -1291,6 +1301,188 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 java(
                     """
                         package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        public void abstractMethod() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public native void nativeMethod();
+                        public static int field;
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public abstract class Foo {
+                        protected Foo() { throw new RuntimeException("Stub!"); }
+                        public abstract void abstractMethod();
+                        public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public void nativeMethod() { throw new RuntimeException("Stub!"); }
+                        public static final int field;
+                        static { field = 0; }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class Foo {
+                        public Foo() {}
+                        public void abstractMethod();
+                        public void method(@Nullable String p) {}
+                        public native void nativeMethod();
+                        public static int field;
+                    }
+                """
+            ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    Issues.REMOVED_FINAL_STRICT.name,
+                ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public abstract class Foo {
+                                ctor protected Foo();
+                                method public abstract void abstractMethod();
+                                method public final void method(@Nullable String);
+                                method public void nativeMethod();
+                                field public static final int field;
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
+                                    ctor public Foo();
+                                    method public void abstractMethod();
+                                    method public void method(@Nullable String);
+                                    method public void nativeMethod();
+                                    field public static int field;
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                        expectedApiVersions =
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="33">
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="abstractMethod()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <method name="nativeMethod()V"/>
+                                    <field name="field"/>
+                                  </class>
+                                </api>
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public abstract class Foo {
+                                    ctor protected Foo();
+                                    method public abstract void abstractMethod();
+                                    method public final void method(@Nullable String);
+                                    method public void nativeMethod();
+                                    field public static final int field;
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedApiVersions =
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="33">
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="abstractMethod()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <method name="nativeMethod()V"/>
+                                    <field name="field"/>
+                                  </class>
+                                </api>
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that changing deprecated status of public class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
                         /**
                          * A Bar class.
                          *
@@ -1300,7 +1492,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                          */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         @Deprecated
-                        @android.annotation.FlaggedApi("foo/bar")
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                         public class Bar {
                         /**
                          * A Bar constructor.
@@ -1326,9 +1518,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        @android.annotation.FlaggedApi("foo/bar")
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                         public class Foo {
-                        public Foo() { throw new RuntimeException("Stub!"); }
+                        Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         /** @deprecated */
                         @Deprecated public static int field;
@@ -1337,7 +1529,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ),
             )
 
-        // TODO(b/319874764): Fix this, @deprecated tags should be removed from the docs.
         val stubsWithoutFlaggedApis =
             arrayOf(
                 java(
@@ -1368,9 +1559,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public abstract class Foo {
-                        protected Foo() { throw new RuntimeException("Stub!"); }
-                        public final void method(java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public class Foo {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         public static int field;
                         }
                     """
@@ -1383,6 +1574,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
                     /**
                      * A Bar class.
@@ -1391,7 +1583,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                      * deprecation message. Deprecated for
                      * testing.
                      */
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Bar {
                         /**
                          * A Bar constructor.
@@ -1420,9 +1612,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
                     /** @deprecated */
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     @Deprecated
                     public class Baz {
                         /** @deprecated */
@@ -1441,21 +1634,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Foo {
-                        public Foo() {}
+                        private Foo() {}
                         public void method(@Nullable String p) {}
                         /** @deprecated */
                         public @Deprecated static int field;
                     }
                 """
             ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    Issues.REMOVED_FINAL_STRICT.name,
-                ),
             // The previously released public api.
             previouslyReleasedApi =
                 mapOf(
@@ -1463,9 +1652,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         """
                             // Signature format: 2.0
                             package test.pkg {
-                              public abstract class Foo {
-                                ctor protected Foo();
-                                method public final void method(String);
+                              public class Foo {
+                                method public void method(@Nullable String);
                                 field public static int field;
                               }
                               public class Bar {
@@ -1490,18 +1678,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @Deprecated @FlaggedApi("foo/bar") public class Bar {
+                                  @Deprecated @FlaggedApi("test.pkg.flags.foo_bar") public class Bar {
                                     ctor @Deprecated public Bar();
                                     method @Deprecated public void method();
                                     field @Deprecated public static int field;
                                   }
-                                  @Deprecated @FlaggedApi("foo/bar") public class Baz {
+                                  @Deprecated @FlaggedApi("test.pkg.flags.foo_bar") public class Baz {
                                     ctor @Deprecated public Baz();
                                     method @Deprecated public void method();
                                     field @Deprecated public static int field;
                                   }
-                                  @FlaggedApi("foo/bar") public class Foo {
-                                    ctor public Foo();
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
                                     method public void method(@Nullable String);
                                     field @Deprecated public static int field;
                                   }
@@ -1511,19 +1698,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Bar" since="33" deprecated="33">
-                                    <method name="&lt;init>()V" deprecated="33"/>
-                                    <method name="method()V" deprecated="33"/>
-                                    <field name="field" deprecated="33"/>
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method()V"/>
+                                    <field name="field"/>
                                   </class>
                                   <class name="test/pkg/Baz" since="33" deprecated="33">
-                                    <method name="&lt;init>()V" deprecated="33"/>
-                                    <method name="method()V" deprecated="33"/>
-                                    <field name="field" deprecated="33"/>
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method()V"/>
+                                    <field name="field"/>
                                   </class>
                                   <class name="test/pkg/Foo" since="33">
-                                    <method name="&lt;init>()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
                                     <field name="field" deprecated="33"/>
                                   </class>
@@ -1547,9 +1733,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     method @Deprecated public void method();
                                     field @Deprecated public static int field;
                                   }
-                                  public abstract class Foo {
-                                    ctor protected Foo();
-                                    method public final void method(String);
+                                  public class Foo {
+                                    method public void method(@Nullable String);
                                     field public static int field;
                                   }
                                 }
@@ -1558,24 +1743,191 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Bar" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
                                   <class name="test/pkg/Baz" since="33" deprecated="33">
-                                    <method name="&lt;init>()V" deprecated="33"/>
-                                    <method name="method()V" deprecated="33"/>
-                                    <field name="field" deprecated="33"/>
+                                    <method name="&lt;init>()V"/>
+                                    <method name="method()V"/>
+                                    <field name="field"/>
                                   </class>
                                   <class name="test/pkg/Foo" since="33">
-                                    <method name="&lt;init>()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
                                     <field name="field"/>
                                   </class>
                                 </api>
                             """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that pulling method up into super class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+                // TODO(b/337840740): Foo should have method().
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Bar {
+                        // This is flagged as the method was pulled up from Foo.
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void method() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo extends Bar {
+                        private Foo() {}
+                    }
+                """
+            ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar {
+                                ctor public Bar();
+                              }
+                              public class Foo {
+                                method public void method();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void method();
+                                  }
+                                  public class Foo extends test.pkg.Bar {
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            // TODO(b/337840740): Foo should have method().
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo extends test.pkg.Bar {
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.SYSTEM,

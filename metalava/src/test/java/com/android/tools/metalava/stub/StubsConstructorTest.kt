@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -140,11 +143,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
@@ -152,7 +155,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
-                    Child4() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
@@ -224,11 +227,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
@@ -236,7 +239,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
-                    Child4() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
@@ -635,7 +638,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ClipDrawable extends test.pkg.Constructors2.DrawableWrapper {
-                    public ClipDrawable(test.pkg.Constructors2.Drawable drawable, int gravity, int orientation) { super(null); throw new RuntimeException("Stub!"); }
+                    public ClipDrawable(test.pkg.Constructors2.Drawable drawable, int gravity, int orientation) { super((test.pkg.Constructors2.Drawable)null); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Drawable {
@@ -659,11 +662,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TestSuite implements test.pkg.Constructors2.Test {
                     public TestSuite() { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.Class<?> theClass) { throw new RuntimeException("Stub!"); }
                     public TestSuite(java.lang.Class<? extends test.pkg.Constructors2.TestCase> theClass, java.lang.String name) { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.String name) { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.Class<?>... classes) { throw new RuntimeException("Stub!"); }
                     public TestSuite(java.lang.Class<? extends test.pkg.Constructors2.TestCase>[] classes, java.lang.String name) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.Class<?> theClass) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.Class<?>... classes) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.String name) { throw new RuntimeException("Stub!"); }
                     }
                     }
                     """
@@ -725,7 +728,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class PropertyChangeListenerProxy extends test.pkg.PickConstructors2.EventListenerProxy<test.pkg.PickConstructors2.PropertyChangeListener> implements test.pkg.PickConstructors2.PropertyChangeListener {
-                    public PropertyChangeListenerProxy(java.lang.String propertyName, test.pkg.PickConstructors2.PropertyChangeListener listener) { super(null); throw new RuntimeException("Stub!"); }
+                    public PropertyChangeListenerProxy(java.lang.String propertyName, test.pkg.PickConstructors2.PropertyChangeListener listener) { super((test.pkg.PickConstructors2.PropertyChangeListener)null); throw new RuntimeException("Stub!"); }
                     }
                     }
                     """
@@ -919,6 +922,49 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Child(java.lang.String... strings) { super((int[])null); throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `File facade constructor`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "test/pkg/Constants.kt",
+                        """
+                            package test.pkg
+
+                            const val CONSTANT = "CONSTANT"
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class ConstantsKt {
+                        property public static String CONSTANT;
+                        field @NonNull public static final String CONSTANT = "CONSTANT";
+                      }
+                    }
+                """,
+            stubPaths = arrayOf("test/pkg/ConstantsKt.java"),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public final class ConstantsKt {
+                            ConstantsKt() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.NonNull public static final java.lang.String CONSTANT = "CONSTANT";
+                            }
+                        """
                     )
                 )
         )

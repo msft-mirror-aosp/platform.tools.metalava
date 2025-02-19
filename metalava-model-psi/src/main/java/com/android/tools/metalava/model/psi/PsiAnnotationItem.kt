@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -45,16 +45,19 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 
-class PsiAnnotationItem
+internal class PsiAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
-    originalName: String?
+    originalName: String,
+    qualifiedName: String,
 ) :
     DefaultAnnotationItem(
-        codebase,
-        originalName,
-        { getAnnotationAttributes(codebase, psiAnnotation) }
+        codebase = codebase,
+        fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
+        originalName = originalName,
+        qualifiedName = qualifiedName,
+        attributesGetter = { getAnnotationAttributes(codebase, psiAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -63,9 +66,7 @@ private constructor(
         return sb.toString()
     }
 
-    override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName ?: return null)
-    }
+    override fun snapshot(targetCodebase: Codebase) = this
 
     override fun isNonNull(): Boolean {
         if (psiAnnotation is KtLightNullabilityAnnotation<*> && originalName == "") {
@@ -73,10 +74,6 @@ private constructor(
             return true
         }
         return super.isNonNull()
-    }
-
-    override val targets: Set<AnnotationTarget> by lazy {
-        codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
@@ -98,9 +95,22 @@ private constructor(
         fun create(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,
-            qualifiedName: String? = psiAnnotation.qualifiedName
-        ): AnnotationItem {
-            return PsiAnnotationItem(codebase, psiAnnotation, qualifiedName)
+        ): AnnotationItem? {
+            // If the qualified name is a typealias, convert it to the aliased type because that is
+            // the version that will be present as a class in the codebase.
+            val originalName =
+                psiAnnotation.qualifiedName?.let {
+                    (codebase.typeAliases[it] as? PsiClassTypeItem)?.qualifiedName ?: it
+                }
+                    ?: return null
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
+            return PsiAnnotationItem(
+                codebase = codebase,
+                psiAnnotation = psiAnnotation,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+            )
         }
 
         private fun getAttributes(
@@ -321,7 +331,7 @@ private fun createValue(
     }
 }
 
-class PsiAnnotationSingleAttributeValue(
+internal class PsiAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: PsiAnnotationMemberValue
 ) : DefaultAnnotationSingleAttributeValue({ psiValue.text }, { getValue(psiValue) }) {
@@ -352,7 +362,7 @@ class PsiAnnotationSingleAttributeValue(
             when (val resolved = psiValue.resolve()) {
                 is PsiField -> return codebase.findField(resolved)
                 is PsiClass -> return codebase.findOrCreateClass(resolved)
-                is PsiMethod -> return codebase.findMethod(resolved)
+                is PsiMethod -> return codebase.findCallableByPsiMethod(resolved)
             }
         }
         return null
