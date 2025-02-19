@@ -94,9 +94,9 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item) {
+    fun write(item: Item, normalizeFinal: Boolean = false) {
         writeAnnotations(item)
-        writeKeywords(item)
+        writeKeywords(item, normalizeFinal = normalizeFinal)
     }
 
     /** Write the modifier keywords. */
