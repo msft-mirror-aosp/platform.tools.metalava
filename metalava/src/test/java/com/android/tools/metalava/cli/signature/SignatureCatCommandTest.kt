@@ -126,10 +126,10 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     // Signature format: 2.0
                     package test.pkg {
 
-                      public interface Foo {
+                      public interface Bar {
                       }
 
-                      public interface Bar {
+                      public interface Foo {
                       }
 
                     }
@@ -250,12 +250,12 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                         // Signature format: 2.0
                         package test.pkg {
                           public interface Foo {
-                            method public void betaMethod();
                             method public void alphaMethod();
-                            property public int betaProperty;
+                            method public void betaMethod();
                             property public int alphaProperty;
-                            field public static final int betaField;
+                            property public int betaProperty;
                             field public static final int alphaField;
+                            field public static final int betaField;
                           }
                         }
                     """
