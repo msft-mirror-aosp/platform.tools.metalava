@@ -502,10 +502,6 @@ Arguments:
                     .assertSignatureContents(
                         """
                             // Signature format: 2.0
-                            package test.pkg {
-                              @test.pkg.Anno(test.pkg.Anno.AnnoValue.VALUE) public class Foo {
-                              }
-                            }
                         """
                     )
             }
