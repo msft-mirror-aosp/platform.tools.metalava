@@ -20,8 +20,8 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.assertSignatureContents
 import java.io.File
-import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
 
@@ -148,39 +148,28 @@ Arguments:
                 verify {
                     val apiVersion = apiVersionInfo.version
                     val file = androidRootDir.resolve(currentApiTxtFile(apiVersion))
-                    val contents = file.readText()
-                    assertEquals(
+                    file.assertSignatureContents(
                         """
-// Signature format: 2.0
-package android.test {
-
-  @Deprecated public class ClassAddedAndDeprecatedInApi30 {
-    ctor @Deprecated public ClassAddedAndDeprecatedInApi30(float);
-    ctor @Deprecated public ClassAddedAndDeprecatedInApi30(int);
-    method @Deprecated public void methodExplicitlyDeprecated();
-    method @Deprecated public void methodImplicitlyDeprecated();
-    field @Deprecated public static final int FIELD_EXPLICITLY_DEPRECATED = 1; // 0x1
-    field @Deprecated public static final int FIELD_IMPLICITLY_DEPRECATED = 2; // 0x2
-  }
-
-  public class ClassAddedInApi30 {
-    method public void methodAddedInApi30();
-  }
-
-}
-
-package java.lang {
-
-  public class Object {
-    ctor public Object();
-  }
-
-}
-
-
-        """
-                            .trimIndent(),
-                        contents,
+                            // Signature format: 2.0
+                            package android.test {
+                              @Deprecated public class ClassAddedAndDeprecatedInApi30 {
+                                ctor @Deprecated public ClassAddedAndDeprecatedInApi30(float);
+                                ctor @Deprecated public ClassAddedAndDeprecatedInApi30(int);
+                                method @Deprecated public void methodExplicitlyDeprecated();
+                                method @Deprecated public void methodImplicitlyDeprecated();
+                                field @Deprecated public static final int FIELD_EXPLICITLY_DEPRECATED = 1; // 0x1
+                                field @Deprecated public static final int FIELD_IMPLICITLY_DEPRECATED = 2; // 0x2
+                              }
+                              public class ClassAddedInApi30 {
+                                method public void methodAddedInApi30();
+                              }
+                            }
+                            package java.lang {
+                              public class Object {
+                                ctor public Object();
+                              }
+                            }
+                        """,
                         message = "incorrect output for $apiVersionInfo",
                     )
                 }
