@@ -430,4 +430,85 @@ Arguments:
             }
         }
     }
+
+    @Test
+    fun `Test computing delta for annotations with attributes`() {
+        lateinit var jarFile: File
+        val root = buildFileStructure {
+            dir("prebuilts/sdk/3/public") {
+                jarFile =
+                    jar(
+                        "android.jar",
+                        java(
+                            """
+                                package test.pkg;
+                                public @interface Anno {
+                                    AnnoValue value();
+                                    enum AnnoValue {VALUE}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+                                @Anno(Anno.AnnoValue.VALUE)
+                                public class Foo {
+                                    private Foo() {}
+                                }
+                            """
+                        ),
+                    )
+                dir("api") { emptyFile("android.txt") }
+            }
+            dir("prebuilts/sdk/3/system") {
+                // Use the same jar file as for public.
+                jarFile.copyTo(dir.resolve("android.jar"))
+
+                dir("api") { emptyFile("android.txt") }
+            }
+        }
+
+        commandTest {
+            args += "android-jars-to-signatures"
+            args += root
+
+            args += ARG_CONFIG_FILE
+            args += KnownConfigFiles.configPublicAndSystemSurfaces
+
+            args += ARG_API_SURFACES
+            args += "public,system"
+
+            verify {
+                root
+                    .resolve(currentApiTxtFile(3))
+                    .assertSignatureContents(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Anno {
+                                method public abstract test.pkg.Anno.AnnoValue value();
+                              }
+                              public enum Anno.AnnoValue {
+                                enum_constant public static final test.pkg.Anno.AnnoValue VALUE;
+                              }
+                              @test.pkg.Anno(test.pkg.Anno.AnnoValue.VALUE) public class Foo {
+                              }
+                            }
+                        """
+                    )
+
+                root
+                    .resolve(currentApiTxtFile(3, "system"))
+                    .assertSignatureContents(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @test.pkg.Anno(test.pkg.Anno.AnnoValue.VALUE) public class Foo {
+                              }
+                            }
+                        """
+                    )
+            }
+        }
+    }
 }
