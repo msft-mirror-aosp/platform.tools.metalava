@@ -203,7 +203,10 @@ class ConvertJarsToSignatureFiles(
                         apiType = ApiType.PUBLIC_API,
                         preFiltered = jarCodebase.preFiltered,
                         showUnannotated = false,
-                        apiPredicateConfig = ApiPredicate.Config()
+                        apiPredicateConfig =
+                            ApiPredicate.Config(
+                                addAdditionalOverrides = fileFormat.addAdditionalOverrides,
+                            ),
                     )
                 }
             )

@@ -406,8 +406,6 @@ Arguments:
             args += ARG_API_SURFACES
             args += "public,system"
 
-            // TODO(b/394597358): This does not work, Foo override of method should be included as
-            //   it changes the return reified return type from Object to CharSequence.
             args += "--format-defaults"
             args += "add-additional-overrides=yes"
 
@@ -424,6 +422,7 @@ Arguments:
                               }
                               public class Foo<T extends java.lang.CharSequence> extends test.pkg.Bar<T> {
                                 ctor public Foo();
+                                method public T method(T);
                               }
                             }
                         """
