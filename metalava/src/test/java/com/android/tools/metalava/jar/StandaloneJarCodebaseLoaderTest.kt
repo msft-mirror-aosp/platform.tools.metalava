@@ -22,6 +22,8 @@ import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.java
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
 import org.junit.Test
@@ -59,5 +61,28 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
                 fooClass.mutateModifiers { fail("should not reach here") }
             }
         assertEquals("Cannot modify frozen class test.pkg.Foo", exception.message)
+    }
+
+    @Test
+    fun `Test jar loader does not freeze codebase`() {
+        lateinit var jarFile: File
+        buildFileStructure {
+            jarFile =
+                jar(
+                    "test.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {}
+                        """
+                    )
+                )
+        }
+
+        val codebase = jarCodebaseLoader.loadFromJarFile(jarFile, freezeCodebase = false)
+        val fooClass = codebase.assertClass("test.pkg.Foo")
+        assertFalse(fooClass.modifiers.isFinal(), message = "isFinal before mutation")
+        fooClass.mutateModifiers { setFinal(true) }
+        assertTrue(fooClass.modifiers.isFinal(), message = "isFinal after mutation")
     }
 }

@@ -35,6 +35,7 @@ sealed interface JarCodebaseLoader {
     fun loadFromJarFile(
         apiJar: File,
         apiAnalyzerConfig: ApiAnalyzer.Config = ApiAnalyzer.Config(),
+        freezeCodebase: Boolean = true,
     ): Codebase
 
     companion object {
@@ -57,6 +58,7 @@ sealed interface JarCodebaseLoader {
         override fun loadFromJarFile(
             apiJar: File,
             apiAnalyzerConfig: ApiAnalyzer.Config,
+            freezeCodebase: Boolean,
         ): Codebase {
             progressTracker.progress("Processing jar file: ")
 
@@ -74,8 +76,10 @@ sealed interface JarCodebaseLoader {
             analyzer.mergeExternalQualifierAnnotations()
             analyzer.generateInheritedStubs(apiEmit, apiReference)
 
-            // Prevent the codebase from being mutated.
-            codebase.freezeClasses()
+            if (freezeCodebase) {
+                // Prevent the codebase from being mutated.
+                codebase.freezeClasses()
+            }
 
             return codebase
         }
