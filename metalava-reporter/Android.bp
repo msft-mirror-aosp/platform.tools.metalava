@@ -23,8 +23,5 @@ java_library_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    libs: [
-        "kotlin-reflect",
-        "metalava-model",
-    ],
+    kotlin_lang_version: "2",
 }

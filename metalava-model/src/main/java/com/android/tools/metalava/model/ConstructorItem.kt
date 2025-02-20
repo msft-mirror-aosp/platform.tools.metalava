@@ -16,27 +16,40 @@
 
 package com.android.tools.metalava.model
 
-interface ConstructorItem : MethodItem {
+interface ConstructorItem : CallableItem {
+
+    /** Override to specialize return type. */
+    override fun returnType(): ClassTypeItem
+
+    /** Override to specialize return type. */
+    override fun type() = returnType()
+
+    override fun accept(visitor: ItemVisitor) {
+        visitor.visit(this)
+    }
+
+    @Deprecated(
+        message =
+            "There is no point in calling this method on ConstructorItem as it always returns true",
+        ReplaceWith("")
+    )
     override fun isConstructor(): Boolean = true
 
     /** Returns the internal name of the class, as seen in bytecode */
     override fun internalName(): String = "<init>"
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
-
-    /**
-     * The constructor that the stub version of this constructor must delegate to in its `super`
-     * call. Is `null` if the super class has a default constructor.
-     */
-    var superConstructor: ConstructorItem?
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
 
     /** True if this is the primary constructor in Kotlin. */
     val isPrimary: Boolean
-        get() = false
 
-    override fun implicitNullness(): Boolean? {
-        // Constructor returns are always non-null
-        return false
-    }
+    /**
+     * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does
+     * not have any corresponding source code.
+     */
+    fun isImplicitConstructor(): Boolean = false
 }

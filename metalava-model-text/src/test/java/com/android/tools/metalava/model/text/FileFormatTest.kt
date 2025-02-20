@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import java.io.LineNumberReader
 import java.io.StringReader
+import java.nio.file.Path
 import kotlin.test.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -28,6 +30,8 @@ val DEFAULTABLE_PROPERTY_NAMES =
         "add-additional-overrides",
         "overloaded-method-order",
         "sort-whole-extends-list",
+        "strip-java-lang-prefix",
+        "type-argument-spacing",
     )
 
 val DEFAULTABLE_PROPERTIES = DEFAULTABLE_PROPERTY_NAMES.joinToString { "'$it'" }
@@ -41,7 +45,9 @@ class FileFormatTest {
         expectedNextLine: String? = null
     ) {
         val reader = LineNumberReader(StringReader(apiText.trimIndent()))
-        val parseHeader = { FileFormat.parseHeader("api.txt", reader, formatForLegacyFiles) }
+        val parseHeader = {
+            FileFormat.parseHeader(Path.of("api.txt"), reader, formatForLegacyFiles)
+        }
         if (expectedError == null) {
             val format = parseHeader()
             assertEquals(expectedFormat, format)
@@ -68,7 +74,7 @@ class FileFormatTest {
         val reader = LineNumberReader(StringReader(header.trimIndent()))
         assertEquals(
             format,
-            FileFormat.parseHeader("api.txt", reader),
+            FileFormat.parseHeader(Path.of("api.txt"), reader),
             message = "format parsed from header does not match"
         )
         val nextLine = reader.readLine()
@@ -451,6 +457,25 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
+                    migrating = "test",
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + strip-java-lang-prefix=always)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                    // Signature format: 5.0
+                    // - migrating=test
+                    // - strip-java-lang-prefix=always
+
+                """,
+            specifier = "5.0:migrating=test,strip-java-lang-prefix=always",
+            format =
+                FileFormat.V5.copy(
+                    specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
                     migrating = "test",
                 ),
         )

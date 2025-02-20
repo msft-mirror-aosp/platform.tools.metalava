@@ -15,20 +15,16 @@
  */
 package com.android.tools.metalava.apilevels
 
-import java.io.PrintStream
+/** Represents a parent of [ApiElement]. */
+interface ParentApiElement {
+    /** The API version this API was first introduced in. */
+    val since: ApiVersion
 
-/** Represents an API element, e.g. class, method or field. */
-open class ApiElement : Comparable<ApiElement> {
-    /** Returns the name of the API element. */
-    val name: String
-    /** The Android API level of this ApiElement. */
-    /** The Android platform SDK version this API was first introduced in. */
-    var since = 0
-        private set
-    /** The extension version of this ApiElement. */
-    /** The Android extension SDK version this API was first introduced in. */
-    var sinceExtension = NEVER
-        private set
+    /**
+     * The version in which this API last appeared, if this is not the latest API then it will be
+     * treated as having been removed in the next API version, i.e. [lastPresentIn] + 1.
+     */
+    val lastPresentIn: ApiVersion
 
     /**
      * The SDKs and their versions this API was first introduced in.
@@ -39,36 +35,48 @@ open class ApiElement : Comparable<ApiElement> {
      *
      * This field is a super-set of mSince, and if non-null/non-empty, should be preferred.
      */
-    private var mSdks: String? = null
+    val sdks: String?
+
+    /** The optional API level this element was deprecated in. */
+    val deprecatedIn: ApiVersion?
+}
+
+/**
+ * Represents an API element, e.g. class, method or field.
+ *
+ * @param name the name of the API element
+ */
+open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElement> {
+
+    /**
+     * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
+     * first introduced in.
+     */
+    final override lateinit var since: ApiVersion
+        private set
+
+    /**
+     * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
+     * first introduced in.
+     */
+    var sinceExtension: ExtVersion? = null
+        private set
+
+    final override var sdks: String? = null
+        private set
+
     var mainlineModule: String? = null
         private set
 
-    /**
-     * The API level this element was deprecated in, should only be used if [isDeprecated] is true.
-     */
-    var deprecatedIn = 0
+    /** The optional API level this element was deprecated in. */
+    final override var deprecatedIn: ApiVersion? = null
         private set
 
-    private var mLastPresentIn = 0
+    final override lateinit var lastPresentIn: ApiVersion
+        private set
 
-    /**
-     * @param name the name of the API element
-     * @param version an API version for which the API element existed, or -1 if the class does not
-     *   yet exist in the Android SDK (only in extension SDKs)
-     * @param deprecated whether the API element was deprecated in the API version in question
-     */
-    internal constructor(name: String, version: Int, deprecated: Boolean = false) {
-        this.name = name
-        since = version
-        mLastPresentIn = version
-        if (deprecated) {
-            deprecatedIn = version
-        }
-    }
-
-    /** @param name the name of the API element */
-    internal constructor(name: String) {
-        this.name = name
+    override fun toString(): String {
+        return name
     }
 
     /**
@@ -84,189 +92,70 @@ open class ApiElement : Comparable<ApiElement> {
     /**
      * Updates the API element with information for a specific API version.
      *
-     * @param version an API version for which the API element existed
+     * @param apiVersion an API version for which the API element existed
      * @param deprecated whether the API element was deprecated in the API version in question
      */
-    fun update(version: Int, deprecated: Boolean) {
-        assert(version > 0)
-        if (since > version) {
-            since = version
+    fun update(apiVersion: ApiVersion, deprecated: Boolean = deprecatedIn != null) {
+        assert(apiVersion.isValid)
+        if (!::since.isInitialized || since > apiVersion) {
+            since = apiVersion
         }
-        if (mLastPresentIn < version) {
-            mLastPresentIn = version
+        if (!::lastPresentIn.isInitialized || lastPresentIn < apiVersion) {
+            lastPresentIn = apiVersion
         }
+        val deprecatedVersion = deprecatedIn
         if (deprecated) {
-            if (deprecatedIn == 0 || deprecatedIn > version) {
-                deprecatedIn = version
+            // If it was not previously deprecated or was deprecated in a later version than this
+            // one then deprecate it in this version.
+            if (deprecatedVersion == null || deprecatedVersion > apiVersion) {
+                deprecatedIn = apiVersion
+            }
+        } else {
+            // If it was previously deprecated and was deprecated in an earlier version than this
+            // one then treat it as being undeprecated.
+            if (deprecatedVersion != null && deprecatedVersion < apiVersion) {
+                deprecatedIn = null
             }
         }
     }
 
     /**
-     * Updates the API element with information for a specific API version.
-     *
-     * @param version an API version for which the API element existed
-     */
-    fun update(version: Int) {
-        update(version, isDeprecated)
-    }
-
-    /**
      * Analogous to update(), but for extensions sdk versions.
      *
-     * @param version an extension SDK version for which the API element existed
+     * @param extVersion an extension SDK version for which the API element existed
      */
-    fun updateExtension(version: Int) {
-        assert(version > 0)
-        if (sinceExtension > version) {
-            sinceExtension = version
+    fun updateExtension(extVersion: ExtVersion) {
+        assert(extVersion.isValid)
+        // Record the earliest extension in which this appeared.
+        if (sinceExtension == null || sinceExtension!! > extVersion) {
+            sinceExtension = extVersion
         }
     }
 
+    /**
+     * Clears the sdk extension information from this [ApiElement].
+     *
+     * This is only intended for use by [Api.patchSdkExtensionsHistory].
+     */
+    fun clearSdkExtensionInfo() {
+        this.sinceExtension = null
+        this.sdks = null
+    }
+
     fun updateSdks(sdks: String?) {
-        mSdks = sdks
+        this.sdks = sdks
     }
 
     fun updateMainlineModule(module: String?) {
         mainlineModule = module
     }
 
-    val isDeprecated: Boolean
-        /** Checks whether the API element is deprecated or not. */
-        get() = deprecatedIn != 0
-
-    /**
-     * Prints an XML representation of the element to a stream terminated by a line break.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param tag the tag of the XML element
-     * @param parentElement the parent API element
-     * @param indent the whitespace prefix to insert before the XML element
-     * @param stream the stream to print the XML element to
-     */
-    open fun print(tag: String?, parentElement: ApiElement, indent: String, stream: PrintStream) {
-        print(tag, true, parentElement, indent, stream)
-    }
-
-    /**
-     * Prints an XML representation of the element to a stream terminated by a line break.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param tag the tag of the XML element
-     * @param closeTag if true the XML element is terminated by "/>", otherwise the closing tag of
-     *   the element is not printed
-     * @param parentElement the parent API element
-     * @param indent the whitespace prefix to insert before the XML element
-     * @param stream the stream to print the XML element to
-     * @see .printClosingTag
-     */
-    fun print(
-        tag: String?,
-        closeTag: Boolean,
-        parentElement: ApiElement,
-        indent: String?,
-        stream: PrintStream
-    ) {
-        stream.print(indent)
-        stream.print('<')
-        stream.print(tag)
-        stream.print(" name=\"")
-        stream.print(encodeAttribute(name))
-        if (!isEmpty(mainlineModule) && !isEmpty(mSdks)) {
-            stream.print("\" module=\"")
-            stream.print(encodeAttribute(mainlineModule!!))
-        }
-        if (since > parentElement.since) {
-            stream.print("\" since=\"")
-            stream.print(since)
-        }
-        if (!isEmpty(mSdks) && mSdks != parentElement.mSdks) {
-            stream.print("\" sdks=\"")
-            stream.print(mSdks)
-        }
-        if (deprecatedIn != 0) {
-            stream.print("\" deprecated=\"")
-            stream.print(deprecatedIn)
-        }
-        if (mLastPresentIn < parentElement.mLastPresentIn) {
-            stream.print("\" removed=\"")
-            stream.print(mLastPresentIn + 1)
-        }
-        stream.print('"')
-        if (closeTag) {
-            stream.print('/')
-        }
-        stream.println('>')
-    }
-
-    private fun isEmpty(s: String?): Boolean {
-        return s.isNullOrEmpty()
-    }
-
-    /**
-     * Prints homogeneous XML elements to a stream. Each element is printed on a separate line.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param elements the elements to print
-     * @param tag the tag of the XML elements
-     * @param indent the whitespace prefix to insert before each XML element
-     * @param stream the stream to print the XML elements to
-     */
-    fun print(elements: Collection<ApiElement>, tag: String?, indent: String, stream: PrintStream) {
-        for (element in elements.sorted()) {
-            element.print(tag, this, indent, stream)
-        }
-    }
-
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
     }
-
-    companion object {
-        const val NEVER = Int.MAX_VALUE
-
-        /**
-         * Prints a closing tag of an XML element terminated by a line break.
-         *
-         * @param tag the tag of the element
-         * @param indent the whitespace prefix to insert before the closing tag
-         * @param stream the stream to print the XML element to
-         */
-        fun printClosingTag(tag: String?, indent: String?, stream: PrintStream) {
-            stream.print(indent)
-            stream.print("</")
-            stream.print(tag)
-            stream.println('>')
-        }
-
-        private fun encodeAttribute(attribute: String): String {
-            return buildString {
-                val n = attribute.length
-                // &, ", ' and < are illegal in attributes; see
-                // http://www.w3.org/TR/REC-xml/#NT-AttValue
-                // (' legal in a " string and " is legal in a ' string but here we'll stay on the
-                // safe
-                // side).
-                for (i in 0 until n) {
-                    when (val c = attribute[i]) {
-                        '"' -> {
-                            append("&quot;") // $NON-NLS-1$
-                        }
-                        '<' -> {
-                            append("&lt;") // $NON-NLS-1$
-                        }
-                        '\'' -> {
-                            append("&apos;") // $NON-NLS-1$
-                        }
-                        '&' -> {
-                            append("&amp;") // $NON-NLS-1$
-                        }
-                        else -> {
-                            append(c)
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
+
+operator fun ApiVersion?.compareTo(other: ApiVersion?): Int =
+    if (this == null) {
+        if (other == null) 0 else -1
+    } else if (other == null) +1 else this.compareTo(other)

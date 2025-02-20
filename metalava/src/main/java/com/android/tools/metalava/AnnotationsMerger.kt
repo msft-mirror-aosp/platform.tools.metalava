@@ -41,28 +41,30 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TraversingVisitor
-import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.extractRoots
-import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -89,7 +91,7 @@ class AnnotationsMerger(
 ) {
 
     /** Merge annotations which will appear in the output API. */
-    fun mergeQualifierAnnotations(files: List<File>) {
+    fun mergeQualifierAnnotationsFromFiles(files: List<File>) {
         mergeAll(
             files,
             ::mergeQualifierAnnotationsFromFile,
@@ -98,14 +100,10 @@ class AnnotationsMerger(
     }
 
     /** Merge annotations which control what is included in the output API. */
-    fun mergeInclusionAnnotations(files: List<File>) {
+    fun mergeInclusionAnnotationsFromFiles(files: List<File>) {
         mergeAll(
             files,
-            {
-                throw MetalavaCliException(
-                    "External inclusion annotations files must be .java, found ${it.path}"
-                )
-            },
+            { cliError("External inclusion annotations files must be .java, found ${it.path}") },
             ::mergeInclusionAnnotationsFromCodebase
         )
     }
@@ -119,7 +117,7 @@ class AnnotationsMerger(
     private fun mergeAll(
         mergeAnnotations: List<File>,
         mergeFile: (File) -> Unit,
-        mergeJavaStubsCodebase: (SourceCodebase) -> Unit
+        mergeJavaStubsCodebase: (Codebase) -> Unit
     ) {
         // Process each file (which are almost certainly directories) separately. That allows for a
         // single Java class to merge in annotations from multiple separate files.
@@ -129,15 +127,15 @@ class AnnotationsMerger(
             if (javaStubFiles.isNotEmpty()) {
                 // Set up class path to contain our main sources such that we can
                 // resolve types in the stubs
-                val roots = mutableListOf<File>()
-                extractRoots(reporter, options.sources, roots)
-                roots.addAll(options.sourcePath)
+                val roots =
+                    SourceSet(options.sources, options.sourcePath).extractRoots(reporter).sourcePath
                 val javaStubsCodebase =
                     sourceParser.parseSources(
-                        javaStubFiles,
+                        SourceSet(javaStubFiles, roots),
                         "Codebase loaded from stubs",
-                        sourcePath = roots,
-                        classPath = options.classpath
+                        classPath = options.classpath,
+                        apiPackages = options.apiPackages,
+                        projectDescription = null,
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
             }
@@ -177,7 +175,7 @@ class AnnotationsMerger(
         } else if (file.path.endsWith(DOT_XML)) {
             try {
                 val xml = file.readText()
-                mergeAnnotationsXml(file.path, xml)
+                mergeQualifierAnnotationsFromXml(file.path, xml)
             } catch (e: IOException) {
                 error("I/O problem during transform: $e")
             }
@@ -189,7 +187,7 @@ class AnnotationsMerger(
             try {
                 // .txt: Old style signature files
                 // Others: new signature files (e.g. kotlin-style nullness info)
-                mergeAnnotationsSignatureFile(file.path)
+                mergeQualifierAnnotationsFromSignatureFile(file)
             } catch (e: IOException) {
                 error("I/O problem during transform: $e")
             }
@@ -208,7 +206,7 @@ class AnnotationsMerger(
                 if (entry.name.endsWith(".xml")) {
                     val bytes = zis.readBytes()
                     val xml = String(bytes, UTF_8)
-                    mergeAnnotationsXml(jar.path + ": " + entry, xml)
+                    mergeQualifierAnnotationsFromXml(jar.path + ": " + entry, xml)
                 }
                 entry = zis.nextEntry
             }
@@ -223,7 +221,7 @@ class AnnotationsMerger(
         }
     }
 
-    private fun mergeAnnotationsXml(path: String, xml: String) {
+    private fun mergeQualifierAnnotationsFromXml(path: String, xml: String) {
         try {
             val document = parseDocument(xml, false)
             mergeDocument(document)
@@ -232,27 +230,30 @@ class AnnotationsMerger(
             if (e is SAXParseException) {
                 message = "Line ${e.lineNumber}:${e.columnNumber}: $message"
             }
-            error(message)
             if (e !is IOException) {
-                e.printStackTrace()
+                message += "\n" + e.stackTraceToString().prependIndent("  ")
             }
+            error(message)
         }
     }
 
-    private fun mergeAnnotationsSignatureFile(path: String) {
+    private fun mergeQualifierAnnotationsFromSignatureFile(file: File) {
         try {
-            val signatureCodebase = ApiFile.parseApi(File(path), codebase.annotationManager)
-            signatureCodebase.description =
-                "Signature files for annotation merger: loaded from $path"
+            val signatureCodebase =
+                ApiFile.parseApi(
+                    SignatureFile.fromFiles(file),
+                    codebase.config,
+                    "Signature files for annotation merger: loaded from $file"
+                )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
-            val message = "Unable to parse signature file $path: ${ex.message}"
-            throw MetalavaCliException(message)
+            val message = "Unable to parse signature file $file: ${ex.message}"
+            cliError(message)
         }
     }
 
     private fun mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase(
-        javaStubsCodebase: SourceCodebase
+        javaStubsCodebase: Codebase
     ) {
         mergeQualifierAnnotationsFromCodebase(javaStubsCodebase)
         if (options.validateNullabilityFromMergedStubs) {
@@ -266,19 +267,22 @@ class AnnotationsMerger(
     private fun mergeQualifierAnnotationsFromCodebase(externalCodebase: Codebase) {
         val visitor =
             object : ComparisonVisitor() {
-                override fun compare(old: Item, new: Item) {
-                    val newModifiers = new.modifiers
-                    for (annotation in old.modifiers.annotations()) {
-                        mergeAnnotation(annotation, newModifiers, new)
+                override fun compareItems(old: Item, new: Item) {
+                    val itemAnnotations = old.modifiers.annotations()
+                    mergeQualifierAnnotations(itemAnnotations, new)
+                    old.type()?.let {
+                        // Ignore type annotations that are duplicates of the item's annotations.
+                        val typeAnnotations =
+                            it.modifiers.annotations.filter { it !in itemAnnotations }
+                        mergeQualifierAnnotations(typeAnnotations, new)
                     }
-                    old.type()?.let { mergeTypeAnnotations(it, new) }
                 }
 
-                override fun removed(old: Item, from: Item?) {
+                override fun removedItem(old: SelectableItem, from: SelectableItem?) {
                     // Do not report missing items if there are no annotations to copy.
                     if (old.modifiers.annotations().isEmpty()) {
                         old.type()?.let { typeItem ->
-                            if (typeItem.modifiers.annotations().isEmpty()) return
+                            if (typeItem.modifiers.annotations.isEmpty()) return
                         }
                             ?: return
                     }
@@ -289,41 +293,6 @@ class AnnotationsMerger(
                         "qualifier annotations were given for $old but no matching item was found"
                     )
                 }
-
-                private fun mergeAnnotation(
-                    annotation: AnnotationItem,
-                    newModifiers: ModifierList,
-                    new: Item
-                ) {
-                    var addAnnotation = false
-                    if (annotation.isNullnessAnnotation()) {
-                        if (!newModifiers.hasNullnessInfo()) {
-                            addAnnotation = true
-                        }
-                    } else {
-                        // TODO: Check for other incompatibilities than nullness?
-                        val qualifiedName = annotation.qualifiedName ?: return
-                        if (newModifiers.findAnnotation(qualifiedName) == null) {
-                            addAnnotation = true
-                        }
-                    }
-
-                    if (addAnnotation) {
-                        new.mutableModifiers()
-                            .addAnnotation(
-                                new.codebase.createAnnotation(
-                                    annotation.toSource(showDefaultAttrs = false),
-                                    new,
-                                )
-                            )
-                    }
-                }
-
-                private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
-                    for (annotation in typeItem.modifiers.annotations()) {
-                        mergeAnnotation(annotation, new.modifiers, new)
-                    }
-                }
             }
 
         CodebaseComparator().compare(visitor, externalCodebase, codebase)
@@ -333,15 +302,15 @@ class AnnotationsMerger(
         val visitor =
             object : TraversingVisitor() {
                 override fun visitItem(item: Item): TraversalAction {
-                    // Find any show/hide annotations or FlaggedApi annotations to copy from the
+                    // Find any show/hide annotations or FlaggedApi annotations to merge from the
                     // external to the main codebase. If there are none to copy then return.
-                    val annotationsToCopy =
+                    val annotationsToMerge =
                         item.modifiers.annotations().filter { annotation ->
                             val qualifiedName = annotation.qualifiedName
                             annotation.isShowabilityAnnotation() ||
                                 qualifiedName == ANDROID_FLAGGED_API
                         }
-                    if (annotationsToCopy.isEmpty()) {
+                    if (annotationsToMerge.isEmpty()) {
                         // Just because there are no annotations on an [Item] does not mean that
                         // there will not be on the children so make sure to visit them as normal.
                         return TraversalAction.CONTINUE
@@ -363,22 +332,20 @@ class AnnotationsMerger(
                                 return TraversalAction.SKIP_CHILDREN
                             }
 
-                    // Copy the annotations to the main item.
-                    val modifiers = mainItem.mutableModifiers()
-                    for (annotation in annotationsToCopy) {
-                        if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
-                            modifiers.addAnnotation(annotation)
+                    // Merge the annotations to the main item, ignoring any that match, i.e. are of
+                    // the same type as, an existing annotation.
+                    mainItem.mutateModifiers {
+                        mutateAnnotations {
+                            for (annotation in annotationsToMerge) {
+                                val qualifiedName = annotation.qualifiedName
+                                if (none { it.qualifiedName == qualifiedName }) {
+                                    // TODO: This simply uses the AnnotationItem from the Codebase
+                                    //  being merged from in the Codebase being merged into. That is
+                                    //  not safe as the Codebases may be from different models.
+                                    add(annotation)
+                                }
+                            }
                         }
-                    }
-
-                    // The hidden field in the main codebase is already initialized. So if the
-                    // element is hidden in the external codebase, hide it in the main codebase
-                    // too.
-                    if (item.hidden) {
-                        mainItem.hidden = true
-                    }
-                    if (item.originallyHidden) {
-                        mainItem.originallyHidden = true
                     }
 
                     return TraversalAction.CONTINUE
@@ -388,8 +355,7 @@ class AnnotationsMerger(
     }
 
     internal fun error(message: String) {
-        // TODO: Integrate with metalava error facility
-        options.stderr.println("Error: $message")
+        reporter.report(Issues.INTERNAL_ERROR, reportable = null, message)
     }
 
     internal fun warning(message: String) {
@@ -473,7 +439,7 @@ class AnnotationsMerger(
                     continue
                 }
 
-                mergeAnnotations(item, classItem)
+                mergeQualifierAnnotationsFromXmlElement(item, classItem)
             } else {
                 warning("No merge match for signature $signature")
             }
@@ -514,8 +480,8 @@ class AnnotationsMerger(
     ) {
         @Suppress("NAME_SHADOWING") val parameters = fixParameterString(parameters)
 
-        val methodItem: MethodItem? = classItem.findMethod(methodName, parameters)
-        if (methodItem == null) {
+        val callableItem = classItem.findCallable(methodName, parameters)
+        if (callableItem == null) {
             if (wellKnownIgnoredImport(containingClass)) {
                 return
             }
@@ -527,11 +493,11 @@ class AnnotationsMerger(
         }
 
         if (parameterIndex != -1) {
-            val parameterItem = methodItem.parameters()[parameterIndex]
-            mergeAnnotations(item, parameterItem)
+            val parameterItem = callableItem.parameters()[parameterIndex]
+            mergeQualifierAnnotationsFromXmlElement(item, parameterItem)
         } else {
             // Annotation on the method itself
-            mergeAnnotations(item, methodItem)
+            mergeQualifierAnnotationsFromXmlElement(item, callableItem)
         }
     }
 
@@ -553,7 +519,7 @@ class AnnotationsMerger(
             return
         }
 
-        mergeAnnotations(item, fieldItem)
+        mergeQualifierAnnotationsFromXmlElement(item, fieldItem)
     }
 
     private fun getAnnotationName(element: Element): String {
@@ -561,46 +527,17 @@ class AnnotationsMerger(
         assert(tagName == "annotation") { tagName }
 
         val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName != null && qualifiedName.isNotEmpty())
+        assert(qualifiedName.isNotEmpty())
         return qualifiedName
     }
 
-    private fun mergeAnnotations(xmlElement: Element, item: Item) {
-        loop@ for (annotationElement in getChildren(xmlElement)) {
-            val originalName = getAnnotationName(annotationElement)
-            val qualifiedName =
-                codebase.annotationManager.normalizeInputName(originalName) ?: originalName
-            if (hasNullnessConflicts(item, qualifiedName)) {
-                continue@loop
+    private fun mergeQualifierAnnotationsFromXmlElement(xmlElement: Element, item: Item) {
+        val annotationsToMerge =
+            getChildren(xmlElement).mapNotNull { annotationElement ->
+                createAnnotation(annotationElement)
             }
 
-            val annotationItem = createAnnotation(annotationElement) ?: continue
-            item.mutableModifiers().addAnnotation(annotationItem)
-        }
-    }
-
-    private fun hasNullnessConflicts(item: Item, qualifiedName: String): Boolean {
-        var haveNullable = false
-        var haveNotNull = false
-        for (existing in item.modifiers.annotations()) {
-            val name = existing.qualifiedName ?: continue
-            if (isNonNull(name)) {
-                haveNotNull = true
-            }
-            if (isNullable(name)) {
-                haveNullable = true
-            }
-            if (name == qualifiedName) {
-                return true
-            }
-        }
-
-        // Make sure we don't have a conflict between nullable and not nullable
-        if (isNonNull(qualifiedName) && haveNullable || isNullable(qualifiedName) && haveNotNull) {
-            warning("Found both @Nullable and @NonNull after import for $item")
-            return true
-        }
-        return false
+        mergeQualifierAnnotations(annotationsToMerge, item)
     }
 
     /**
@@ -613,7 +550,7 @@ class AnnotationsMerger(
         val tagName = annotationElement.tagName
         assert(tagName == "annotation") { tagName }
         val name = annotationElement.getAttribute(ATTR_NAME)
-        assert(name != null && name.isNotEmpty())
+        assert(name.isNotEmpty())
         when {
             name == "org.jetbrains.annotations.Range" -> {
                 val children = getChildren(annotationElement)
@@ -624,7 +561,7 @@ class AnnotationsMerger(
                 val value1 = valueElement1.getAttribute(ATTR_VAL)
                 val valName2 = valueElement2.getAttribute(ATTR_NAME)
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     "androidx.annotation.IntRange",
                     listOf(
@@ -669,7 +606,10 @@ class AnnotationsMerger(
 
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
-                            val filterEmit = ApiVisitor().filterEmit
+                            val filterEmit =
+                                ApiVisitor.defaultEmitFilter(
+                                    @Suppress("DEPRECATION") options.apiPredicateConfig,
+                                )
 
                             // Attempt with reflection
                             var first = true
@@ -716,7 +656,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
                     attributes,
@@ -757,7 +697,7 @@ class AnnotationsMerger(
                     parseChild(children[1])
                 }
                 val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
                     attributes,
@@ -769,7 +709,7 @@ class AnnotationsMerger(
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
                 return if (pure != null && pure.isNotEmpty()) {
-                    PsiAnnotationItem.create(
+                    DefaultAnnotationItem.create(
                         codebase,
                         name,
                         listOf(
@@ -778,7 +718,7 @@ class AnnotationsMerger(
                         ),
                     )
                 } else {
-                    PsiAnnotationItem.create(
+                    DefaultAnnotationItem.create(
                         codebase,
                         name,
                         listOf(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)),
@@ -801,7 +741,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return PsiAnnotationItem.create(codebase, name, attributes)
+                return DefaultAnnotationItem.create(codebase, name, attributes)
             }
         }
     }
@@ -818,6 +758,81 @@ class AnnotationsMerger(
             name == ANDROID_NULLABLE ||
             name == ANDROIDX_NULLABLE ||
             name == SUPPORT_NULLABLE
+    }
+
+    /** Merge qualifier annotations in [annotations] into the [Item.modifiers] of [item]. */
+    private fun mergeQualifierAnnotations(annotations: List<AnnotationItem>, item: Item) {
+        if (annotations.isEmpty()) return
+
+        // Check to make sure that the annotations are not adding a conflicting type nullability.
+        val nullabilityBefore = item.modifiers.annotations().typeNullability
+        if (nullabilityBefore != null) {
+            val mergeNullability = annotations.typeNullability
+            if (mergeNullability != null && mergeNullability != nullabilityBefore) {
+                when (nullabilityBefore) {
+                    TypeNullability.NULLABLE ->
+                        reporter.report(
+                            Issues.INCONSISTENT_MERGE_ANNOTATION,
+                            item,
+                            "Merge conflict, has @Nullable (or equivalent) attempting to merge" +
+                                " @NonNull (or equivalent)"
+                        )
+                    TypeNullability.NONNULL ->
+                        reporter.report(
+                            Issues.INCONSISTENT_MERGE_ANNOTATION,
+                            item,
+                            "Merge conflict, has @NonNull (or equivalent) attempting to merge" +
+                                " @Nullable (or equivalent)"
+                        )
+                    else -> {}
+                }
+            }
+        }
+
+        item.mutateModifiers {
+            mutateAnnotations {
+                for (annotation in annotations) {
+                    // If the item already has nullness annotations then ignore any others.
+                    if (nullabilityBefore != null && annotation.isNullnessAnnotation()) continue
+
+                    // Ignore annotation that has the same type as an existing annotation.
+                    val qualifiedName = annotation.qualifiedName
+                    if (any { it.qualifiedName == qualifiedName }) continue
+
+                    val annotationToMerge =
+                        item.codebase.createAnnotation(
+                            annotation.toSource(showDefaultAttrs = false),
+                            item,
+                        )
+                            ?: continue
+
+                    add(annotationToMerge)
+                }
+            }
+        }
+
+        // Update the type nullability from the annotations, if necessary.
+        //
+        // Nullability annotations do not make sense on class definitions or in package-info.java
+        // files and in fact many nullability annotations do not support targeting them at all. Some
+        // nullability checkers do support annotating packages and classes with annotations to set
+        // the default nullability for unannotated types but Metalava does not currently support
+        // them. If it did then they would need special treatment here anyway so, for now we just
+        // ignore them.
+        if (item is ClassItem || item is PackageItem) return
+
+        // Check to make sure that the item has a type.
+        val typeItem = item.type() ?: return
+
+        // If the nullability after is null then nullability annotations cannot have been added so
+        // there is nothing to check.
+        val nullabilityAfter = item.modifiers.annotations().typeNullability ?: return
+
+        // If the type nullability has changed then update the type nullability to match.
+        if (nullabilityAfter != nullabilityBefore) {
+            // Finally, duplicate the type with the new nullability.
+            item.setType(typeItem.substitute(nullabilityAfter))
+        }
     }
 
     private fun unescapeXml(escaped: String): String {

@@ -16,15 +16,18 @@
 
 package com.android.tools.metalava.model.testsuite.packageitem
 
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.RecordingReporter
+import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class CommonPackageItemTest : BaseModelTest() {
 
     @Test
@@ -51,14 +54,14 @@ class CommonPackageItemTest : BaseModelTest() {
                         .trimIndent()
                 ),
             ),
-        ) { codebase ->
+        ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(true, packageItem.originallyHidden)
         }
     }
 
     @Test
-    fun `Test @hide in package info`() {
+    fun `Test @hide in package info processed first`() {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -79,9 +82,372 @@ class CommonPackageItemTest : BaseModelTest() {
                         .trimIndent()
                 ),
             ),
-        ) { codebase ->
+        ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(true, packageItem.originallyHidden)
+        }
+    }
+
+    @Test
+    fun `Test @hide in package info processed last`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        /**
+                         * @hide
+                         */
+                        package test.pkg;
+                    """
+                        .trimIndent()
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            assertEquals(true, packageItem.originallyHidden)
+        }
+    }
+
+    @Test
+    fun `Test nullability annotation in package info`() {
+        runSourceCodebaseTest(
+            inputSet(
+                nonNullSource,
+                java(
+                    """
+                        @android.annotation.NonNull
+                        package test.pkg;
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                        .trimIndent()
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            assertEquals(
+                "@android.annotation.NonNull",
+                packageItem.modifiers.annotations().single().toString()
+            )
+        }
+    }
+
+    private fun dumpPackageContainment(start: Item): String {
+        return buildString {
+            val packageContainment = generateSequence(start) { it.containingPackage() }
+            for (item in packageContainment) {
+                if (isNotEmpty()) append("-> ")
+                append(item.describe())
+                append("\n")
+            }
+        }
+    }
+
+    @Test
+    fun `Test package containment`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package java.lang.invoke.mine {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+            java(
+                """
+                    package java.lang.invoke.mine;
+
+                    public class Foo {
+                    }
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("java.lang.invoke.mine.Foo")
+
+            assertEquals(
+                """
+                    class java.lang.invoke.mine.Foo
+                    -> package java.lang.invoke.mine
+                    -> package java.lang.invoke
+                    -> package java.lang
+                    -> package java
+                    -> package <root>
+                """
+                    .trimIndent(),
+                dumpPackageContainment(classItem).trim()
+            )
+        }
+    }
+
+    @Test
+    fun `Test package location (signature)`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            val packageLocation = packageItem.fileLocation.path.toString()
+
+            assertEquals("MAIN_SRC/api.txt", removeTestSpecificDirectories(packageLocation))
+        }
+    }
+
+    @Test
+    fun `Test package location (package-info)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        /** Some text. */
+                        package test.pkg;
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            val packageLocation = packageItem.fileLocation.path.toString()
+
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/package-info.java",
+                removeTestSpecificDirectories(packageLocation)
+            )
+        }
+    }
+
+    @Test
+    fun `Test package documentation (package-info)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        /** Some text. */
+                        package test.pkg;
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                "/** Some text. */",
+                packageItem.documentation.text.trim(),
+            )
+        }
+    }
+
+    @Test
+    fun `Test package location (package-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            val packageLocation = packageItem.fileLocation.path.toString()
+
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/package.html",
+                removeTestSpecificDirectories(packageLocation)
+            )
+        }
+    }
+
+    @Test
+    fun `Test package documentation (package-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                """
+                    /**
+                     * Some text.
+                     */
+                """
+                    .trimIndent(),
+                packageItem.documentation.text.trim(),
+            )
+        }
+    }
+
+    @Test
+    fun `Test invalid package (package-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/other/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.findPackage("other.pkg")
+            assertNull(packageItem)
+        }
+    }
+
+    @Test
+    fun `Test package documentation (overview-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/overview.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Overview.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                """
+                    <HTML>
+                    <BODY>
+                    Overview.
+                    </BODY>
+                    </HTML>
+                """
+                    .trimIndent(),
+                packageItem.overviewDocumentation?.content?.trim(),
+            )
+        }
+    }
+
+    @Test
+    fun `Test mismatching between package and directory`() {
+        val recordingReporter = RecordingReporter()
+        runCodebaseTest(
+            java(
+                "src/test/other/Foo.java",
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                    }
+                """
+            ),
+            testFixture = TestFixture(reporter = recordingReporter),
+        ) {
+            codebase.assertClass("test.pkg.Foo")
+            // Make sure that if any errors are reported that they are included in this list of
+            // known errors. This is needed because K1 produces both errors, but K2 only produces
+            // the first error. This test is currently broken for Turbine.
+            assertContains(
+                """
+                    MAIN_SRC/src/test/other/Foo.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path MAIN_SRC/src/test/other/Foo.java to end with /test/pkg/Foo.java [IoError]
+                    MAIN_SRC/src/test/other/Foo.java:3: error: Could not find package test.pkg for class test.pkg.Foo. This is most likely due to a mismatch between the package statement and the directory MAIN_SRC/src/test/other [InvalidPackage]
+                """
+                    .trimIndent(),
+                removeTestSpecificDirectories(recordingReporter.issues)
+            )
         }
     }
 }

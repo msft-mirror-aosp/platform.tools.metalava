@@ -23,10 +23,12 @@ java_library_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    java_resource_dirs: ["metalava-model-turbine/src/main/resources/"],
+    kotlin_lang_version: "2",
+    java_resource_dirs: ["src/main/resources/"],
     libs: [
         "metalava-model",
         "metalava-reporter",
         "metalava-model-source",
+        "metalava-tools-common-m2-deps",
     ],
 }

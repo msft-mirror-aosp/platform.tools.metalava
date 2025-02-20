@@ -67,7 +67,7 @@ class ApiFromTextTest : DriverTest() {
             // Signature format: 3.0
             package abc {
               public final class PopupKt {
-                method public static void DropdownPopup(Type ident = SomeFunc(SomeVal, SomeVal));
+                method public static void DropdownPopup(String ident = SomeFunc(SomeVal, SomeVal));
               }
             }
         """
@@ -128,7 +128,7 @@ class ApiFromTextTest : DriverTest() {
                 ctor public Foo();
                 method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
                 method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                method public void method3(str: String = "unbalanced), string", str2: String = ",");
+                method public void method3(String str = "unbalanced), string", String str2 = ",");
               }
             }
         """
@@ -222,7 +222,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class MyTest {
                     method public static int codePointAt(char[], int);
-                    method @NonNull public <K,V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
+                    method @NonNull public <K, V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
                     method @NonNull public java.lang.annotation.Annotation[] getAnnotations();
                     method @NonNull public abstract java.lang.annotation.Annotation[][] getParameterAnnotations();
                     method @NonNull public String[] split(@NonNull String, int);
@@ -315,8 +315,6 @@ class ApiFromTextTest : DriverTest() {
               public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }
@@ -335,7 +333,7 @@ class ApiFromTextTest : DriverTest() {
               public final class Test<T> {
                 ctor public Test();
                 method public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T);
-                method public static <T & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
+                method public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
                 method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws java.lang.Throwable;
                 field public static java.util.List<java.lang.String> LIST;
               }
@@ -377,6 +375,7 @@ class ApiFromTextTest : DriverTest() {
     fun `Test inner classes`() {
         val source =
             """
+                // Signature format: 5.0
                 package test.pkg {
                   public abstract class Foo {
                     ctor public Foo();
@@ -384,17 +383,17 @@ class ApiFromTextTest : DriverTest() {
                     method @Deprecated public static final void method2();
                   }
                   @Deprecated protected static final class Foo.Inner1 {
-                    ctor protected Foo.Inner1();
+                    ctor @Deprecated protected Foo.Inner1();
                   }
                   @Deprecated protected abstract static class Foo.Inner2 {
-                    ctor protected Foo.Inner2();
+                    ctor @Deprecated protected Foo.Inner2();
                   }
                   @Deprecated protected static interface Foo.Inner3 {
-                    method public default void method3();
-                    method public abstract static void method4(int);
+                    method @Deprecated public default void method3();
+                    method @Deprecated public static void method4(int);
                   }
                 }
-                """
+            """
 
         check(signatureSource = source, api = source)
     }

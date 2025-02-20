@@ -70,8 +70,8 @@ Arguments:
                     source.path,
                 )
 
-            val target = newFolder("private-annotations")
-            args += target.path
+            val target = getOrCreateFolder("private-annotations")
+            args += target
 
             verify {
                 // Source retention explicitly listed: Shouldn't exist
@@ -146,10 +146,10 @@ Arguments:
 
         commandTest {
             // Copy the stub-annotations sources and add a new file.
-            val source = newFolder("annotations-copy")
+            val source = getOrCreateFolder("annotations-copy")
             stubAnnotationsDir.copyRecursively(source)
             assertTrue(source.path, source.isDirectory)
-            inputFile("android/annotation/Unknown.java", fooSource, source)
+            unindentedInputFile("android/annotation/Unknown.java", fooSource, source)
 
             args +=
                 listOf(
@@ -157,8 +157,7 @@ Arguments:
                     source.path,
                 )
 
-            val target = newFolder("private-annotations")
-            args += target.path
+            args += getOrCreateFolder("private-annotations")
 
             expectedStderr =
                 "Aborting: TESTROOT/annotations-copy/android/annotation/Unknown.java: Found annotation with unknown desired retention: android.annotation.Unknown"

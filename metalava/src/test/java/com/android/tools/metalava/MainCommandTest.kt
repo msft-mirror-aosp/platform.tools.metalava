@@ -16,15 +16,20 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.common.COMMON_BASELINE_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
+import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
+import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
-import com.android.tools.metalava.reporter.Issues
-import java.util.Locale
+import java.io.File
 import kotlin.test.assertEquals
+import org.junit.Assert
 import org.junit.Test
 
 class MainCommandTest :
@@ -55,8 +60,8 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
-  --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
-                                             not yet released SDK extensions.
+  --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
+                                             annotated APIs as under migration.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 
@@ -68,7 +73,21 @@ Options:
                                              inline - will include the constants themselves into each usage site
   -h, --help                                 Show this message and exit
 
+$SOURCE_OPTIONS_HELP
+
 $ISSUE_REPORTING_OPTIONS_HELP
+
+$COMMON_BASELINE_OPTIONS_HELP
+
+$GENERAL_REPORTING_OPTIONS_HELP
+
+$CONFIG_FILE_OPTIONS_HELP
+
+$API_SELECTION_OPTIONS_HELP
+
+$API_LINT_OPTIONS_HELP
+
+$COMPATIBILITY_CHECK_OPTIONS_HELP
 
 Signature File Output:
 
@@ -85,6 +104,8 @@ $SIGNATURE_FORMAT_OPTIONS_HELP
 
 $STUB_GENERATION_OPTIONS_HELP
 
+$API_LEVELS_GENERATION_OPTIONS_HELP
+
 Arguments:
   flags                                      See below.
 
@@ -94,12 +115,11 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---source-path <paths>
-                                             One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy).
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
+--project <xmlfile>
+                                             Project description written in XML according to Lint's project model.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -124,26 +144,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---input-api-jar <file>
-                                             A .jar file to read APIs from directly
---hide-package <package>
-                                             Remove the given packages from the API even if they have not been marked
-                                             with @hide
---show-annotation <annotation class>
-                                             Unhide any hidden elements that are also annotated with the given
-                                             annotation
---show-single-annotation <annotation>
-                                             Like --show-annotation, but does not apply to members; these must also be
-                                             explicitly annotated
---show-for-stub-purposes-annotation <annotation class>
-                                             Like --show-annotation, but elements annotated with it are assumed to be
-                                             "implicitly" included in the API surface, and they'll be included in
-                                             certain kinds of output such as stubs, but not in others, such as the
-                                             signature file and API lint
---hide-annotation <annotation class>
-                                             Treat any elements annotated with the given annotation as hidden
---show-unannotated
-                                             Include un-annotated public APIs in the signature file as well
 --java-source <level>
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
@@ -154,12 +154,6 @@ API sources:
                                              Use the given API level
 --jdk-home <dir>
                                              If set, add the Java APIs from the given JDK to the classpath
---stub-packages <package-list>
-                                             List of packages (separated by :) which will be used to filter out
-                                             irrelevant code. If specified, only code in these packages will be included
-                                             in signature files, stubs, etc. (This is not limited to just the stubs; the
-                                             name is historical.) You can also use ".*" at the end to match subpackages,
-                                             so `foo.*` will match both `foo` and `foo.bar`.
 --subtract-api <api file>
                                              Subtracts the API in the given signature or jar file from the current API
                                              being emitted via --api, --stubs, --doc-stubs, etc. Note that the
@@ -167,11 +161,11 @@ API sources:
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
+--ignore-comments
+                                             Ignore any comments in source files.
 
 
 Extracting Signature Files:
---dex-api <file>
-                                             Generate a DEX signature descriptor file listing the APIs
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
@@ -206,70 +200,6 @@ Generating Stubs:
                                              Documentation stubs (--doc-stubs) are not affected.)
 
 
-Diffs and Checks:
---check-compatibility:type:released <file>
-                                             Check compatibility. Type is one of 'api' and 'removed', which checks
-                                             either the public api or the removed api.
---check-compatibility:base <file>
-                                             When performing a compat check, use the provided signature file as a base
-                                             api, which is treated as part of the API being checked. This allows us to
-                                             compute the full API surface from a partial API surface (e.g. the current
-                                             @SystemApi txt file), which allows us to recognize when an API is moved
-                                             from the partial API to the base API and avoid incorrectly flagging this as
-                                             an API removal.
---api-lint [api file]
-                                             Check API for Android API best practices. If a signature file is provided,
-                                             only the APIs that are new since the API will be checked.
---api-lint-ignore-prefix [prefix]
-                                             A list of package prefixes to ignore API issues in when running with
-                                             --api-lint.
---migrate-nullness <api file>
-                                             Compare nullness information with the previous stable API and mark newly
-                                             annotated APIs as under migration.
---warnings-as-errors
-                                             Promote all warnings to errors
---lints-as-errors
-                                             Promote all API lint warnings to errors
---report-even-if-suppressed <file>
-                                             Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide' or '--hide-category')
---baseline <file>
-                                             Filter out any errors already reported in the given baseline file, or
-                                             create if it does not already exist
---update-baseline [file]
-                                             Rewrite the existing baseline file with the current set of warnings. If
-                                             some warnings have been fixed, this will delete them from the baseline
-                                             files. If a file is provided, the updated baseline is written to the given
-                                             file; otherwise the original source baseline file is updated.
---baseline:api-lint <file> --update-baseline:api-lint [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API lint issues performed by --api-lint.
---baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API compatibility issues performed by
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
---pass-baseline-updates
-                                             Normally, encountering error will fail the build, even when updating
-                                             baselines. This flag allows you to tell metalava to continue without
-                                             errors, such that all the baselines in the source tree can be updated in
-                                             one go.
---delete-empty-baselines
-                                             Whether to delete baseline files if they are updated and there is nothing
-                                             to include.
---error-message:api-lint <message>
-                                             If set, metalava shows it when errors are detected in --api-lint.
---error-message:compatibility:released <message>
-                                             If set, metalava shows it when errors are detected in
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
-
-
-JDiff:
---api-xml <file>
-                                             Like --api, but emits the API in the JDiff XML format instead
-
-
 Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
@@ -284,66 +214,6 @@ Injecting API Levels:
 --apply-api-levels <api-versions.xml>
                                              Reads an XML file containing API level descriptions and merges the
                                              information into the documentation
-
-
-Extracting API Levels:
---generate-api-levels <xmlfile>
-                                             Reads android.jar SDK files and generates an XML file recording the API
-                                             level for each class, method and field
---remove-missing-class-references-in-api-levels
-                                             Removes references to missing classes when generating the API levels XML
-                                             file. This can happen when generating the XML file for the non-updatable
-                                             portions of the module-lib sdk, as those non-updatable portions can
-                                             reference classes that are part of an updatable apex.
---android-jar-pattern <pattern>
-                                             Patterns to use to locate Android JAR files. The default is
-                                             ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
---first-version
-                                             Sets the first API level to generate an API database from; usually 1
---current-version
-                                             Sets the current API level of the current source code
---current-codename
-                                             Sets the code name for the current source code
---current-jar
-                                             Points to the current API jar, if any
---sdk-extensions-root
-                                             Points to root of prebuilt extension SDK jars, if any. This directory is
-                                             expected to contain snapshots of historical extension SDK versions in the
-                                             form of stub jars. The paths should be on the format
-                                             "<int>/public/<module-name>.jar", where <int> corresponds to the extension
-                                             SDK version, and <module-name> to the name of the mainline module.
---sdk-extensions-info
-                                             Points to map of extension SDK APIs to include, if any. The file is a plain
-                                             text file and describes, per extension SDK, what APIs from that extension
-                                             to include in the file created via --generate-api-levels. The format of
-                                             each line is one of the following: "<module-name> <pattern> <ext-name>
-                                             [<ext-name> [...]]", where <module-name> is the name of the mainline module
-                                             this line refers to, <pattern> is a common Java name prefix of the APIs
-                                             this line refers to, and <ext-name> is a list of extension SDK names in
-                                             which these SDKs first appeared, or "<ext-name> <ext-id> <type>", where
-                                             <ext-name> is the name of an SDK, <ext-id> its numerical ID and <type> is
-                                             one of "platform" (the Android platform SDK), "platform-ext" (an extension
-                                             to the Android platform SDK), "standalone" (a separate SDK). Fields are
-                                             separated by whitespace. A mainline module may be listed multiple times.
-                                             The special pattern "*" refers to all APIs in the given mainline module.
-                                             Lines beginning with # are comments.
-
-
-Generating API version history:
---generate-api-version-history <jsonfile>
-                                             Reads API signature files and generates a JSON file recording the API
-                                             version each class, method, and field was added in and (if applicable)
-                                             deprecated in. Required to generate API version JSON.
---api-version-signature-files <files>
-                                             An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. This should not include a signature file for the
-                                             current API version, which will be parsed from the provided source files.
-                                             Not required to generate API version JSON if the current version is the
-                                             only version.
---api-version-names <strings>
-                                             An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files, and the name of the current API version.
-                                             Required to generate API version JSON.
 
 
 Environment Variables:
@@ -383,29 +253,32 @@ $EXPECTED_HELP
     }
 
     @Test
-    fun `Test deprecated lowercase matching in issue configuration options`() {
-        // Temporarily set [options] as it is needed by the [ReporterOptions.reporter] when
-        // reporting [Issues.DEPRECATED_OPTION].
-        @Suppress("DEPRECATION")
-        options = Options()
+    fun `Test for @file`() {
+        val dir = temporaryFolder.newFolder()
+        val files = (1..4).map { TestFiles.source("File$it.java", "File$it").createFile(dir) }
+        val fileList =
+            TestFiles.source(
+                "files.lst",
+                """
+            ${files[0]}
+            ${files[1]} ${files[2]}
+            ${files[3]}
+        """
+                    .trimIndent()
+            )
+
+        val file = fileList.createFile(dir)
 
         commandTest {
-            args +=
-                listOf(
-                    "main",
-                    "--error",
-                    Issues.DEPRECATED_OPTION.name,
-                    "--hide",
-                    Issues.ADDED_FINAL.name.lowercase(Locale.US),
+            args += listOf("main", "@$file")
+
+            verify {
+                fun normalize(f: File): String = f.relativeTo(dir).path
+                Assert.assertEquals(
+                    files.map { normalize(it) },
+                    command.optionGroup.sources.map { normalize(it) }
                 )
-
-            expectedStderr =
-                """
-error: Case-insensitive issue matching is deprecated, use --hide AddedFinal instead of --hide addedfinal [DeprecatedOption]
-                """
-                    .trimIndent()
-
-            verify { assertEquals(-1, exitCode, message = "exitCode") }
+            }
         }
     }
 }
