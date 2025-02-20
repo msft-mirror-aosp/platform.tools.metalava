@@ -206,4 +206,61 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
             verify { outputFile.assertSignatureContents(signature) }
         }
     }
+
+    @Test
+    fun `Cat merge surfaces`() {
+        val surface1 =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                    method public void betaMethod();
+                    property public int betaProperty;
+                    field public static final int betaField;
+                  }
+                }
+            """
+
+        val surface2 =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                    method public void alphaMethod();
+                    property public int alphaProperty;
+                    field public static final int alphaField;
+                  }
+                }
+            """
+
+        commandTest {
+            val outputFile = outputFile("cat.txt")
+            args +=
+                listOf(
+                    "signature-cat",
+                    unindentedInputFile("surface1.txt", surface1),
+                    unindentedInputFile("surface2.txt", surface2),
+                    "--output-file",
+                    outputFile,
+                )
+
+            verify {
+                outputFile.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public interface Foo {
+                            method public void betaMethod();
+                            method public void alphaMethod();
+                            property public int betaProperty;
+                            property public int alphaProperty;
+                            field public static final int betaField;
+                            field public static final int alphaField;
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
 }
