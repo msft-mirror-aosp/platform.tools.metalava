@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.historical.ARG_API_SURFACES
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.FileFormat
@@ -78,20 +79,20 @@ Arguments:
         }
     }
 
-    private fun currentVersionDir(apiVersion: Int): String {
-        return "prebuilts/sdk/$apiVersion/public"
+    private fun currentVersionDir(apiVersion: Int, surface: String): String {
+        return "prebuilts/sdk/$apiVersion/$surface"
     }
 
-    private fun currentApiDir(apiVersion: Int): String {
-        return "${currentVersionDir(apiVersion)}/api"
+    private fun currentApiDir(apiVersion: Int, surface: String = "public"): String {
+        return "${currentVersionDir(apiVersion, surface)}/api"
     }
 
-    private fun currentAndroidJarFile(apiVersion: Int): String {
-        return "${currentVersionDir(apiVersion)}/android.jar"
+    private fun currentAndroidJarFile(apiVersion: Int, surface: String = "public"): String {
+        return "${currentVersionDir(apiVersion, surface)}/android.jar"
     }
 
-    private fun currentApiTxtFile(apiVersion: Int): String {
-        return "${currentApiDir(apiVersion)}/android.txt"
+    private fun currentApiTxtFile(apiVersion: Int, surface: String = "public"): String {
+        return "${currentApiDir(apiVersion, surface)}/android.txt"
     }
 
     @Test
@@ -214,6 +215,84 @@ Arguments:
                             package test.pkg {
                               public class Foo {
                                 ctor public Foo();
+                              }
+                            }
+                        """
+                    )
+            }
+        }
+    }
+
+    @Test
+    fun `Test system extends`() {
+        val root = buildFileStructure {
+            dir("prebuilts/sdk/3/public") {
+                jar(
+                    "android.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Public {
+                                public void publicMethod() {}
+                            }
+                        """
+                    ),
+                )
+                dir("api") { emptyFile("android.txt") }
+            }
+            dir("prebuilts/sdk/3/system") {
+                jar(
+                    "android.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Public {
+                                public void publicMethod() {}
+                                public void systemMethod() {}
+                            }
+                        """
+                    ),
+                )
+                dir("api") { emptyFile("android.txt") }
+            }
+        }
+
+        commandTest {
+            args += "android-jars-to-signatures"
+            args += root
+
+            args += ARG_CONFIG_FILE
+            args += KnownConfigFiles.configPublicAndSystemSurfaces
+
+            args += ARG_API_SURFACES
+            args += "public,system"
+
+            verify {
+                root
+                    .resolve(currentApiTxtFile(3))
+                    .assertSignatureContents(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Public {
+                                ctor public Public();
+                                method public void publicMethod();
+                              }
+                            }
+                        """
+                    )
+
+                // TODO(b/396431439): Should not include public constructor and method.
+                root
+                    .resolve(currentApiTxtFile(3, "system"))
+                    .assertSignatureContents(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Public {
+                                ctor public Public();
+                                method public void publicMethod();
+                                method public void systemMethod();
                               }
                             }
                         """
