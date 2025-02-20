@@ -20,6 +20,7 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -211,4 +212,27 @@ class SurfaceInfo(
      * if any.
      */
     val extends: SurfaceInfo?,
-)
+) {
+    /**
+     * Get the [SignatureFile]s that contribute to this surface.
+     *
+     * In order, such that the file for an extending surface comes after the files for the extended
+     * surface.
+     */
+    fun contributingSignatureFiles(): List<SignatureFile> {
+        val files = buildList { addContributingSignatureFiles(this) }
+        return SignatureFile.fromFiles(files)
+    }
+
+    /**
+     * Add extended [SurfaceInfo]s files that contribute to this surface, if any, followed by this
+     * surfaces file.
+     */
+    private fun addContributingSignatureFiles(list: MutableList<File>) {
+        // Add any files for the extended surface, if any, first.
+        extends?.addContributingSignatureFiles(list)
+
+        // Then add the files for this surface.
+        list.add(signatureFile)
+    }
+}

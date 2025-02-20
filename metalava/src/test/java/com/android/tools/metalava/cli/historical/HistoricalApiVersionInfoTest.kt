@@ -19,6 +19,7 @@ package com.android.tools.metalava.cli.historical
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.apiSurfacesFromConfig
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -135,5 +136,30 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                 .trimIndent(),
             list.dump()
         )
+
+        val last = list.last()
+        assertEquals(ApiVersion.fromLevel(2), last.version, "last version")
+        val contributingFiles = buildString {
+            for (surfaceInfo in last.infoBySurface.values) {
+                append(surfaceInfo.surface.name)
+                append("\n")
+                for (file in surfaceInfo.contributingSignatureFiles()) {
+                    append("  ")
+                    append(file)
+                    append("\n")
+                }
+            }
+        }
+
+        val expected =
+            """
+                public
+                  SignatureFileFromFile(file=TESTROOT/2/public/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
+                system
+                  SignatureFileFromFile(file=TESTROOT/2/public/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
+                  SignatureFileFromFile(file=TESTROOT/2/system/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
+            """
+                .trimIndent()
+        assertEquals(expected, replaceFileWithSymbol(contributingFiles), "contributing files")
     }
 }
