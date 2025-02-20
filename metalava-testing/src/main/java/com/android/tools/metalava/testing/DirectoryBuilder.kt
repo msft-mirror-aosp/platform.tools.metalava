@@ -54,6 +54,16 @@ class DirectoryBuilder(val dir: File) {
         JavacHelper.compileAndJar(jarFile, sources.toList(), classPath)
         return jarFile
     }
+
+    /**
+     * Create a signature file [relative] to [dir], contains [contents] trimmed by
+     * [String.trimIndent].
+     */
+    fun signature(relative: String, contents: String) =
+        testFile(source(relative, contents.trimIndent()))
+
+    /** Create a [TestFile] in [dir]. */
+    fun testFile(testFile: TestFile): File = testFile.createFile(dir)
 }
 
 /**

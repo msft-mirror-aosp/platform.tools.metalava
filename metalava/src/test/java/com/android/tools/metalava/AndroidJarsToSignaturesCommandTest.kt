@@ -297,4 +297,84 @@ Arguments:
             }
         }
     }
+
+    @Test
+    fun `Test copy deprecated from existing signature file`() {
+        lateinit var jarFile: File
+        val root = buildFileStructure {
+            dir("prebuilts/sdk/3/public") {
+                jarFile =
+                    jar(
+                        "android.jar",
+                        java(
+                            """
+                                package test.pkg;
+                                public class Foo {}
+                            """
+                        ),
+                    )
+                dir("api") {
+                    signature(
+                        "android.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated public class Foo {
+                              }
+                            }
+                        """
+                    )
+                }
+            }
+            dir("prebuilts/sdk/3/system") {
+                // Use the same jar file as for public.
+                jarFile.copyTo(dir.resolve("android.jar"))
+
+                dir("api") { emptyFile("android.txt") }
+            }
+        }
+
+        commandTest {
+            args += "android-jars-to-signatures"
+            args += root
+
+            args += ARG_CONFIG_FILE
+            args += KnownConfigFiles.configPublicAndSystemSurfaces
+
+            args += ARG_API_SURFACES
+            args += "public,system"
+
+            verify {
+                root
+                    .resolve(currentApiTxtFile(3))
+                    .assertSignatureContents(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated public class Foo {
+                                ctor @Deprecated public Foo();
+                              }
+                            }
+                        """
+                    )
+
+                // TODO(b/396431439): A delta between two identical jars should be empty. The
+                //   reason why the constructor is removed is because SnapshotDeltaMaker ignores
+                //   differences in annotations/modifiers in anything other than classes. The
+                //   reason the class is not removed is because it is not deprecated here but it is
+                //   deprecated in the public API.
+                root
+                    .resolve(currentApiTxtFile(3, "system"))
+                    .assertSignatureContents(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                              }
+                            }
+                        """
+                    )
+            }
+        }
+    }
 }

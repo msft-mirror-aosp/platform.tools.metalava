@@ -124,7 +124,12 @@ class ConvertJarsToSignatureFiles(
             )
         val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
-        val jarCodebase = jarCodebaseLoader.loadFromJarFile(jarFile)
+        val jarCodebase =
+            jarCodebaseLoader.loadFromJarFile(
+                jarFile,
+                // Do not freeze codebases after loading as they may need to be modified.
+                freezeCodebase = false,
+            )
 
         if (version.major >= 28) {
             // As of API 28 we'll put nullness annotations into the jar but some of them may be
