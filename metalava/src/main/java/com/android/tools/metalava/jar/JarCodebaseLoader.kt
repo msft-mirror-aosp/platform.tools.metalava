@@ -18,7 +18,6 @@ package com.android.tools.metalava.jar
 
 import com.android.tools.metalava.ApiAnalyzer
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -111,7 +110,7 @@ private constructor(
          * with to ensure prompt release of resources, e.g. using `...use { jarCodebaseLoader -> }`.
          */
         fun create(
-            executionEnvironment: ExecutionEnvironment,
+            disableStderrDumping: Boolean,
             progressTracker: ProgressTracker,
             reporter: Reporter,
         ): StandaloneJarCodebaseLoader {
@@ -119,7 +118,7 @@ private constructor(
 
             val environmentManager =
                 sourceModelProvider.createEnvironmentManager(
-                    executionEnvironment.disableStderrDumping()
+                    disableStderrDumping,
                 )
 
             val annotationManager = DefaultAnnotationManager()

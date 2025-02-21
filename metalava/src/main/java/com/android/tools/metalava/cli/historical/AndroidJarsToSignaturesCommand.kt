@@ -139,7 +139,7 @@ class AndroidJarsToSignaturesCommand :
         val selectedApiSurfaces = apiSurfaceNames.map { apiSurfaces.byName[it]!! }.sorted()
 
         StandaloneJarCodebaseLoader.create(
-                executionEnvironment,
+                executionEnvironment.disableStderrDumping(),
                 progressTracker,
                 BasicReporter(stderr),
             )

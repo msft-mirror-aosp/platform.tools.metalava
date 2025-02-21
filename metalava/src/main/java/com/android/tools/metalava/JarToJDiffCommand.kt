@@ -71,7 +71,7 @@ class JarToJDiffCommand :
         OptionsDelegate.disallowAccess()
 
         StandaloneJarCodebaseLoader.create(
-                executionEnvironment,
+                executionEnvironment.disableStderrDumping(),
                 progressTracker,
                 BasicReporter(stderr)
             )
