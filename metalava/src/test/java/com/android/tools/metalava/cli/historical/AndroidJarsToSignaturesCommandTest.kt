@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.historical
 
+import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
-import com.android.tools.metalava.cli.historical.ARG_API_SURFACES
-import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureContents
