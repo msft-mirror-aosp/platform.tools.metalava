@@ -440,8 +440,6 @@ internal object PsiModifierItem {
                 ktDeclaration.isTopLevelKtOrJavaMember()
         ) {
             FINAL or STATIC
-        } else if (ktDeclaration.hasModifier(KtTokens.FINAL_KEYWORD)) {
-            FINAL
         } else if (ktDeclaration.isAbstractProperty()) {
             // Declarations with the abstract keyword are abstract, and so are annotation class
             // properties.
@@ -455,9 +453,9 @@ internal object PsiModifierItem {
             // a defined getter. If there is a defined getter, there's a default implementation.
             DEFAULT
         } else if (
-            !ktDeclaration.hasModifier(KtTokens.OPEN_KEYWORD) &&
-                !ktDeclaration.hasModifier(KtTokens.OVERRIDE_KEYWORD) &&
-                !ktDeclaration.isFromInterface()
+            ktDeclaration.hasModifier(KtTokens.FINAL_KEYWORD) ||
+                (!ktDeclaration.hasModifier(KtTokens.OPEN_KEYWORD) &&
+                    !ktDeclaration.hasModifier(KtTokens.OVERRIDE_KEYWORD))
         ) {
             // Kotlin elements are final unless declared otherwise.
             FINAL
