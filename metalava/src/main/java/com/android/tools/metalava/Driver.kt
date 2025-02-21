@@ -486,7 +486,7 @@ private fun ActionContext.subtractApi(
     subtractApiFile: File,
 ) {
     val path = subtractApiFile.path
-    val oldCodebase =
+    val codebaseToSubtract =
         when {
             path.endsWith(DOT_TXT) ->
                 signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
@@ -497,18 +497,21 @@ private fun ActionContext.subtractApi(
                 )
         }
 
-    @Suppress("DEPRECATION")
-    CodebaseComparator()
-        .compare(
-            object : ComparisonVisitor() {
-                override fun compareClassItems(old: ClassItem, new: ClassItem) {
-                    new.emit = false
-                }
-            },
-            oldCodebase,
-            codebase,
-            ApiType.ALL.getReferenceFilter(options.apiPredicateConfig)
-        )
+    // Iterate over the top level classes in the codebase and if they are present in the codebase
+    // being subtracted then do not emit the class or any of its nested classes.
+    for (classItem in codebase.getTopLevelClassesFromSource()) {
+        if (codebaseToSubtract.findClass(classItem.qualifiedName()) != null) {
+            stopEmittingClassAndContents(classItem)
+        }
+    }
+}
+
+/** Stop emitting [classItem] and any of its nested classes. */
+private fun stopEmittingClassAndContents(classItem: ClassItem) {
+    classItem.emit = false
+    for (nestedClass in classItem.nestedClasses()) {
+        stopEmittingClassAndContents(nestedClass)
+    }
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
