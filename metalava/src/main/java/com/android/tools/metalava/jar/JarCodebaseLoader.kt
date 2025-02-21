@@ -113,8 +113,8 @@ private constructor(
             disableStderrDumping: Boolean,
             progressTracker: ProgressTracker,
             reporter: Reporter,
+            sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
         ): StandaloneJarCodebaseLoader {
-            val sourceModelProvider = SourceModelProvider.getImplementation("psi")
 
             val environmentManager =
                 sourceModelProvider.createEnvironmentManager(
