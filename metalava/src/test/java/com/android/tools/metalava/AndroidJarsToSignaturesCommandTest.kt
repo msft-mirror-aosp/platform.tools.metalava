@@ -368,4 +368,67 @@ Arguments:
             }
         }
     }
+
+    @Test
+    fun `Test add-additional-overrides=yes`() {
+        val root = buildFileStructure {
+            dir("prebuilts/sdk/3/public") {
+                jar(
+                    "android.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public abstract class Bar<T> {
+                                public T method(T t) {return t;}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo<T extends CharSequence> extends Bar<T> {
+                                public T method(T t) {return t;}
+                            }
+                        """
+                    ),
+                )
+                dir("api") { emptyFile("android.txt") }
+            }
+        }
+
+        commandTest {
+            args += "android-jars-to-signatures"
+            args += root
+
+            args += ARG_CONFIG_FILE
+            args += KnownConfigFiles.configPublicAndSystemSurfaces
+
+            args += ARG_API_SURFACES
+            args += "public,system"
+
+            // TODO(b/394597358): This does not work, Foo override of method should be included as
+            //   it changes the return reified return type from Object to CharSequence.
+            args += "--format-defaults"
+            args += "add-additional-overrides=yes"
+
+            verify {
+                root
+                    .resolve(currentApiTxtFile(3))
+                    .assertSignatureContents(
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public abstract class Bar<T> {
+                                ctor public Bar();
+                                method public T method(T);
+                              }
+                              public class Foo<T extends java.lang.CharSequence> extends test.pkg.Bar<T> {
+                                ctor public Foo();
+                              }
+                            }
+                        """
+                    )
+            }
+        }
+    }
 }
