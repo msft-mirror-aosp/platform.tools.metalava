@@ -211,4 +211,3 @@ com.android.tools.metalava.stub.StubsTest
   Missing overridden method[turbine]
   Picking super class throwables[turbine]
   Skip type variables in casts[turbine]
-  Translate DeprecatedForSdk to Deprecated[turbine]
