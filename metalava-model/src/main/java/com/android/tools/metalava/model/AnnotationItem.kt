@@ -109,14 +109,6 @@ sealed interface AnnotationItem {
             ANDROID_LONG_DEF == name)
     }
 
-    /**
-     * True if this annotation represents a @ParameterName annotation (or some synonymous
-     * annotation). The parameter name should be the default attribute or "value".
-     */
-    fun isParameterName(): Boolean {
-        return qualifiedName.endsWith(".ParameterName")
-    }
-
     /** Returns the given named attribute if specified */
     fun findAttribute(name: String?): AnnotationAttribute? {
         val actualName = name ?: ANNOTATION_ATTR_VALUE

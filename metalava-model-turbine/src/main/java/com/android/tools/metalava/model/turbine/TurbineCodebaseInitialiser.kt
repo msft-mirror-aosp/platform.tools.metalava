@@ -62,7 +62,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
-import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -1124,12 +1123,7 @@ internal class TurbineCodebaseInitialiser(
                     fileLocation = fileLocation,
                     modifiers = parameterModifierItem,
                     name = parameter.name(),
-                    publicNameProvider = { item ->
-                        // Java: Look for @ParameterName annotation
-                        val modifiers = item.modifiers
-                        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
-                        annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
-                    },
+                    publicNameProvider = { null },
                     containingCallable = containingCallable,
                     parameterIndex = idx,
                     type = type,

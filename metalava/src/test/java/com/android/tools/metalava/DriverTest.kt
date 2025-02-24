@@ -1685,8 +1685,6 @@ val recentlyNullableSource: TestFile =
         )
         .indented()
 
-val supportParameterName = KnownSourceFiles.supportParameterName
-
 val uiThreadSource: TestFile =
     java(
             """

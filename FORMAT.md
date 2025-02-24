@@ -304,21 +304,9 @@ Here's an example:
 In v1 files we only list type names, but in v2 we allow an optional parameter
 name to be specified; "commit" in the above.
 
-Note that this isn't just for Kotlin. Just like there are special nullness
-annotations to mark up the null contract for an element, we will also have a
-special annotation to explicitly name a Java parameter:
-@android.annotation.ParameterName (which is hidden). This obviously isn't usable
-from Java, but Kotlin client code can now reference the parameter.
-
-Therefore, the following Java code (not signature code) will also produce
-exactly the same signature as the above:
-
-```
-    public static void edit(SharedPreferences prefs, @ParameterName("commit") boolean ct) {…}
-```
-
-(Note how the implementation parameter doesn't have to match the public, API
-name of the parameter.)
+Note that this is just for Kotlin. There is no support for using this for Java
+as Java does not consider parameter names to be part of the API and so Kotlin
+will not use parameter names when calling Java.
 
 ### Support Default Values
 

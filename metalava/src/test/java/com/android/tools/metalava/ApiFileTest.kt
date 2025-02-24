@@ -142,39 +142,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Parameter Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class Foo {
-                        public void foo(int javaParameter1, @ParameterName("publicParameterName") int javaParameter2) {
-                        }
-                    }
-                    """
-                    ),
-                    supportParameterName,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                        method public void foo(int, int publicParameterName);
-                      }
-                    }
-                 """,
-        )
-    }
-
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Default Values and Names in Kotlin`() {
