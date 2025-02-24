@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -45,8 +44,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -84,8 +81,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -138,8 +133,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -195,8 +188,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -270,8 +261,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -382,8 +371,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
@@ -438,8 +425,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
@@ -488,8 +473,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -562,8 +545,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -637,8 +618,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """

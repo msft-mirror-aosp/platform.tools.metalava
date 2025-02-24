@@ -190,8 +190,6 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -278,8 +276,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNullableSource,
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -605,8 +601,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     uiThreadSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -732,8 +726,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1005,8 +997,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1162,8 +1152,6 @@ class ApiFileTest : DriverTest() {
                         .indented(),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1247,8 +1235,6 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -3853,8 +3839,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             expectedIssues = "",
             api =
@@ -4436,8 +4420,6 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -4525,8 +4507,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNullableSource,
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -5005,8 +4985,6 @@ class ApiFileTest : DriverTest() {
                 """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             format = FileFormat.V4,
             api =
@@ -5039,8 +5017,6 @@ class ApiFileTest : DriverTest() {
                 """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments = arrayOf("--show-unannotated"),
             hideAnnotations =
@@ -5485,8 +5461,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     restrictToSource,
                     visibleForTestingSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(

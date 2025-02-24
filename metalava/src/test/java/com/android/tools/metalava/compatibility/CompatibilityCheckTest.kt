@@ -3271,8 +3271,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
         )
     }

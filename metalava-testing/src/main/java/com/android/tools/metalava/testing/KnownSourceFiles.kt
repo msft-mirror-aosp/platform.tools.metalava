@@ -164,14 +164,6 @@ object KnownSourceFiles {
             """
         )
 
-    val androidxAnnotationHide: TestFile =
-        TestFiles.java(
-            """
-                /** @hide */
-                package androidx.annotation;
-            """
-        )
-
     /** TYPE_USE version of [com.android.tools.metalava.intRangeAnnotationSource] */
     val intRangeTypeUseSource =
         java(

@@ -433,8 +433,6 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -601,8 +599,6 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             expectedIssues = null,
             api =
