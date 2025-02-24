@@ -4313,10 +4313,9 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 3.0
@@ -4352,10 +4351,9 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 2.0
@@ -4388,10 +4386,9 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 3.0
@@ -5081,10 +5078,9 @@ class ApiFileTest : DriverTest() {
                         fun returnsNonNullImplicitly() = "42"
                     """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 2.0
@@ -5457,10 +5453,9 @@ class ApiFileTest : DriverTest() {
                     )
                     """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 package test.pkg {

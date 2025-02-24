@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import java.io.File
 
 object KnownJarFiles {
@@ -35,5 +36,19 @@ object KnownJarFiles {
         val jar = File(envValue)
         require(jar.isFile) { "stub-annotations jar not found: $jar" }
         jar
+    }
+
+    /** The jar produced by the `:stub-annotations` project, exposed as a [TestFile]. */
+    val stubAnnotationsTestFile: TestFile by lazy { ExistingFile(stubAnnotationsJar) }
+}
+
+/** A simple [TestFile] that just uses an existing file without copying. */
+private class ExistingFile(private val file: File) : TestFile() {
+    override fun createFile(targetDir: File): File {
+        if (targetRelativePath == null) {
+            return file
+        } else {
+            error("Does not support copying file to new target directory")
+        }
     }
 }
