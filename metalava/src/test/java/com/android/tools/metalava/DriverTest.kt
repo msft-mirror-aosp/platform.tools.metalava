@@ -81,7 +81,6 @@ import java.io.StringWriter
 import java.net.URI
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -1235,7 +1234,7 @@ abstract class DriverTest :
             JavacHelper.compile(
                 outputDirectory = project,
                 sources = generated,
-                classPath = listOf(stubAnnotationsJar),
+                classPath = listOf(KnownJarFiles.stubAnnotationsJar),
             )
         }
     }
@@ -1394,15 +1393,6 @@ abstract class DriverTest :
                 val file = File(project, name)
                 if (!file.isFile) return file
             } while (true)
-        }
-
-        /** The jar produced by the :stub-annotations project. */
-        val stubAnnotationsJar by lazy {
-            val jar = File(System.getenv("METALAVA_STUB_ANNOTATIONS_JAR"))
-            if (!jar.isFile) {
-                Assert.fail("stub-annotations jar not found: $jar")
-            }
-            jar
         }
     }
 }
