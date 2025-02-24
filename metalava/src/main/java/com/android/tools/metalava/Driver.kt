@@ -39,6 +39,7 @@ import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.doc.DocAnalyzer
+import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
@@ -82,12 +83,18 @@ const val PROGRAM_NAME = "metalava"
 
 fun main(args: Array<String>) {
     val executionEnvironment = ExecutionEnvironment()
-    val exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
+    var exitCode = 0
+    try {
+        exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
+    } catch (e: Throwable) {
+        exitCode = -1
+        e.printStackTrace(executionEnvironment.stderr)
+    } finally {
+        executionEnvironment.stdout.flush()
+        executionEnvironment.stderr.flush()
 
-    executionEnvironment.stdout.flush()
-    executionEnvironment.stderr.flush()
-
-    exitProcess(exitCode)
+        exitProcess(exitCode)
+    }
 }
 
 /**

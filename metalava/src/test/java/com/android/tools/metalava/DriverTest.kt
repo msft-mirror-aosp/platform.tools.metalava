@@ -17,10 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
-import com.android.ide.common.process.DefaultProcessExecutor
-import com.android.ide.common.process.LoggedProcessOutputHandler
-import com.android.ide.common.process.ProcessException
-import com.android.ide.common.process.ProcessInfoBuilder
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
@@ -68,12 +64,12 @@ import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.utils.SdkUtils
-import com.android.utils.StdLogger
 import com.google.common.io.Closeables
 import com.intellij.openapi.util.Disposer
 import java.io.ByteArrayOutputStream
@@ -85,6 +81,7 @@ import java.io.StringWriter
 import java.net.URI
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
+import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -248,22 +245,6 @@ abstract class DriverTest :
             otherStream.write(b)
             super.write(b)
         }
-    }
-
-    private fun getJdkPath(): String? {
-        val javaHome = System.getProperty("java.home")
-        if (javaHome != null) {
-            var javaHomeFile = File(javaHome)
-            if (File(javaHomeFile, "bin${File.separator}javac").exists()) {
-                return javaHome
-            } else if (javaHomeFile.name == "jre") {
-                javaHomeFile = javaHomeFile.parentFile
-                if (File(javaHomeFile, "bin${File.separator}javac").exists()) {
-                    return javaHomeFile.path
-                }
-            }
-        }
-        return System.getenv("JAVA_HOME")
     }
 
     private fun <T> buildOptionalArgs(option: T?, converter: (T) -> Array<String>): Array<String> {
@@ -1248,40 +1229,14 @@ abstract class DriverTest :
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir))
-                    .sources
-                    .asSequence()
-                    .map { it.path }
-                    .toList()
-                    .toTypedArray()
+                SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir)).sources
 
-            // Also need to include on the compile path annotation classes referenced in the stubs
-            val extraAnnotationsDir = File("../stub-annotations/src/main/java")
-            if (!extraAnnotationsDir.isDirectory) {
-                fail(
-                    "Couldn't find $extraAnnotationsDir: Is the pwd set to the root of the metalava source code?"
-                )
-                fail(
-                    "Couldn't find $extraAnnotationsDir: Is the pwd set to the root of an Android source tree?"
-                )
-            }
-            val extraAnnotations =
-                SourceSet.createFromSourcePath(options.reporter, listOf(extraAnnotationsDir))
-                    .sources
-                    .asSequence()
-                    .map { it.path }
-                    .toList()
-                    .toTypedArray()
-
-            if (
-                !runCommand(
-                    "${getJdkPath()}/bin/javac",
-                    arrayOf("-d", project.path, *generated, *extraAnnotations)
-                )
-            ) {
-                fail("Couldn't compile stub file -- compilation problems")
-                return
-            }
+            // Compile the stubs, throwing an exception if it fails.
+            JavacHelper.compile(
+                outputDirectory = project,
+                sources = generated,
+                classPath = listOf(stubAnnotationsJar),
+            )
         }
     }
 
@@ -1342,26 +1297,6 @@ abstract class DriverTest :
         } finally {
             Closeables.closeQuietly(stream)
         }
-    }
-
-    private fun runCommand(executable: String, args: Array<String>): Boolean {
-        try {
-            val logger = StdLogger(StdLogger.Level.ERROR)
-            val processExecutor = DefaultProcessExecutor(logger)
-            val processInfo =
-                ProcessInfoBuilder().setExecutable(executable).addArgs(args).createProcess()
-
-            val processOutputHandler = LoggedProcessOutputHandler(logger)
-            val result = processExecutor.execute(processInfo, processOutputHandler)
-
-            result.rethrowFailure().assertNormalExitValue()
-        } catch (e: ProcessException) {
-            fail(
-                "Failed to run $executable (${e.message}): not verifying this API on the old doclava engine"
-            )
-            return false
-        }
-        return true
     }
 
     companion object {
@@ -1459,6 +1394,15 @@ abstract class DriverTest :
                 val file = File(project, name)
                 if (!file.isFile) return file
             } while (true)
+        }
+
+        /** The jar produced by the :stub-annotations project. */
+        val stubAnnotationsJar by lazy {
+            val jar = File(System.getenv("METALAVA_STUB_ANNOTATIONS_JAR"))
+            if (!jar.isFile) {
+                Assert.fail("stub-annotations jar not found: $jar")
+            }
+            jar
         }
     }
 }
