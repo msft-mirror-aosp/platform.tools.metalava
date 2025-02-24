@@ -175,44 +175,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Default Values Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.DefaultValue;
-
-                    public class Foo {
-                        public void foo(
-                            @DefaultValue("null") String prefix,
-                            @DefaultValue("\"Hello World\"") String greeting,
-                            @DefaultValue("42") int meaning) {
-                        }
-                    }
-                    """
-                    ),
-                    supportDefaultValue,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(String! = null, String! = "Hello World", int = 42);
-                  }
-                }
-                 """,
-        )
-    }
-
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Default Values and Names in Kotlin`() {
@@ -4456,44 +4418,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """
-        )
-    }
-
-    @Test
-    fun `Concise default Values Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.DefaultValue;
-
-                    public class Foo {
-                        public void foo(
-                            @DefaultValue("null") String prefix,
-                            @DefaultValue("\"Hello World\"") String greeting,
-                            @DefaultValue("42") int meaning) {
-                        }
-                    }
-                    """
-                    ),
-                    supportDefaultValue,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(optional String!, optional String!, optional int);
-                  }
-                }
-                 """,
         )
     }
 

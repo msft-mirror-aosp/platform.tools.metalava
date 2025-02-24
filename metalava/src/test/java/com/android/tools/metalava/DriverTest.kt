@@ -1687,23 +1687,6 @@ val recentlyNullableSource: TestFile =
 
 val supportParameterName = KnownSourceFiles.supportParameterName
 
-val supportDefaultValue: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD})
-    public @interface DefaultValue {
-        String value();
-    }
-    """
-        )
-        .indented()
-
 val uiThreadSource: TestFile =
     java(
             """

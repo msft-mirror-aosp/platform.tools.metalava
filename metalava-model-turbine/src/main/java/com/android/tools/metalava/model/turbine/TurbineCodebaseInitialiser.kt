@@ -70,6 +70,7 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
@@ -1132,7 +1133,7 @@ internal class TurbineCodebaseInitialiser(
                     containingCallable = containingCallable,
                     parameterIndex = idx,
                     type = type,
-                    defaultValueFactory = { TurbineDefaultValue(parameterModifierItem) },
+                    defaultValueFactory = { DefaultValue.NONE },
                 )
             parameterItem
         }

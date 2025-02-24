@@ -280,8 +280,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 return when {
                     // Special Kotlin annotations recognized by the compiler: map to supported
                     // package name
-                    qualifiedName.endsWith(".ParameterName") ||
-                        qualifiedName.endsWith(".DefaultValue") ->
+                    qualifiedName.endsWith(".ParameterName") ->
                         "kotlin.annotations.jvm.internal${qualifiedName.substring(qualifiedName.lastIndexOf('.'))}"
 
                     // Other third party nullness annotations?

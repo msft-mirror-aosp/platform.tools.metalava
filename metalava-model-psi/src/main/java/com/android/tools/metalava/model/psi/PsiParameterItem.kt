@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.item.DefaultParameterItem
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.DefaultValueFactory
 import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -157,7 +158,10 @@ internal constructor(
                     // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
                     // underlying PsiType.
                     type = type as PsiTypeItem,
-                    defaultValueFactory = { PsiDefaultValue(it as PsiParameterItem) }
+                    defaultValueFactory = {
+                        if (it.isKotlin()) PsiDefaultValue(it as PsiParameterItem)
+                        else DefaultValue.NONE
+                    },
                 )
             return parameter
         }

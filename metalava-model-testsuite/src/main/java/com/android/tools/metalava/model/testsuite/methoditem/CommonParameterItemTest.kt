@@ -665,10 +665,7 @@ class CommonParameterItemTest : BaseModelTest() {
                         parameter.defaultValueAsString()
                     )
                 }
-                ItemLanguage.JAVA -> {
-                    assertEquals("defaultValue", null, parameter.defaultValueAsString())
-                }
-                ItemLanguage.UNKNOWN -> {
+                else -> {
                     val exception =
                         assertThrows(IllegalStateException::class.java) {
                             parameter.defaultValueAsString()
@@ -697,15 +694,6 @@ class CommonParameterItemTest : BaseModelTest() {
                         ctor public Foo();
                         method public method(s: String? = null): void;
                       }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    public class Foo {
-                        public void method(@other.DefaultValue("null") String s) {}
                     }
                 """
             ),

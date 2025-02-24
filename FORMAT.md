@@ -333,15 +333,8 @@ and/or parameter name:
     method public static void edit(SharedPreferences, boolean commit = false);
 ```
 
-For Kotlin code, the default parameter values are extracted automatically, and
-for Java, just as with parameter names, you can specify a special annotation to
-record the default value for usage from languages that support default parameter
-values:
-
-```
-    public static void edit(SharedPreferences prefs, @DefaultValue("false") boolean ct) {…}
-```
-
+For Kotlin code, the default parameter values are extracted automatically.
+However, Java does not provide any way of specifying default values.
 
 ### Include Inherited Methods
 
