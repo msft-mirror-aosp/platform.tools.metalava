@@ -28,7 +28,7 @@ import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
+private val annotationsList = listOf(systemApiSource, nonNullSource)
 
 private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
@@ -262,6 +262,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         add(KnownSourceFiles.androidAnnotationHide)
                     }
                     .toTypedArray(),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api = expectations.expectedApi,
             stubFiles = expectations.expectedStubs,
             stubPaths = expectations.expectedStubPaths,
