@@ -341,7 +341,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Check type use annotations`() {
         check(
-            format = FileFormat.V2, // compat=false, kotlin-style-nulls=false
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -367,38 +367,23 @@ class NullnessMigrationTest : DriverTest() {
                     androidxNullableSource,
                 ),
             api =
-                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public @Nullable Integer compute1(@Nullable java.util.List<java.lang.@Nullable String>);
-                            method @Nullable public @Nullable Integer compute2(@Nullable java.util.List<java.util.@Nullable List<?>>);
-                            method public Integer compute3(@NonNull String[][]);
-                          }
-                        }
-                    """
-                } else {
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public Integer compute1(@Nullable java.util.List<java.lang.String>);
-                            method @Nullable public Integer compute2(@Nullable java.util.List<java.util.List<?>>);
-                            method public Integer compute3(@NonNull String[][]);
-                          }
-                        }
-                    """
-                },
+                """
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method @Nullable public compute1(@Nullable _: java.util.@Nullable List<@Nullable String>): @Nullable Integer;
+                        method @Nullable public compute2(@Nullable _: java.util.@Nullable List<java.util.@Nullable List<?>>): @Nullable Integer;
+                        method public compute3(@NonNull _: @NonNull String @Nullable [] @Nullable []): Integer;
+                      }
+                    }
+                """,
         )
     }
 
     @Test
     fun `Check androidx package annotation`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -421,34 +406,22 @@ class NullnessMigrationTest : DriverTest() {
                     androidxNullableSource,
                 ),
             api =
-                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                    """
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public Integer compute1(@Nullable java.util.List<@Nullable java.lang.String>);
-                            method @Nullable public Integer compute2(@NonNull java.util.List<@NonNull java.util.List<?>>);
-                          }
-                        }
-                    """
-                } else {
-                    """
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public Integer compute1(@Nullable java.util.List<java.lang.String>);
-                            method @Nullable public Integer compute2(@NonNull java.util.List<java.util.List<?>>);
-                          }
-                        }
-                    """
-                },
+                """
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method @Nullable public compute1(@Nullable _: java.util.@Nullable List<@Nullable String>): @Nullable Integer;
+                        method @Nullable public compute2(@NonNull _: java.util.@NonNull List<java.util.@NonNull List<?>>): @Nullable Integer;
+                      }
+                    }
+                """,
         )
     }
 
     @Test
     fun `Migrate nullness for type-use annotations`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -522,7 +495,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Do not migrate type-use annotations when not changed`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -590,7 +563,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Regression test for issue 111054266, type use annotations`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(

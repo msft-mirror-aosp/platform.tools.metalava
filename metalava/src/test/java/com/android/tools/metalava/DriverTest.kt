@@ -51,6 +51,7 @@ import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -1933,4 +1934,15 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
         ANDROIDX_ANNOTATION_PACKAGE,
         // Ditto for libcore.util.
         "libcore.util",
+    )
+
+/**
+ * A special [FileFormat] used by tests that want to output type use annotations to signature files.
+ */
+val TYPE_USE_FORMAT =
+    FileFormat.V5.copy(
+        kotlinNameTypeOrder = true,
+        includeTypeUseAnnotations = true,
+        kotlinStyleNulls = false,
+        specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
     )

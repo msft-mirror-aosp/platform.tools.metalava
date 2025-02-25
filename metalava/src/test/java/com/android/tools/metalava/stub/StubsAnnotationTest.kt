@@ -19,6 +19,7 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
+import com.android.tools.metalava.TYPE_USE_FORMAT
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
@@ -65,11 +66,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
 
     @Test
     fun `Remove Hidden Annotations`() {
-        // When APIs reference annotations that are hidden, make sure the're excluded from the stubs
-        // and
-        // signature files
+        // When APIs reference annotations that are hidden, make sure they're excluded from the
+        // stubs and signature files
         checkStubs(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -99,25 +99,14 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     )
                 ),
             api =
-                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                    """
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String!,java.lang.String!>!);
-                  }
-                }
                 """
-                } else {
-                    """
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String,java.lang.String>);
-                  }
-                }
-                """
-                },
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public foo(_: int, _: java.util.Map<String,String>): void;
+                      }
+                    }
+                """,
             source =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     """
@@ -221,25 +210,29 @@ class StubsAnnotationTest : AbstractStubsTest() {
     @Test
     fun `Rewrite libcore annotations`() {
         check(
+            format = TYPE_USE_FORMAT,
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
                     java(
-                        "package my.pkg;\n" +
-                            "public class String {\n" +
-                            "public String(char @libcore.util.NonNull [] value) { throw new RuntimeException(\"Stub!\"); }\n" +
-                            "}\n"
-                    )
+                        """
+                            package my.pkg;
+                            public class String {
+                            public String(char @libcore.util.NonNull [] value) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    libcoreNonNullSource,
                 ),
             expectedIssues = "",
             api =
                 """
                     package my.pkg {
                       public class String {
-                        ctor public String(char[]);
+                        ctor public String(_: char @NonNull []);
                       }
                     }
-                    """,
+                """,
             stubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(
