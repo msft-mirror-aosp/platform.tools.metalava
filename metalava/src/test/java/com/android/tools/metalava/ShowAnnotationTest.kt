@@ -21,7 +21,6 @@ import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -70,8 +69,6 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -127,8 +124,6 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -186,8 +181,6 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -244,8 +237,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             stubFiles =
                 arrayOf(
@@ -326,8 +317,6 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -651,8 +640,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             classpath =
                 arrayOf(
@@ -866,8 +853,6 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     systemApiSource,
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(

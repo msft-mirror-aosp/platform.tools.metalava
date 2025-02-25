@@ -157,8 +157,6 @@ class AnnotationsMergerTest : DriverTest() {
                     intRangeAnnotationSource,
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """

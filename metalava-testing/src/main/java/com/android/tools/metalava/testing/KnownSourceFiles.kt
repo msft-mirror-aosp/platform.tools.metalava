@@ -63,14 +63,6 @@ object KnownSourceFiles {
             """
         )
 
-    val androidAnnotationHide: TestFile =
-        TestFiles.java(
-            """
-                /** @hide */
-                package android.annotation;
-            """
-        )
-
     val nonNullSource: TestFile =
         TestFiles.java(
             """
