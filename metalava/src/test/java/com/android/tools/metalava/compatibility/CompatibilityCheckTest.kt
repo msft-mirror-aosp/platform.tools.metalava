@@ -2314,7 +2314,9 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            sourceFiles = arrayOf(restrictToSource)
+            sourceFiles = arrayOf(restrictToSource),
+            // Override default to emit androidx.annotation classes.
+            skipEmitPackages = emptyList(),
         )
     }
 

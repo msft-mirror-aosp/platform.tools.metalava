@@ -1796,6 +1796,8 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
+            // Override default to emit android.annotation classes.
+            skipEmitPackages = emptyList(),
             api =
                 """
                 package android.annotation {
