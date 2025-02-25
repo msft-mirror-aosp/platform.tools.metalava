@@ -459,8 +459,8 @@ abstract class DriverTest :
          * files etc
          */
         importedPackages: List<String> = emptyList(),
-        /** See [TestEnvironment.skipEmitPackages] */
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        /** See [TestEnvironment.skipEmitPackages], defaults to [DEFAULT_SKIP_EMIT_PACKAGES]. */
+        skipEmitPackages: List<String>? = null,
         /** Whether we should include --showAnnotations=android.annotation.SystemApi */
         includeSystemApiAnnotations: Boolean = false,
         /** Whether we should warn about super classes that are stripped because they are hidden */
@@ -1071,7 +1071,7 @@ abstract class DriverTest :
 
         val testEnvironment =
             TestEnvironment(
-                skipEmitPackages = skipEmitPackages,
+                skipEmitPackages = skipEmitPackages ?: DEFAULT_SKIP_EMIT_PACKAGES,
                 sourceModelProvider = codebaseCreatorConfig.creator,
                 modelOptions = codebaseCreatorConfig.modelOptions,
                 postAnalysisChecker = postAnalysisChecker,
@@ -1936,3 +1936,13 @@ val deprecatedForSdkSource: TestFile =
     """
         )
         .indented()
+
+val DEFAULT_SKIP_EMIT_PACKAGES =
+    listOf(
+        // Do not emit classes in a number of java packages. While tests will
+        // use those classes they generally do not want to emit definitions of
+        // those classes as part of a signature or stubs files.
+        "java.lang",
+        "java.util",
+        "java.io",
+    )
