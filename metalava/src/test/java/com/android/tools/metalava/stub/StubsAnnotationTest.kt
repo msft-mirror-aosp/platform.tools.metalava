@@ -287,6 +287,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     ),
                     libcoreNonNullSource
                 ),
+            // Override default to emit libcore.util classes.
+            skipEmitPackages = emptyList(),
             expectedIssues = "",
             api =
                 """

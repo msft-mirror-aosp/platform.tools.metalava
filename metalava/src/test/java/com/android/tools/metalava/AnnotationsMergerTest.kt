@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -298,8 +297,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -428,8 +425,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -474,8 +469,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """

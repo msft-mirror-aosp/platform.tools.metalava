@@ -1931,4 +1931,6 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
         // Ditto for android.annotation and androidx.annotation classes.
         ANDROID_ANNOTATION_PACKAGE,
         ANDROIDX_ANNOTATION_PACKAGE,
+        // Ditto for libcore.util.
+        "libcore.util",
     )

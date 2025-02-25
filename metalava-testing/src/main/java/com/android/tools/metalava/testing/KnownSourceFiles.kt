@@ -105,14 +105,6 @@ object KnownSourceFiles {
     """
         )
 
-    val libcodeUtilHide: TestFile =
-        TestFiles.java(
-            """
-                /** @hide */
-                package libcore.util;
-            """
-        )
-
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
             """
