@@ -2008,4 +2008,51 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Repeatable annotation with expect actual`() {
+        // b/399105459
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/AnnotationCanRepeat.kt",
+                """
+                    package test.pkg
+                    @Repeatable
+                    expect annotation class AnnotationCanRepeat(val value: Int)
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/AnnotationCanRepeat.android.kt",
+                """
+                    package test.pkg
+                    @JvmRepeatable(AnnotationCanRepeat.Entries::class)
+                    actual annotation class AnnotationCanRepeat
+                    actual constructor(actual val value: Int) {
+                        annotation class Entries(vararg val value: AnnotationCanRepeat)
+                    }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource))
+                ),
+            api =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) public @interface AnnotationCanRepeat {
+                    method public abstract int value();
+                    property public abstract int value;
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface AnnotationCanRepeat.Entries {
+                    method public abstract test.pkg.AnnotationCanRepeat[] value();
+                    property public abstract test.pkg.AnnotationCanRepeat[] value;
+                  }
+                }
+                """
+        )
+    }
 }
