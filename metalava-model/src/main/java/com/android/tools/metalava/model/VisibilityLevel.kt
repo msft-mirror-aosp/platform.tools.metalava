@@ -25,9 +25,6 @@ enum class VisibilityLevel(
     /** String representation in source code. */
     val javaSourceCodeModifier: String,
 
-    /** String representation in Kotlin source code. */
-    val kotlinSourceCodeModifier: String,
-
     /** String representation in user visible messages. */
     val userVisibleDescription: String,
 
@@ -36,31 +33,26 @@ enum class VisibilityLevel(
 ) {
     PACKAGE_PRIVATE(
         javaSourceCodeModifier = "",
-        kotlinSourceCodeModifier = "",
         userVisibleDescription = "package private",
         visibilityFlagValue = ModifierFlags.PACKAGE_PRIVATE,
     ),
     PRIVATE(
         javaSourceCodeModifier = "private",
-        kotlinSourceCodeModifier = "private",
         userVisibleDescription = "private",
         visibilityFlagValue = ModifierFlags.PRIVATE,
     ),
     INTERNAL(
         javaSourceCodeModifier = "internal",
-        kotlinSourceCodeModifier = "internal",
         userVisibleDescription = "internal",
         visibilityFlagValue = ModifierFlags.INTERNAL,
     ),
     PROTECTED(
         javaSourceCodeModifier = "protected",
-        kotlinSourceCodeModifier = "protected",
         userVisibleDescription = "protected",
         visibilityFlagValue = ModifierFlags.PROTECTED,
     ),
     PUBLIC(
         javaSourceCodeModifier = "public",
-        kotlinSourceCodeModifier = "",
         userVisibleDescription = "public",
         visibilityFlagValue = ModifierFlags.PUBLIC,
     )
