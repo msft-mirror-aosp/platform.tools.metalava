@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPackageItem(
@@ -71,4 +72,6 @@ open class DefaultPackageItem(
     fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
     }
+
+    override fun typeAliases(): List<TypeAliasItem> = TODO("Not yet implemented")
 }

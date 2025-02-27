@@ -104,6 +104,8 @@ open class DefaultCodebase(
         }
     }
 
+    override fun findTypeAlias(typeAliasName: String) = TODO("Not yet implemented")
+
     /**
      * Look for classes in this [Codebase].
      *
