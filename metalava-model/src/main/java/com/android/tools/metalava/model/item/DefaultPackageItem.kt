@@ -73,5 +73,13 @@ open class DefaultPackageItem(
         topClasses.add(classItem)
     }
 
-    override fun typeAliases(): List<TypeAliasItem> = TODO("Not yet implemented")
+    private val typeAliases = mutableListOf<TypeAliasItem>()
+
+    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
+        typeAliases += typeAlias
+    }
+
+    override fun typeAliases(): List<TypeAliasItem> {
+        return typeAliases.toList()
+    }
 }
