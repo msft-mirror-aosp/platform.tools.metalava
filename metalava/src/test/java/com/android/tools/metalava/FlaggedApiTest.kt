@@ -44,7 +44,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments = (surface.args + flagged.args)
+        /** Get extra command line arguments to pass. */
+        fun extraArguments() = (surface.args + flagged.extraArguments())
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -126,6 +127,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
          * the test.
          */
         open fun synthesizeAdditionalExpectations(expectations: Expectations) = listOf(expectations)
+
+        /** Get extra command line arguments to pass. */
+        fun extraArguments() = args
     }
 
     companion object {
@@ -247,7 +251,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 "--warning",
                 "UnflaggedApi",
                 *apiVersionsArgs,
-                *config.extraArguments.toTypedArray(),
+                *config.extraArguments().toTypedArray(),
                 *extraArguments,
             )
 
