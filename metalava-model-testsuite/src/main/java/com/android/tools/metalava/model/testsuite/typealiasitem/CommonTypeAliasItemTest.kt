@@ -292,4 +292,19 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             assertThat(fooAlias.aliasedType.isString()).isTrue()
         }
     }
+
+    @Test
+    fun `type alias package emit`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    typealias Foo = String
+                """
+            ),
+        ) {
+            val pkg = codebase.assertPackage("test.pkg")
+            assertThat(pkg.emit).isTrue()
+        }
+    }
 }
