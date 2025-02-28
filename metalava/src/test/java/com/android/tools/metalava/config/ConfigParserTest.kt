@@ -16,78 +16,12 @@
 
 package com.android.tools.metalava.config
 
-import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.xml
-import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
-import org.intellij.lang.annotations.Language
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
 /** Tests of the [ConfigParser]. */
-class ConfigParserTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
-    /**
-     * Run the test.
-     *
-     * @param configFiles The config files to parse.
-     * @param expectedFail The expected failure.
-     * @param body the body of the test which checks the state of the [Config] object which is made
-     *   available as [TestContext.config].
-     */
-    private fun runTest(
-        vararg configFiles: TestFile,
-        expectedFail: String = "",
-        body: (TestContext.() -> Unit)? = null,
-    ) {
-        val dir = temporaryFolder.newFolder()
-        val expectingFailure = expectedFail != ""
-        val hasBody = body != null
-
-        // If expecting a failure then it should not provide a body and if it is not expecting a
-        // failure then it must provide a body.
-        if (expectingFailure == hasBody) {
-            if (expectingFailure) error("Should not provide a body when expecting a failure")
-            else error("Must provide a body when not expecting a failure")
-        }
-
-        var errors = ""
-        try {
-            val files = configFiles.map { it.indented().createFile(dir) }.toList()
-            val config = ConfigParser.parse(files)
-            val context = TestContext(config = config)
-            if (body != null) context.body()
-        } catch (e: Exception) {
-            errors = cleanupString(e.message ?: "", project = dir)
-        }
-        assertThat(errors.trimIndent()).isEqualTo(expectedFail.trimIndent())
-    }
-
-    /** Context for the tests. */
-    private data class TestContext(
-        /** The created [Config] being tested. */
-        val config: Config,
-    )
-
-    /**
-     * Round trip [config], i.e. write it to XML, check it matches [xml], read it back in, check
-     * that it matches [config].
-     *
-     * Writing configuration to XML is not something that Metalava needs at runtime, but it is
-     * useful to test what is written as that is what can be read.
-     */
-    private fun roundTrip(config: Config, @Language("xml") xml: String) {
-        val xmlMapper = ConfigParser.configXmlMapper()
-
-        val writtenXml = xmlMapper.writeValueAsString(config)
-        assertThat(writtenXml.trimEnd()).isEqualTo(xml.trimIndent())
-
-        val readConfig = xmlMapper.readValue(writtenXml, Config::class.java)
-        assertThat(readConfig).isEqualTo(config)
-    }
-
+class ConfigParserTest : BaseConfigParserTest() {
     @Test
     fun `Empty config file`() {
         roundTrip(
