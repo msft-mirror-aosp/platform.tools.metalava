@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
@@ -56,6 +57,8 @@ import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_API
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -82,7 +85,23 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
          */
         val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
-    )
+
+        /**
+         * The set of available [ApiFlag]s.
+         *
+         * If this is `null` then no [ApiFlag]s have been provided, otherwise it contains an
+         * [ApiFlag] for every provided flag. Flags that are not provided will default to
+         * [ApiFlag.REVERT_FLAGGED_API].
+         */
+        val apiFlags: ApiFlags? = null,
+    ) {
+        init {
+            // Consistency check to make sure that tests do not provide both --revert-annotation
+            // and ApiFlags.
+            if (revertAnnotations.isNotEmpty() && apiFlags != null)
+                error("Cannot provide non-empty revertAnnotations and non-null apiFlags")
+        }
+    }
 
     /**
      * Map from annotation name to the [KeyFactory] to use to create a key.
@@ -132,6 +151,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             for (filter in filters) {
                 addAll(filter.getIncludedAnnotationNames())
             }
+
+            // ApiFlags have been provided so the flag name specified on an
+            // `android.annotation.FlaggedApi` will affect the state of the associated
+            // AnnotationInfo so make sure to use the flag name in the cache key for `FlaggedApi`
+            // annotations.
+            if (config.apiFlags != null) add(ANDROID_FLAGGED_API)
         }
 
         // Use KeyFactory that uses the complete source representation as the key and not just the
@@ -379,7 +404,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // from those. This is useful for modularizing the main SDK stubs without having to
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            ANDROID_FLAGGED_API ->
+            ANDROID_FLAGGED_API -> {
+                // Check the flag before the revert-annotations.
+                annotation.apiFlag?.annotationTargets?.let {
+                    return it
+                }
+
                 // If FlaggedApi annotations are being reverted in general then do not output them
                 // at all. This means that if some FlaggedApi annotations with specific flags are
                 // not reverted then the annotations will not be written out to the signature or
@@ -391,6 +421,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 } else {
                     return ANNOTATION_IN_ALL_STUBS
                 }
+            }
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are
@@ -523,7 +554,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         config.allShowAnnotations.matchesAnnotationName(annotationName)
 
     /** Check whether this has been configured in a way that could cause items to be reverted. */
-    private fun couldRevertItems(): Boolean = config.revertAnnotations.isNotEmpty()
+    private fun couldRevertItems(): Boolean =
+        config.revertAnnotations.isNotEmpty() || config.apiFlags != null
 
     override fun hasAnyStubPurposesAnnotations(): Boolean {
         // This checks if items can be reverted because they can behave like
@@ -691,10 +723,25 @@ private class LazyAnnotationInfo(
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
                 config.hideAnnotations.matches(annotationItem) -> HIDE
-                config.revertAnnotations.matches(annotationItem) -> REVERT_UNSTABLE_API
-                else -> Showability.NO_EFFECT
+                else -> {
+                    // Check flags before revert annotations.
+                    apiFlag?.showability
+                        ?: if (config.revertAnnotations.matches(annotationItem)) REVERT_UNSTABLE_API
+                        else Showability.NO_EFFECT
+                }
             }
         }
+
+    override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }
+
+    private fun getFlagForAnnotation(annotationItem: AnnotationItem): ApiFlag? {
+        if (annotationItem.qualifiedName != ANDROID_FLAGGED_API) return null
+        val apiFlags = config.apiFlags ?: return null
+        val valueAttribute =
+            annotationItem.attributes.find { it.name == ANNOTATION_ATTR_VALUE } ?: return null
+        val flagName = valueAttribute.value.value() as String
+        return apiFlags[flagName]
+    }
 
     companion object {
         /**

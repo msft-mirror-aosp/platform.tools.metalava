@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlags
+
 /**
  * Encapsulates information that metalava needs to know about a specific annotation type.
  *
@@ -41,6 +44,15 @@ interface AnnotationInfo {
      * if so how.
      */
     val showability: Showability
+
+    /**
+     * The [ApiFlag] referenced by the annotation.
+     *
+     * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
+     * [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
+     * [ApiFlag.REVERT_FLAGGED_API].
+     */
+    val apiFlag: ApiFlag?
 
     val suppressCompatibility: Boolean
 }
