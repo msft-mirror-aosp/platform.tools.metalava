@@ -1342,6 +1342,7 @@ abstract class UastTestBase : DriverTest() {
                     method public kotlin.jvm.functions.Function0<java.lang.Boolean>? getHasAuthResultsDelegate();
                     property public kotlin.jvm.functions.Function0<java.lang.Boolean>? hasAuthResultsDelegate;
                   }
+                  public typealias HasAuthenticationResultsDelegate = kotlin.jvm.functions.Function0<java.lang.Boolean>;
                 }
             """
         )
