@@ -27,9 +27,30 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
 data class Config(
     @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
     val apiSurfaces: ApiSurfacesConfig? = null,
-) {
+) : CombinableConfig<Config> {
+
+    /** Combine this [Config] with another returning a [Config] object that combines them both. */
+    override fun combineWith(other: Config): Config =
+        Config(
+            apiSurfaces = combine(apiSurfaces, other.apiSurfaces),
+        )
+
+    /**
+     * Combined two possibly nullable objects, if either are null then return the other, otherwise
+     * invoke [CombinableConfig.combineWith].
+     */
+    internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
+        return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
+    }
+
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     internal fun validate() {
         apiSurfaces?.validate()
     }
+}
+
+/** Implemented by config objects that can be combined when loaded in separate files. */
+interface CombinableConfig<T : CombinableConfig<T>> {
+    /** Combine this with [other] returning a new instance. */
+    fun combineWith(other: T): T
 }

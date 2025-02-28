@@ -46,7 +46,12 @@ typealias MutableOrderedSet<E> = MutableSet<E>
 data class ApiSurfacesConfig(
     @field:JacksonXmlProperty(localName = "api-surface", namespace = CONFIG_NAMESPACE)
     val apiSurfaceList: List<ApiSurfaceConfig> = emptyList(),
-) {
+) : CombinableConfig<ApiSurfacesConfig> {
+
+    /** Combine with another [ApiSurfacesConfig] by concatenating the [apiSurfaceList]s. */
+    override fun combineWith(other: ApiSurfacesConfig) =
+        ApiSurfacesConfig(apiSurfaceList + other.apiSurfaceList)
+
     /**
      * Map of [ApiSurfaceConfig]s by [ApiSurfaceConfig.name].
      *
