@@ -74,15 +74,15 @@ open class BaseConfigParserTest : TemporaryFolderOwner {
      * that it matches [config].
      *
      * Writing configuration to XML is not something that Metalava needs at runtime, but it is
-     * useful to test what is written as that is what can be read.
+     * useful to test what is written to a file as that is what can be read from the file.
      */
     protected fun roundTrip(config: Config, @Language("xml") xml: String) {
-        val xmlMapper = ConfigParser.configXmlMapper()
+        val configFile = temporaryFolder.newFile("round-trip-config.xml")
 
-        val writtenXml = xmlMapper.writeValueAsString(config)
-        assertThat(writtenXml.trimEnd()).isEqualTo(xml.trimIndent())
+        config.writeTo(configFile)
+        assertThat(configFile.readText().trimEnd()).isEqualTo(xml.trimIndent())
 
-        val readConfig = xmlMapper.readValue(writtenXml, Config::class.java)
+        val readConfig = ConfigParser.parse(listOf(configFile))
         assertThat(readConfig).isEqualTo(config)
     }
 }
