@@ -617,6 +617,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                         // Incorporate the item to be reverted into the [Showability].
                         revertItem = revertItem,
                     )
+
+                // The codebase contains items which are to be reverted.
+                item.codebase.markContainsRevertedItem()
             }
         }
 

@@ -133,6 +133,12 @@ interface Codebase {
         return getPackages().packages.isEmpty()
     }
 
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
+
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
+
     /**
      * Contains configuration for [Codebase] that can, or at least could, come from command line
      * options.

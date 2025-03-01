@@ -358,7 +358,7 @@ class Options(
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to revert */
-    val revertAnnotations by lazy(revertAnnotationsBuilder::build)
+    private val revertAnnotations by lazy(revertAnnotationsBuilder::build)
 
     private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
