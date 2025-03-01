@@ -53,6 +53,7 @@ import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIF
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_API
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.computeTypeNullability
@@ -573,22 +574,20 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                             previouslyReleasedCodebase == null)
                 }
             if (revertUnstableApi) {
-                itemShowability =
-                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
+                itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
             }
         }
 
         val containingClass = item.containingClass()
         if (containingClass != null) {
             if (containingClass.showability.revertUnstableApi()) {
-                itemShowability =
-                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
+                itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
             }
         }
 
         // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
         // and incorporate that into the [Showability].
-        if (itemShowability == LazyAnnotationInfo.REVERT_UNSTABLE_API) {
+        if (itemShowability == REVERT_UNSTABLE_API) {
             val revertItem = findRevertItem(item)
 
             // If the [revertItem] cannot be found then there is no need to modify the item
@@ -728,17 +727,6 @@ private class LazyAnnotationInfo(
                 show = ShowOrHide.HIDE,
                 recursive = ShowOrHide.HIDE,
                 forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to not be shown.
-         */
-        val REVERT_UNSTABLE_API =
-            Showability(
-                show = ShowOrHide.REVERT_UNSTABLE_API,
-                recursive = ShowOrHide.REVERT_UNSTABLE_API,
-                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
     }
 

@@ -242,5 +242,16 @@ data class Showability(
                 recursive = ShowOrHide.NO_EFFECT,
                 forStubsOnly = ShowOrHide.NO_EFFECT
             )
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val REVERT_UNSTABLE_API =
+            Showability(
+                show = ShowOrHide.REVERT_UNSTABLE_API,
+                recursive = ShowOrHide.REVERT_UNSTABLE_API,
+                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
+            )
     }
 }
