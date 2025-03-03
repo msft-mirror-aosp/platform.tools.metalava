@@ -112,23 +112,31 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             }
         }
 
-        // Iterate over all the annotation names matched by all the filters currently used by
-        // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the complete
-        // source representation of the annotation as the key. This is needed because filters can
-        // match on attribute values as well as the name.
+        // The list of all filters.
         val filters =
-            arrayOf(
+            listOf(
                 config.allShowAnnotations,
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
                 config.revertAnnotations,
             )
-        annotationNameToKeyFactory =
-            filters
-                .asSequence()
-                .flatMap { it.getIncludedAnnotationNames().asSequence() }
-                .associate { Pair(it, ::useSourceAsKey) }
+
+        // Build a list of the names of annotations whose AnnotationInfo could be dependent on an
+        // annotation attributes and not just its name.
+        val annotationNames = buildList {
+            // Iterate over all the annotation names matched by all the filters currently used by
+            // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the
+            // complete source representation of the annotation as the key. This is needed because
+            // filters can match on attribute values as well as the name.
+            for (filter in filters) {
+                addAll(filter.getIncludedAnnotationNames())
+            }
+        }
+
+        // Use KeyFactory that uses the complete source representation as the key and not just the
+        // annotation name which is the default.
+        annotationNameToKeyFactory = annotationNames.associateWith { ::useSourceAsKey }
     }
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
