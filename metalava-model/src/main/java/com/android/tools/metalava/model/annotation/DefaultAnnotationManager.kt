@@ -514,22 +514,23 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     override fun isShowAnnotationName(annotationName: String): Boolean =
         config.allShowAnnotations.matchesAnnotationName(annotationName)
 
+    /** Check whether this has been configured in a way that could cause items to be reverted. */
+    private fun couldRevertItems(): Boolean = config.revertAnnotations.isNotEmpty()
+
     override fun hasAnyStubPurposesAnnotations(): Boolean {
-        // Revert annotations are checked because they can behave like
-        // `--show-for-stub-purposes-annotation` if they end up reverting an API that was added in
-        // an extended API. e.g. if a change to item `X` from the public API was reverted then the
+        // This checks if items can be reverted because they can behave like
+        // `--show-for-stub-purposes-annotation` if a reverted Item was added in an extended API.
+        // e.g. if a change to item `X` from the public API was reverted then the
         // previously released version `X'` will need to be written out to the stubs for the system
         // API, just as if it was annotated with an annotation from
         // `--show-for-stub-purposes-annotation`.
-        return config.showForStubPurposesAnnotations.isNotEmpty() ||
-            config.revertAnnotations.isNotEmpty()
+        return config.showForStubPurposesAnnotations.isNotEmpty() || couldRevertItems()
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        // If there are no hide annotations or revert annotations registered then this can never
-        // return true. Revert annotations are checked because they can behave like hide if they end
-        // up reverting a newly added API.
-        if (config.hideAnnotations.isEmpty() && config.revertAnnotations.isEmpty()) {
+        // If there are no hide annotations and items cannot be reverted then this can never return
+        // true. Reverted items can behave as if they are hidden it they are newly added.
+        if (config.hideAnnotations.isEmpty() && !couldRevertItems()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
