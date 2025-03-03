@@ -23,7 +23,6 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
@@ -42,8 +41,6 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.config.Config
-import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.doc.ApiVersionFilter
 import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.manifest.Manifest
@@ -59,6 +56,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
@@ -160,7 +158,6 @@ const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_DOC_STUBS = "--doc-stubs"
-const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
@@ -187,7 +184,6 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
-const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -196,6 +192,7 @@ class Options(
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
+    internal val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
     val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
@@ -307,30 +304,6 @@ class Options(
 
     /** Lint project description that describes project's module structure in details */
     var projectDescription: File? = null
-
-    private val configFiles by
-        option(
-                ARG_CONFIG_FILE,
-                help =
-                    """
-                        A configuration file that can be consumed by Metalava. This can be specified
-                        multiple times in which case later config files will override/merge with
-                        earlier ones.
-                    """,
-                metavar = "<file>",
-            )
-            .existingFile()
-            .multiple(required = false)
-
-    /** The [Config] loaded from [configFiles]. */
-    val config by
-        lazy(LazyThreadSafetyMode.NONE) {
-            try {
-                ConfigParser.parse(configFiles)
-            } catch (e: Exception) {
-                throw MetalavaCliException(e.message!!, cause = e)
-            }
-        }
 
     val apiClassResolution by
         enumOption(
@@ -487,7 +460,6 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            kotlinStubs = kotlinStubs,
             includeDocumentationInStubs = includeDocumentationInStubs,
         )
     }
@@ -502,9 +474,6 @@ class Options(
      * flag.
      */
     var docStubsDir: File? = null
-
-    /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
-    private var kotlinStubs = false
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -713,7 +682,6 @@ class Options(
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
-                ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
                 ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
@@ -845,7 +813,7 @@ class Options(
         updateClassPath()
 
         // Make sure that any config files are processed.
-        config
+        configFileOptions.config
     }
 
     /**
@@ -1039,9 +1007,6 @@ object OptionsHelp {
                     "indicate that an element is recently marked as non null, whereas in the documentation stubs we'll " +
                     "just list this as @NonNull. Another difference is that @doconly elements are included in " +
                     "documentation stubs, but not regular stubs, etc.",
-                ARG_KOTLIN_STUBS,
-                "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
-                    "be written in Kotlin rather than the Java programming language.",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be passed through unchanged.",

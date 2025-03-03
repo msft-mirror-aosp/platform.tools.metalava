@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Assertions
@@ -23,11 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.text.ApiFile
-import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
-import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
@@ -53,13 +49,15 @@ class SignatureInputOutputTest : Assertions {
     /**
      * Parses the API (without a header line, the header from [fileFormat] will be added) from the
      * [signature], runs the [codebaseTest] on the parsed codebase, and then writes the codebase
-     * back out in the [fileFormat], verifying that the output matches the original [signature].
+     * back out in the [fileFormat], verifying that the output matches [expectedOutput] which
+     * defaults to the original [signature].
      *
      * This tests both [ApiFile] and [SignatureWriter].
      */
     private fun runInputOutputTest(
         signature: String,
         fileFormat: FileFormat,
+        expectedOutput: String = signature,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
         val fullSignature = fileFormat.header() + signature
@@ -93,7 +91,7 @@ class SignatureInputOutputTest : Assertions {
                 stringWriter.toString()
             }
 
-        assertSignatureFilesMatch(signature, output, fileFormat)
+        assertSignatureFilesMatch(expectedOutput, output, fileFormat)
     }
 
     @Test
@@ -654,6 +652,51 @@ class SignatureInputOutputTest : Assertions {
                 }
             """
         runInputOutputTest(api, kotlinStyleFormat)
+    }
+
+    @Test
+    fun `Test normalize-final-modifier=yes`() {
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public final class Final {
+                    method public final void foo();
+                  }
+                  public class NotFinal {
+                    method public final void foo();
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeFinalModifier = true),
+            expectedOutput =
+                """
+                    package test.pkg {
+                      public final class Final {
+                        method public void foo();
+                      }
+                      public class NotFinal {
+                        method public final void foo();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test normalize-final-modifier=no`() {
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public final class Final {
+                    method public final void foo();
+                  }
+                  public class NotFinal {
+                    method public final void foo();
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeFinalModifier = false),
+        )
     }
 
     /**
