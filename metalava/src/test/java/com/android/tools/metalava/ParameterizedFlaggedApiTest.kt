@@ -126,7 +126,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
          * are discarded.
          */
         FINALIZE_FOO_BAR_APIS(
-            "without flagged api, with foo_bar",
+            "finalize foo_bar",
             REVERT_ALL.args +
                 listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")""")
         ),
