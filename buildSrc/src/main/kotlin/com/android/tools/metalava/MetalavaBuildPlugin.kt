@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import org.gradle.api.tasks.bundling.Jar
 import com.android.build.api.dsl.Lint
 import com.android.tools.metalava.buildinfo.configureBuildInfoTask
 import org.gradle.api.JavaVersion
@@ -108,6 +109,20 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 "--add-opens=java.base/java.lang=ALL-UNNAMED",
                 // Needed for CustomizableParameterizedRunner
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+            )
+
+            // Get the jar from the stub-annotations project.
+            val jarTask = project.findProject(":stub-annotations")!!.tasks.named("jar", Jar::class.java)
+
+            // Add a dependency from this test task to the jar task of stub-annotations to make sure
+            // it is built before this is run.
+            task.dependsOn(jarTask)
+
+            // Get the path to the stub-annotations jar and pass it to this in an environment
+            // variable.
+            val stubAnnotationsJar = jarTask.get().outputs.files.singleFile
+            task.environment.put(
+                "METALAVA_STUB_ANNOTATIONS_JAR", stubAnnotationsJar,
             )
 
             task.doFirst {
