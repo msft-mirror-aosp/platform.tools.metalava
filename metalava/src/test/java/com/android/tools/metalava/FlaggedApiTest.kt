@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import kotlin.test.assertEquals
