@@ -373,7 +373,10 @@ class Options(
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
                 previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
                 apiFlags =
-                    ApiFlagsCreator.createFromRevertAnnotations(revertAnnotationsBuilder.toList()),
+                    ApiFlagsCreator.create(
+                        revertAnnotationsBuilder.toList(),
+                        configFileOptions.config.apiFlags,
+                    ),
             )
         )
     }

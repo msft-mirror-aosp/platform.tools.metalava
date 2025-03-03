@@ -16,13 +16,61 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.config.ApiFlagConfig
+import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.utils.associateNotNull
 
 /** Create [ApiFlags] from some source of information about the flags. */
 object ApiFlagsCreator {
+    /**
+     * Create [ApiFlags] from either [revertAnnotations] or [apiFlagsConfig].
+     *
+     * Throws an exception if [revertAnnotations] is not empty and [apiFlagsConfig] is not null as
+     * they are mutually exclusive.
+     */
+    fun create(revertAnnotations: List<String>, apiFlagsConfig: ApiFlagsConfig?): ApiFlags? {
+        // Consistency check to make sure that tests do not provide both --revert-annotation
+        // and ApiFlags.
+        if (revertAnnotations.isNotEmpty() && apiFlagsConfig != null)
+            error("Cannot provide non-empty revertAnnotations and non-null apiFlags")
+
+        return apiFlagsConfig?.createApiFlags() ?: createFromRevertAnnotations(revertAnnotations)
+    }
+
+    /** Create [ApiFlags] from [ApiFlagsConfig]. */
+    private fun ApiFlagsConfig.createApiFlags(): ApiFlags {
+        val byQualifiedName = flags.associateNotNull { config -> config.createApiFlag() }
+        return ApiFlags(byQualifiedName)
+    }
+
+    /**
+     * Create [Pair] of qualified flag name and [ApiFlag] from [ApiFlagConfig].
+     *
+     * Returns `null` if [ApiFlagConfig.mutability] is [IMMUTABLE] and [ApiFlagConfig.status] is
+     * [DISABLED] as that is the default [ApiFlags.get] returns for flags that cannot be found.
+     */
+    private fun ApiFlagConfig.createApiFlag(): Pair<String, ApiFlag>? {
+        val apiFlag =
+            when (mutability) {
+                MUTABLE -> ApiFlag.KEEP_FLAGGED_API
+                IMMUTABLE ->
+                    when (status) {
+                        ENABLED -> ApiFlag.FINALIZE_FLAGGED_API
+                        DISABLED -> return null
+                    }
+            }
+        val qualifiedName = "$pkg.$name"
+        return Pair(qualifiedName, apiFlag)
+    }
+
     /**
      * [Regex] that matches the value of a `--revert-annotation` value that keeps the API associated
      * with a flag, e.g. `!android.annotation.FlaggedApi("<fully-qualified-flag-name>")`.
@@ -44,7 +92,7 @@ object ApiFlagsCreator {
      *    [Item]s associated with flag `<fully-qualified-flag-name>` should be finalized, i.e. the
      *    [Item] must be kept, but the `@FlaggedApi` annotation must be dropped.
      */
-    fun createFromRevertAnnotations(revertAnnotations: List<String>): ApiFlags? {
+    private fun createFromRevertAnnotations(revertAnnotations: List<String>): ApiFlags? {
         if (revertAnnotations.isEmpty()) return null
         val byQualifiedName = buildMap {
             for (revertAnnotation in revertAnnotations) {

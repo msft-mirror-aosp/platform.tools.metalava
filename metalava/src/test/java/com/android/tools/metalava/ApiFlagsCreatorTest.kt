@@ -16,6 +16,12 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.config.ApiFlagConfig
+import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.api.flags.ApiFlag
@@ -27,8 +33,68 @@ import org.junit.Test
 
 class ApiFlagsCreatorTest {
     @Test
+    fun `Test creation from config and --revert-annotation values`() {
+        val apiFlagsConfig = ApiFlagsConfig(flags = emptyList())
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                ApiFlagsCreator.create(listOf(ANDROID_FLAGGED_API), apiFlagsConfig)
+            }
+
+        assertEquals(
+            "Cannot provide non-empty revertAnnotations and non-null apiFlags",
+            exception.message
+        )
+    }
+
+    @Test
+    fun `Test creation from config`() {
+        val apiFlagsConfig =
+            ApiFlagsConfig(
+                flags =
+                    listOf(
+                        ApiFlagConfig(
+                            pkg = "test.pkg",
+                            name = "flag1",
+                            mutability = MUTABLE,
+                            status = DISABLED
+                        ),
+                        ApiFlagConfig(
+                            pkg = "test.pkg",
+                            name = "flag2",
+                            mutability = IMMUTABLE,
+                            status = DISABLED
+                        ),
+                        ApiFlagConfig(
+                            pkg = "test.pkg",
+                            name = "flag3",
+                            mutability = MUTABLE,
+                            status = ENABLED
+                        ),
+                        ApiFlagConfig(
+                            pkg = "test.pkg",
+                            name = "flag4",
+                            mutability = IMMUTABLE,
+                            status = ENABLED
+                        ),
+                    ),
+            )
+
+        val apiFlags = ApiFlagsCreator.create(emptyList(), apiFlagsConfig)
+
+        val expected =
+            mapOf(
+                "test.pkg.flag1" to ApiFlag.KEEP_FLAGGED_API,
+                // No test.pkg.flag2 as that is disabled and ApiFlags will default to disabled.
+                "test.pkg.flag3" to ApiFlag.KEEP_FLAGGED_API,
+                "test.pkg.flag4" to ApiFlag.FINALIZE_FLAGGED_API,
+            )
+        assertEquals(expected, apiFlags!!.byQualifiedName)
+    }
+
+    @Test
     fun `Test empty --revert-annotation value list`() {
-        val apiFlags = ApiFlagsCreator.createFromRevertAnnotations(emptyList())
+        val apiFlags = ApiFlagsCreator.create(emptyList(), null)
         assertNull(apiFlags)
     }
 
@@ -36,7 +102,7 @@ class ApiFlagsCreatorTest {
     fun `Test invalid --revert-annotation value`() {
         val exception =
             assertThrows(IllegalStateException::class.java) {
-                ApiFlagsCreator.createFromRevertAnnotations(listOf(ANDROID_SYSTEM_API))
+                ApiFlagsCreator.create(listOf(ANDROID_SYSTEM_API), null)
             }
         assertEquals(
             "Unexpected --revert-annotation: android.annotation.SystemApi",
@@ -46,7 +112,7 @@ class ApiFlagsCreatorTest {
 
     @Test
     fun `Test revert all`() {
-        val apiFlags = ApiFlagsCreator.createFromRevertAnnotations(listOf(ANDROID_FLAGGED_API))
+        val apiFlags = ApiFlagsCreator.create(listOf(ANDROID_FLAGGED_API), null)
         assertNotNull(apiFlags)
         assertEquals(emptyMap(), apiFlags.byQualifiedName)
     }
@@ -55,8 +121,9 @@ class ApiFlagsCreatorTest {
     fun `Test finalize some, revert others`() {
         val flagName = "test.pkg.flags.flag_name"
         val apiFlags =
-            ApiFlagsCreator.createFromRevertAnnotations(
-                listOf(ANDROID_FLAGGED_API, """!$ANDROID_FLAGGED_API("$flagName")""")
+            ApiFlagsCreator.create(
+                listOf(ANDROID_FLAGGED_API, """!$ANDROID_FLAGGED_API("$flagName")"""),
+                null,
             )
         assertNotNull(apiFlags)
         assertEquals(ApiFlag.FINALIZE_FLAGGED_API, apiFlags[flagName])
