@@ -55,7 +55,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         val codebaseConfig = testFixture.codebaseConfig
 
         val signatureFiles = SignatureFile.forTest(inputs.mainSourceDir.createFiles())
-        val classPath = listOf(getAndroidJar())
+        val classPath = listOf(getAndroidJar()) + inputs.testFixture.additionalClassPath
         val resolver = ClassLoaderBasedClassResolver(classPath, codebaseConfig)
         val codebase =
             ApiFile.parseApi(
