@@ -37,8 +37,21 @@ private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
 private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
 
+/**
+ * A parameterized test for the `android.annotation.FlaggedApi` annotation.
+ *
+ * This tests the behavior of `@FlaggedApi` for a number of different changes across multiple API
+ * surfaces. That is necessary as currently there are significant differences in the processing that
+ * is done for:
+ * 1. An API surface that does not extend another, e.g. `public`; controlled through
+ *    `showUnannotated`.
+ * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
+ *    `showUnannotated`, and `showAnnotations`.
+ * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
+ *    `showUnannotated`, `showAnnotations`, and `showForStubPurposesAnnotations`.
+ */
 @Suppress("JavadocDeclaration")
-class FlaggedApiTest(private val config: Configuration) : DriverTest() {
+class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTest() {
 
     /** The configuration of the test. */
     data class Configuration(
