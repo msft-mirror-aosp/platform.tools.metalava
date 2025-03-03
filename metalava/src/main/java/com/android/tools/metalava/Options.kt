@@ -51,7 +51,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
-import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
@@ -213,8 +212,10 @@ class Options(
     private val mutableSources: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /** Internal builder backing [revertAnnotations] */
-    private val revertAnnotationsBuilder = AnnotationFilterBuilder()
+    /**
+     * Internal builder backing [DefaultAnnotationManager.Config.apiFlags] in [annotationManager].
+     */
+    private val revertAnnotationsBuilder = mutableListOf<String>()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
@@ -357,9 +358,6 @@ class Options(
     val skipEmitPackages
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
-    /** Annotations to revert */
-    private val revertAnnotations by lazy(revertAnnotationsBuilder::build)
-
     private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
@@ -369,12 +367,13 @@ class Options(
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
                 hideAnnotations = apiSelectionOptions.hideAnnotations,
-                revertAnnotations = revertAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
                 previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                apiFlags =
+                    ApiFlagsCreator.createFromRevertAnnotations(revertAnnotationsBuilder.toList()),
             )
         )
     }

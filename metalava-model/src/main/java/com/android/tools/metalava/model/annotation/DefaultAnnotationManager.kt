@@ -76,7 +76,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val revertAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -94,14 +93,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * [ApiFlag.REVERT_FLAGGED_API].
          */
         val apiFlags: ApiFlags? = null,
-    ) {
-        init {
-            // Consistency check to make sure that tests do not provide both --revert-annotation
-            // and ApiFlags.
-            if (revertAnnotations.isNotEmpty() && apiFlags != null)
-                error("Cannot provide non-empty revertAnnotations and non-null apiFlags")
-        }
-    }
+    )
 
     /**
      * Map from annotation name to the [KeyFactory] to use to create a key.
@@ -138,7 +130,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
-                config.revertAnnotations,
             )
 
         // Build a list of the names of annotations whose AnnotationInfo could be dependent on an
@@ -405,22 +396,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
             ANDROID_FLAGGED_API -> {
-                // Check the flag before the revert-annotations.
-                annotation.apiFlag?.annotationTargets?.let {
-                    return it
-                }
-
-                // If FlaggedApi annotations are being reverted in general then do not output them
-                // at all. This means that if some FlaggedApi annotations with specific flags are
-                // not reverted then the annotations will not be written out to the signature or
-                // stub files. That is the correct behavior as those APIs are intended to be
-                // released and should look like any other released API and released APIs do not
-                // include FlaggedApi annotations.
-                if (config.revertAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
-                    return NO_ANNOTATION_TARGETS
-                } else {
-                    return ANNOTATION_IN_ALL_STUBS
-                }
+                return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
             }
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
@@ -554,8 +530,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         config.allShowAnnotations.matchesAnnotationName(annotationName)
 
     /** Check whether this has been configured in a way that could cause items to be reverted. */
-    private fun couldRevertItems(): Boolean =
-        config.revertAnnotations.isNotEmpty() || config.apiFlags != null
+    private fun couldRevertItems(): Boolean = config.apiFlags != null
 
     override fun hasAnyStubPurposesAnnotations(): Boolean {
         // This checks if items can be reverted because they can behave like
@@ -724,10 +699,8 @@ private class LazyAnnotationInfo(
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
                 config.hideAnnotations.matches(annotationItem) -> HIDE
                 else -> {
-                    // Check flags before revert annotations.
-                    apiFlag?.showability
-                        ?: if (config.revertAnnotations.matches(annotationItem)) REVERT_UNSTABLE_API
-                        else Showability.NO_EFFECT
+                    // Check flags before using default
+                    apiFlag?.showability ?: Showability.NO_EFFECT
                 }
             }
         }
