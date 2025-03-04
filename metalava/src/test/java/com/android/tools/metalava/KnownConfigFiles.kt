@@ -21,7 +21,7 @@ import com.android.tools.metalava.testing.xml
 object KnownConfigFiles {
     val configPublicSurface =
         xml(
-            "config.xml",
+            "config-public-surface.xml",
             """
                 <config xmlns="http://www.google.com/tools/metalava/config"
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -35,7 +35,7 @@ object KnownConfigFiles {
 
     val configPublicAndSystemSurfaces =
         xml(
-            "config.xml",
+            "config-public-and-system-surfaces.xml",
             """
                 <config xmlns="http://www.google.com/tools/metalava/config"
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
