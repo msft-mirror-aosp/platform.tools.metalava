@@ -25,6 +25,8 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
 // Ignore the xsi:schemaLocation property if present on the root <config> element.
 @JsonIgnoreProperties("schemaLocation")
 data class Config(
+    @field:JacksonXmlProperty(localName = "api-flags", namespace = CONFIG_NAMESPACE)
+    val apiFlags: ApiFlagsConfig? = null,
     @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
     val apiSurfaces: ApiSurfacesConfig? = null,
 ) : CombinableConfig<Config> {
@@ -32,6 +34,7 @@ data class Config(
     /** Combine this [Config] with another returning a [Config] object that combines them both. */
     override fun combineWith(other: Config): Config =
         Config(
+            apiFlags = combine(apiFlags, other.apiFlags),
             apiSurfaces = combine(apiSurfaces, other.apiSurfaces),
         )
 
@@ -45,6 +48,7 @@ data class Config(
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     internal fun validate() {
+        apiFlags?.validate()
         apiSurfaces?.validate()
     }
 }

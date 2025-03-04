@@ -59,6 +59,13 @@ open class DefaultCodebase(
         description += " [disposed]"
     }
 
+    final override var containsRevertedItem: Boolean = false
+        private set
+
+    override fun markContainsRevertedItem() {
+        containsRevertedItem = true
+    }
+
     override val reporter: Reporter = config.reporter
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
