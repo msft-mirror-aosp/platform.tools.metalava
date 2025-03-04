@@ -47,4 +47,16 @@ object KnownConfigFiles {
                 </config>
             """
         )
+
+    val configEmptyApiFlags =
+        xml(
+            "config-empty-api-flags.xml",
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                    <api-flags/>
+                </config>
+            """
+        )
 }
