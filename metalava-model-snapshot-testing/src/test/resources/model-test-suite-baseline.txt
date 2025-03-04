@@ -122,18 +122,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[turbine,number to primitiveInt]
   Test assignability without unboxing[turbine,obj to string]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeAliasTest
-  Test usage of actual typealias as parent class[psi,kotlin,k2]
-  Test usage of generic typealias expect actual non class type[psi,kotlin,k2]
-  Test usage of generic typealias expect actual reversed generics[psi,kotlin,k2]
-  Test usage of generic typealias expect actual used as nullable[psi,kotlin,k2]
-  Test usage of generic typealias expect actual[psi,kotlin,k2]
-  Test usage of nullable actual typealias as parent class[psi,kotlin,k2]
-  Test usage of nullable generic typealias expect actual[psi,kotlin,k2]
-  Test usage of nullable typealias expect actual[psi,kotlin,k2]
-  Test usage of simple typealias expect actual[psi,kotlin,k2]
-  Test usage of typealias expect actual used as nullable[psi,kotlin,k2]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java,k1]
   Test inner parameterized types with annotations[psi,java,k2]
