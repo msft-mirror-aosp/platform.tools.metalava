@@ -159,9 +159,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   No issues using the same classpath class twice[turbine]
   Removed method from classpath[turbine]
 
-com.android.tools.metalava.compatibility.ParameterNameChangeTest
-  Flag renaming a parameter from the classpath[turbine]
-
 com.android.tools.metalava.doc.DocAnalyzerRangeTest
   Add new parameter when doc exists but no param doc[turbine]
   Add new parameter when no doc exists[turbine]
