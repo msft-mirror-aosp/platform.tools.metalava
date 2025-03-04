@@ -1022,7 +1022,8 @@ internal class TurbineCodebaseInitialiser(
             val defaultValueExpr = getAnnotationDefaultExpression(method)
             val defaultValue =
                 if (method.defaultValue() != null)
-                    extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
+                    TurbineValue(method.defaultValue()!!, defaultValueExpr)
+                        .getSourceForMethodDefault()
                 else ""
 
             val parameters = method.parameters()
@@ -1259,54 +1260,6 @@ internal class TurbineCodebaseInitialiser(
                 else -> error("unknown default value type (${defaultTree.javaClass}: $defaultTree")
             }
         }
-
-    /**
-     * Extracts the default value of an annotation method and returns it as a string.
-     *
-     * @param const The constant object representing the annotation value.
-     * @param expr An optional expression tree that might provide additional context for value
-     *   extraction.
-     * @return The default value of the annotation method as a string.
-     */
-    private fun extractAnnotationDefaultValue(const: Const, expr: Expression?): String {
-        return when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                when ((const as Value).constantTypeKind()) {
-                    PrimKind.FLOAT -> {
-                        val value = (const as Const.FloatValue).value()
-                        when {
-                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
-                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
-                            else -> value.toString() + "f"
-                        }
-                    }
-                    PrimKind.DOUBLE -> {
-                        val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
-                            else -> const.toString()
-                        }
-                    }
-                    PrimKind.BYTE -> const.getValue().toString()
-                    else -> const.toString()
-                }
-            }
-            Kind.ARRAY -> {
-                const as ArrayInitValue
-                // This is case where defined type is array type but default value is
-                // single non-array element
-                // For e.g. char[] letter() default 'a';
-                if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
-                    extractAnnotationDefaultValue(const.elements().single(), expr)
-                } else const.underlyingValue.toString()
-            }
-            Kind.CLASS_LITERAL -> const.underlyingValue.toString() + ".class"
-            else -> const.underlyingValue.toString()
-        }
-    }
 
     internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }
