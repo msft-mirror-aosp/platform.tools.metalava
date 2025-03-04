@@ -739,10 +739,13 @@ internal class TurbineCodebaseInitialiser(
     }
 
     private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
-        val tree = annotation.tree()
-        val simpleName = tree?.name()?.dotSeparatedName
-        val clsSym = annotation.sym()
-        val qualifiedName = if (clsSym == null) simpleName!! else clsSym.qualifiedName
+        // Get the source representation of the annotation. This will be null for an annotation
+        // loaded from a class file.
+        val tree: Tree.Anno? = annotation.tree()
+        // An annotation that has no definition in scope has a null sym, in that case fall back
+        // to use the name used in the source. The sym can only be null in sources, so if sym is
+        // null then tree cannot be null.
+        val qualifiedName = annotation.sym()?.qualifiedName ?: tree!!.name().dotSeparatedName
 
         val fileLocation =
             annotation
