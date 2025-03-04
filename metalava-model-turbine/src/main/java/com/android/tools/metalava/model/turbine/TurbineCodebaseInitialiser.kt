@@ -83,9 +83,7 @@ import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
-import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.SourceTypeBoundClass
-import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
 import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
@@ -811,7 +809,7 @@ internal class TurbineCodebaseInitialiser(
                 val constLiteral = const.elements().single()
                 return DefaultAnnotationSingleAttributeValue(
                     { getSource(constLiteral, expr) },
-                    { getValue(constLiteral) }
+                    { constLiteral.underlyingValue }
                 )
             }
             return DefaultAnnotationArrayAttributeValue(
@@ -821,7 +819,7 @@ internal class TurbineCodebaseInitialiser(
         }
         return DefaultAnnotationSingleAttributeValue(
             { getSource(const, expr) },
-            { getValue(const) }
+            { const.underlyingValue }
         )
     }
 
@@ -873,33 +871,11 @@ internal class TurbineCodebaseInitialiser(
                     append("}")
                 }
             }
-            Kind.ENUM_CONSTANT -> getValue(const).toString()
+            Kind.ENUM_CONSTANT -> const.underlyingValue.toString()
             Kind.CLASS_LITERAL -> {
-                if (expr != null) expr.toString() else getValue(const).toString()
+                if (expr != null) expr.toString() else const.underlyingValue.toString()
             }
             else -> const.toString()
-        }
-    }
-
-    private fun getValue(const: Const): Any? {
-        when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                val value = const as Value
-                return value.getValue()
-            }
-            // For cases like AnyClass.class, return the qualified name of AnyClass
-            Kind.CLASS_LITERAL -> {
-                val value = const as TurbineClassValue
-                return value.type().toString()
-            }
-            Kind.ENUM_CONSTANT -> {
-                val value = const as EnumConstantValue
-                val temp = "${value.sym().owner().qualifiedName}.$value"
-                return temp
-            }
-            else -> {
-                return const.toString()
-            }
         }
     }
 
@@ -1249,7 +1225,7 @@ internal class TurbineCodebaseInitialiser(
                 else ->
                     when (expr.kind()) {
                         Tree.Kind.LITERAL -> {
-                            getValue((expr as Literal).value())
+                            (expr as Literal).value().underlyingValue
                         }
                         // Class Type
                         Tree.Kind.CLASS_LITERAL -> {
@@ -1314,10 +1290,10 @@ internal class TurbineCodebaseInitialiser(
                 // For e.g. char[] letter() default 'a';
                 if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
                     extractAnnotationDefaultValue(const.elements().single(), expr)
-                } else getValue(const).toString()
+                } else const.underlyingValue.toString()
             }
-            Kind.CLASS_LITERAL -> getValue(const).toString() + ".class"
-            else -> getValue(const).toString()
+            Kind.CLASS_LITERAL -> const.underlyingValue.toString() + ".class"
+            else -> const.underlyingValue.toString()
         }
     }
 

@@ -16,7 +16,12 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.google.turbine.binder.bound.EnumConstantValue
+import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.sym.ClassSymbol
+import com.google.turbine.model.Const
+import com.google.turbine.model.Const.Kind
+import com.google.turbine.model.Const.Value
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 
@@ -66,3 +71,31 @@ internal fun getHeaderComments(source: String): String {
  */
 internal val ClassSymbol.qualifiedName: String
     get() = binaryName().replace('/', '.').replace('$', '.')
+
+/**
+ * The underlying value of this [Const].
+ *
+ * e.g. [Integer] for integers, [String]s for strings and any other values.
+ */
+internal val Const.underlyingValue: Any?
+    get() {
+        when (kind()) {
+            Kind.PRIMITIVE -> {
+                val value = this as Value
+                return value.value
+            }
+            // For cases like AnyClass.class, return the qualified name of AnyClass
+            Kind.CLASS_LITERAL -> {
+                val value = this as TurbineClassValue
+                return value.type().toString()
+            }
+            Kind.ENUM_CONSTANT -> {
+                val value = this as EnumConstantValue
+                val temp = "${value.sym().owner().qualifiedName}.$value"
+                return temp
+            }
+            else -> {
+                return toString()
+            }
+        }
+    }
