@@ -30,20 +30,22 @@ import com.google.turbine.tree.Tree.Ident
 internal fun getPackageName(unit: CompUnit): String {
     val optPkg = unit.pkg()
     val pkg = if (optPkg.isPresent()) optPkg.get() else null
-    return pkg?.let { extractNameFromIdent(it.name()) } ?: ""
+    return pkg?.name()?.dotSeparatedName ?: ""
 }
 
 /**
- * Extracts a dot-separated name from a list of Ident objects. This is often used for constructing
- * fully qualified names or package structures.
+ * Creates a dot-separated name from a list of [Ident] objects.
  *
- * @param identNameList The list of Ident objects representing name segments.
+ * This is often used for constructing fully qualified names or package structures.
+ *
+ * @param this@extractNameFromIdent The list of [Ident] objects representing name segments.
  * @return The combined name with segments joined by "." (e.g., "java.util.List")
  */
-internal fun extractNameFromIdent(identNameList: List<Ident>): String {
-    val nameList = identNameList.map { it.value() }
-    return nameList.joinToString(separator = ".")
-}
+internal val List<Ident>.dotSeparatedName: String
+    get() {
+        val nameList = map { it.value() }
+        return nameList.joinToString(separator = ".")
+    }
 
 /**
  * Extracts header comments from a source file string. Header comments are defined as any content

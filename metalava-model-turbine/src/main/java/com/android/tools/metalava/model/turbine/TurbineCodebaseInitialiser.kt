@@ -740,7 +740,7 @@ internal class TurbineCodebaseInitialiser(
 
     private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
         val tree = annotation.tree()
-        val simpleName = tree?.let { extractNameFromIdent(it.name()) }
+        val simpleName = tree?.name()?.dotSeparatedName
         val clsSym = annotation.sym()
         val qualifiedName = if (clsSym == null) simpleName!! else clsSym.qualifiedName
 
