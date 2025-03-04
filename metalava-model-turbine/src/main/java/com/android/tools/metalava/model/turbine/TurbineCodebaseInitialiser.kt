@@ -513,7 +513,7 @@ internal class TurbineCodebaseInitialiser(
             // It is possible that the top level class has already been created but just did not
             // contain the requested nested class so check to make sure it exists before
             // creating it.
-            val topClassName = getQualifiedName(topClassSym.binaryName())
+            val topClassName = topClassSym.qualifiedName
             codebase.findClass(topClassName)
                 ?: let {
                     // Get the origin of the class.
@@ -651,7 +651,7 @@ internal class TurbineCodebaseInitialiser(
             }
 
         // Create class
-        val qualifiedName = getQualifiedName(classSymbol.binaryName())
+        val qualifiedName = classSymbol.qualifiedName
         val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
@@ -742,8 +742,7 @@ internal class TurbineCodebaseInitialiser(
         val tree = annotation.tree()
         val simpleName = tree?.let { extractNameFromIdent(it.name()) }
         val clsSym = annotation.sym()
-        val qualifiedName =
-            if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
+        val qualifiedName = if (clsSym == null) simpleName!! else clsSym.qualifiedName
 
         val fileLocation =
             annotation
@@ -892,8 +891,7 @@ internal class TurbineCodebaseInitialiser(
             }
             Kind.ENUM_CONSTANT -> {
                 val value = const as EnumConstantValue
-                val temp =
-                    getQualifiedName(value.sym().owner().binaryName()) + "." + value.toString()
+                val temp = "${value.sym().owner().qualifiedName}.$value"
                 return temp
             }
             else -> {
@@ -1185,10 +1183,6 @@ internal class TurbineCodebaseInitialiser(
 
             classItem.addConstructor(constructorItem)
         }
-    }
-
-    internal fun getQualifiedName(binaryName: String): String {
-        return binaryName.replace('/', '.').replace('$', '.')
     }
 
     /**

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 
@@ -57,3 +58,9 @@ internal fun getHeaderComments(source: String): String {
     // Return everything before "package" keyword
     return if (packageIndex == -1) "" else source.substring(0, packageIndex)
 }
+
+/**
+ * Get the qualified name, i.e. what would be used in an `import` statement, for this [ClassSymbol].
+ */
+internal val ClassSymbol.qualifiedName: String
+    get() = binaryName().replace('/', '.').replace('$', '.')
