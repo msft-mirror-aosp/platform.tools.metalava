@@ -38,6 +38,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.setEnvironment
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinBasePluginWrapper
@@ -117,6 +118,12 @@ class MetalavaBuildPlugin : Plugin<Project> {
             // Add a dependency from this test task to the jar task of stub-annotations to make sure
             // it is built before this is run.
             task.dependsOn(jarTask)
+
+            // Clear the environment before adding any custom variables. Avoids problems with
+            // inconsistent behavior when testing code that accesses environment variables, e.g.
+            // command line tools that use environment variables to determine whether to use colors
+            // in command line help.
+            task.setEnvironment()
 
             // Get the path to the stub-annotations jar and pass it to this in an environment
             // variable.
