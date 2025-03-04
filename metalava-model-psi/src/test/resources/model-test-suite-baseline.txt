@@ -15,11 +15,24 @@ com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
   accessing type alias from package[kotlin,k1]
   annotations on type alias[kotlin,k1]
   basic type alias types[kotlin,k1]
+  expect actual typealias[kotlin,k1]
   functional type alias type[kotlin,k1]
   type alias name[kotlin,k1]
   type alias referencing other type alias[kotlin,k1]
   type alias visibility[kotlin,k1]
   type parameter lists on type aliases[kotlin,k1]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeAliasTest
+  Test usage of actual typealias as parent class[kotlin,k2]
+  Test usage of generic typealias expect actual non class type[kotlin,k2]
+  Test usage of generic typealias expect actual reversed generics[kotlin,k2]
+  Test usage of generic typealias expect actual used as nullable[kotlin,k2]
+  Test usage of generic typealias expect actual[kotlin,k2]
+  Test usage of nullable actual typealias as parent class[kotlin,k2]
+  Test usage of nullable generic typealias expect actual[kotlin,k2]
+  Test usage of nullable typealias expect actual[kotlin,k2]
+  Test usage of simple typealias expect actual[kotlin,k2]
+  Test usage of typealias expect actual used as nullable[kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
