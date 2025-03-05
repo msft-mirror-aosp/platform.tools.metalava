@@ -53,11 +53,7 @@ class DirectoryBuilder(val dir: File) {
         relative: String,
         vararg sources: TestFile,
         classPath: List<TestFile> = emptyList(),
-    ): File {
-        val jarFile = dir.resolve(relative)
-        JavacHelper.compileAndJar(jarFile, sources.toList(), classPath)
-        return jarFile
-    }
+    ) = testFile(jarFromSources(relative, *sources, classPath = classPath))
 
     /**
      * Create a signature file [relative] to [dir], contains [contents] trimmed by
