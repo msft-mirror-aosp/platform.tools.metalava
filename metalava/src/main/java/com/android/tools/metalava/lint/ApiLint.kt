@@ -103,6 +103,7 @@ import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
+import com.android.tools.metalava.reporter.Issues.DATA_CLASS_DEFINITION
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
 import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
@@ -476,6 +477,7 @@ private constructor(
         checkHasFlaggedApi(cls)
         checkFlaggedApiLiteral(cls)
         checkAccessorNullabilityMatches(methods)
+        checkDataClass(cls)
     }
 
     private fun checkField(field: FieldItem) {
@@ -3332,6 +3334,17 @@ private constructor(
                     }
                 },
                 listOf(setterParamType)
+            )
+        }
+    }
+
+    private fun checkDataClass(cls: ClassItem) {
+        if (cls.modifiers.isData()) {
+            report(
+                DATA_CLASS_DEFINITION,
+                cls,
+                "Exposing data classes as public API is discouraged because they are " +
+                    "difficult to update while maintaining binary compatibility."
             )
         }
     }
