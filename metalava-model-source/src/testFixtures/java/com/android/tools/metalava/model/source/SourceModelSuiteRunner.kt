@@ -17,28 +17,19 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.SourceDir
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import java.io.File
-import java.io.PrintWriter
 
-/**
- * A [ModelSuiteRunner] that is implemented using a [SourceModelProvider].
- *
- * This expects to be loaded on a class path that contains a single [SourceModelProvider] service
- * (retrievable via [SourceModelProvider.getImplementation]).
- */
-// @AutoService(ModelSuiteRunner.class)
-class SourceModelSuiteRunner : ModelSuiteRunner {
-
-    /** Get the [SourceModelProvider] implementation that is available. */
-    private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
+/** A [ModelSuiteRunner] that is implemented using a [SourceModelProvider]. */
+class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvider) :
+    ModelSuiteRunner {
 
     override val providerName = sourceModelProvider.providerName
 
@@ -70,7 +61,11 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
                     inputs,
                     classPath,
                 )
-            test(codebase)
+
+            // If available, transform the codebase for testing, otherwise use the one provided.
+            val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
+
+            test(transformedCodebase)
         }
     }
 
@@ -79,24 +74,61 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
     ): Codebase {
-        val reporter = BasicReporter(PrintWriter(System.err))
+        val testFixture = inputs.testFixture
         val sourceParser =
             environmentManager.createSourceParser(
-                reporter = reporter,
-                annotationManager = noOpAnnotationManager,
+                codebaseConfig = testFixture.codebaseConfig,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(
-            sourceSet(inputs.mainSourceDir),
-            sourceSet(inputs.commonSourceDir),
+            sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
             description = "Test Codebase",
             classPath = classPath,
+            apiPackages = testFixture.apiPackages,
+            projectDescription = inputs.projectDescription,
         )
     }
 
-    private fun sourceSet(sourceDir: ModelSuiteRunner.SourceDir?) =
-        if (sourceDir == null) SourceSet.empty()
-        else SourceSet(sourceDir.createFiles(), listOf(sourceDir.dir))
+    /**
+     * Create a [SourceSet] from some [SourceDir] instances.
+     *
+     * @param sourceDir if supplied the files created from this will be added to the
+     *   [SourceSet.sources] list and its directory will be added to the [SourceSet.sourcePath]
+     *   list.
+     * @param sourcePathDir if supplied the root directories in which its files are created will be
+     *   added to the [SourceSet.sourcePath] but the files themselves will not be added to the
+     *   [SourceSet.sources] list.
+     */
+    private fun sourceSet(sourceDir: SourceDir?, sourcePathDir: SourceDir? = null) =
+        if (sourceDir == null && sourcePathDir == null) SourceSet.empty()
+        else {
+            val sources = mutableListOf<File>()
+
+            // Create a set that will dedup the directories but maintain the order in which they
+            // were added.
+            val sourcePath = mutableSetOf<File>()
+            if (sourceDir != null) {
+                // Create the files and add them to the sources and the containing directory to the
+                // source path.
+                sources.addAll(sourceDir.createFiles())
+                sourcePath.add(sourceDir.dir)
+            }
+            if (sourcePathDir != null) {
+                // Create the files but do not add them to the sources, instead just add the
+                // directory in which the files were created to the source path.
+                val dir = sourcePathDir.dir
+                for (testFile in sourcePathDir.contents) {
+                    testFile.createFile(dir)
+                    // Get the root directory in which the test file was created and add that to the
+                    // source path.
+                    val rootDir = testFile.targetRootFolder?.let { dir.resolve(it) } ?: dir
+                    sourcePath.add(rootDir)
+                }
+                sourcePath.add(sourcePathDir.dir.resolve("src"))
+            }
+
+            SourceSet(sources, sourcePath.toList())
+        }
 
     override fun toString(): String = sourceModelProvider.providerName
 }

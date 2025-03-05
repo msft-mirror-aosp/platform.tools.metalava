@@ -71,8 +71,18 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
         /** The main sources that will be loaded into the [Codebase] to be tested. */
         val mainSourceDir: SourceDir,
 
-        /** The optional common sources. */
-        val commonSourceDir: SourceDir?,
+        /**
+         * Additional sources that will be created but will not be passed directly to the code being
+         * tested. Instead, the [SourceDir.dir] will be added to the source path which the code
+         * being tested may search implicitly.
+         */
+        val additionalMainSourceDir: SourceDir?,
+
+        /** Additional information to provide to the test runner. */
+        val testFixture: BaseModelTest.TestFixture,
+
+        /** An XML file describing the structure of the project (mainly used for KMP projects). */
+        val projectDescription: File?,
     )
 
     /**

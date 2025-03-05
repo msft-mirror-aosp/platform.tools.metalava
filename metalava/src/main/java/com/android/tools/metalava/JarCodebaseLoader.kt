@@ -18,9 +18,11 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Reporter
 import java.io.Closeable
 import java.io.File
@@ -70,6 +72,10 @@ sealed interface JarCodebaseLoader {
             analyzer.computeApi()
             analyzer.mergeExternalQualifierAnnotations()
             analyzer.generateInheritedStubs(apiEmit, apiReference)
+
+            // Prevent the codebase from being mutated.
+            codebase.freezeClasses()
+
             return codebase
         }
     }
@@ -115,11 +121,15 @@ private constructor(
                 )
 
             val annotationManager = DefaultAnnotationManager()
+            val codebaseConfig =
+                Codebase.Config(
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                )
 
             val sourceParser =
                 environmentManager.createSourceParser(
-                    reporter,
-                    annotationManager,
+                    codebaseConfig,
                 )
 
             val jarLoader =

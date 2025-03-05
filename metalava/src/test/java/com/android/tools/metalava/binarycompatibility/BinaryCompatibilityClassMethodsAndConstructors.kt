@@ -104,6 +104,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             expectedIssues =
                 """
                 load-api.txt:4: error: Method test.pkg.Foo.bar has changed return type from void to java.lang.Int [ChangedType]
+                load-api.txt:4: error: Attempted to remove nullability from java.lang.Int (was NONNULL) in method test.pkg.Foo.bar(Int) [InvalidNullConversion]
             """,
             signatureSource =
                 """

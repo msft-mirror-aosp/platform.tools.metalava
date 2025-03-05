@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
@@ -133,6 +134,12 @@ data class FileFormat(
      * sorting is by the full name (without the package) of the class.
      */
     val specifiedSortWholeExtendsList: Boolean? = null,
+
+    /**
+     * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
+     * [StripJavaLangPrefix] is used when outputting types to signature files.
+     */
+    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -188,10 +195,16 @@ data class FileFormat(
     val sortWholeExtendsList
         get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
 
+    // This defaults to LEGACY but can be overridden on the command line.
+    val stripJavaLangPrefix
+        get() = effectiveValue({ specifiedStripJavaLangPrefix }, StripJavaLangPrefix.LEGACY)
+
     /** The base version of the file format. */
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
         internal val versionNumber: String,
+        /** The optional legacy alias used on the command line, for the `--format` option. */
+        val legacyCommandLineAlias: String? = null,
 
         /** Indicates whether the version supports properties fully or just for migrating. */
         internal val propertySupport: PropertySupport = PropertySupport.FOR_MIGRATING_ONLY,
@@ -204,6 +217,7 @@ data class FileFormat(
     ) {
         V2(
             versionNumber = "2.0",
+            legacyCommandLineAlias = "v2",
             factory = { version ->
                 FileFormat(
                     version = version,
@@ -214,6 +228,7 @@ data class FileFormat(
         ),
         V3(
             versionNumber = "3.0",
+            legacyCommandLineAlias = "v3",
             factory = { version ->
                 V2.defaults.copy(
                     version = version,
@@ -224,6 +239,7 @@ data class FileFormat(
         ),
         V4(
             versionNumber = "4.0",
+            legacyCommandLineAlias = "v4",
             factory = { version ->
                 V3.defaults.copy(
                     version = version,
@@ -250,7 +266,7 @@ data class FileFormat(
          * It is initialized via a factory to break the cycle where the [Version] constructor
          * depends on the [FileFormat] constructor and vice versa.
          */
-        internal val defaults = factory(this)
+        val defaults = factory(this)
 
         /**
          * Get the version defaults plus any language defaults, if available.
@@ -304,12 +320,12 @@ data class FileFormat(
         }
     }
 
-    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
+    enum class OverloadedMethodOrder(val comparator: Comparator<CallableItem>) {
         /** Sort overloaded methods according to source order. */
-        SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
+        SOURCE(CallableItem.sourceOrderForOverloadedMethodsComparator),
 
         /** Sort overloaded methods by their signature. */
-        SIGNATURE(MethodItem.comparator)
+        SIGNATURE(CallableItem.comparator)
     }
 
     /**
@@ -366,7 +382,7 @@ data class FileFormat(
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
         val defaults = version.defaultsIncludingLanguage(language)
         if (this@FileFormat != defaults) {
-            CustomizableProperty.values().forEach { prop ->
+            CustomizableProperty.entries.forEach { prop ->
                 // Get the string value of this property, if null then it was not specified so skip
                 // the property.
                 val thisValue = prop.stringFromFormat(this@FileFormat) ?: return@forEach
@@ -409,9 +425,9 @@ data class FileFormat(
     }
 
     companion object {
-        private val allDefaults = Version.values().map { it.defaults }.toList()
+        private val allDefaults = Version.entries.map { it.defaults }.toList()
 
-        private val versionByNumber = Version.values().associateBy { it.versionNumber }
+        private val versionByNumber = Version.entries.associateBy { it.versionNumber }
 
         // The defaults associated with version 2.0.
         val V2 = Version.V2.defaults
@@ -691,7 +707,7 @@ data class FileFormat(
          * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
          */
         fun defaultableProperties(): List<String> {
-            return CustomizableProperty.values()
+            return CustomizableProperty.entries
                 .filter { it.defaultable }
                 .map { it.propertyName }
                 .sorted()
@@ -711,6 +727,7 @@ data class FileFormat(
         var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var sortWholeExtendsList: Boolean? = null
+        var stripJavaLangPrefix: StripJavaLangPrefix? = null
         var surface: String? = null
 
         fun build(): FileFormat {
@@ -731,6 +748,8 @@ data class FileFormat(
                         ?: base.specifiedOverloadedMethodOrder,
                 specifiedSortWholeExtendsList = sortWholeExtendsList
                         ?: base.specifiedSortWholeExtendsList,
+                specifiedStripJavaLangPrefix = stripJavaLangPrefix
+                        ?: base.specifiedStripJavaLangPrefix,
                 surface = surface ?: base.surface,
             )
         }
@@ -837,6 +856,14 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedSortWholeExtendsList?.let { yesNo(it) }
+        },
+        STRIP_JAVA_LANG_PREFIX(defaultable = true) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.stripJavaLangPrefix = enumFromString<StripJavaLangPrefix>(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedStripJavaLangPrefix?.stringFromEnum()
         };
 
         /** The property name in the [parseSpecifier] input. */
@@ -902,7 +929,7 @@ data class FileFormat(
         fun yesNo(value: Boolean): String = if (value) "yes" else "no"
 
         companion object {
-            val byPropertyName = values().associateBy { it.propertyName }
+            val byPropertyName = entries.associateBy { it.propertyName }
 
             /**
              * Get the [CustomizableProperty] by name, throwing an [ApiParseException] if it could

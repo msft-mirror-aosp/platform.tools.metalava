@@ -17,6 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -56,11 +59,10 @@ class PsiParameterItemTest : BaseModelTest() {
                     }
                 """
             )
-        runCodebaseTest(
-            inputSet(
-                kotlin(
-                    "jvmMain/src/Actual.kt",
-                    """
+        val androidSource =
+            kotlin(
+                "androidMain/src/Actual.kt",
+                """
                     actual suspend fun String.testFun(param: String) {}
                     actual class Test actual constructor(param: String) {
                         actual fun something(
@@ -70,14 +72,21 @@ class PsiParameterItemTest : BaseModelTest() {
                         ) {}
                     }
                     """
-                ),
+            )
+        runCodebaseTest(
+            inputSet(
+                androidSource,
                 commonSource,
             ),
-            commonSources = arrayOf(inputSet(commonSource)),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
         ) {
             // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
             // classes.
-            val actualFile = codebase.assertClass("ActualKt").getSourceFile()
+            val actualFile = codebase.assertClass("ActualKt").sourceFile()
 
             val functionItem = codebase.assertClass("ActualKt").methods().single()
             with(functionItem) {
@@ -89,20 +98,20 @@ class PsiParameterItemTest : BaseModelTest() {
 
                 val parameter = parameters[1]
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
+                assertEquals("\"\"", parameter.defaultValueAsString())
 
                 // continuation
                 assertFalse(parameters[2].hasDefaultValue())
             }
 
             val classItem = codebase.assertClass("Test")
-            assertEquals(actualFile, classItem.getSourceFile())
+            assertEquals(actualFile, classItem.sourceFile())
 
             val constructorItem = classItem.constructors().single()
             with(constructorItem) {
                 val parameter = parameters().single()
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
+                assertEquals("\"\"", parameter.defaultValueAsString())
             }
 
             val methodItem = classItem.methods().single()
@@ -111,10 +120,10 @@ class PsiParameterItemTest : BaseModelTest() {
                 assertEquals(3, parameters.size)
 
                 assertTrue(parameters[0].hasDefaultValue())
-                assertEquals("\"\"", parameters[0].defaultValue())
+                assertEquals("\"\"", parameters[0].defaultValueAsString())
 
                 assertTrue(parameters[1].hasDefaultValue())
-                assertEquals("param + \"\"", parameters[1].defaultValue())
+                assertEquals("param + \"\"", parameters[1].defaultValueAsString())
 
                 assertFalse(parameters[2].hasDefaultValue())
             }

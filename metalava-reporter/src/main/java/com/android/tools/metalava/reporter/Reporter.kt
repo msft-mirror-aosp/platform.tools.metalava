@@ -17,7 +17,9 @@
 package com.android.tools.metalava.reporter
 
 import java.io.File
+import java.io.OutputStream
 import java.io.PrintWriter
+import java.io.Writer
 
 interface Reporter {
 
@@ -37,9 +39,9 @@ interface Reporter {
         id: Issues.Issue,
         file: File?,
         message: String,
-        maximumSeverity: Severity = Severity.ERROR,
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ): Boolean {
-        val location = IssueLocation.forFile(file)
+        val location = FileLocation.forFile(file)
         return report(id, null, message, location, maximumSeverity)
     }
 
@@ -83,8 +85,8 @@ interface Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
-        maximumSeverity: Severity = Severity.ERROR,
+        location: FileLocation = FileLocation.UNKNOWN,
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ): Boolean
 
     /**
@@ -107,16 +109,20 @@ interface Reporter {
  * the supplied [PrintWriter].
  */
 class BasicReporter(private val stderr: PrintWriter) : Reporter {
+    constructor(writer: Writer) : this(PrintWriter(writer))
+
+    constructor(outputStream: OutputStream) : this(PrintWriter(outputStream))
+
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation,
+        location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
         stderr.println(
             buildString {
-                val usableLocation = reportable?.issueLocation ?: location
+                val usableLocation = reportable?.fileLocation ?: location
                 append(usableLocation.path)
                 if (usableLocation.line > 0) {
                     append(":")
@@ -141,4 +147,8 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         reportable: Reportable?,
         message: String?
     ): Boolean = false
+
+    companion object {
+        val ERR = BasicReporter(System.err)
+    }
 }
