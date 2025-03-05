@@ -54,3 +54,11 @@ private class ExistingFile(private val file: File) : TestFile() {
         return link
     }
 }
+
+/**
+ * Wrap an existing file in a [TestFile].
+ *
+ * By default, this will create a symbolic link in the `targetDir` passed to [TestFile.createFile]
+ * called [File.getName].
+ */
+fun File.toTestFile(): TestFile = ExistingFile(this).to(name)

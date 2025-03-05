@@ -49,7 +49,11 @@ class DirectoryBuilder(val dir: File) {
     }
 
     /** Create a jar file [relative] to [dir], containing compiled [sources]. */
-    fun jar(relative: String, vararg sources: TestFile, classPath: List<File> = emptyList()): File {
+    fun jar(
+        relative: String,
+        vararg sources: TestFile,
+        classPath: List<TestFile> = emptyList(),
+    ): File {
         val jarFile = dir.resolve(relative)
         JavacHelper.compileAndJar(jarFile, sources.toList(), classPath)
         return jarFile
