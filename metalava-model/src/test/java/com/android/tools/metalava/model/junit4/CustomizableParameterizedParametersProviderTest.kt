@@ -83,10 +83,9 @@ class CountingTestRule : TestRule {
         return object : Statement() {
             override fun evaluate() {
                 base.evaluate()
-                // TODO(b/401196300): This is incorrect, it should only be applied once. This is
-                //  happening because the CustomizableParameterizedRunner is applying them and then
-                //  the Parameterized to which it delegates is also applying them.
-                assertEquals(2, applyCount, "expected test rule to be applied twice")
+
+                // Make sure this is only applied once.
+                assertEquals(1, applyCount, "expected test rule to be applied once")
             }
         }
     }
