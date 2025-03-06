@@ -145,7 +145,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
 
 com.android.tools.metalava.model.testsuite.values.CommonParameterizedValueTest
   test[turbine,jar,AnnotationAttributeValue.toSource(),Basic.anAnnotationType]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),Basic.classType]
   test[turbine,source,AnnotationAttributeValue.toSource(),Basic.anAnnotationType]
   test[turbine,source,AnnotationAttributeValue.toSource(),Basic.enumType]
   test[turbine,source,AnnotationAttributeValue.toSource(),UsingConstants.stringType]

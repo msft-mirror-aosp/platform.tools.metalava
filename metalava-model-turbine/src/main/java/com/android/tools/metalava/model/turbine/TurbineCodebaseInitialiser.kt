@@ -875,7 +875,7 @@ internal class TurbineCodebaseInitialiser(
             }
             Kind.ENUM_CONSTANT -> const.underlyingValue.toString()
             Kind.CLASS_LITERAL -> {
-                if (expr != null) expr.toString() else const.underlyingValue.toString()
+                expr?.toString() ?: "${const.underlyingValue}.class"
             }
             else -> const.toString()
         }
