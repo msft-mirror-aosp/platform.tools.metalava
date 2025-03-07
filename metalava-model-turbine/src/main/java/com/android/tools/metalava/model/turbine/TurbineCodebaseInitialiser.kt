@@ -100,8 +100,6 @@ import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.Const.Kind
-import com.google.turbine.model.Const.Value
-import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.parse.Parser
@@ -810,72 +808,19 @@ internal class TurbineCodebaseInitialiser(
                 // For e.g. @Anno(5) where Anno is @interfacce Anno {int [] value()}
                 val constLiteral = const.elements().single()
                 return DefaultAnnotationSingleAttributeValue(
-                    { getSource(constLiteral, expr) },
+                    { TurbineValue(constLiteral, expr).getSourceForAnnotationValue() },
                     { constLiteral.underlyingValue }
                 )
             }
             return DefaultAnnotationArrayAttributeValue(
-                { getSource(const, expr) },
+                { TurbineValue(const, expr).getSourceForAnnotationValue() },
                 { const.elements().map { createAttrValue(it, null) } }
             )
         }
         return DefaultAnnotationSingleAttributeValue(
-            { getSource(const, expr) },
+            { TurbineValue(const, expr).getSourceForAnnotationValue() },
             { const.underlyingValue }
         )
-    }
-
-    private fun getSource(const: Const, expr: Expression?): String {
-        return when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                when ((const as Value).constantTypeKind()) {
-                    PrimKind.INT -> {
-                        val value = (const as Const.IntValue).value()
-                        if (value < 0 || (expr != null && expr.kind() == Tree.Kind.TYPE_CAST))
-                            "0x" + value.toUInt().toString(16) // Hex Value
-                        else value.toString()
-                    }
-                    PrimKind.SHORT -> {
-                        val value = (const as Const.ShortValue).value()
-                        if (value < 0) "0x" + value.toUInt().toString(16) else value.toString()
-                    }
-                    PrimKind.FLOAT -> {
-                        val value = (const as Const.FloatValue).value()
-                        when {
-                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
-                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
-                            value < 0 -> value.toString() + "F" // Handling negative values
-                            else -> value.toString() + "f" // Handling positive values
-                        }
-                    }
-                    PrimKind.DOUBLE -> {
-                        val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
-                            else -> const.toString()
-                        }
-                    }
-                    PrimKind.BYTE -> const.getValue().toString()
-                    else -> const.toString()
-                }
-            }
-            Kind.ARRAY -> {
-                const as ArrayInitValue
-                val values =
-                    if (expr != null)
-                        const.elements().zip((expr as ArrayInit).exprs(), ::TurbineValue)
-                    else const.elements().map { TurbineValue(it, null) }
-                values.joinToString(prefix = "{", postfix = "}") { getSource(it.const, it.expr) }
-            }
-            Kind.ENUM_CONSTANT -> const.underlyingValue.toString()
-            Kind.CLASS_LITERAL -> {
-                expr?.toString() ?: "${const.underlyingValue}.class"
-            }
-            else -> const.toString()
-        }
     }
 
     private fun createTypeParameters(

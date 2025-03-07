@@ -21,6 +21,7 @@ import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind
+import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.Expression
 
@@ -94,6 +95,65 @@ internal class TurbineValue(
             }
             Kind.CLASS_LITERAL -> "${const.underlyingValue}.class"
             else -> const.underlyingValue.toString()
+        }
+    }
+
+    /**
+     * Get the source representation of this value suitable for use when writing an annotation
+     * attribute's value.
+     */
+    fun getSourceForAnnotationValue(): String {
+        return when (const.kind()) {
+            Kind.PRIMITIVE -> {
+                when ((const as Value).constantTypeKind()) {
+                    TurbineConstantTypeKind.INT -> {
+                        val value = (const as Const.IntValue).value()
+                        if (value < 0 || (expr != null && expr.kind() == Tree.Kind.TYPE_CAST))
+                            "0x" + value.toUInt().toString(16) // Hex Value
+                        else value.toString()
+                    }
+                    TurbineConstantTypeKind.SHORT -> {
+                        val value = (const as Const.ShortValue).value()
+                        if (value < 0) "0x" + value.toUInt().toString(16) else value.toString()
+                    }
+                    TurbineConstantTypeKind.FLOAT -> {
+                        val value = (const as Const.FloatValue).value()
+                        when {
+                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
+                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
+                            value < 0 -> value.toString() + "F" // Handling negative values
+                            else -> value.toString() + "f" // Handling positive values
+                        }
+                    }
+                    TurbineConstantTypeKind.DOUBLE -> {
+                        val value = (const as Const.DoubleValue).value()
+                        when {
+                            value == Double.POSITIVE_INFINITY ->
+                                "java.lang.Double.POSITIVE_INFINITY"
+                            value == Double.NEGATIVE_INFINITY ->
+                                "java.lang.Double.NEGATIVE_INFINITY"
+                            else -> const.toString()
+                        }
+                    }
+                    TurbineConstantTypeKind.BYTE -> const.getValue().toString()
+                    else -> const.toString()
+                }
+            }
+            Kind.ARRAY -> {
+                const as ArrayInitValue
+                val values =
+                    if (expr != null)
+                        const.elements().zip((expr as ArrayInit).exprs(), ::TurbineValue)
+                    else const.elements().map { TurbineValue(it, null) }
+                values.joinToString(prefix = "{", postfix = "}") {
+                    it.getSourceForAnnotationValue()
+                }
+            }
+            Kind.ENUM_CONSTANT -> const.underlyingValue.toString()
+            Kind.CLASS_LITERAL -> {
+                expr?.toString() ?: "${const.underlyingValue}.class"
+            }
+            else -> const.toString()
         }
     }
 }
