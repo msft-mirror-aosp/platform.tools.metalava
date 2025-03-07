@@ -864,14 +864,11 @@ internal class TurbineCodebaseInitialiser(
             }
             Kind.ARRAY -> {
                 const as ArrayInitValue
-                val pairs =
-                    if (expr != null) const.elements().zip((expr as ArrayInit).exprs())
-                    else const.elements().map { Pair(it, null) }
-                buildString {
-                    append("{")
-                    pairs.joinTo(this, ", ") { getSource(it.first, it.second) }
-                    append("}")
-                }
+                val values =
+                    if (expr != null)
+                        const.elements().zip((expr as ArrayInit).exprs(), ::TurbineValue)
+                    else const.elements().map { TurbineValue(it, null) }
+                values.joinToString(prefix = "{", postfix = "}") { getSource(it.const, it.expr) }
             }
             Kind.ENUM_CONSTANT -> const.underlyingValue.toString()
             Kind.CLASS_LITERAL -> {
