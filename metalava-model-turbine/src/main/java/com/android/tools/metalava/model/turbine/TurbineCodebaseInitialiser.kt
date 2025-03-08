@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
@@ -26,10 +23,6 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -97,9 +90,6 @@ import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineLog
-import com.google.turbine.model.Const
-import com.google.turbine.model.Const.ArrayInitValue
-import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.parse.Parser
@@ -109,8 +99,6 @@ import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Anno
 import com.google.turbine.tree.Tree.AnnoExpr
-import com.google.turbine.tree.Tree.ArrayInit
-import com.google.turbine.tree.Tree.Assign
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
@@ -153,7 +141,11 @@ internal class TurbineCodebaseInitialiser(
     /** Caches [TurbineSourceFile] instances. */
     private lateinit var sourceFileCache: TurbineSourceFileCache
 
-    private val globalTypeItemFactory = TurbineTypeItemFactory(this, TypeParameterScope.empty)
+    /** Factory for creating [AnnotationItem]s from [AnnoInfo]s. */
+    private lateinit var annotationFactory: TurbineAnnotationFactory
+
+    /** Global [TurbineTypeItemFactory] from which all other instances are created. */
+    private lateinit var globalTypeItemFactory: TurbineTypeItemFactory
 
     /** Creates [Item] instances for [codebase]. */
     override val itemFactory =
@@ -262,6 +254,13 @@ internal class TurbineCodebaseInitialiser(
         // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
         sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
 
+        // Create a factory for creating annotations from AnnoInfo.
+        annotationFactory = TurbineAnnotationFactory(codebase, sourceFileCache)
+
+        // Create the global TurbineTypeItemFactory.
+        globalTypeItemFactory =
+            TurbineTypeItemFactory(this, annotationFactory, TypeParameterScope.empty)
+
         // Find the package-info.java units.
         val packageInfoUnits = allUnits.filter { it.isPackageInfo() }
 
@@ -288,7 +287,8 @@ internal class TurbineCodebaseInitialiser(
                 val fileLocation = FileLocation.forFile(file)
                 val comment = getHeaderComments(source).toItemDocumentationFactory()
 
-                val annotations = createAnnotations(sourceTypeBoundClass.annotations())
+                val annotations =
+                    annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
 
                 val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
@@ -527,7 +527,7 @@ internal class TurbineCodebaseInitialiser(
     }
 
     private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
-        val annotations = createAnnotations(annoInfos)
+        val annotations = annotationFactory.createAnnotations(annoInfos)
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
@@ -715,98 +715,6 @@ internal class TurbineCodebaseInitialiser(
             TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
             else -> ClassKind.CLASS
         }
-    }
-
-    /** Creates a list of AnnotationItems from given list of Turbine Annotations */
-    internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.mapNotNull { createAnnotation(it) }
-    }
-
-    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
-        // Get the source representation of the annotation. This will be null for an annotation
-        // loaded from a class file.
-        val tree: Tree.Anno? = annotation.tree()
-        // An annotation that has no definition in scope has a null sym, in that case fall back
-        // to use the name used in the source. The sym can only be null in sources, so if sym is
-        // null then tree cannot be null.
-        val qualifiedName = annotation.sym()?.qualifiedName ?: tree!!.name().dotSeparatedName
-
-        val fileLocation =
-            annotation
-                .source()
-                ?.let { sourceFile -> sourceFileCache.turbineSourceFile(sourceFile) }
-                ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
-                ?: FileLocation.UNKNOWN
-
-        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) {
-            getAnnotationAttributes(annotation.values(), tree?.args())
-        }
-    }
-
-    /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
-    private fun getAnnotationAttributes(
-        attrs: ImmutableMap<String, Const>,
-        exprs: ImmutableList<Expression>?
-    ): List<AnnotationAttribute> {
-        val attributes = mutableListOf<AnnotationAttribute>()
-        if (exprs != null) {
-            for (exp in exprs) {
-                when (exp.kind()) {
-                    Tree.Kind.ASSIGN -> {
-                        exp as Assign
-                        val name = exp.name().value()
-                        val assignExp = exp.expr()
-                        attributes.add(
-                            DefaultAnnotationAttribute(
-                                name,
-                                createAttrValue(attrs[name]!!, assignExp)
-                            )
-                        )
-                    }
-                    else -> {
-                        val name = ANNOTATION_ATTR_VALUE
-                        val value =
-                            attrs[name]
-                                ?: (exp as? Literal)?.value()
-                                    ?: error(
-                                    "Cannot find value for default 'value' attribute from $exp"
-                                )
-                        attributes.add(
-                            DefaultAnnotationAttribute(name, createAttrValue(value, exp))
-                        )
-                    }
-                }
-            }
-        } else {
-            for ((name, value) in attrs) {
-                attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value, null)))
-            }
-        }
-        return attributes
-    }
-
-    private fun createAttrValue(const: Const, expr: Expression?): AnnotationAttributeValue {
-        if (const.kind() == Kind.ARRAY) {
-            const as ArrayInitValue
-            if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
-                // This is case where defined type is array type but provided attribute value is
-                // single non-array element
-                // For e.g. @Anno(5) where Anno is @interfacce Anno {int [] value()}
-                val constLiteral = const.elements().single()
-                return DefaultAnnotationSingleAttributeValue(
-                    { TurbineValue(constLiteral, expr).getSourceForAnnotationValue() },
-                    { constLiteral.underlyingValue }
-                )
-            }
-            return DefaultAnnotationArrayAttributeValue(
-                { TurbineValue(const, expr).getSourceForAnnotationValue() },
-                { const.elements().map { createAttrValue(it, null) } }
-            )
-        }
-        return DefaultAnnotationSingleAttributeValue(
-            { TurbineValue(const, expr).getSourceForAnnotationValue() },
-            { const.underlyingValue }
-        )
     }
 
     private fun createTypeParameters(
