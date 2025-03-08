@@ -150,11 +150,8 @@ internal class TurbineCodebaseInitialiser(
 
     private lateinit var index: TopLevelIndex
 
-    /** Map between Class declaration and the corresponding source CompUnit */
-    private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf()
-
     /** Caches [TurbineSourceFile] instances. */
-    private val sourceFileCache = TurbineSourceFileCache(codebase)
+    private lateinit var sourceFileCache: TurbineSourceFileCache
 
     private val globalTypeItemFactory = TurbineTypeItemFactory(this, TypeParameterScope.empty)
 
@@ -261,8 +258,12 @@ internal class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        // Split all the units into package-info.java units and normal class units.
-        val (packageInfoUnits, classUnits) = allUnits.partition { it.isPackageInfo() }
+        // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
+        // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
+        sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
+
+        // Find the package-info.java units.
+        val packageInfoUnits = allUnits.filter { it.isPackageInfo() }
 
         // Split the map from ClassSymbol to SourceTypeBoundClass into separate package-info and
         // normal classes.
@@ -287,20 +288,11 @@ internal class TurbineCodebaseInitialiser(
                 val fileLocation = FileLocation.forFile(file)
                 val comment = getHeaderComments(source).toItemDocumentationFactory()
 
-                // Create a `TurbineSourceFile` for this unit. It is not used here but is used when
-                // creating annotations below.
-                sourceFileCache.createTurbineSourceFile(unit)
                 val annotations = createAnnotations(sourceTypeBoundClass.annotations())
 
                 val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
-
-        // Create a mapping between all the top level classes and their containing `CompUnit` so
-        // that the latter can be looked up in createClass to create a TurbineSourceFile.
-        for (unit in classUnits) {
-            unit.decls().forEach { decl -> classSourceMap[decl] = unit }
-        }
 
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
         // the command line as only those classes can contribute directly to the API.
@@ -622,9 +614,8 @@ internal class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         origin: ClassOrigin,
     ): ClassItem {
-        val decl = (typeBoundClass as? SourceTypeBoundClass)?.decl()
-
-        val isTopClass = typeBoundClass.owner() == null
+        val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
+        val decl = sourceTypeBoundClass?.decl()
 
         // Get the package item
         val pkgName = classSymbol.dotSeparatedPackageName
@@ -632,8 +623,8 @@ internal class TurbineCodebaseInitialiser(
 
         // Create the sourcefile
         val sourceFile =
-            if (isTopClass && decl != null) {
-                classSourceMap[decl]?.let { sourceFileCache.createTurbineSourceFile(it) }
+            if (sourceTypeBoundClass != null) {
+                sourceFileCache.turbineSourceFile(sourceTypeBoundClass.source())
             } else null
         val fileLocation =
             when {

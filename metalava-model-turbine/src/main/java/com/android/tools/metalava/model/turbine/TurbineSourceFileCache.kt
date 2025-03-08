@@ -20,33 +20,32 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.tree.Tree.CompUnit
 
-/** Caches the [TurbineSourceFile]s by their path. */
-internal class TurbineSourceFileCache(private val codebase: DefaultCodebase) {
+/**
+ * Creates [TurbineSourceFile]s on demand for a [SourceFile] and caches the result for reuse.
+ *
+ * @param codebase the [DefaultCodebase] of which any created [TurbineSourceFile]s are part.
+ * @param units the [CompUnit]s from which the [TurbineSourceFile]s will be created.
+ */
+internal class TurbineSourceFileCache(
+    private val codebase: DefaultCodebase,
+    units: List<CompUnit>,
+) {
+    /** Map from [SourceFile.path] to [CompUnit]. */
+    private val pathToCompUnit = units.associateBy { it.source().path() }
 
     /** Map from file path to the [TurbineSourceFile]. */
     private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
 
     /**
-     * Create a [TurbineSourceFile] for the specified [compUnit].
+     * Get the [TurbineSourceFile] for a [SourceFile].
      *
-     * This may be called multiple times for the same [compUnit] in which case it will return the
-     * same [TurbineSourceFile]. It will throw an exception if two [CompUnit]s have the same path.
-     */
-    internal fun createTurbineSourceFile(compUnit: CompUnit): TurbineSourceFile {
-        val path = compUnit.source().path()
-        val existing = turbineSourceFiles[path]
-        if (existing != null && existing.compUnit != compUnit) {
-            error("duplicate source file found for $path")
-        }
-        return TurbineSourceFile(codebase, compUnit).also { turbineSourceFiles[path] = it }
-    }
-
-    /**
-     * Get the [TurbineSourceFile] for a [SourceFile], failing if it could not be found.
-     *
-     * A [TurbineSourceFile] must be created by [createTurbineSourceFile] before calling this.
+     * If none exists then find the [CompUnit] for [sourceFile] by [SourceFile.path], failing if it
+     * could not be found. Then create a [TurbineSourceFile] from that, cache it for future use and
+     * return it.
      */
     internal fun turbineSourceFile(sourceFile: SourceFile): TurbineSourceFile =
-        turbineSourceFiles[sourceFile.path()]
-            ?: error("unrecognized source file: ${sourceFile.path()}")
+        turbineSourceFiles.computeIfAbsent(sourceFile.path()) { path ->
+            val unit = pathToCompUnit[path] ?: error("cannot find CompUnit for $path")
+            TurbineSourceFile(codebase, unit)
+        }
 }
