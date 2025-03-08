@@ -153,6 +153,9 @@ internal class TurbineCodebaseInitialiser(
     /** Map between Class declaration and the corresponding source CompUnit */
     private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf()
 
+    /** Caches [TurbineSourceFile] instances. */
+    private val sourceFileCache = TurbineSourceFileCache(codebase)
+
     private val globalTypeItemFactory = TurbineTypeItemFactory(this, TypeParameterScope.empty)
 
     /** Creates [Item] instances for [codebase]. */
@@ -286,7 +289,7 @@ internal class TurbineCodebaseInitialiser(
 
                 // Create a `TurbineSourceFile` for this unit. It is not used here but is used when
                 // creating annotations below.
-                createTurbineSourceFile(unit)
+                sourceFileCache.createTurbineSourceFile(unit)
                 val annotations = createAnnotations(sourceTypeBoundClass.annotations())
 
                 val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
@@ -406,33 +409,6 @@ internal class TurbineCodebaseInitialiser(
             )
         }
     }
-
-    /** Map from file path to the [TurbineSourceFile]. */
-    private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
-
-    /**
-     * Create a [TurbineSourceFile] for the specified [compUnit].
-     *
-     * This may be called multiple times for the same [compUnit] in which case it will return the
-     * same [TurbineSourceFile]. It will throw an exception if two [CompUnit]s have the same path.
-     */
-    private fun createTurbineSourceFile(compUnit: CompUnit): TurbineSourceFile {
-        val path = compUnit.source().path()
-        val existing = turbineSourceFiles[path]
-        if (existing != null && existing.compUnit != compUnit) {
-            error("duplicate source file found for $path")
-        }
-        return TurbineSourceFile(codebase, compUnit).also { turbineSourceFiles[path] = it }
-    }
-
-    /**
-     * Get the [TurbineSourceFile] for a [SourceFile], failing if it could not be found.
-     *
-     * A [TurbineSourceFile] must be created by [createTurbineSourceFile] before calling this.
-     */
-    private fun turbineSourceFile(sourceFile: SourceFile): TurbineSourceFile =
-        turbineSourceFiles[sourceFile.path()]
-            ?: error("unrecognized source file: ${sourceFile.path()}")
 
     /** Check if this is for a `package-info.java` file or not. */
     private fun CompUnit.isPackageInfo() =
@@ -637,8 +613,8 @@ internal class TurbineCodebaseInitialiser(
 
         // Create the sourcefile
         val sourceFile =
-            if (isTopClass && typeBoundClass is SourceTypeBoundClass) {
-                classSourceMap[typeBoundClass.decl()]?.let { createTurbineSourceFile(it) }
+            if (isTopClass && decl != null) {
+                classSourceMap[decl]?.let { sourceFileCache.createTurbineSourceFile(it) }
             } else null
         val fileLocation =
             when {
@@ -748,7 +724,7 @@ internal class TurbineCodebaseInitialiser(
         val fileLocation =
             annotation
                 .source()
-                ?.let { sourceFile -> turbineSourceFile(sourceFile) }
+                ?.let { sourceFile -> sourceFileCache.turbineSourceFile(sourceFile) }
                 ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
                 ?: FileLocation.UNKNOWN
 
