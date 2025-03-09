@@ -305,13 +305,42 @@ internal class TurbineCodebaseInitialiser(
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
         // the command line as only those classes can contribute directly to the API.
         val commandLineSourceClasses =
-            allSourceClasses.filter { (_, typeBoundClass) ->
-                val unit = classSourceMap[typeBoundClass.decl()]
-                unit !in extraUnits
-            }
+            topLevelAccessibleCommandLineClasses(allSourceClasses, commandLineSources)
 
         createAllPackages(packageDocs)
-        createAllClasses(commandLineSourceClasses, apiPackages)
+        createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+    }
+
+    /**
+     * Compute the set of accessible, top level classes that were specified on the command line.
+     *
+     * @param allSourceClasses all the [SourceTypeBoundClass]s found during binding, includes those
+     *   from the source path as well as those whose containing file was provided on the command
+     *   line.
+     * @param commandLineSources the list of source [File]s provided on the command line.
+     */
+    private fun topLevelAccessibleCommandLineClasses(
+        allSourceClasses: Map<ClassSymbol, SourceTypeBoundClass>,
+        commandLineSources: List<File>
+    ): Map<ClassSymbol, SourceTypeBoundClass> {
+        // The set of paths supplied on the command line.
+        val commandLinePaths = commandLineSources.map { it.path }.toSet()
+
+        // Get the map from ClassSymbol to SourceTypeBoundClass for only the accessible, top level
+        // classes provided on the command line as only those classes (and their nested classes) can
+        // contribute directly to the API.
+        return allSourceClasses.filter { (_, sourceTypeBoundClass) ->
+            // Ignore nested classes, they will be created as part of the construction of their
+            // containing class.
+            if (sourceTypeBoundClass.owner() != null) return@filter false
+
+            // Ignore inaccessible classes.
+            if (!sourceTypeBoundClass.isAccessible) return@filter false
+
+            // Ignore classes whose paths were not specified on the command line.
+            val path = sourceTypeBoundClass.source().path()
+            path in commandLinePaths
+        }
     }
 
     /**
@@ -419,22 +448,12 @@ internal class TurbineCodebaseInitialiser(
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
 
-    private fun createAllClasses(
+    private fun createAllCommandLineClasses(
         sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
         apiPackages: PackageFilter?,
     ) {
         // Iterate over all the classes in the sources.
         for ((classSymbol, sourceBoundClass) in sourceClassMap) {
-            // Ignore nested classes, they will be created when the outer class is created.
-            if (sourceBoundClass.owner() != null) {
-                continue
-            }
-
-            // Ignore inaccessible classes.
-            if (!sourceBoundClass.isAccessible) {
-                continue
-            }
-
             // If a package filter is supplied then ignore any classes that do not match it.
             if (apiPackages != null) {
                 val packageName = classSymbol.dotSeparatedPackageName
