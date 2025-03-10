@@ -392,7 +392,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `showAnnotation with parameters`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(

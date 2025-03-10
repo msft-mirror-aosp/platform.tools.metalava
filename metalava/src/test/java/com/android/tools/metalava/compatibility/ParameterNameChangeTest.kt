@@ -85,7 +85,7 @@ class ParameterNameChangeTest : DriverTest() {
                 """
                     src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
                 """,
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
                     // Signature format: 4.0

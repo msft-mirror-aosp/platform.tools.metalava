@@ -158,7 +158,7 @@ class NullnessCompatibilityTest : DriverTest() {
                     src/test/pkg/Outer.kt:8: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
                     src/test/pkg/Outer.kt:9: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
                 """,
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
                     // Signature format: 4.0

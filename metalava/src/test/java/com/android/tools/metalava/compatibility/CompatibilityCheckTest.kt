@@ -1787,7 +1787,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin extensions`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -1837,7 +1837,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin type bounds`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """

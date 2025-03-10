@@ -78,7 +78,7 @@ class ApiFileTest : DriverTest() {
         // static method in interface is not overridable.
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -102,7 +102,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public interface Foo {
                     method public static void sayHello();
-                    field @NonNull public static final test.pkg.Foo.Companion Companion;
+                    field public static final test.pkg.Foo.Companion Companion;
                     field public static final int answer = 42; // 0x2a
                   }
                   public static final class Foo.Companion {
@@ -293,7 +293,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Basic Kotlin class`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -336,15 +336,15 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(@NonNull String property1 = "Default Value", int arg2);
-                    method @NonNull public String getProperty1();
-                    method @Nullable public String getProperty2();
+                    ctor public Kotlin(optional String property1, int arg2);
+                    method public String getProperty1();
+                    method public String? getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@Nullable String);
-                    property @NonNull public String property1;
-                    property @Nullable public String property2;
+                    method public void setProperty2(String?);
+                    property public String property1;
+                    property public String? property2;
                     property public int someField2;
-                    field @NonNull public static final test.pkg.Kotlin.Companion Companion;
+                    field public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
@@ -352,7 +352,7 @@ class ApiFileTest : DriverTest() {
                     property public static int MY_CONST;
                   }
                   public final class KotlinKt {
-                    method @NonNull public static inline operator String component1(@NonNull String);
+                    method public static inline operator String component1(String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
                     property public static inline boolean long.isSrgb;
@@ -360,9 +360,9 @@ class ApiFileTest : DriverTest() {
                   }
                   public class Parent {
                     ctor public Parent();
-                    method @Nullable public String method();
-                    method @Nullable public String method2(boolean value, @Nullable Boolean value);
-                    method public int method3(@Nullable Integer value, int value2);
+                    method public String? method();
+                    method public String? method2(boolean value, Boolean? value);
+                    method public int method3(Integer? value, int value2);
                   }
                 }
                 """
@@ -373,7 +373,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -402,11 +402,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
+                    method public final <T> T! getSystemService(Class<T!>!);
                   }
                   public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
+                    method public static inline <reified T> T! systemService1(test.pkg.Context);
+                    method public static inline String! systemService2(test.pkg.Context);
                   }
                 }
                 """
@@ -417,7 +417,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -445,8 +445,8 @@ class ApiFileTest : DriverTest() {
                     method public static inline <T> T inlineNoReified(T t);
                     method public static inline <reified T> void inlineReified(T t);
                     method public static inline <reified T> void inlineReifiedExtension(T, T t);
-                    method @NonNull public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(@NonNull T[] t);
-                    method @NonNull public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(@NonNull java.util.List<? extends T> t);
+                    method public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(T[] t);
+                    method public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(java.util.List<? extends T> t);
                     method public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
@@ -458,7 +458,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Suspend functions`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -476,9 +476,9 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method @Nullable public static suspend inline Object hello(int foo, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method @Nullable public static suspend Object hello(@NonNull String, int foo = 0, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method @Nullable public static suspend Object helloTwoContinuations(@NonNull kotlin.coroutines.Continuation<java.lang.Object> myContinuation, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend inline Object? hello(int foo, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend Object? hello(String, optional int foo, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend Object? helloTwoContinuations(kotlin.coroutines.Continuation<java.lang.Object> myContinuation, kotlin.coroutines.Continuation<? super kotlin.Unit>);
                   }
                 }
                 """
@@ -2914,7 +2914,7 @@ class ApiFileTest : DriverTest() {
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -2933,7 +2933,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class -Foo {
-                    method public static inline void printHelloWorld(@NonNull String);
+                    method public static inline void printHelloWorld(String);
                   }
                 }
                 """
@@ -4924,7 +4924,7 @@ class ApiFileTest : DriverTest() {
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         // Regression test for http://b/219792969
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4956,12 +4956,11 @@ class ApiFileTest : DriverTest() {
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
-                // Signature format: 2.0
                 package test.pkg {
                   public final class TestKt {
                     method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated @NonNull public static String returnsNonNull();
-                    method @Deprecated @NonNull public static String returnsNonNullImplicitly();
+                    method @Deprecated public static String returnsNonNull();
+                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
