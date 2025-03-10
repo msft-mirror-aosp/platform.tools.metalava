@@ -404,4 +404,164 @@ class KotlinInteropChecksTest : DriverTest() {
                 ),
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check usage of JvmStatic on hidden property`() {
+        // b/401569415 -- the warning does not make sense for hidden properties
+        check(
+            apiLint = "",
+            expectedIssues =
+                "src/test/pkg/Foo.kt:6: warning: Companion object constants like hiddenProperty should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object {
+                                    /** @hide */
+                                    @JvmStatic
+                                    val hiddenProperty = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check usage of JvmStatic on property of value class type`() {
+        // b/401569415 -- JvmField cannot be used on properties of value class type
+        check(
+            apiLint = "",
+            expectedIssues =
+                """
+                src/test/pkg/IntValue.kt:6: warning: Companion object constants like valueClassTypePropertyJvmStatic should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/IntValue.kt:8: warning: Companion object constants like valueClassTypePropertyNoAnnotation should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                """,
+            extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline
+                            value class IntValue(val value: Int) {
+                                companion object {
+                                    @JvmStatic
+                                    val valueClassTypePropertyJvmStatic = IntValue(0)
+
+                                    val valueClassTypePropertyNoAnnotation = IntValue(0)
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check methods and properties in a named companion object should be annotated JvmStatic`() {
+        check(
+            apiLint = "",
+            // TODO: this is inconsistent between methods and properties
+            expectedIssues =
+                "src/test/pkg/Foo.kt:9: warning: Companion object constants like missingJvmField should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object FooCompanion {
+                                    fun missingJvmStatic() = Unit
+
+                                    @JvmStatic
+                                    fun ok() = Unit
+
+                                    val missingJvmField = 0
+
+                                    @JvmField
+                                    val ok = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check interface companion properties`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                """
+                src/test/pkg/Foo.kt:8: warning: Companion object constants like jvmStaticProperty should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object constants like unannotatedProperty should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            interface Foo {
+                                companion object {
+                                    // Cannot use @JvmField here, causes a compiler error:
+                                    // JvmField could be applied only if all interface companion
+                                    // properties are 'public final val' with '@JvmField' annotation
+                                    @JvmStatic
+                                    val jvmStaticProperty = 0
+
+                                    val unannotatedProperty = 0
+
+                                    private val privateProperty = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check companion property without backing field`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                """
+                src/test/pkg/Foo.kt:7: warning: Companion object constants like jvmStaticPropertyWithoutBackingField should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object constants like unannotatedPropertyWithoutBackingField should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                """,
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object {
+                                    // Cannot use @JvmField here: this annotation is not applicable
+                                    // to target 'member property without backing field or delegate'
+                                    @JvmStatic
+                                    val jvmStaticPropertyWithoutBackingField
+                                        get() = 0
+
+                                    val unannotatedPropertyWithoutBackingField
+                                        get() = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }
