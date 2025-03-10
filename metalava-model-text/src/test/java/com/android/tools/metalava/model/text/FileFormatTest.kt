@@ -495,7 +495,7 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.JAVA,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                     kotlinStyleNulls = false,
                 ),
         )
@@ -515,7 +515,7 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.JAVA,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                     kotlinStyleNulls = true,
                 ),
         )
@@ -539,20 +539,20 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + concise-default-values=no,language=kotlin)`() {
+    fun `Check header and specifier (v5 + include-default-parameter-values=no,language=kotlin)`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
                 // - language=kotlin
-                // - concise-default-values=no
+                // - include-default-parameter-values=no
 
             """,
-            specifier = "5.0:language=kotlin,concise-default-values=no",
+            specifier = "5.0:language=kotlin,include-default-parameter-values=no",
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.KOTLIN,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                 ),
         )
     }

@@ -110,8 +110,8 @@ class SignatureFormatOptions(
                         v4 - Adds support for using kotlin style syntax to embed nullability
                         information instead of using explicit and verbose @NonNull and @Nullable
                         annotations. This can be used for Java files and Kotlin files alike. Also,
-                        adds support for using concise default values in parameters. Instead
-                        of specifying the actual default values it just uses the `optional` keyword.
+                        adds support for recording that a parameter has a default value by using the
+                        pseudo-modifier `optional`.
                     """
                         .trimIndent(),
             )

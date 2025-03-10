@@ -144,153 +144,6 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Default Values and Names in Kotlin`() {
-        // Kotlin code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    import some.other.pkg.Constants.Misc.SIZE
-                    import android.graphics.Bitmap
-                    import android.view.View
-
-                    class Foo {
-                        fun method1(myInt: Int = 42,
-                            myInt2: Int? = null,
-                            myByte: Int = 2 * 21,
-                            str: String = "hello " + "world",
-                            vararg args: String) { }
-
-                        fun method2(myInt: Int, myInt2: Int = (2*myInt) * SIZE) { }
-
-                        fun method3(str: String, myInt: Int, myInt2: Int = double(myInt) + str.length) { }
-
-                        fun emptyLambda(sizeOf: () -> Unit = {  }) {}
-
-                        fun View.drawToBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? = null
-
-                        companion object {
-                            fun double(myInt: Int) = 2 * myInt
-                            fun print(foo: Foo = Foo()) { println(foo) }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package some.other.pkg;
-                    /** @hide */
-                    public class Constants {
-                        public static class Misc {
-                            public static final int SIZE = 5;
-                        }
-                    }
-                    """
-                    ),
-                ),
-            api =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
-                    method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
-                    method public void method1(optional int myInt, optional Integer? myInt2, optional int myByte, optional String str, java.lang.String... args);
-                    method public void method2(int myInt, optional int myInt2);
-                    method public void method3(String str, int myInt, optional int myInt2);
-                    field public static final test.pkg.Foo.Companion Companion;
-                  }
-                  public static final class Foo.Companion {
-                    method public int double(int myInt);
-                    method public void print(optional test.pkg.Foo foo);
-                  }
-                }
-                """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Default Values in Kotlin for expressions`() {
-        // Testing trickier default values; regression test for problem
-        // observed in androidx.core.util with LruCache
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package androidx.core.util
-
-                    import android.util.LruCache
-
-                    inline fun <K : Any, V : Any> lruCache(
-                        maxSize: Int,
-                        crossinline sizeOf: (key: K, value: V) -> Int = { _, _ -> 1 },
-                        @Suppress("USELESS_CAST") // https://youtrack.jetbrains.com/issue/KT-21946
-                        crossinline create: (key: K) -> V? = { null as V? },
-                        crossinline onEntryRemoved: (evicted: Boolean, key: K, oldValue: V, newValue: V?) -> Unit =
-                            { _, _, _, _ -> }
-                    ): LruCache<K, V> {
-                        return object : LruCache<K, V>(maxSize) {
-                            override fun sizeOf(key: K, value: V) = sizeOf(key, value)
-                            override fun create(key: K) = create(key)
-                            override fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {
-                                onEntryRemoved(evicted, key, oldValue, newValue)
-                            }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package androidx.collection;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    import java.util.LinkedHashMap;
-                    import java.util.Locale;
-                    import java.util.Map;
-
-                    /** @hide */
-                    public class LruCache<K, V> {
-                        @Nullable
-                        protected V create(@NonNull K key) {
-                            return null;
-                        }
-
-                        protected int sizeOf(@NonNull K key, @NonNull V value) {
-                            return 1;
-                        }
-
-                        protected void entryRemoved(boolean evicted, @NonNull K key, @NonNull V oldValue,
-                                @Nullable V newValue) {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
-                ),
-            api =
-                """
-                // Signature format: 4.0
-                package androidx.core.util {
-                  public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V?> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved);
-                  }
-                }
-                """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `Basic Kotlin class`() {
         check(
             format = FileFormat.V4,
@@ -4374,7 +4227,7 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Concise default Values and Names in Kotlin`() {
+    fun `Default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
         check(
             format = FileFormat.V4,
@@ -4446,7 +4299,7 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Concise default Values in Kotlin for expressions`() {
+    fun `Default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
         // observed in androidx.core.util with LruCache
         check(

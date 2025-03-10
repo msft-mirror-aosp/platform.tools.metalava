@@ -609,7 +609,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 """
                     // Signature format: 5.0
                     // - language=kotlin
-                    // - concise-default-values=no
+                    // - include-default-parameter-values=no
                     // - kotlin-name-type-order=yes
                     package test.pkg {
                       public final class Foo {
@@ -673,7 +673,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 """
                     // Signature format: 5.0
                     // - language=kotlin
-                    // - concise-default-values=no
+                    // - include-default-parameter-values=no
                     // - kotlin-name-type-order=yes
                     package test.pkg {
                       public final class Foo {
@@ -712,7 +712,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 """
                     // Signature format: 5.0
                     // - language=kotlin
-                    // - concise-default-values=yes
+                    // - include-default-parameter-values=yes
                     // - kotlin-name-type-order=yes
                     package test.pkg {
                       public final class Foo {
