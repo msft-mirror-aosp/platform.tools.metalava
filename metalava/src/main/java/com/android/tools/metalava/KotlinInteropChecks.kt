@@ -135,51 +135,15 @@ class KotlinInteropChecks(val reporter: Reporter) {
     private fun ensureCompanionJvmStatic(method: MethodItem) {
         if (
             method.containingClass().simpleName() == "Companion" &&
-                method.isKotlin() &&
-                method.modifiers.isPublic()
+                // Properties will be checked through [ensureCompanionJvmField]
+                !method.isKotlinProperty() &&
+                method.modifiers.findAnnotation(JVM_STATIC) == null
         ) {
-            if (method.isKotlinProperty()) {
-                /* Not yet working; can't find the @JvmStatic/@JvmField in the AST
-                // Only flag the read method, not the write method
-                if (method.name().startsWith("get")) {
-                    // Find the backing field; *that's* where the @JvmStatic/@JvmField annotations
-                    // are available (but the field itself is not visited since it is typically private
-                    // and therefore not part of the API visitor. Dip into Kotlin PSI to accurately
-                    // find the field name instead of guessing based on getter name.
-                    var field: FieldItem? = null
-                    val psi = method.psi()
-                    if (psi is KotlinUMethod) {
-                        val property = psi.sourcePsi as? KtProperty
-                        if (property != null) {
-                            val propertyName = property.name
-                            if (propertyName != null) {
-                                field = method.containingClass().containingClass()?.findField(propertyName)
-                            }
-                        }
-                    }
-
-                    if (field != null) {
-                        if (field.modifiers.findAnnotation(JVM_STATIC) != null) {
-                            reporter.report(
-                                Errors.MISSING_JVMSTATIC, method,
-                                "Companion object constants should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
-                            )
-                        } else if (field.modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
-                            reporter.report(
-                                Errors.MISSING_JVMSTATIC, method,
-                                "Companion object constants should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
-                            )
-                        }
-                    }
-                }
-                */
-            } else if (method.modifiers.findAnnotation(JVM_STATIC) == null) {
-                reporter.report(
-                    Issues.MISSING_JVMSTATIC,
-                    method,
-                    "Companion object methods like ${method.name()} should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions"
-                )
-            }
+            reporter.report(
+                Issues.MISSING_JVMSTATIC,
+                method,
+                "Companion object methods like ${method.name()} should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions"
+            )
         }
     }
 
