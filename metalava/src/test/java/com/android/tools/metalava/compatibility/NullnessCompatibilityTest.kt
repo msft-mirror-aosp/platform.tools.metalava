@@ -36,10 +36,10 @@ class NullnessCompatibilityTest : DriverTest() {
                     load-api.txt:5: error: Attempted to remove nullability from java.lang.String (was NONNULL) in parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
                     load-api.txt:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -52,7 +52,7 @@ class NullnessCompatibilityTest : DriverTest() {
                 """,
             signatureSource =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -74,10 +74,10 @@ class NullnessCompatibilityTest : DriverTest() {
                 """
                     src/test/pkg/test.kt:2: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public final class TestKt {
                         method public static void fun1(String? str1, String str2, java.util.List<java.lang.String!> list);
@@ -161,7 +161,7 @@ class NullnessCompatibilityTest : DriverTest() {
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public final class Outer {
                         ctor public Outer();

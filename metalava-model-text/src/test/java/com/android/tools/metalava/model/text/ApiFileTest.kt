@@ -572,7 +572,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         runSignatureTest(
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                         public abstract class Foo {
                             field public static final int? FIELD1 = 0;

@@ -45,7 +45,7 @@ Signature Format Output:
 
                                              See `metalava help signature-file-formats` for more information on the
                                              properties.
-  --format [v2|v3|v4|latest|recommended|<specifier>]
+  --format [v2|v4|latest|recommended|<specifier>]
                                              Specifies the output signature file format.
 
                                              The preferred way of specifying the format is to use one of the following
@@ -70,12 +70,11 @@ Signature Format Output:
 
                                              v2 - The main version used in Android.
 
-                                             v3 - Adds support for using kotlin style syntax to embed nullability
+                                             v4 - Adds support for using kotlin style syntax to embed nullability
                                              information instead of using explicit and verbose @NonNull and @Nullable
-                                             annotations. This can be used for Java files and Kotlin files alike.
-
-                                             v4 - Adds support for using concise default values in parameters. Instead
-                                             of specifying the actual default values it just uses the `default` keyword.
+                                             annotations. This can be used for Java files and Kotlin files alike. Also,
+                                             adds support for using concise default values in parameters. Instead of
+                                             specifying the actual default values it just uses the `optional` keyword.
                                              (default: recommended)
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
@@ -106,16 +105,16 @@ class SignatureFormatOptionsTest :
         runTest("--format=v1") {
             assertThat(stderr)
                 .startsWith(
-                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', '5.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
+                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '4.0', '5.0', 'v2', 'v4', 'latest', 'recommended'"""
                 )
         }
     }
 
     @Test
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
-        val path = source("api.txt", "// Signature format: 3.0\n").createFile(temporaryFolder.root)
+        val path = source("api.txt", "// Signature format: 4.0\n").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--format", "v4") {
-            assertThat(options.fileFormat).isEqualTo(FileFormat.V3)
+            assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }
 

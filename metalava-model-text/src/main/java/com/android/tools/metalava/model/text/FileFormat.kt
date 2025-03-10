@@ -253,39 +253,22 @@ data class FileFormat(
                     ```
                 """,
         ),
-        V3(
-            versionNumber = "3.0",
-            legacyCommandLineAlias = "v3",
+        V4(
+            versionNumber = "4.0",
+            legacyCommandLineAlias = "v4",
             factory = { version ->
                 V2.defaults.copy(
                     version = version,
                     // This adds kotlinStyleNulls = true
                     kotlinStyleNulls = true,
-                )
-            },
-            help =
-                """
-                    This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
-                    ```
-                    + kotlin-style-nulls = yes
-                    + concise-default-values = no
-                    ```
-                """,
-        ),
-        V4(
-            versionNumber = "4.0",
-            legacyCommandLineAlias = "v4",
-            factory = { version ->
-                V3.defaults.copy(
-                    version = version,
                     // This adds conciseDefaultValues = true
                     conciseDefaultValues = true,
                 )
             },
             help =
                 """
-                    This is `3.0` plus `concise-default-values = yes` giving the following
-                    properties:
+                    This is `2.0` plus `kotlin-style-nulls = yes` and `concise-default-values = yes`
+                    giving the following properties:
                     ```
                     + kotlin-style-nulls = yes
                     + concise-default-values = yes
@@ -497,9 +480,6 @@ data class FileFormat(
 
         // The defaults associated with version 2.0.
         val V2 = Version.V2.defaults
-
-        // The defaults associated with version 3.0.
-        val V3 = Version.V3.defaults
 
         // The defaults associated with version 4.0.
         val V4 = Version.V4.defaults

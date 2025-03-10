@@ -140,12 +140,8 @@ Usage: metalava help signature-file-formats
   + kotlin-style-nulls = no
   + concise-default-values = no
 
-  * `3.0` (--format=v3) - This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
-
-  + kotlin-style-nulls = yes
-  + concise-default-values = no
-
-  * `4.0` (--format=v4) - This is `3.0` plus `concise-default-values = yes` giving the following properties:
+  * `4.0` (--format=v4) - This is `2.0` plus `kotlin-style-nulls = yes` and `concise-default-values = yes` giving the
+  following properties:
 
   + kotlin-style-nulls = yes
   + concise-default-values = yes

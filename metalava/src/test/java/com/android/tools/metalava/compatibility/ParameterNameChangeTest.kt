@@ -88,7 +88,7 @@ class ParameterNameChangeTest : DriverTest() {
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public final class KotlinClass {
                         ctor public KotlinClass();
