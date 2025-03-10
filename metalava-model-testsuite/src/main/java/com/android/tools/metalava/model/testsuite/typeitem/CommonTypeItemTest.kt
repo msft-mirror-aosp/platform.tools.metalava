@@ -1004,6 +1004,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             inputSet(
                 signature(
+                    "api1.txt",
                     """
                         // Signature format: 3.0
                         package test.pkg1 {
@@ -1020,6 +1021,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     """
                 ),
                 signature(
+                    "api2.txt",
                     """
                         // Signature format: 3.0
                         package test.pkg {

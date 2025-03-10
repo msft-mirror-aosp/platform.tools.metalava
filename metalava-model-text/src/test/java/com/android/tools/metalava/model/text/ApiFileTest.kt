@@ -388,6 +388,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test split across multiple files, middle missing`() {
         checkPackageStructureCreatedCorrectly(
             signature(
+                "api1.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -397,6 +398,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api2.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -412,6 +414,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test split across multiple files`() {
         checkPackageStructureCreatedCorrectly(
             signature(
+                "api1.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -421,6 +424,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api2.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -430,6 +434,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api3.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
