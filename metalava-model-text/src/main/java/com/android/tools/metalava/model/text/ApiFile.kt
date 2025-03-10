@@ -262,6 +262,12 @@ private constructor(
      */
     private lateinit var apiVariant: ApiVariant
 
+    /**
+     * True if this is appending information from one signature file to a [Codebase] created from
+     * another signature file.
+     */
+    private var appending: Boolean = false
+
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
@@ -452,6 +458,9 @@ private constructor(
                 return
             }
         }
+
+        // The behavior is slightly different when appending to an existing Codebase.
+        this.appending = appending
 
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
@@ -1194,9 +1203,14 @@ private constructor(
 
         method.markForMainApiSurface()
 
-        // If the method already exists in the class item because it was defined in a previous
-        // signature file then replace it with this one, otherwise just add this method.
-        cl.replaceOrAddMethod(method)
+        if (appending) {
+            // If the method already exists in the class item because it was defined in a previous
+            // signature file then replace it with this one, otherwise just add this method.
+            cl.replaceOrAddMethod(method)
+        } else {
+            // Just add the method to the class.
+            cl.addMethod(method)
+        }
     }
 
     private fun parseField(

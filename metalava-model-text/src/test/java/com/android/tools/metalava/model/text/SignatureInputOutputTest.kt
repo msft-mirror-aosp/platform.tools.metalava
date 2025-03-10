@@ -861,6 +861,21 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, FileFormat.V5)
     }
 
+    @Test
+    fun `Check loading signature file with duplicate method signatures`() {
+        val api =
+            """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void method(int);
+                    method public void method(int);
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)
