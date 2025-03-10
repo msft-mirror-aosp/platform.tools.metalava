@@ -1818,8 +1818,8 @@ private constructor(
                         // It has neither an optional keyword nor an actual default value.
                         DefaultValue.NONE
                     else ->
-                        // It has an actual default value.
-                        DefaultValue.fixedDefaultValue(defaultValueString)
+                        // It has an actual default value but all that matters is it exists.
+                        DefaultValue.UNKNOWN
                 }
             parameters.add(
                 ParameterInfo(

@@ -308,7 +308,6 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
 
             assertThat(param.hasDefaultValue()).isTrue()
-            assertThat(param.isDefaultValueKnown()).isFalse()
         }
     }
 
