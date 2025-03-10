@@ -171,7 +171,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 companionContainer?.isInterface() != true &&
                 // @JvmField can only be used when the property has a backing field. The backing
                 // field is present on the containing class of the companion.
-                companionContainer?.findField(property.name()) != null
+                companionContainer?.findField(property.name()) != null &&
+                // The compiler does not allow @JvmField on value class type properties.
+                !property.type().isValueClassType()
         ) {
             if (property.modifiers.findAnnotation(JVM_STATIC) != null) {
                 reporter.report(

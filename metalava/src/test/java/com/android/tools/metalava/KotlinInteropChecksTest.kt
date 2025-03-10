@@ -437,11 +437,7 @@ class KotlinInteropChecksTest : DriverTest() {
         // b/401569415 -- JvmField cannot be used on properties of value class type
         check(
             apiLint = "",
-            expectedIssues =
-                """
-                src/test/pkg/IntValue.kt:6: warning: Companion object constants like valueClassTypePropertyJvmStatic should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/IntValue.kt:8: warning: Companion object constants like valueClassTypePropertyNoAnnotation should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                """,
+            expectedIssues = "",
             extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
             sourceFiles =
                 arrayOf(
