@@ -868,11 +868,11 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
-                    ctor public Foo(String? s1 = null);
+                    ctor public Foo(optional String? s1);
                     method public final void method1(boolean b, String? s1);
                     method public final void method2(boolean b, String? s1);
-                    method public final void method3(boolean b, String? s1 = "null");
-                    method public final void method4(boolean b, String? s1 = "null");
+                    method public final void method3(boolean b, optional String? s1);
+                    method public final void method4(boolean b, optional String? s1);
                   }
                 }
                 """,

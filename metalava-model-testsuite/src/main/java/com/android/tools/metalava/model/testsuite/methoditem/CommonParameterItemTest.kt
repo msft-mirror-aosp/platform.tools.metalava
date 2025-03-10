@@ -643,39 +643,6 @@ class CommonParameterItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test null default value`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 5.0
-                    // - language=kotlin
-                    // - include-default-parameter-values=no
-                    // - kotlin-name-type-order=yes
-                    package test.pkg {
-                      public final class Foo {
-                        ctor public Foo();
-                        method public method(s: String? = null): void;
-                      }
-                    }
-                """
-            ),
-            kotlin(
-                """
-                    package test.pkg
-
-                    class Foo {
-                        fun method(s: String? = null) {}
-                    }
-                """
-            ),
-        ) {
-            val parameter =
-                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
-            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
-        }
-    }
-
-    @Test
     fun `Test unknown default value`() {
         runCodebaseTest(
             // Neither Kotlin nor Java has a way to specify an unknown default property. Kotlin and

@@ -240,7 +240,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public void error(int p = "42", Integer int2 = "null", int p1 = "42", vararg String args);
+                    method public void error(optional int p, optional Integer int2, optional int p1, vararg String args);
                   }
                 }
                 """

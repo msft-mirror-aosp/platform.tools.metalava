@@ -1701,9 +1701,9 @@ private constructor(
                 return parameters
             }
 
-            // Each item can be
-            // optional annotations optional-modifiers type-with-use-annotations-and-generics
-            // optional-name optional-equals-default-value
+            // Each item can be:
+            //   optional-"optional" annotations optional-modifiers
+            //   type-with-use-annotations-and-generics optional-name
 
             // Used to represent the presence of a default value, instead of showing the entire
             // default value
@@ -1749,52 +1749,6 @@ private constructor(
                 }
             }
 
-            var defaultValueString: String? = null
-            if ("=" == token) {
-                if (hasOptionalKeyword) {
-                    throw ApiParseException(
-                        "cannot have both optional keyword and default value",
-                        tokenizer
-                    )
-                }
-                defaultValueString = tokenizer.requireToken(true)
-                val sb = StringBuilder(defaultValueString)
-                if (defaultValueString == "{") {
-                    var balance = 1
-                    while (balance > 0) {
-                        token = tokenizer.requireToken(parenIsSep = false, eatWhitespace = false)
-                        sb.append(token)
-                        if (token == "{") {
-                            balance++
-                        } else if (token == "}") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
-                        }
-                    }
-                    token = tokenizer.requireToken()
-                } else {
-                    var balance = if (defaultValueString == "(") 1 else 0
-                    while (true) {
-                        token = tokenizer.requireToken(parenIsSep = true, eatWhitespace = false)
-                        if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
-                            if (token.length > 1) {
-                                sb.append(token, 0, token.length - 1)
-                                token = token[token.length - 1].toString()
-                            }
-                            break
-                        }
-                        sb.append(token)
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                        }
-                    }
-                }
-                defaultValueString = sb.toString()
-            }
             when (token) {
                 "," -> {
                     token = tokenizer.requireToken()
@@ -1809,17 +1763,13 @@ private constructor(
 
             // Select the DefaultValue for the parameter.
             val defaultValue =
-                when {
-                    hasOptionalKeyword ->
-                        // It has an optional keyword, so it has a default value but the actual
-                        // value is not known.
-                        DefaultValue.UNKNOWN
-                    defaultValueString == null ->
-                        // It has neither an optional keyword nor an actual default value.
-                        DefaultValue.NONE
-                    else ->
-                        // It has an actual default value but all that matters is it exists.
-                        DefaultValue.UNKNOWN
+                if (hasOptionalKeyword) {
+                    // It has an optional keyword, so it has a default value but the actual value is
+                    // not known.
+                    DefaultValue.UNKNOWN
+                } else {
+                    // It does not have an optional keyword so it has no default value.
+                    DefaultValue.NONE
                 }
             parameters.add(
                 ParameterInfo(

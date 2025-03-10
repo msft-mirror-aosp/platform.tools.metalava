@@ -43,9 +43,9 @@ class NullnessCompatibilityTest : DriverTest() {
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
-                        method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
-                        method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                        method public void method3(String? str, int p, int int2 = double(int) + str.length);
+                        method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);
+                        method public void method2(int p, optional int int2);
+                        method public void method3(String? str, int p, optional int int2);
                         field public static final test.pkg.Foo.Companion! Companion;
                       }
                     }
@@ -56,9 +56,9 @@ class NullnessCompatibilityTest : DriverTest() {
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
-                        method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String! str = "hello world", java.lang.String... args);
-                        method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                        method public void method3(String str, int p, int int2 = double(int) + str.length);
+                        method public void method1(optional int p, optional Integer? int2, optional int p1, optional String! str, java.lang.String... args);
+                        method public void method2(int p, optional int int2);
+                        method public void method3(String str, int p, optional int int2);
                         field public static final test.pkg.Foo.Companion! Companion;
                       }
                     }
