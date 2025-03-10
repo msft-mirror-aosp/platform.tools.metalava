@@ -71,6 +71,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -418,6 +419,10 @@ private constructor(
             checkType(field.type(), field)
             kotlinInterop.checkField(field)
         }
+    }
+
+    override fun visitProperty(property: PropertyItem) {
+        reporter.withContext(property) { kotlinInterop.checkProperty(property) }
     }
 
     private fun checkType(type: TypeItem, item: Item) {

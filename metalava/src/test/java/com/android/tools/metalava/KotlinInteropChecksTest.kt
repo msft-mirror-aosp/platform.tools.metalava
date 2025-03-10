@@ -408,11 +408,10 @@ class KotlinInteropChecksTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check usage of JvmStatic on hidden property`() {
-        // b/401569415 -- the warning does not make sense for hidden properties
+        // Regression test for b/401569415 -- MissingJvmstatic should not apply to hidden properties
         check(
             apiLint = "",
-            expectedIssues =
-                "src/test/pkg/Foo.kt:6: warning: Companion object constants like hiddenProperty should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]",
+            expectedIssues = "",
             extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
             sourceFiles =
                 arrayOf(

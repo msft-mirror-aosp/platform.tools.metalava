@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -38,9 +39,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
         PsiEnvironmentManager.javaLanguageLevelFromString(options.javaLanguageLevelAsString)
 
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
-        if (isKotlin) {
-            field.ensureCompanionFieldJvmField()
-        }
         ensureFieldNameNotKeyword(field)
     }
 
@@ -60,6 +58,10 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (isKotlin) {
             disallowValueClasses(cls)
         }
+    }
+
+    fun checkProperty(property: PropertyItem) {
+        ensureCompanionJvmField(property)
     }
 
     private fun ensureExceptionsDocumented(method: MethodItem) {
@@ -176,6 +178,37 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     Issues.MISSING_JVMSTATIC,
                     method,
                     "Companion object methods like ${method.name()} should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions"
+                )
+            }
+        }
+    }
+
+    /**
+     * Warn if companion constants are not marked with @JvmField.
+     *
+     * Properties that we can expect to be constant (that is, declared via `val`, so they don't have
+     * a setter) but that aren't declared 'const' in a companion object should have @JvmField, and
+     * not have @JvmStatic.
+     *
+     * See https://developer.android.com/kotlin/interop#companion_constants
+     */
+    private fun ensureCompanionJvmField(property: PropertyItem) {
+        if (
+            property.containingClass().modifiers.isCompanion() &&
+                !property.modifiers.isConst() &&
+                property.setter == null
+        ) {
+            if (property.modifiers.findAnnotation(JVM_STATIC) != null) {
+                reporter.report(
+                    Issues.MISSING_JVMSTATIC,
+                    property,
+                    "Companion object constants like ${property.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
+                )
+            } else if (property.modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
+                reporter.report(
+                    Issues.MISSING_JVMSTATIC,
+                    property,
+                    "Companion object constants like ${property.name()} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
                 )
             }
         }
