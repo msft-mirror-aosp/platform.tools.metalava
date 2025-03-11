@@ -31,8 +31,13 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test super class and interface types of interface
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedValueTest
-  test[jar,AnnotationAttributeValue.toSource(),Basic.anAnnotationType]
-  test[source,AnnotationAttributeValue.toSource(),Basic.anAnnotationType]
-  test[source,AnnotationAttributeValue.toSource(),Basic.enumType]
-  test[source,AnnotationAttributeValue.toSource(),UsingConstants.stringType]
-  test[source,MethodItem.defaultValue(),AttributeDefaults.intTypeWithFieldConstant]
+  test[jar,AnnotationAttributeValue.toSource(),AnnotationTestClass.annotation_attr]
+  test[jar,AnnotationAttributeValue.toSource(),AnnotationTestClass.int_negative_attr]
+  test[jar,MethodItem.defaultValue(),AnnotationWithDefaults.annotation_attr]
+  test[source,AnnotationAttributeValue.toSource(),AnnotationTestClass.String_using_constant_attr]
+  test[source,AnnotationAttributeValue.toSource(),AnnotationTestClass.annotation_attr]
+  test[source,AnnotationAttributeValue.toSource(),AnnotationTestClass.enum_attr]
+  test[source,AnnotationAttributeValue.toSource(),AnnotationTestClass.int_negative_attr]
+  test[source,AnnotationAttributeValue.toSource(),AnnotationTestClass.int_positive_attr]
+  test[source,MethodItem.defaultValue(),AnnotationWithDefaults.String_using_constant_attr]
+  test[source,MethodItem.defaultValue(),AnnotationWithDefaults.annotation_attr]

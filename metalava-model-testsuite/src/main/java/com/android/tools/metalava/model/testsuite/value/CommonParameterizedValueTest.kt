@@ -26,6 +26,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
+import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
@@ -59,33 +61,44 @@ import org.junit.runners.Parameterized
  *
  * The set of files needed by a [TestClass] are encapsulated in a [TestClass.testFileSet] which
  * tracks dependencies.
+ *
+ * The set of tests to run is defined by a list of [ValueExample]s which provide the necessary
+ * information to construct [TestClass]es and the [TestCase]s that run against them. Each
+ * [ValueExample] is tested in all possible [ValueUseSite] (although some examples do not work on
+ * some sites). The aim is to create an exhaustive set of tests that first map out the existing
+ * inconsistencies and eventually ensure consistent behavior.
  */
 class CommonParameterizedValueTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
 
-    @Parameterized.Parameter(1) lateinit var testCase: TestCase
+    @Parameterized.Parameter(1) lateinit var testCase: TestCase<*>
 
     /** Produces a [Codebase] to test and runs the test on it. */
-    sealed class CodebaseProducer {
+    sealed class CodebaseProducer(val kind: ProducerKind) {
         /**
          * Produce a [Codebase] and run [test] on it.
          *
          * Run with [CommonParameterizedValueTest] as the receiver so it can access
          * [runSourceCodebaseTest].
          */
-        abstract fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase)
+        abstract fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase<*>)
 
-        protected fun CodebaseContext.runTestCase(testCase: TestCase) {
+        protected fun CodebaseContext.runTestCase(testCase: TestCase<*>) {
             val codebaseProducerContext = CodebaseProducerContext(this, this@CodebaseProducer)
             codebaseProducerContext.apply { testCase.apply { checkCodebase() } }
         }
+
+        final override fun toString() = kind.toString().lowercase()
     }
 
     /**
      * Base of classes that perform a specific test on a [Codebase] produced by [CodebaseProducer].
      */
-    sealed class TestCase(
+    sealed class TestCase<T>(
+        /** The name of the test case. */
+        private val testCaseName: String,
+
         /**
          * The test class against which the test case will be run.
          *
@@ -100,7 +113,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
         val memberName: String,
 
         /** The expectations of the test case. */
-        val expectation: ProducerAwareExpectation,
+        val expectation: Expectation<T>,
     ) : Assertions {
         abstract fun CodebaseProducerContext.checkCodebase()
 
@@ -113,6 +126,8 @@ class CommonParameterizedValueTest : BaseModelTest() {
         protected fun CodebaseProducerContext.classForTestCase(): ClassItem {
             return retrieveClass("test.pkg.${testClass.className}")
         }
+
+        final override fun toString() = "$testCaseName,${testClass.className}.$memberName"
     }
 
     /**
@@ -134,89 +149,6 @@ class CommonParameterizedValueTest : BaseModelTest() {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
 
-        /** Builder for a list of [TestCase]s. */
-        class TestCasesBuilder(private val testCases: MutableList<TestCase>) {
-            /** Build [TestCase]s for [testClass] by invoking [body]. */
-            fun forTestClass(testClass: TestClass, body: ClassTestCaseBuilder.() -> Unit) {
-                val builder = ClassTestCaseBuilder(testClass)
-                builder.body()
-            }
-
-            /** Builder for [TestCase]s for [testClass]. */
-            inner class ClassTestCaseBuilder(private val testClass: TestClass) {
-                /**
-                 * Build [TestCase]s for annotation attribute named [attributeName] on [testClass].
-                 */
-                fun forAttribute(attributeName: String, body: AttributeTestCaseBuilder.() -> Unit) {
-                    val builder = AttributeTestCaseBuilder(attributeName)
-                    builder.body()
-                }
-
-                /**
-                 * Builder for [TestCase]s for annotation attribute name [attributeName] on
-                 * [testClass].
-                 */
-                inner class AttributeTestCaseBuilder(private val attributeName: String) {
-                    /**
-                     * Add test case for [AnnotationAttributeValue.toSource].
-                     *
-                     * @param forJar The expected result when retrieved from a jar file.
-                     * @param forSource The expected result when retrieved from source files.
-                     */
-                    fun forToSource(forJar: String, forSource: String = forJar) {
-                        testCases.add(
-                            AnnotationAttributeValueToSourceTestCase(
-                                testClass,
-                                attributeName,
-                                expectation = ProducerAwareExpectation(forJar, forSource)
-                            )
-                        )
-                    }
-
-                    /**
-                     * Add test case for [AnnotationAttributeValue.toSource].
-                     *
-                     * @param forJar The expected result when retrieved from a jar file.
-                     * @param forSource The expected result when retrieved from source files.
-                     */
-                    fun forDefaultValue(forJar: String, forSource: String = forJar) {
-                        testCases.add(
-                            AnnotationAttributeDefaultValueTestCase(
-                                testClass,
-                                attributeName,
-                                expectation = ProducerAwareExpectation(forJar, forSource)
-                            )
-                        )
-                    }
-                }
-
-                /** Build [TestCase]s for field named [fieldName] on [testClass]. */
-                fun forField(fieldName: String, body: FieldTestCaseBuilder.() -> Unit) {
-                    val builder = FieldTestCaseBuilder(fieldName)
-                    builder.body()
-                }
-
-                /** Builder for [TestCase]s for field [fieldName] on [testClass]. */
-                inner class FieldTestCaseBuilder(private val fieldName: String) {
-                    /**
-                     * Add test case for [FieldItem.fieldValue].
-                     *
-                     * @param forJar The expected result when retrieved from a jar file.
-                     * @param forSource The expected result when retrieved from source files.
-                     */
-                    fun forFieldValue(forJar: String, forSource: String = forJar) {
-                        testCases.add(
-                            FieldValueTestCase(
-                                testClass,
-                                fieldName,
-                                expectation = ProducerAwareExpectation(forJar, forSource)
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
         private fun TestFile.asTestClass(className: String): TestClass {
             val cached = cacheIn(testFileCacheRule)
             return TestClass(className, setOf(cached))
@@ -224,14 +156,26 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
         private val testEnumClass =
             java(
-                """
+                    """
                         package test.pkg;
                         public enum TestEnum {
                             DEFAULT,
                             VALUE1,
                         }
                     """
-            )
+                )
+                .cacheIn(testFileCacheRule)
+
+        private val testConstantsClass =
+            java(
+                    """
+                        package test.pkg;
+                        public interface Constants {
+                            String STRING_CONSTANT = "constant";
+                        }
+                    """
+                )
+                .cacheIn(testFileCacheRule)
 
         private val otherAnnotationClass =
             java(
@@ -250,224 +194,186 @@ class CommonParameterizedValueTest : BaseModelTest() {
                 .asTestClass("OtherAnnotation")
                 .dependsOn(testEnumClass)
 
-        private val testAnnotationClass =
-            java(
-                    """
-                        package test.pkg;
+        /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
+        private val testCases = buildList {
+            // Verify that all the ValueExamples have distinct names.
+            val duplicates =
+                valueExamples
+                    .groupingBy { it.name }
+                    .eachCount()
+                    .filter { it.value > 1 }
+                    .map { it.key }
+            if (duplicates.isNotEmpty()) {
+                error("Duplicate value examples: $duplicates")
+            }
 
-                        public @interface TestAnnotation {
-                            OtherAnnotation anAnnotationType() default @OtherAnnotation;
-                            Class<?> classType() default void.class;
-                            TestEnum enumType() default TestEnum.DEFAULT;
-                            int intType() default -1;
-                            String stringType() default "default";
-                            String[] stringArrayType() default {};
-                        }
-                    """
+            // Create a [TestClass] for an annotation class that has attributes for each suitable
+            // [ValueExample], setting its expression as the default.
+            val annotationWithDefaults =
+                valueExamples.generateAnnotationClass(
+                    "AnnotationWithDefaults",
+                    withDefaults = true,
                 )
-                .asTestClass("TestAnnotation")
-                .dependsOn(otherAnnotationClass)
 
-        /** Build list of [TestCase]s. */
-        private fun buildTestCases(body: TestCasesBuilder.() -> Unit): List<TestCase> {
-            val testCases = mutableListOf<TestCase>()
-            val builder = TestCasesBuilder(testCases)
-            builder.body()
-            return testCases
+            // Create a [TestClass] for an annotation class that has attributes for each suitable
+            // [ValueExample] but does not set a default. Used in tests for checking annotation
+            // attribute values.
+            val annotationWithoutDefaults =
+                valueExamples.generateAnnotationClass(
+                    "AnnotationWithoutDefaults",
+                    withDefaults = false,
+                )
+
+            // Create a [TestClass] that is annotated with [annotationWithoutDefaults] using the
+            // suitable [ValueExample]s as the value of the attributes.
+            val annotationTestClass =
+                valueExamples.generateAnnotatedTestClass(
+                    "AnnotationTestClass",
+                    annotationWithoutDefaults
+                )
+
+            // Create a [TestClass] that has a field for each suitable [ValueExample].
+            val fieldTestClass = valueExamples.generateFieldTestClass("FieldTestClass")
+
+            // Construct [TestCase]s from [ValueExample].
+            for (valueExample in valueExamples) {
+                // If suitable add a test for [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
+                if (ValueUseSite.ATTRIBUTE_DEFAULT_VALUE in valueExample.suitableFor) {
+                    add(
+                        AnnotationAttributeDefaultValueTestCase(
+                            annotationWithDefaults,
+                            valueExample.attributeName,
+                            expectation = valueExample.expectedLegacySource,
+                        )
+                    )
+                }
+
+                // If suitable add a test for [ValueUseSite.ATTRIBUTE_VALUE].
+                if (ValueUseSite.ATTRIBUTE_VALUE in valueExample.suitableFor) {
+                    add(
+                        AnnotationAttributeValueToSourceTestCase(
+                            annotationTestClass,
+                            annotationWithoutDefaults,
+                            valueExample.attributeName,
+                            expectation = valueExample.expectedLegacySource,
+                        )
+                    )
+                }
+
+                // If suitable add a test for [ValueUseSite.FIELD_VALUE].
+                if (ValueUseSite.FIELD_VALUE in valueExample.suitableFor) {
+                    add(
+                        FieldValueTestCase(
+                            fieldTestClass,
+                            valueExample.fieldName,
+                            expectation = valueExample.expectedLegacySource,
+                        )
+                    )
+                }
+            }
         }
 
-        /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
-        private val testCases = buildTestCases {
-            // Tests for checking basic values for different types.
-            forTestClass(
-                java(
-                        """
-                            package test.pkg;
-                            import java.util.List;
-                            @TestAnnotation(
-                                anAnnotationType = @OtherAnnotation(intType = 1),
-                                classType = List.class,
-                                enumType = TestEnum.VALUE1,
-                                intType = 2,
-                                stringType = "string",
-                                stringArrayType = {"string1", "string2"}
-                            )
-                            public class Basic {}
-                        """
-                    )
-                    .asTestClass("Basic")
-                    .dependsOn(testAnnotationClass)
-            ) {
-                forAttribute("anAnnotationType") {
-                    forToSource(
-                        forJar = "@test.pkg.OtherAnnotation(intType = 1)",
-                        forSource = "@OtherAnnotation(intType = 1)",
-                    )
-                }
-                forAttribute("classType") {
-                    forToSource(
-                        forJar = "java.util.List.class",
-                        forSource = "List.class",
-                    )
-                }
-                forAttribute("enumType") {
-                    forToSource(
-                        forJar = "test.pkg.TestEnum.VALUE1",
-                        forSource = "TestEnum.VALUE1",
-                    )
-                }
-                forAttribute("intType") {
-                    forToSource(
-                        forJar = "2",
-                    )
-                }
-                forAttribute("stringArrayType") {
-                    forToSource(
-                        forJar = "{\"string1\", \"string2\"}",
-                    )
-                }
-                forAttribute("stringType") {
-                    forToSource(
-                        forJar = "\"string\"",
-                    )
-                }
+        /** Append all the imports provided by this list to [buffer]. */
+        private fun List<ValueExample>.appendImportsTo(buffer: StringBuilder) {
+            val imports = flatMap { it.javaImports }.toSortedSet()
+            for (i in imports) {
+                buffer.append("import ")
+                buffer.append(i)
+                buffer.append(";\n")
             }
+        }
 
-            // Check passing a single value to an array type.
-            forTestClass(
-                java(
-                        """
-                            package test.pkg;
-                            import java.util.List;
-                            @TestAnnotation(
-                                stringArrayType = "string"
-                            )
-                            public class ArraySingleValue {}
-                        """
-                    )
-                    .asTestClass("ArraySingleValue")
-                    .dependsOn(testAnnotationClass)
-            ) {
-                forAttribute("stringArrayType") {
-                    forToSource(
-                        forJar = "{\"string\"}",
-                        forSource = "\"string\"",
-                    )
-                }
-            }
-
-            // Check using constants fields to specify annotation values.
-            forTestClass(
-                java(
-                        """
-                            package test.pkg;
-                            import java.util.List;
-                            @TestAnnotation(
-                                stringType = UsingConstants.STRING_CONSTANT
-                            )
-                            public class UsingConstants {
-                                public static final String STRING_CONSTANT = "constant";
+        /**
+         * Create an annotation [TestClass] from this list of [ValueExample]s.
+         *
+         * @param className the name of the class.
+         * @param withDefaults true if defaults should be added, false otherwise.
+         */
+        private fun List<ValueExample>.generateAnnotationClass(
+            className: String,
+            withDefaults: Boolean
+        ): TestClass {
+            return java(
+                    buildString {
+                        append("package test.pkg;\n")
+                        appendImportsTo(this)
+                        append("public @interface $className {\n")
+                        for (example in this@generateAnnotationClass) {
+                            append("    ")
+                            append(example.javaType)
+                            append(" ")
+                            append(example.attributeName)
+                            append("()")
+                            if (withDefaults) {
+                                append(" default ")
+                                append(example.javaExpression)
                             }
-                        """
-                    )
-                    .asTestClass("UsingConstants")
-                    .dependsOn(testAnnotationClass)
-            ) {
-                forAttribute("stringType") {
-                    forToSource(
-                        forJar = "\"constant\"",
-                        forSource = "UsingConstants.STRING_CONSTANT",
-                    )
-                }
-            }
+                            append(";\n")
+                        }
+                        append("}\n")
+                    }
+                )
+                .asTestClass(className)
+                .dependsOn(otherAnnotationClass)
+                .dependsOn(testConstantsClass)
+        }
 
-            // Check default values on the TestAnnotation class.
-            forTestClass(testAnnotationClass) {
-                forAttribute("anAnnotationType") {
-                    forDefaultValue(
-                        forJar = "@test.pkg.OtherAnnotation",
-                    )
-                }
-                forAttribute("classType") {
-                    forDefaultValue(
-                        forJar = "void.class",
-                    )
-                }
-                forAttribute("enumType") {
-                    forDefaultValue(
-                        forJar = "test.pkg.TestEnum.DEFAULT",
-                    )
-                }
-                forAttribute("stringArrayType") {
-                    forDefaultValue(
-                        forJar = "{}",
-                    )
-                }
-                forAttribute("stringType") {
-                    forDefaultValue(
-                        forJar = "\"default\"",
-                    )
-                }
-            }
+        /**
+         * Create a normal [TestClass] annotated with [annotationTestClass].
+         *
+         * The annotation uses the appropriate values from this.
+         *
+         * @param className the name of the class.
+         * @param annotationTestClass the annotation [TestClass] to annotate the class with.
+         */
+        private fun List<ValueExample>.generateAnnotatedTestClass(
+            className: String,
+            annotationTestClass: TestClass,
+        ): TestClass {
+            return java(
+                    buildString {
+                        append("package test.pkg;\n")
+                        this@generateAnnotatedTestClass.appendImportsTo(this)
+                        append("@")
+                        append(annotationTestClass.className)
+                        append("(")
+                        joinTo(this, ",") { example ->
+                            "\n    ${example.attributeName} = ${example.javaExpression}"
+                        }
+                        append("\n)")
+                        append("public class $className {}\n")
+                    }
+                )
+                .asTestClass(className)
+                .dependsOn(annotationTestClass)
+        }
 
-            // Test the behavior of some attribute default special cases.
-            forTestClass(
-                java(
-                        """
-                            package test.pkg;
-                            public @interface AttributeDefaults {
-                                // Use a default value that is not wrapped in an array.
-                                String[] stringArrayWithStringDefault() default "default";
-
-                                int intTypeWithFieldConstant() default DEFAULT_INT;
-
-                                int DEFAULT_INT = 9;
+        /**
+         * Create a [TestClass] containing "constant" fields for each of the suitable items in this
+         * list using the value as the field value.
+         */
+        private fun List<ValueExample>.generateFieldTestClass(className: String): TestClass {
+            return java(
+                    buildString {
+                        append("package test.pkg;\n")
+                        this@generateFieldTestClass.appendImportsTo(this)
+                        append("public class $className {\n")
+                        for (example in this@generateFieldTestClass) {
+                            if (ValueUseSite.FIELD_VALUE in example.suitableFor) {
+                                append("    public static final ")
+                                append(example.javaType)
+                                append(" ")
+                                append(example.fieldName)
+                                append(" = ")
+                                append(example.javaExpression)
+                                append(";\n")
                             }
-                        """
-                    )
-                    .asTestClass("AttributeDefaults")
-            ) {
-                // Verify that an annotation attribute of string array type can be a single string
-                // not wrapped in an array.
-                forAttribute("stringArrayWithStringDefault") {
-                    forDefaultValue(
-                        // The jar representation is always wrapped in an array.
-                        forJar = "{\"default\"}",
-                        // The source representation is a single string.
-                        forSource = "\"default\"",
-                    )
-                }
-
-                // Verify that an annotation attribute of int type can use a field reference as the
-                // default.
-                forAttribute("intTypeWithFieldConstant") {
-                    forDefaultValue(
-                        // The jar representation is always a literal constant.
-                        forJar = "9",
-                        // The source representation is the field reference.
-                        forSource = "test.pkg.AttributeDefaults.DEFAULT_INT",
-                    )
-                }
-            }
-
-            // Tests for field values.
-            forTestClass(
-                java(
-                        """
-                            package test.pkg;
-                            public class FieldClass {
-                                public static final String STRING_FIELD = "string";
-                            }
-                        """
-                    )
-                    .asTestClass("FieldClass")
-            ) {
-                forField("STRING_FIELD") {
-                    forFieldValue(
-                        forJar = "string",
-                    )
-                }
-            }
+                        }
+                        append("}\n")
+                    }
+                )
+                .asTestClass(className)
+                .dependsOn(otherAnnotationClass)
         }
 
         /** The jar includes all the distinct [TestFile]s used by [testCases]. */
@@ -506,35 +412,21 @@ class CommonParameterizedValueTest : BaseModelTest() {
             }
     }
 
-    /** A set of expectations, one for each [CodebaseProducer] in [codebaseProducers]. */
-    data class ProducerAwareExpectation(
-        val forJar: String,
-        val forSource: String,
-    ) {
-        /** Get the expectation for [codebaseProducer]. */
-        fun expectationFor(codebaseProducer: CodebaseProducer) =
-            when (codebaseProducer) {
-                is JarCodebaseProducer -> forJar
-                is SourceCodebaseProducer -> forSource
-            }
-    }
-
     /**
      * Produce a [Codebase] from [TestCase.testClass]'s [TestClass.testFileSet] and then run
      * [TestCase] against it.
      */
-    private object SourceCodebaseProducer : CodebaseProducer() {
-        override fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase) {
+    private object SourceCodebaseProducer : CodebaseProducer(ProducerKind.SOURCE) {
+        override fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase<*>) {
             val sources = testCase.testClass.testFileSet
             runSourceCodebaseTest(inputSet(sources.toList())) { runTestCase(testCase) }
         }
-
-        override fun toString() = "source"
     }
 
     /** Produce a [Codebase] from [testJarFile]. */
-    private class JarCodebaseProducer(private val testJarFile: TestFile) : CodebaseProducer() {
-        override fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase) {
+    private class JarCodebaseProducer(private val testJarFile: TestFile) :
+        CodebaseProducer(ProducerKind.JAR) {
+        override fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase<*>) {
             runSourceCodebaseTest(
                 // Unused class, present simply to force the test to be run against models that
                 // support Java.
@@ -552,8 +444,6 @@ class CommonParameterizedValueTest : BaseModelTest() {
                 runTestCase(testCase)
             }
         }
-
-        override fun toString() = "jar"
     }
 
     /** Augment [BaseModelTest.CodebaseContext] with [codebaseProducer]. */
@@ -582,19 +472,24 @@ class CommonParameterizedValueTest : BaseModelTest() {
      */
     private class AnnotationAttributeValueToSourceTestCase(
         testClass: TestClass,
+        private val annotationTestClass: TestClass,
         attributeName: String,
-        expectation: ProducerAwareExpectation,
-    ) : TestCase(testClass, attributeName, expectation) {
+        expectation: Expectation<String>,
+    ) :
+        TestCase<String>(
+            "AnnotationAttributeValue.toSource()",
+            testClass,
+            attributeName,
+            expectation,
+        ) {
         override fun CodebaseProducerContext.checkCodebase() {
             val testClass = classForTestCase()
-            val annotation = testClass.assertAnnotation("test.pkg.TestAnnotation")
+            val annotation = testClass.assertAnnotation("test.pkg.${annotationTestClass.className}")
             val annotationAttribute = annotation.assertAttribute(memberName)
-            val expected = expectation.expectationFor(codebaseProducer)
+            val producerKind = codebaseProducer.kind
+            val expected = expectation.expectationFor(producerKind, ValueUseSite.ATTRIBUTE_VALUE)
             assertEquals(expected, annotationAttribute.value.toSource())
         }
-
-        override fun toString() =
-            "AnnotationAttributeValue.toSource(),${testClass.className}.$memberName"
     }
 
     /**
@@ -608,16 +503,22 @@ class CommonParameterizedValueTest : BaseModelTest() {
     private class AnnotationAttributeDefaultValueTestCase(
         testClass: TestClass,
         attributeName: String,
-        expectation: ProducerAwareExpectation,
-    ) : TestCase(testClass, attributeName, expectation) {
+        expectation: Expectation<String>,
+    ) :
+        TestCase<String>(
+            "MethodItem.defaultValue()",
+            testClass,
+            attributeName,
+            expectation,
+        ) {
         override fun CodebaseProducerContext.checkCodebase() {
             val annotationClass = classForTestCase()
             val annotationMethod = annotationClass.assertMethod(memberName, "")
-            val expected = expectation.expectationFor(codebaseProducer)
+            val producerKind = codebaseProducer.kind
+            val expected =
+                expectation.expectationFor(producerKind, ValueUseSite.ATTRIBUTE_DEFAULT_VALUE)
             assertEquals(expected, annotationMethod.defaultValue())
         }
-
-        override fun toString() = "MethodItem.defaultValue(),${testClass.className}.$memberName"
     }
 
     /**
@@ -630,17 +531,23 @@ class CommonParameterizedValueTest : BaseModelTest() {
     private class FieldValueTestCase(
         testClass: TestClass,
         fieldName: String,
-        expectation: ProducerAwareExpectation,
-    ) : TestCase(testClass, fieldName, expectation) {
+        expectation: Expectation<String>,
+    ) :
+        TestCase<String>(
+            "FieldItem.fieldValue",
+            testClass,
+            fieldName,
+            expectation,
+        ) {
         override fun CodebaseProducerContext.checkCodebase() {
             val testClass = classForTestCase()
             val field = testClass.assertField(memberName)
             val fieldValue = assertNotNull(field.fieldValue, "No field value")
-            val expected = expectation.expectationFor(codebaseProducer)
-            assertEquals(expected, fieldValue.initialValue(true).toString())
+            val producerKind = codebaseProducer.kind
+            val expected = expectation.expectationFor(producerKind, ValueUseSite.FIELD_VALUE)
+            val actual = fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
+            assertEquals(expected, actual)
         }
-
-        override fun toString() = "FieldItem.fieldValue,${testClass.className}.$memberName"
     }
 
     @RequiresCapabilities(Capability.JAVA)
