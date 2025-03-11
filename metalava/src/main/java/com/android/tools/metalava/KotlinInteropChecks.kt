@@ -196,7 +196,14 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (
             property.containingClass().modifiers.isCompanion() &&
                 !property.modifiers.isConst() &&
-                property.setter == null
+                property.setter == null &&
+                // @JvmField can only be used on interface companion properties in limited
+                // situations -- all the companion properties must be public and constant, so adding
+                // more properties might mean @JvmField would no longer be allowed even if it was
+                // originally. Because of this, don't suggest using @JvmField for interface
+                // companion properties.
+                // https://github.com/Kotlin/KEEP/blob/master/proposals/jvm-field-annotation-in-interface-companion.md
+                property.containingClass().containingClass()?.isInterface() != true
         ) {
             if (property.modifiers.findAnnotation(JVM_STATIC) != null) {
                 reporter.report(

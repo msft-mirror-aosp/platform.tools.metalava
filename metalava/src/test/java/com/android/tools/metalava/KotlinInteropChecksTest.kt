@@ -501,11 +501,7 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Check interface companion properties`() {
         check(
             apiLint = "",
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:8: warning: Companion object constants like jvmStaticProperty should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:10: warning: Companion object constants like unannotatedProperty should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                """,
+            expectedIssues = "",
             sourceFiles =
                 arrayOf(
                     kotlin(
