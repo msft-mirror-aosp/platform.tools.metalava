@@ -151,9 +151,11 @@ class KotlinInteropChecksTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Foo.kt:8: warning: Companion object constants like BIG_INTEGER_ONE should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:11: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:12: warning: Companion object constants like WRONG2 should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:15: warning: Companion object methods like missing should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object methods like getWrongNeedsJvmStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object methods like setWrongNeedsJvmStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:12: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:13: warning: Companion object constants like WRONG2 should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:16: warning: Companion object methods like missing should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
                 """,
             sourceFiles =
                 arrayOf(
@@ -168,7 +170,8 @@ class KotlinInteropChecksTest : DriverTest() {
                             const val INTEGER_ONE = 1
                             val BIG_INTEGER_ONE = BigInteger.ONE
                             private val PRIVATE_BIG_INTEGER = BigInteger.ONE
-                            var ok = 1
+                            var wrongNeedsJvmStatic = 1
+                            @JvmStatic var ok = 1.5
                             @JvmStatic val WRONG = 2
                             @JvmStatic @JvmField val WRONG2 = 2
                             @JvmField val ok3 = 3
@@ -437,7 +440,8 @@ class KotlinInteropChecksTest : DriverTest() {
         // b/401569415 -- JvmField cannot be used on properties of value class type
         check(
             apiLint = "",
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/IntValue.kt:8: warning: Companion object methods like getValueClassTypePropertyNoAnnotation should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
             extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
             sourceFiles =
                 arrayOf(
@@ -497,7 +501,8 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Check interface companion properties`() {
         check(
             apiLint = "",
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Foo.kt:10: warning: Companion object methods like getUnannotatedProperty should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -527,7 +532,8 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Check companion property without backing field`() {
         check(
             apiLint = "",
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Foo.kt:11: warning: Companion object methods like getUnannotatedPropertyWithoutBackingField should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
             extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
             sourceFiles =
                 arrayOf(

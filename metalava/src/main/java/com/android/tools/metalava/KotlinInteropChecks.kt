@@ -135,9 +135,11 @@ class KotlinInteropChecks(val reporter: Reporter) {
     private fun ensureCompanionJvmStatic(method: MethodItem) {
         if (
             method.containingClass().simpleName() == "Companion" &&
-                // Properties will be checked through [ensureCompanionJvmField]
-                !method.isKotlinProperty() &&
-                method.modifiers.findAnnotation(JVM_STATIC) == null
+                // Many properties will be checked through [ensureCompanionJvmField]. If this method
+                // is not a property or its property can't use @JvmField, it should use @JvmStatic.
+                method.property?.canHaveJvmField() != true &&
+                method.modifiers.findAnnotation(JVM_STATIC) == null &&
+                method.property?.modifiers?.findAnnotation(JVM_STATIC) == null
         ) {
             reporter.report(
                 Issues.MISSING_JVMSTATIC,
@@ -157,24 +159,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
      * See https://developer.android.com/kotlin/interop#companion_constants
      */
     private fun ensureCompanionJvmField(property: PropertyItem) {
-        val companionContainer = property.containingClass().containingClass()
-        if (
-            property.containingClass().modifiers.isCompanion() &&
-                !property.modifiers.isConst() &&
-                property.setter == null &&
-                // @JvmField can only be used on interface companion properties in limited
-                // situations -- all the companion properties must be public and constant, so adding
-                // more properties might mean @JvmField would no longer be allowed even if it was
-                // originally. Because of this, don't suggest using @JvmField for interface
-                // companion properties.
-                // https://github.com/Kotlin/KEEP/blob/master/proposals/jvm-field-annotation-in-interface-companion.md
-                companionContainer?.isInterface() != true &&
-                // @JvmField can only be used when the property has a backing field. The backing
-                // field is present on the containing class of the companion.
-                companionContainer?.findField(property.name()) != null &&
-                // The compiler does not allow @JvmField on value class type properties.
-                !property.type().isValueClassType()
-        ) {
+        if (property.containingClass().modifiers.isCompanion() && property.canHaveJvmField()) {
             if (property.modifiers.findAnnotation(JVM_STATIC) != null) {
                 reporter.report(
                     Issues.MISSING_JVMSTATIC,
@@ -189,6 +174,28 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 )
             }
         }
+    }
+
+    /**
+     * Whether the property (assumed to be a companion property) is allowed to be have @JvmField.
+     *
+     * If it can't be annotated with @JvmField, it should use @JvmStatic for its accessors instead.
+     */
+    private fun PropertyItem.canHaveJvmField(): Boolean {
+        val companionContainer = containingClass().containingClass()
+        return !modifiers.isConst() &&
+            setter == null &&
+            // @JvmField can only be used on interface companion properties in limited situations --
+            // all the companion properties must be public and constant, so adding more properties
+            // might mean @JvmField would no longer be allowed even if it was originally. Because of
+            // this, don't suggest using @JvmField for interface companion properties.
+            // https://github.com/Kotlin/KEEP/blob/master/proposals/jvm-field-annotation-in-interface-companion.md
+            containingClass().containingClass()?.isInterface() != true &&
+            // @JvmField can only be used when the property has a backing field. The backing
+            // field is present on the containing class of the companion.
+            companionContainer?.findField(name()) != null &&
+            // The compiler does not allow @JvmField on value class type properties.
+            !type().isValueClassType()
     }
 
     private fun ensureFieldNameNotKeyword(field: FieldItem) {
