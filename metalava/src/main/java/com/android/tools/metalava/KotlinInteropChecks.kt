@@ -193,6 +193,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
      * See https://developer.android.com/kotlin/interop#companion_constants
      */
     private fun ensureCompanionJvmField(property: PropertyItem) {
+        val companionContainer = property.containingClass().containingClass()
         if (
             property.containingClass().modifiers.isCompanion() &&
                 !property.modifiers.isConst() &&
@@ -203,7 +204,10 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 // originally. Because of this, don't suggest using @JvmField for interface
                 // companion properties.
                 // https://github.com/Kotlin/KEEP/blob/master/proposals/jvm-field-annotation-in-interface-companion.md
-                property.containingClass().containingClass()?.isInterface() != true
+                companionContainer?.isInterface() != true &&
+                // @JvmField can only be used when the property has a backing field. The backing
+                // field is present on the containing class of the companion.
+                companionContainer?.findField(property.name()) != null
         ) {
             if (property.modifiers.findAnnotation(JVM_STATIC) != null) {
                 reporter.report(
