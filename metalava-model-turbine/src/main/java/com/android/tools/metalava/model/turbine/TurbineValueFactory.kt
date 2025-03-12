@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.google.turbine.model.Const
 
 internal class TurbineValueFactory : ValueFactory, ImplementationValueToModelFactory<TurbineValue> {
     /**
@@ -66,6 +67,11 @@ internal class TurbineValueFactory : ValueFactory, ImplementationValueToModelFac
     ) = implementationValue.toValue(optionalTypeItem)
 
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {
+        if (const.kind() == Const.Kind.PRIMITIVE) {
+            val underlyingValue = (const as Const.Value).value
+            return createLiteralValue(optionalTypeItem, underlyingValue)
+        }
+
         throw ValueProviderException(
             "Unknown value '$const' of ${const.javaClass} for type $optionalTypeItem"
         )
