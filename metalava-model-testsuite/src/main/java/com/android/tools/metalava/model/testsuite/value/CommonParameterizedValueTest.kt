@@ -500,8 +500,14 @@ class CommonParameterizedValueTest : BaseModelTest() {
             val testClass = classForTestCase()
             val annotation = testClass.assertAnnotation("test.pkg.${annotationTestClass.className}")
             val annotationAttribute = annotation.assertAttribute(memberName)
-            val producerKind = codebaseProducer.kind
-            val expected = expectation.expectationFor(producerKind, ValueUseSite.ATTRIBUTE_VALUE)
+
+            // Get the expected value.
+            val expected =
+                expectation.expectationFor(
+                    codebaseProducer.kind,
+                    ValueUseSite.ATTRIBUTE_VALUE,
+                    codebase,
+                )
             assertEquals(expected, annotationAttribute.value.toSource())
         }
     }
@@ -528,9 +534,14 @@ class CommonParameterizedValueTest : BaseModelTest() {
         override fun CodebaseProducerContext.checkCodebase() {
             val annotationClass = classForTestCase()
             val annotationMethod = annotationClass.assertMethod(memberName, "")
-            val producerKind = codebaseProducer.kind
+
+            // Get the expected value.
             val expected =
-                expectation.expectationFor(producerKind, ValueUseSite.ATTRIBUTE_DEFAULT_VALUE)
+                expectation.expectationFor(
+                    codebaseProducer.kind,
+                    ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
+                    codebase,
+                )
             assertEquals(expected, annotationMethod.defaultValue())
         }
     }
@@ -558,11 +569,16 @@ class CommonParameterizedValueTest : BaseModelTest() {
             val testClass = classForTestCase()
             val field = testClass.assertField(memberName)
             val fieldValue = assertNotNull(field.fieldValue, "No field value")
-            val producerKind = codebaseProducer.kind
+
             // If this is a constant then get the expectation, otherwise, expect it to have no
             // value.
             val expected =
-                if (isConstant) expectation.expectationFor(producerKind, ValueUseSite.FIELD_VALUE)
+                if (isConstant)
+                    expectation.expectationFor(
+                        codebaseProducer.kind,
+                        ValueUseSite.FIELD_VALUE,
+                        codebase,
+                    )
                 else NO_INITIAL_FIELD_VALUE
             val actual = fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
             assertEquals(expected, actual)
