@@ -141,7 +141,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,k2,null annotated parameterized inner type - annotated]
   Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]
 
-com.android.tools.metalava.model.testsuite.values.CommonParameterizedValueTest
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedValueTest
   test[turbine,jar,AnnotationAttributeValue.toSource(),Basic.anAnnotationType]
   test[turbine,source,AnnotationAttributeValue.toSource(),Basic.anAnnotationType]
   test[turbine,source,AnnotationAttributeValue.toSource(),Basic.enumType]
