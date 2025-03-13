@@ -51,8 +51,8 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -536,7 +536,7 @@ internal class TurbineClassBuilder(
                     containingCallable = containingCallable,
                     parameterIndex = idx,
                     type = type,
-                    defaultValueFactory = { DefaultValue.NONE },
+                    defaultValueFactory = { ParameterDefaultValue.NONE },
                 )
             parameterItem
         }
