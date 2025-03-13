@@ -429,10 +429,13 @@ internal class TurbineCodebaseInitialiser(
         origin: ClassOrigin,
     ): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
-        val classBuilder = TurbineClassBuilder(this)
+        val classBuilder =
+            TurbineClassBuilder(
+                globalContext = this,
+                classSymbol = classSymbol,
+                typeBoundClass = typeBoundClass,
+            )
         return classBuilder.createClass(
-            classSymbol = classSymbol,
-            typeBoundClass = typeBoundClass,
             containingClassItem = null,
             enclosingClassTypeItemFactory = globalTypeItemFactory,
             origin = origin,
@@ -478,6 +481,18 @@ internal class TurbineCodebaseInitialiser(
         // Could not be found.
         return null
     }
+
+    override fun createFieldResolver(
+        classSymbol: ClassSymbol,
+        sourceTypeBoundClass: SourceTypeBoundClass
+    ) =
+        TurbineFieldResolver(
+            classSymbol,
+            classSymbol,
+            sourceTypeBoundClass.memberImports(),
+            sourceTypeBoundClass.scope(),
+            envClassMap,
+        )
 
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method

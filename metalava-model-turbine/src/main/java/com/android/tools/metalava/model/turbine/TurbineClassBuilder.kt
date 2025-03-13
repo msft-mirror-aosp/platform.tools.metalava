@@ -83,28 +83,46 @@ import com.google.turbine.type.Type
  * [TypeBoundClass] pairs.
  *
  * @param globalContext provides access to various pieces of data that apply across all classes.
+ * @param classSymbol the unique identifier for the [TypeBoundClass].
+ * @param typeBoundClass the definition of the class as recorded by Turbine.
  */
 internal class TurbineClassBuilder(
     private val globalContext: TurbineGlobalContext,
+    private val classSymbol: ClassSymbol,
+    private val typeBoundClass: TypeBoundClass,
 ) : TurbineGlobalContext by globalContext {
+    /** The [SourceTypeBoundClass] if this is a source class. */
+    private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
+
+    /**
+     * The [TurbineFieldResolver] used for resolving [Tree.ConstVarName] to
+     * [TypeBoundClass.FieldInfo].
+     */
+    private var fieldResolver: TurbineFieldResolver?
+
+    init {
+        if (sourceTypeBoundClass == null) {
+            // Only source classes need to resolve fields.
+            fieldResolver = null
+        } else {
+            // Source files need
+            fieldResolver = createFieldResolver(classSymbol, sourceTypeBoundClass)
+        }
+    }
+
     /**
      * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.
      *
-     * @param classSymbol the unique identifier for the [TypeBoundClass].
-     * @param typeBoundClass the definition of the class as recorded by Turbine.
      * @param containingClassItem the containing [DefaultClassItem] to which the created [ClassItem]
      *   will belong, if any.
      * @param enclosingClassTypeItemFactory the [TurbineTypeItemFactory] that is used to create
      *   [TypeItem]s and tracks the in scope type parameters.
      */
     internal fun createClass(
-        classSymbol: ClassSymbol,
-        typeBoundClass: TypeBoundClass,
         containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         origin: ClassOrigin,
     ): ClassItem {
-        val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
         val decl = sourceTypeBoundClass?.decl()
 
         // Get the package item
@@ -346,9 +364,13 @@ internal class TurbineClassBuilder(
     ) {
         for (nestedClassSymbol in nestedClasses) {
             val nestedTypeBoundClass = typeBoundClassForSymbol(nestedClassSymbol)
-            createClass(
-                classSymbol = nestedClassSymbol,
-                typeBoundClass = nestedTypeBoundClass,
+            val nestedClassBuilder =
+                TurbineClassBuilder(
+                    globalContext = globalContext,
+                    classSymbol = nestedClassSymbol,
+                    typeBoundClass = nestedTypeBoundClass,
+                )
+            nestedClassBuilder.createClass(
                 containingClassItem = classItem,
                 enclosingClassTypeItemFactory = enclosingClassTypeItemFactory,
                 origin = classItem.origin,
@@ -427,10 +449,11 @@ internal class TurbineClassBuilder(
             val documentation = javadoc(decl)
             val defaultValueExpr = getAnnotationDefaultExpression(method)
             val defaultValue =
-                if (method.defaultValue() != null)
-                    TurbineValue(method.defaultValue()!!, defaultValueExpr)
+                method.defaultValue()?.let { defaultConst ->
+                    TurbineValue(defaultConst, defaultValueExpr, fieldResolver)
                         .getSourceForMethodDefault()
-                else ""
+                }
+                    ?: ""
 
             val parameters = method.parameters()
             val fingerprint = MethodFingerprint(name, parameters.size)

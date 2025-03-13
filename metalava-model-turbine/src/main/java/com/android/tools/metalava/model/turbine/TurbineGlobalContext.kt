@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.type.AnnoInfo
@@ -43,4 +44,13 @@ internal interface TurbineGlobalContext {
 
     /** Find the [TypeBoundClass] for the `ClassSymbol`. */
     fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass
+
+    /**
+     * Create a [TurbineFieldResolver] for resolving fields from within
+     * [classSymbol]/[sourceTypeBoundClass].
+     */
+    fun createFieldResolver(
+        classSymbol: ClassSymbol,
+        sourceTypeBoundClass: SourceTypeBoundClass,
+    ): TurbineFieldResolver
 }
