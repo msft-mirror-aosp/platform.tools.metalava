@@ -35,6 +35,8 @@ import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.ClassRule
@@ -294,6 +296,15 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                     add(
                         FieldValueTestCase(
+                            fieldTestClass,
+                            fieldName,
+                            expectation = valueExample.expectedLegacySource,
+                            isConstant,
+                        )
+                    )
+
+                    add(
+                        FieldWriteValueWithSemicolonTestCase(
                             fieldTestClass,
                             fieldName,
                             expectation = valueExample.expectedLegacySource,
@@ -634,7 +645,55 @@ class CommonParameterizedValueTest : BaseModelTest() {
                         codebase,
                     )
                 else NO_INITIAL_FIELD_VALUE
+
             val actual = fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
+            assertEquals(expected, actual)
+        }
+    }
+
+    /**
+     * Test writing a field value, i.e. [FieldItem.writeValueWithSemicolon], for the class's field.
+     *
+     * @param testClass the name of a class with the field.
+     * @param fieldName the name of the field whose value is to be checked.
+     * @param expectation expected results of calling [FieldItem.fieldValue].
+     */
+    private class FieldWriteValueWithSemicolonTestCase(
+        testClass: TestClass,
+        private val fieldName: String,
+        expectation: Expectation<String>,
+        private val isConstant: Boolean,
+    ) :
+        TestCase<String>(
+            "FieldItem.writeWithSemicolon",
+            testClass,
+            expectation,
+        ) {
+        override fun CodebaseProducerContext.checkCodebase() {
+            val testClass = classForTestCase()
+            val field = testClass.assertField(fieldName)
+
+            // If this is a constant then get the expectation, otherwise, expect it to have no
+            // value.
+            val expected =
+                if (isConstant)
+                    expectation.expectationFor(
+                        codebaseProducer.kind,
+                        ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
+                        codebase,
+                    )
+                else NO_INITIAL_FIELD_VALUE
+
+            // Print the field with semicolon.
+            val stringWriter = StringWriter()
+            PrintWriter(stringWriter).use { writer -> field.writeValueWithSemicolon(writer) }
+            val withSemicolon = stringWriter.toString()
+
+            // Extract the value from the " = ...; // ...." string.
+            val actual =
+                if (withSemicolon == ";") NO_INITIAL_FIELD_VALUE
+                else withSemicolon.substringAfter(" = ").substringBefore(";")
+
             assertEquals(expected, actual)
         }
     }

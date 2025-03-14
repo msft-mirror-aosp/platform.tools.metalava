@@ -133,6 +133,7 @@ data class ValueExample(
                             common = "'x'"
                             // TODO(b/354633349): Should have surrounding quotes.
                             fieldValue = "x"
+                            fieldWriteWithSemicolon = "120"
                         },
                 ),
                 // Check a unicode char.
@@ -147,6 +148,7 @@ data class ValueExample(
                             //   `\uABCD` form.
                             fieldValue = "⤒"
                             jar { attributeValue = "'⤒'" }
+                            fieldWriteWithSemicolon = "10514"
                         },
                 ),
                 // Check a class literal.
@@ -210,6 +212,7 @@ data class ValueExample(
                                 attributeValue = "Double.NaN"
                                 annotationToSource = "java.lang.Double.NaN"
                                 fieldValue = "NaN"
+                                fieldWriteWithSemicolon = "(0.0/0.0)"
                             }
 
                             jar {
@@ -217,6 +220,7 @@ data class ValueExample(
                                 attributeValue = "0.0d / 0.0"
                                 annotationToSource = "0.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -237,6 +241,7 @@ data class ValueExample(
                                 attributeValue = "Double.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.POSITIVE_INFINITY"
                                 fieldValue = "Infinity"
+                                fieldWriteWithSemicolon = "(1.0/0.0)"
                             }
 
                             jar {
@@ -244,6 +249,7 @@ data class ValueExample(
                                 attributeValue = "1.0 / 0.0"
                                 annotationToSource = "1.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -263,6 +269,7 @@ data class ValueExample(
                                 attributeValue = "Double.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.NEGATIVE_INFINITY"
                                 fieldValue = "-Infinity"
+                                fieldWriteWithSemicolon = "(-1.0/0.0)"
                             }
 
                             jar {
@@ -270,6 +277,7 @@ data class ValueExample(
                                 attributeValue = "-1.0 / 0.0"
                                 annotationToSource = "-1.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -314,6 +322,7 @@ data class ValueExample(
 
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "3.0"
+                            fieldWriteWithSemicolon = "3.0f"
                         },
                 ),
                 // Check a simple float with upper F.
@@ -336,6 +345,7 @@ data class ValueExample(
 
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "3.141"
+                            fieldWriteWithSemicolon = "3.141f"
                         },
                 ),
                 // Check a simple float with lower F.
@@ -367,6 +377,7 @@ data class ValueExample(
                                 attributeValue = "Float.NaN"
                                 annotationToSource = "java.lang.Float.NaN"
                                 fieldValue = "NaN"
+                                fieldWriteWithSemicolon = "(0.0f/0.0f)"
                             }
 
                             jar {
@@ -374,6 +385,7 @@ data class ValueExample(
                                 attributeValue = "0.0f / 0.0"
                                 annotationToSource = "0.0f / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -394,6 +406,7 @@ data class ValueExample(
                                 attributeValue = "Float.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.POSITIVE_INFINITY"
                                 fieldValue = "Infinity"
+                                fieldWriteWithSemicolon = "(1.0f/0.0f)"
                             }
 
                             jar {
@@ -401,6 +414,7 @@ data class ValueExample(
                                 attributeValue = "1.0f / 0.0"
                                 annotationToSource = "1.0f / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -420,6 +434,7 @@ data class ValueExample(
                                 attributeValue = "Float.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.NEGATIVE_INFINITY"
                                 fieldValue = "-Infinity"
+                                fieldWriteWithSemicolon = "(-1.0f/0.0f)"
                             }
 
                             jar {
@@ -427,6 +442,7 @@ data class ValueExample(
                                 attributeValue = "-1.0f / 0.0"
                                 annotationToSource = "-1.0F / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -575,6 +591,7 @@ data class ValueExample(
                                 // TODO(b/354633349): Should at least be the constant string, if not
                                 //   a field reference.
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 )

@@ -150,6 +150,16 @@ internal open class PerProducerKindBuilder<T>(
      */
     var fieldValue: T by
         MutableMapDelegate(expectationMap, producerKinds.map { it to ValueUseSite.FIELD_VALUE })
+
+    /**
+     * Stores its value in [expectationMap] for the cross product of [producerKinds] and
+     * [ValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
+     */
+    var fieldWriteWithSemicolon: T by
+        MutableMapDelegate(
+            expectationMap,
+            producerKinds.map { it to ValueUseSite.FIELD_WRITE_WITH_SEMICOLON }
+        )
 }
 
 /**
