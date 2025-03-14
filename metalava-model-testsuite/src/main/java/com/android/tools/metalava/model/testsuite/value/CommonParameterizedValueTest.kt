@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -194,6 +195,14 @@ class CommonParameterizedValueTest : BaseModelTest() {
                 .asTestClass("OtherAnnotation")
                 .dependsOn(testEnumClass)
 
+        /** Names of constant types used in [ValueExample.javaType]. */
+        private val constantTypeNames = buildSet {
+            for (kind in PrimitiveTypeItem.Primitive.entries) {
+                add(kind.primitiveName)
+            }
+            add("String")
+        }
+
         /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
         private val testCases = buildList {
             // Verify that all the ValueExamples have distinct names.
@@ -262,11 +271,16 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                 // If suitable add a test for [ValueUseSite.FIELD_VALUE].
                 if (ValueUseSite.FIELD_VALUE in valueExample.suitableFor) {
+                    // If the type is suitable for use in a constant field then assume the field is
+                    // constant.
+                    val isConstant = valueExample.javaType in constantTypeNames
+
                     add(
                         FieldValueTestCase(
                             fieldTestClass,
                             valueExample.fieldName,
                             expectation = valueExample.expectedLegacySource,
+                            isConstant,
                         )
                     )
                 }
@@ -532,6 +546,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
         testClass: TestClass,
         fieldName: String,
         expectation: Expectation<String>,
+        private val isConstant: Boolean,
     ) :
         TestCase<String>(
             "FieldItem.fieldValue",
@@ -544,7 +559,11 @@ class CommonParameterizedValueTest : BaseModelTest() {
             val field = testClass.assertField(memberName)
             val fieldValue = assertNotNull(field.fieldValue, "No field value")
             val producerKind = codebaseProducer.kind
-            val expected = expectation.expectationFor(producerKind, ValueUseSite.FIELD_VALUE)
+            // If this is a constant then get the expectation, otherwise, expect it to have no
+            // value.
+            val expected =
+                if (isConstant) expectation.expectationFor(producerKind, ValueUseSite.FIELD_VALUE)
+                else NO_INITIAL_FIELD_VALUE
             val actual = fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
             assertEquals(expected, actual)
         }

@@ -161,8 +161,6 @@ data class ValueExample(
                                 common = "List.class"
                                 attributeDefaultValue = "java.util.List.class"
                             }
-                            // TODO(b/354633349): Try and make this consistent.
-                            fieldValue = NO_INITIAL_FIELD_VALUE
                         },
                 ),
                 // Check a simple double.
@@ -278,8 +276,6 @@ data class ValueExample(
                                 // TODO(b/354633349): Fully qualified is better.
                                 attributeValue = "TestEnum.VALUE1"
                             }
-                            // TODO(b/354633349): Try and make this consistent.
-                            fieldValue = NO_INITIAL_FIELD_VALUE
                         },
                 ),
                 // Check a simple float with int
@@ -517,19 +513,15 @@ data class ValueExample(
                     name = "String array",
                     javaType = "String[]",
                     javaExpression = "{\"string1\", \"string2\"}",
-                    expectedLegacySource =
-                        expectations {
-                            common = "{\"string1\", \"string2\"}"
-
-                            // This is ok as an array is not a constant.
-                            fieldValue = NO_INITIAL_FIELD_VALUE
-                        },
+                    expectedLegacySource = expectations { common = "{\"string1\", \"string2\"}" },
                 ),
                 // Check passing a single value to an array type.
                 ValueExample(
                     name = "String array with single string",
                     javaType = "String[]",
                     javaExpression = "\"string\"",
+                    // Fields that are of type String[] cannot be given a solitary string like an
+                    // annotation attribute can.
                     suitableFor = allValueUseSitesExceptFields,
                     expectedLegacySource =
                         expectations {
