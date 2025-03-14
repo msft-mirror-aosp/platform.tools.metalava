@@ -151,6 +151,21 @@ data class ValueExample(
                             fieldWriteWithSemicolon = "10514"
                         },
                 ),
+                // Check char escaped.
+                ValueExample(
+                    name = "char escaped",
+                    javaType = "char",
+                    javaExpression = "'\\t'",
+                    expectedLegacySource =
+                        expectations {
+                            // This seems like the best representation. Quoted and escaped.
+                            common = "'\\t'"
+                            // TODO(b/354633349): Should have surrounding quotes and use the
+                            //   `\uABCD` form.
+                            fieldValue = "\t"
+                            fieldWriteWithSemicolon = "9"
+                        },
+                ),
                 // Check a class literal.
                 ValueExample(
                     name = "class",
@@ -166,6 +181,52 @@ data class ValueExample(
                                 attributeDefaultValue = "java.util.List.class"
                             }
                         },
+                ),
+                // Check an array class literal.
+                ValueExample(
+                    name = "class array literal",
+                    javaType = "Class<?>",
+                    javaExpression = "List[].class",
+                    javaImports = listOf("java.util.List"),
+                    expectedLegacySource =
+                        expectations {
+                            common = "java.util.List[].class"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better.
+                                common = "List[].class"
+                                attributeDefaultValue = "java.util.List[].class"
+                            }
+                        },
+                ),
+                // Check a primitive class literal.
+                ValueExample(
+                    name = "class void primitive class",
+                    javaType = "Class<?>",
+                    javaExpression = "void.class",
+                    expectedLegacySource = expectations { common = "void.class" },
+                ),
+                // Check a primitive wrapper class literal.
+                ValueExample(
+                    name = "class void wrapper class",
+                    javaType = "Class<?>",
+                    javaExpression = "Void.class",
+                    expectedLegacySource =
+                        expectations {
+                            common = "java.lang.Void.class"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better unless java.lang
+                                //   prefix is removed.
+                                attributeValue = "Void.class"
+                                annotationToSource = "Void.class"
+                            }
+                        },
+                ),
+                // Check a primitive array class literal.
+                ValueExample(
+                    name = "class int array literal",
+                    javaType = "Class<?>",
+                    javaExpression = "int[].class",
+                    expectedLegacySource = expectations { common = "int[].class" },
                 ),
                 // Check a simple double.
                 ValueExample(
@@ -193,6 +254,18 @@ data class ValueExample(
                                 attributeValue = "3"
                                 annotationToSource = "3"
                             }
+                        },
+                ),
+                // Check a simple double with exponent
+                ValueExample(
+                    name = "double with exponent",
+                    javaType = "double",
+                    javaExpression = "7e10",
+                    expectedLegacySource =
+                        expectations {
+                            common = "7.0E10"
+
+                            source { attributeValue = "7e10" }
                         },
                 ),
                 // Check a special double - Nan.
@@ -323,6 +396,20 @@ data class ValueExample(
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "3.0"
                             fieldWriteWithSemicolon = "3.0f"
+                        },
+                ),
+                // Check a simple float with exponent
+                ValueExample(
+                    name = "float with exponent",
+                    javaType = "float",
+                    javaExpression = "7e10f",
+                    expectedLegacySource =
+                        expectations {
+                            common = "7.0E10f"
+
+                            source { attributeValue = "7e10f" }
+
+                            fieldValue = "7.0E10"
                         },
                 ),
                 // Check a simple float with upper F.
@@ -547,6 +634,18 @@ data class ValueExample(
                             common = "\"string\""
                             // TODO(b/354633349): Should have surrounding quotes.
                             fieldValue = "string"
+                        },
+                ),
+                ValueExample(
+                    name = "String escaped",
+                    javaType = "String",
+                    javaExpression = "\"str\\ning\"",
+                    expectedLegacySource =
+                        expectations {
+                            common = "\"str\\ning\""
+                            // TODO(b/354633349): Should have surrounding quotes and newline should
+                            //   be escaped.
+                            fieldValue = "str\ning"
                         },
                 ),
                 // Check a simple string array.
