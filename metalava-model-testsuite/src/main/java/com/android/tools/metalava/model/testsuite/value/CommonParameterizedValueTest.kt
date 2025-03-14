@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -263,6 +264,14 @@ class CommonParameterizedValueTest : BaseModelTest() {
                             annotationTestClass,
                             annotationWithoutDefaults,
                             attributeName,
+                            expectation = valueExample.expectedLegacySource,
+                        )
+                    )
+
+                    add(
+                        AnnotationItemToSourceTestCase(
+                            annotationTestClass,
+                            annotationWithoutDefaults,
                             expectation = valueExample.expectedLegacySource,
                         )
                     )
@@ -520,6 +529,42 @@ class CommonParameterizedValueTest : BaseModelTest() {
                     codebase,
                 )
             assertEquals(expected, annotationAttribute.value.toSource())
+        }
+    }
+
+    /**
+     * Test [AnnotationItem.toSource] method.
+     *
+     * @param testClass a [TestClass] annotated with an [annotationTestClass]
+     * @param annotationTestClass the annotation [TestClass].
+     * @param expectation expected results of calling [AnnotationItem.toSource].
+     */
+    private class AnnotationItemToSourceTestCase(
+        testClass: TestClass,
+        private val annotationTestClass: TestClass,
+        expectation: Expectation<String>,
+    ) :
+        TestCase<String>(
+            "AnnotationItem.toSource()",
+            testClass,
+            expectation,
+        ) {
+        override fun CodebaseProducerContext.checkCodebase() {
+            val testClass = classForTestCase()
+            val annotation = testClass.assertAnnotation("test.pkg.${annotationTestClass.className}")
+
+            // Get the expected value.
+            val expected =
+                expectation.expectationFor(
+                    codebaseProducer.kind,
+                    ValueUseSite.ANNOTATION_TO_SOURCE,
+                    codebase,
+                )
+
+            val wholeAnnotation = annotation.toSource()
+            // Extract the value from the whole annotation.
+            val actual = wholeAnnotation.substringAfter("=").substringBeforeLast(")")
+            assertEquals(expected, actual)
         }
     }
 

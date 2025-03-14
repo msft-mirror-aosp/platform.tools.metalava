@@ -89,6 +89,15 @@ data class ValueExample(
                             source { common = "@OtherAnnotation(intType = 1)" }
                             // TODO(b/354633349): Missing attributes.
                             attributeDefaultValue = "@test.pkg.OtherAnnotation"
+
+                            annotationToSource =
+                                "@test.pkg.OtherAnnotation(" +
+                                    "classType=void.class," +
+                                    " enumType=test.pkg.TestEnum.DEFAULT," +
+                                    " intType=1," +
+                                    " stringType=\"default\"," +
+                                    " stringArrayType={}" +
+                                    ")"
                         },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allValueUseSitesExceptFields,
@@ -133,15 +142,11 @@ data class ValueExample(
                     javaExpression = "'\\u2912'",
                     expectedLegacySource =
                         expectations {
-                            // TODO(b/354633349): Should probably use the `\uABCD` form.
-                            common = "'⤒'"
+                            common = "'\\u2912'"
                             // TODO(b/354633349): Should have surrounding quotes and use the
-                            // `\uABCD` form.
+                            //   `\uABCD` form.
                             fieldValue = "⤒"
-
-                            // These are correct.
-                            attributeDefaultValue = "'\\u2912'"
-                            source { attributeValue = "'\\u2912'" }
+                            jar { attributeValue = "'⤒'" }
                         },
                 ),
                 // Check a class literal.
@@ -184,6 +189,7 @@ data class ValueExample(
                                 // TODO(b/354633349): Consistency is good.
                                 attributeDefaultValue = "3"
                                 attributeValue = "3"
+                                annotationToSource = "3"
                             }
                         },
                 ),
@@ -202,12 +208,14 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Double.NaN"
                                 attributeValue = "Double.NaN"
+                                annotationToSource = "java.lang.Double.NaN"
                                 fieldValue = "NaN"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0d / 0.0"
+                                annotationToSource = "0.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -227,12 +235,14 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Double.POSITIVE_INFINITY"
                                 attributeValue = "Double.POSITIVE_INFINITY"
+                                annotationToSource = "java.lang.Double.POSITIVE_INFINITY"
                                 fieldValue = "Infinity"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0 / 0.0"
+                                annotationToSource = "1.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -251,12 +261,14 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Double.NEGATIVE_INFINITY"
                                 attributeValue = "Double.NEGATIVE_INFINITY"
+                                annotationToSource = "java.lang.Double.NEGATIVE_INFINITY"
                                 fieldValue = "-Infinity"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0 / 0.0"
+                                annotationToSource = "-1.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -292,6 +304,7 @@ data class ValueExample(
                                 // TODO(b/354633349): Consistency is good.
                                 attributeDefaultValue = "3"
                                 attributeValue = "3"
+                                annotationToSource = "3"
                             }
 
                             jar {
@@ -314,6 +327,7 @@ data class ValueExample(
 
                             // TODO(b/354633349): Consistency is good.
                             attributeDefaultValue = "3.141f"
+                            annotationToSource = "3.141f"
 
                             jar {
                                 // TODO(b/354633349): Consistency is good.
@@ -351,12 +365,14 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Float.NaN"
                                 attributeValue = "Float.NaN"
+                                annotationToSource = "java.lang.Float.NaN"
                                 fieldValue = "NaN"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0f / 0.0"
+                                annotationToSource = "0.0f / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -376,12 +392,14 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Float.POSITIVE_INFINITY"
                                 attributeValue = "Float.POSITIVE_INFINITY"
+                                annotationToSource = "java.lang.Float.POSITIVE_INFINITY"
                                 fieldValue = "Infinity"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0f / 0.0"
+                                annotationToSource = "1.0f / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -400,12 +418,14 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Float.NEGATIVE_INFINITY"
                                 attributeValue = "Float.NEGATIVE_INFINITY"
+                                annotationToSource = "java.lang.Float.NEGATIVE_INFINITY"
                                 fieldValue = "-Infinity"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0f / 0.0"
+                                annotationToSource = "-1.0F / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -428,6 +448,8 @@ data class ValueExample(
                             source {
                                 // TODO(b/354633349): The leading + is unnecessary.
                                 attributeValue = "+17"
+
+                                annotationToSource = "0x11"
                             }
                         },
                 ),
@@ -436,7 +458,12 @@ data class ValueExample(
                     name = "int negative",
                     javaType = "int",
                     javaExpression = "-17",
-                    expectedLegacySource = expectations { common = "-17" },
+                    expectedLegacySource =
+                        expectations {
+                            common = "-17"
+
+                            annotationToSource = "0xffffffef"
+                        },
                 ),
                 // Check a simple long with an integer value.
                 ValueExample(
@@ -454,6 +481,7 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "1000"
                                 attributeValue = "1000"
+                                annotationToSource = "1000"
                             }
                         },
                 ),

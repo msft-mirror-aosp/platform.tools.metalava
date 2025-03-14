@@ -126,6 +126,16 @@ internal open class PerProducerKindBuilder<T>(
 
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
+     * [ValueUseSite.ATTRIBUTE_VALUE].
+     */
+    var annotationToSource: T by
+        MutableMapDelegate(
+            expectationMap,
+            producerKinds.map { it to ValueUseSite.ANNOTATION_TO_SOURCE }
+        )
+
+    /**
+     * Stores its value in [expectationMap] for the cross product of [producerKinds] and
      * [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
      */
     var attributeDefaultValue: T by
