@@ -30,6 +30,8 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestClass
 import com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest.Companion.testParameters
+import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
+import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.testing.TestFileCache
@@ -122,8 +124,8 @@ abstract class BaseCommonParameterizedValueTest(
          *
          * Each subclass will check different aspects of this, e.g.
          * [AnnotationAttributeDefaultValueTestCase] assumes it as an annotation class and checks
-         * the default values on method "attr", [FieldValueTestCase] assumes it is a class with a
-         * field called "FIELD" and will check its value.
+         * the default values on method [ATTRIBUTE_NAME], [FieldValueTestCase] assumes it is a class
+         * with a field called [FIELD_NAME] and will check its value.
          */
         val testClass: TestClass,
     ) : Assertions {
@@ -165,8 +167,6 @@ abstract class BaseCommonParameterizedValueTest(
 
             // Construct [TestCase]s from [ValueExample].
             for (valueExample in valueExamples) {
-                val attributeName = "attr"
-
                 // If suitable add a test for [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
                 if (ValueUseSite.ATTRIBUTE_DEFAULT_VALUE in valueExample.suitableFor) {
                     // Create a [TestClass] for an annotation class that has an attribute for this
@@ -175,7 +175,6 @@ abstract class BaseCommonParameterizedValueTest(
                         testClassCreator.generateAnnotationClass(
                             valueExample,
                             "AnnotationWithDefaults",
-                            attributeName,
                             withDefaults = true,
                         )
 
@@ -183,7 +182,6 @@ abstract class BaseCommonParameterizedValueTest(
                         AnnotationAttributeDefaultValueTestCase(
                             valueExample,
                             annotationWithDefaults,
-                            attributeName,
                         )
                     )
                 }
@@ -197,7 +195,6 @@ abstract class BaseCommonParameterizedValueTest(
                         testClassCreator.generateAnnotationClass(
                             valueExample,
                             "AnnotationWithoutDefaults",
-                            attributeName,
                             withDefaults = false,
                         )
 
@@ -207,7 +204,6 @@ abstract class BaseCommonParameterizedValueTest(
                         testClassCreator.generateAnnotatedTestClass(
                             valueExample,
                             "AnnotationTestClass",
-                            attributeName,
                             annotationWithoutDefaults
                         )
 
@@ -215,8 +211,6 @@ abstract class BaseCommonParameterizedValueTest(
                         AnnotationAttributeValueToSourceTestCase(
                             valueExample,
                             annotationTestClass,
-                            annotationWithoutDefaults,
-                            attributeName,
                         )
                     )
 
@@ -224,28 +218,23 @@ abstract class BaseCommonParameterizedValueTest(
                         AnnotationItemToSourceTestCase(
                             valueExample,
                             annotationTestClass,
-                            annotationWithoutDefaults,
                         )
                     )
                 }
 
                 // If suitable add a test for [ValueUseSite.FIELD_VALUE].
                 if (ValueUseSite.FIELD_VALUE in valueExample.suitableFor) {
-                    val fieldName = "FIELD"
-
                     // Create a [TestClass] that has a field for each suitable [ValueExample].
                     val fieldTestClass =
                         testClassCreator.generateFieldTestClass(
                             valueExample,
                             "FieldTestClass",
-                            fieldName,
                         )
 
                     add(
                         FieldValueTestCase(
                             valueExample,
                             fieldTestClass,
-                            fieldName,
                         )
                     )
 
@@ -253,7 +242,6 @@ abstract class BaseCommonParameterizedValueTest(
                         FieldWriteValueWithSemicolonTestCase(
                             valueExample,
                             fieldTestClass,
-                            fieldName,
                         )
                     )
                 }
@@ -360,15 +348,11 @@ abstract class BaseCommonParameterizedValueTest(
      * Test [AnnotationAttributeValue.toSource] method.
      *
      * @param valueExample the [ValueExample] on which this test case is based.
-     * @param testClass a [TestClass] annotated with an [annotationTestClass]
-     * @param annotationTestClass the annotation [TestClass].
-     * @param attributeName the name of the annotation attribute.
+     * @param testClass a [TestClass] with an annotation.
      */
     private class AnnotationAttributeValueToSourceTestCase(
         valueExample: ValueExample,
         testClass: TestClass,
-        private val annotationTestClass: TestClass,
-        private val attributeName: String,
     ) :
         TestCase(
             valueExample,
@@ -376,9 +360,8 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
         ) {
         override fun TestCaseContext.checkCodebase() {
-            val annotation =
-                testClassItem.assertAnnotation("test.pkg.${annotationTestClass.className}")
-            val annotationAttribute = annotation.assertAttribute(attributeName)
+            val annotation = testClassItem.modifiers.annotations().first()
+            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
 
             // Get the expected value.
             val expected =
@@ -395,13 +378,11 @@ abstract class BaseCommonParameterizedValueTest(
      * Test [AnnotationItem.toSource] method.
      *
      * @param valueExample the [ValueExample] on which this test case is based.
-     * @param testClass a [TestClass] annotated with an [annotationTestClass]
-     * @param annotationTestClass the annotation [TestClass].
+     * @param testClass a [TestClass] with an annotation.
      */
     private class AnnotationItemToSourceTestCase(
         valueExample: ValueExample,
         testClass: TestClass,
-        private val annotationTestClass: TestClass,
     ) :
         TestCase(
             valueExample,
@@ -409,8 +390,7 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
         ) {
         override fun TestCaseContext.checkCodebase() {
-            val annotation =
-                testClassItem.assertAnnotation("test.pkg.${annotationTestClass.className}")
+            val annotation = testClassItem.modifiers.annotations().first()
 
             // Get the expected value.
             val expected =
@@ -433,12 +413,10 @@ abstract class BaseCommonParameterizedValueTest(
      *
      * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass the name of an annotation [TestClass].
-     * @param attributeName the name of the annotation attribute.
      */
     private class AnnotationAttributeDefaultValueTestCase(
         valueExample: ValueExample,
         testClass: TestClass,
-        private val attributeName: String,
     ) :
         TestCase(
             valueExample,
@@ -446,7 +424,7 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
         ) {
         override fun TestCaseContext.checkCodebase() {
-            val annotationMethod = testClassItem.assertMethod(attributeName, "")
+            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
 
             // Get the expected value.
             val expected =
@@ -464,12 +442,10 @@ abstract class BaseCommonParameterizedValueTest(
      *
      * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass the name of a class with the field.
-     * @param fieldName the name of the field whose value is to be checked.
      */
     private class FieldValueTestCase(
         valueExample: ValueExample,
         testClass: TestClass,
-        private val fieldName: String,
     ) :
         TestCase(
             valueExample,
@@ -477,7 +453,7 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
         ) {
         override fun TestCaseContext.checkCodebase() {
-            val field = testClassItem.assertField(fieldName)
+            val field = testClassItem.assertField(FIELD_NAME)
             val fieldValue = assertNotNull(field.fieldValue, "No field value")
 
             val expected =
@@ -497,12 +473,10 @@ abstract class BaseCommonParameterizedValueTest(
      *
      * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass the name of a class with the field.
-     * @param fieldName the name of the field whose value is to be checked.
      */
     private class FieldWriteValueWithSemicolonTestCase(
         valueExample: ValueExample,
         testClass: TestClass,
-        private val fieldName: String,
     ) :
         TestCase(
             valueExample,
@@ -510,7 +484,7 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
         ) {
         override fun TestCaseContext.checkCodebase() {
-            val field = testClassItem.assertField(fieldName)
+            val field = testClassItem.assertField(FIELD_NAME)
 
             val expected =
                 expectation.expectationFor(
@@ -561,18 +535,21 @@ abstract class BaseCommonParameterizedValueTest(
 
 /** Interface for objects that create [TestClass] instances. */
 interface TestClassCreator {
+    companion object {
+        const val ATTRIBUTE_NAME = "attr"
+        const val FIELD_NAME = "FIELD"
+    }
+
     /**
      * Create an annotation [TestClass] for [valueExample].
      *
      * @param valueExample the [ValueExample] for which this is being created.
      * @param classNamePrefix the prefix of the class.
-     * @param attributeName the name of the annotation attribute.
      * @param withDefaults true if defaults should be added, false otherwise.
      */
     fun generateAnnotationClass(
         valueExample: ValueExample,
         classNamePrefix: String,
-        attributeName: String,
         withDefaults: Boolean
     ): TestClass
 
@@ -583,13 +560,11 @@ interface TestClassCreator {
      *
      * @param valueExample the [ValueExample] for which this is being created.
      * @param classNamePrefix the prefix of the class.
-     * @param attributeName the name of the annotation attribute.
      * @param annotationTestClass the annotation [TestClass] to annotate the class with.
      */
     fun generateAnnotatedTestClass(
         valueExample: ValueExample,
         classNamePrefix: String,
-        attributeName: String,
         annotationTestClass: TestClass,
     ): TestClass
 
@@ -598,12 +573,10 @@ interface TestClassCreator {
      *
      * @param valueExample the [ValueExample] for which this is being created.
      * @param classNamePrefix the prefix of the class.
-     * @param fieldName the name of the field.
      */
     fun generateFieldTestClass(
         valueExample: ValueExample,
         classNamePrefix: String,
-        fieldName: String,
     ): TestClass
 
     /** Create a [TestClass] for [className] containing this [TestFile]. */
@@ -666,13 +639,11 @@ object JavaTestClassCreator : TestClassCreator {
      *
      * @param valueExample the [ValueExample] for which this is being created.
      * @param classNamePrefix the prefix of the class.
-     * @param attributeName the name of the annotation attribute.
      * @param withDefaults true if defaults should be added, false otherwise.
      */
     override fun generateAnnotationClass(
         valueExample: ValueExample,
         classNamePrefix: String,
-        attributeName: String,
         withDefaults: Boolean
     ): TestClass {
         val className = "${classNamePrefix}_${valueExample.classSuffix}"
@@ -684,7 +655,7 @@ object JavaTestClassCreator : TestClassCreator {
                     append("    ")
                     append(valueExample.javaType)
                     append(" ")
-                    append(attributeName)
+                    append(ATTRIBUTE_NAME)
                     append("()")
                     if (withDefaults) {
                         append(" default ")
@@ -706,13 +677,11 @@ object JavaTestClassCreator : TestClassCreator {
      *
      * @param valueExample the [ValueExample] for which this is being created.
      * @param classNamePrefix the prefix of the class.
-     * @param attributeName the name of the annotation attribute.
      * @param annotationTestClass the annotation [TestClass] to annotate the class with.
      */
     override fun generateAnnotatedTestClass(
         valueExample: ValueExample,
         classNamePrefix: String,
-        attributeName: String,
         annotationTestClass: TestClass,
     ): TestClass {
         val className = "${classNamePrefix}_${valueExample.classSuffix}"
@@ -723,7 +692,7 @@ object JavaTestClassCreator : TestClassCreator {
                     append("@")
                     append(annotationTestClass.className)
                     append("(")
-                    append(attributeName)
+                    append(ATTRIBUTE_NAME)
                     append(" = ")
                     append(valueExample.javaExpression)
                     append(")\n")
@@ -739,12 +708,10 @@ object JavaTestClassCreator : TestClassCreator {
      *
      * @param valueExample the [ValueExample] for which this is being created.
      * @param classNamePrefix the prefix of the class.
-     * @param fieldName the name of the field.
      */
     override fun generateFieldTestClass(
         valueExample: ValueExample,
         classNamePrefix: String,
-        fieldName: String,
     ): TestClass {
         val className = "${classNamePrefix}_${valueExample.classSuffix}"
         return java(
@@ -755,7 +722,7 @@ object JavaTestClassCreator : TestClassCreator {
                     append("    public static final ")
                     append(valueExample.javaType)
                     append(" ")
-                    append(fieldName)
+                    append(FIELD_NAME)
                     append(" = ")
                     append(valueExample.javaExpression)
                     append(";\n")
