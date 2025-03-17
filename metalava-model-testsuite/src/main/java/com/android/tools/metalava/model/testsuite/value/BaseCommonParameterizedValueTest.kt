@@ -126,6 +126,9 @@ abstract class BaseCommonParameterizedValueTest(
         /** The [ValueUseSite] that this is testing. */
         val valueUseSite: ValueUseSite,
 
+        /** Provider of the [TestClass] needed for this test. */
+        private val testClasses: TestClasses,
+    ) : Assertions {
         /**
          * The test class against which the test case will be run.
          *
@@ -134,9 +137,83 @@ abstract class BaseCommonParameterizedValueTest(
          * checks the default values on method [ATTRIBUTE_NAME], [CommonParameterizedFieldValueTest]
          * assumes it is a class with a field called [FIELD_NAME] and will check its value.
          */
-        val testClass: TestClass,
-    ) : Assertions {
+        val testClass
+            get() = testClasses.testClassFor(valueUseSite)
+
         override fun toString() = valueExample.name
+    }
+
+    /**
+     * Creates and caches the [TestClass]es needed for [valueExample].
+     *
+     * When first requested for a [TestClass] for [ValueUseSite] in [testClassFor] it will invoke
+     * [testClassCreator] to create one, cache it and return it. On subsequent calls it will return
+     * the cached version. This ensures a single [TestClass] for each [ValueUseSite]/[ValueExample]
+     * combination.
+     *
+     * @param testClassCreator responsible for creating instances of the [TestClass] that this
+     *   caches.
+     * @param valueExample the [ValueExample] for which the [TestClass]es are created.
+     */
+    class TestClasses(
+        private val testClassCreator: TestClassCreator,
+        private val valueExample: ValueExample
+    ) {
+        /** Get the [TestClass] appropriate for [valueUseSite]. */
+        fun testClassFor(valueUseSite: ValueUseSite) =
+            when (valueUseSite) {
+                ValueUseSite.ATTRIBUTE_VALUE,
+                ValueUseSite.ANNOTATION_TO_SOURCE -> annotatedWithAnnotationWithoutDefaults
+                ValueUseSite.ATTRIBUTE_DEFAULT_VALUE -> annotationWithDefaults
+                ValueUseSite.FIELD_VALUE,
+                ValueUseSite.FIELD_WRITE_WITH_SEMICOLON -> field
+            }
+
+        /**
+         * A class called `AnnotationWithDefault_...` for [valueExample] using
+         * [ValueExample.javaExpression] as the default value of the [ATTRIBUTE_NAME] attribute.
+         */
+        private val annotationWithDefaults by
+            lazy(LazyThreadSafetyMode.NONE) {
+                testClassCreator.generateAnnotationClass(
+                    valueExample,
+                    "AnnotationWithDefaults",
+                    withDefaults = true,
+                )
+            }
+
+        /**
+         * A class called `AnnotationTestClass_...` for [valueExample] which is annotated with an
+         * annotation called `AnnotationWithoutDefaults_...` whose [ATTRIBUTE_NAME] attribute has a
+         * value of [ValueExample.javaExpression].
+         */
+        private val annotatedWithAnnotationWithoutDefaults by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val annotationWithoutDefaults =
+                    testClassCreator.generateAnnotationClass(
+                        valueExample,
+                        "AnnotationWithoutDefaults",
+                        withDefaults = false,
+                    )
+
+                testClassCreator.generateAnnotatedTestClass(
+                    valueExample,
+                    "AnnotationTestClass",
+                    annotationWithoutDefaults
+                )
+            }
+
+        /**
+         * A class called `FieldTestClass_...` for [valueExample] whose [FIELD_NAME] has a value of
+         * [ValueExample.javaExpression].
+         */
+        private val field by
+            lazy(LazyThreadSafetyMode.NONE) {
+                testClassCreator.generateFieldTestClass(
+                    valueExample,
+                    "FieldTestClass",
+                )
+            }
     }
 
     /**
@@ -179,56 +256,28 @@ abstract class BaseCommonParameterizedValueTest(
                 error("Duplicate value examples: $duplicates")
             }
 
-            val testClassCreator = JavaTestClassCreator
-
             // Construct [TestCase]s from [ValueExample].
             for (valueExample in valueExamples) {
+                val testClasses = TestClasses(JavaTestClassCreator, valueExample)
+
                 // If suitable add a test for [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
                 if (ValueUseSite.ATTRIBUTE_DEFAULT_VALUE in valueExample.suitableFor) {
-                    // Create a [TestClass] for an annotation class that has an attribute for this
-                    // [ValueExample], setting its expression as the default.
-                    val annotationWithDefaults =
-                        testClassCreator.generateAnnotationClass(
-                            valueExample,
-                            "AnnotationWithDefaults",
-                            withDefaults = true,
-                        )
-
                     add(
                         TestCase(
                             valueExample,
                             ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
-                            annotationWithDefaults,
+                            testClasses,
                         )
                     )
                 }
 
                 // If suitable add a test for [ValueUseSite.ATTRIBUTE_VALUE].
                 if (ValueUseSite.ATTRIBUTE_VALUE in valueExample.suitableFor) {
-                    // Create a [TestClass] for an annotation class that has an attribute for this
-                    // [ValueExample] but does not set a default. Used by the following class for
-                    // checking annotation attribute values.
-                    val annotationWithoutDefaults =
-                        testClassCreator.generateAnnotationClass(
-                            valueExample,
-                            "AnnotationWithoutDefaults",
-                            withDefaults = false,
-                        )
-
-                    // Create a [TestClass] that is annotated with `AnnotationWithoutDefaults`
-                    // which uses this [ValueExample]'s expression.
-                    val annotationTestClass =
-                        testClassCreator.generateAnnotatedTestClass(
-                            valueExample,
-                            "AnnotationTestClass",
-                            annotationWithoutDefaults
-                        )
-
                     add(
                         TestCase(
                             valueExample,
                             ValueUseSite.ATTRIBUTE_VALUE,
-                            annotationTestClass,
+                            testClasses,
                         )
                     )
 
@@ -236,25 +285,18 @@ abstract class BaseCommonParameterizedValueTest(
                         TestCase(
                             valueExample,
                             ValueUseSite.ANNOTATION_TO_SOURCE,
-                            annotationTestClass,
+                            testClasses,
                         )
                     )
                 }
 
                 // If suitable add a test for [ValueUseSite.FIELD_VALUE].
                 if (ValueUseSite.FIELD_VALUE in valueExample.suitableFor) {
-                    // Create a [TestClass] that has a field for each suitable [ValueExample].
-                    val fieldTestClass =
-                        testClassCreator.generateFieldTestClass(
-                            valueExample,
-                            "FieldTestClass",
-                        )
-
                     add(
                         TestCase(
                             valueExample,
                             ValueUseSite.FIELD_VALUE,
-                            fieldTestClass,
+                            testClasses,
                         )
                     )
 
@@ -262,7 +304,7 @@ abstract class BaseCommonParameterizedValueTest(
                         TestCase(
                             valueExample,
                             ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
-                            fieldTestClass,
+                            testClasses,
                         )
                     )
                 }
