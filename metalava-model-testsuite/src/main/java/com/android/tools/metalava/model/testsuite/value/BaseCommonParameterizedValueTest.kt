@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -149,14 +148,6 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     companion object {
-        /** Names of constant types used in [ValueExample.javaType]. */
-        private val constantTypeNames = buildSet {
-            for (kind in PrimitiveTypeItem.Primitive.entries) {
-                add(kind.primitiveName)
-            }
-            add("String")
-        }
-
         /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
         private val testCases = buildList {
             // Verify that all the ValueExamples have distinct names.
@@ -250,16 +241,11 @@ abstract class BaseCommonParameterizedValueTest(
                             fieldName,
                         )
 
-                    // If the type is suitable for use in a constant field then assume the field is
-                    // constant.
-                    val isConstant = valueExample.javaType in constantTypeNames
-
                     add(
                         FieldValueTestCase(
                             valueExample,
                             fieldTestClass,
                             fieldName,
-                            isConstant,
                         )
                     )
 
@@ -268,7 +254,6 @@ abstract class BaseCommonParameterizedValueTest(
                             valueExample,
                             fieldTestClass,
                             fieldName,
-                            isConstant,
                         )
                     )
                 }
@@ -485,7 +470,6 @@ abstract class BaseCommonParameterizedValueTest(
         valueExample: ValueExample,
         testClass: TestClass,
         private val fieldName: String,
-        private val isConstant: Boolean,
     ) :
         TestCase(
             valueExample,
@@ -496,16 +480,12 @@ abstract class BaseCommonParameterizedValueTest(
             val field = testClassItem.assertField(fieldName)
             val fieldValue = assertNotNull(field.fieldValue, "No field value")
 
-            // If this is a constant then get the expectation, otherwise, expect it to have no
-            // value.
             val expected =
-                if (isConstant)
-                    expectation.expectationFor(
-                        producerKind,
-                        ValueUseSite.FIELD_VALUE,
-                        codebase,
-                    )
-                else NO_INITIAL_FIELD_VALUE
+                expectation.expectationFor(
+                    producerKind,
+                    ValueUseSite.FIELD_VALUE,
+                    codebase,
+                )
 
             val actual = fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
             assertEquals(expected, actual)
@@ -523,7 +503,6 @@ abstract class BaseCommonParameterizedValueTest(
         valueExample: ValueExample,
         testClass: TestClass,
         private val fieldName: String,
-        private val isConstant: Boolean,
     ) :
         TestCase(
             valueExample,
@@ -533,16 +512,12 @@ abstract class BaseCommonParameterizedValueTest(
         override fun TestCaseContext.checkCodebase() {
             val field = testClassItem.assertField(fieldName)
 
-            // If this is a constant then get the expectation, otherwise, expect it to have no
-            // value.
             val expected =
-                if (isConstant)
-                    expectation.expectationFor(
-                        producerKind,
-                        ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
-                        codebase,
-                    )
-                else NO_INITIAL_FIELD_VALUE
+                expectation.expectationFor(
+                    producerKind,
+                    ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
+                    codebase,
+                )
 
             // Print the field with semicolon.
             val stringWriter = StringWriter()
