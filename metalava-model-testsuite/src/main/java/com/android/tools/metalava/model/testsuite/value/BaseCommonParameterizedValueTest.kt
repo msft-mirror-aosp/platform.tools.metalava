@@ -28,6 +28,8 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
+import com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest.Companion.testParameters
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.testing.TestFileCache
@@ -72,9 +74,12 @@ import org.junit.runners.Parameterized
  *
  * @param testFileCache the [TestFileCache] in which all the [TestFile]s used by this test class
  *   will be cached.
+ * @param testJarFile the [TestFile] for the jar file built from all the java source files used by
+ *   this test class.
  */
 abstract class BaseCommonParameterizedValueTest(
     private val testFileCache: TestFileCache,
+    private val testJarFile: TestFile,
 ) : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
@@ -420,36 +425,23 @@ abstract class BaseCommonParameterizedValueTest(
                 .dependsOn(testConstantsClass)
         }
 
-        /** The jar includes all the distinct [TestFile]s used by [testCases]. */
-        private val sourcesForJar = buildSet {
-            for (testCase in testCases) {
-                addAll(testCase.testClass.testFileSet)
-            }
-        }
-
-        /** Jar file containing compiled versions of [sourcesForJar]. */
-        private val testJarFile =
-            jarFromSources(
-                "binary-class.jar",
-                *sourcesForJar.toTypedArray(),
-            )
-
         /** The list of [CodebaseProducer]s for which all the [testCases] will be run. */
         private val codebaseProducers =
             listOf(
-                JarCodebaseProducer(testJarFile),
+                JarCodebaseProducer(),
                 SourceCodebaseProducer,
             )
 
-        /** Create cross product of [CodebaseProducer] and the test cases for [valueUseSite]. */
-        internal fun testCasesForValueUseSite(
-            valueUseSite: ValueUseSite,
-        ): List<Array<Any>> {
-            val filteredCases = testCases.filter { it.valueUseSite == valueUseSite }
-            return codebaseProducers.flatMap { codebaseProducer ->
-                filteredCases.map { testCase -> arrayOf(codebaseProducer, testCase) }
+        internal fun testCasesForValueUseSite(valueUseSite: ValueUseSite) =
+            testCases.filter { it.valueUseSite == valueUseSite }
+
+        /** Create cross product of [codebaseProducers] and [testCases]. */
+        internal fun testCasesForCodebaseProducers(
+            testCases: List<TestCase<*>>,
+        ) =
+            codebaseProducers.flatMap { codebaseProducer ->
+                testCases.map { testCase -> arrayOf(codebaseProducer, testCase) }
             }
-        }
     }
 
     /**
@@ -470,8 +462,7 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     /** Produce a [Codebase] from [testJarFile]. */
-    private class JarCodebaseProducer(private val testJarFile: TestFile) :
-        CodebaseProducer(ProducerKind.JAR) {
+    private class JarCodebaseProducer : CodebaseProducer(ProducerKind.JAR) {
         override fun BaseCommonParameterizedValueTest.runCodebaseProducerTest(
             testFileCache: TestFileCache,
             testCase: TestCase<*>,
@@ -504,8 +495,30 @@ abstract class BaseCommonParameterizedValueTest(
      * Makes it easy to share behavior between them.
      */
     open class BaseCompanion(private val valueUseSite: ValueUseSite) {
+        /** The list of all [valueUseSite] test cases. */
+        private val valueUseTestCases = testCasesForValueUseSite(valueUseSite)
+
         /** The list of parameters for this test class. */
-        val testParameters = testCasesForValueUseSite(valueUseSite)
+        val testParameters = testCasesForCodebaseProducers(valueUseTestCases)
+
+        /** Jar file built from all java source files in [testParameters]. */
+        val testJarFile = produceJarTestFile(valueUseTestCases)
+
+        /** Produce a jar from all the distinct [TestFile]s used by [testCases]. */
+        private fun produceJarTestFile(testCases: List<TestCase<*>>): TestFile {
+            // The jar includes all the distinct [TestFile]s used by [testCases].
+            val sourcesForJar = buildSet {
+                for (testCase in testCases) {
+                    addAll(testCase.testClass.testFileSet)
+                }
+            }
+
+            // Jar file containing compiled versions of [sourcesForJar].
+            return jarFromSources(
+                "binary-class.jar",
+                *sourcesForJar.toTypedArray(),
+            )
+        }
     }
 
     /**

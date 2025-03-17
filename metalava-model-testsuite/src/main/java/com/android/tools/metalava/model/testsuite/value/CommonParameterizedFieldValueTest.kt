@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [FIELD_VALUE]. */
 class CommonParameterizedFieldValueTest :
-    BaseCommonParameterizedValueTest(testFileCacheRule.cache) {
+    BaseCommonParameterizedValueTest(testFileCacheRule.cache, testJarFile) {
     companion object : BaseCompanion(FIELD_VALUE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()

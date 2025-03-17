@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [FIELD_WRITE_WITH_SEMICOLON]. */
 class CommonParameterizedFieldWriteWithSemicolonValueTest :
-    BaseCommonParameterizedValueTest(testFileCacheRule.cache) {
+    BaseCommonParameterizedValueTest(testFileCacheRule.cache, testJarFile) {
     companion object : BaseCompanion(FIELD_WRITE_WITH_SEMICOLON) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()

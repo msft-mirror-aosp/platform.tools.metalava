@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [ANNOTATION_TO_SOURCE]. */
 class CommonParameterizedAnnotationToSourceValueTest :
-    BaseCommonParameterizedValueTest(testFileCacheRule.cache) {
+    BaseCommonParameterizedValueTest(testFileCacheRule.cache, testJarFile) {
     companion object : BaseCompanion(ANNOTATION_TO_SOURCE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
