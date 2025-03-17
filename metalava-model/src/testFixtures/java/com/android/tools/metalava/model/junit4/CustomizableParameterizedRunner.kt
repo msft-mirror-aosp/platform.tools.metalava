@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.junit4
 
+import com.android.tools.metalava.model.junit4.ParameterizedRunner.TestArguments
 import org.junit.runner.Runner
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
@@ -35,14 +36,14 @@ import org.junit.runners.parameterized.TestWithParameters
  *   by this.
  * @param parametersRunnerFactory factory for creating a [Runner] from a [TestWithParameters].
  */
-abstract class CustomizableParameterizedRunner(
+abstract class CustomizableParameterizedRunner<A : Any>(
     clazz: Class<*>,
-    private val argumentsProvider: (TestClass, List<Array<Any>>?) -> TestArguments,
+    private val argumentsProvider: (TestClass, List<Array<Any>>?) -> TestArguments<A>,
     parametersRunnerFactory: ParametersRunnerFactory =
         BlockJUnit4ClassRunnerWithParametersFactory(),
-) : ParameterizedRunner(TestClass(clazz), parametersRunnerFactory) {
+) : ParameterizedRunner<A>(TestClass(clazz), parametersRunnerFactory) {
 
-    override fun computeTestArguments(testClass: TestClass): ParameterizedRunner.TestArguments {
+    override fun computeTestArguments(testClass: TestClass): TestArguments<A> {
         // Get additional arguments (if any) from the actual test class.
         val additionalArguments = getAdditionalArguments(testClass)
 
