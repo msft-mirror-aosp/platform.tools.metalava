@@ -30,6 +30,11 @@ object Issues {
     val PARSE_ERROR by Issue(Severity.ERROR)
     val DUPLICATE_SOURCE_CLASS by Issue(Severity.WARNING)
 
+    // Signature file parsing
+    val SIGNATURE_FILE_ERROR by Issue(Severity.ERROR)
+    // TODO(b/394789173): Hide until AndroidX has disabled it.
+    val UNQUALIFIED_TYPE_ERROR by Issue(Severity.HIDDEN)
+
     // Compatibility issues
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
@@ -232,6 +237,8 @@ object Issues {
     val INVALID_ENVIRONMENT_IN_RESTRICTED_FOR_ENVIRONMENT by
         Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_FROM_VALUE by Issue(Severity.ERROR, Category.API_LINT)
+    val INHERIT_CHANGES_SIGNATURE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
+    val DATA_CLASS_DEFINITION by Issue(Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

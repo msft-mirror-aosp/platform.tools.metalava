@@ -58,12 +58,13 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -202,13 +203,35 @@ private constructor(
     private val codebase = assembler.codebase
 
     /**
+     * The [FileLocationTracker] for the current file being parsed.
+     *
+     * Set by [parseApiSingleFile].
+     */
+    private lateinit var fileLocationTracker: FileLocationTracker
+
+    /**
+     * Report recoverable errors encountered while parsing.
+     *
+     * Retrieves the location of the error from [fileLocationTracker].
+     */
+    private val errorReporter =
+        object : SignatureErrorReporter {
+            override fun report(issue: Issues.Issue, message: String) {
+                val location = fileLocationTracker.fileLocation()
+                codebase.reporter.report(issue, null, message, location)
+            }
+        }
+
+    /**
      * Provides support for parsing and caching [TypeItem]s.
      *
      * Defer creation until after the first file has been read and [kotlinStyleNulls] has been set
      * to a non-null value to ensure that it picks up the correct setting of [kotlinStyleNulls].
      */
     private val typeParser by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            TextTypeParser(codebase, kotlinStyleNulls!!, errorReporter)
+        }
 
     /**
      * Provides support for creating [TypeItem]s for specific uses.
@@ -238,6 +261,12 @@ private constructor(
      * Set in [parseApiSingleFile].
      */
     private lateinit var apiVariant: ApiVariant
+
+    /**
+     * True if this is appending information from one signature file to a [Codebase] created from
+     * another signature file.
+     */
+    private var appending: Boolean = false
 
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
@@ -423,21 +452,6 @@ private constructor(
         apiText: String,
         apiVariant: ApiVariant,
     ) {
-        // Parse the header of the signature file to determine the format. If the signature file is
-        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
-        format =
-            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
-                ?: FileFormat.V2
-
-        // Disallow a mixture of kotlinStyleNulls settings.
-        if (kotlinStyleNulls == null) {
-            kotlinStyleNulls = format.kotlinStyleNulls
-        } else if (kotlinStyleNulls != format.kotlinStyleNulls) {
-            throw ApiParseException(
-                "Cannot mix signature files with different settings of kotlinStyleNulls"
-            )
-        }
-
         if (appending) {
             // When we're appending, and the content is empty, nothing to do.
             if (apiText.isBlank()) {
@@ -445,10 +459,40 @@ private constructor(
             }
         }
 
+        // The behavior is slightly different when appending to an existing Codebase.
+        this.appending = appending
+
+        // Parse the header of the signature file to determine the format. If the signature file is
+        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
+        format =
+            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
+                ?: FileFormat.V2
+
         // Remember the API variant of the file being parsed.
         this.apiVariant = apiVariant
 
         val tokenizer = Tokenizer(path, apiText.toCharArray())
+
+        // Get the preceding tracker, if any.
+        val precedingTracker =
+            if (::fileLocationTracker.isInitialized) {
+                fileLocationTracker
+            } else {
+                null
+            }
+
+        // Set the file location tracker to provide location information about the current file.
+        fileLocationTracker = tokenizer
+
+        // Disallow a mixture of kotlinStyleNulls settings.
+        if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
+            val precedingFile = precedingTracker!!.fileLocation().path
+            errorReporter.report(
+                "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
+            )
+        }
+        kotlinStyleNulls = format.kotlinStyleNulls
+
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
@@ -504,6 +548,66 @@ private constructor(
         }
     }
 
+    /**
+     * Creates a type alias in the [pkg] with the [modifiers].
+     *
+     * It is expected that the starting position of the [tokenizer] is the "typealias" keyword, and
+     * the next token will be the name and option type parameter list.
+     *
+     * When the method returns, the current [tokenizer] position will be the ";" at the end of the
+     * typealias line.
+     */
+    private fun parseTypeAlias(
+        pkg: DefaultPackageItem,
+        tokenizer: Tokenizer,
+        modifiers: MutableModifierList,
+        location: FileLocation
+    ) {
+        var token = tokenizer.requireToken()
+        tokenizer.assertIdent(token)
+
+        val typeParameterListIndex = token.indexOf("<")
+
+        val (name, typeParameterList, typeItemFactory) =
+            if (typeParameterListIndex == -1) {
+                Triple(token, TypeParameterList.NONE, globalTypeItemFactory)
+            } else {
+                val name = token.substring(0, typeParameterListIndex)
+                val typeParameterListAndFactory =
+                    createTypeParameterList(
+                        globalTypeItemFactory,
+                        "typealias $name",
+                        token.substring(typeParameterListIndex)
+                    )
+                Triple(
+                    name,
+                    typeParameterListAndFactory.typeParameterList,
+                    typeParameterListAndFactory.factory
+                )
+            }
+
+        token = tokenizer.requireToken()
+        if ("=" != token) {
+            throw ApiParseException("expected = found $token", tokenizer)
+        }
+
+        val typeString = scanForTypeString(tokenizer, tokenizer.requireToken())
+        token = tokenizer.current
+        if (";" != token) {
+            throw ApiParseException("expected ; found $token", tokenizer)
+        }
+
+        val type = typeItemFactory.getGeneralType(typeString)
+        itemFactory.createTypeAliasItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            qualifiedName = pkg.qualifiedName() + "." + name,
+            containingPackage = pkg,
+            aliasedType = type,
+            typeParameterList = typeParameterList,
+        )
+    }
+
     private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
@@ -540,8 +644,17 @@ private constructor(
                 superClassType = globalTypeItemFactory.superEnumType
                 token = tokenizer.requireToken()
             }
+            "typealias" -> {
+                // Type aliases aren't classes, but they are defined at the same level as classes
+                parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
+                // Don't continue creating a class item
+                return
+            }
             else -> {
-                throw ApiParseException("missing class or interface. got: $token", tokenizer)
+                throw ApiParseException(
+                    "expected one of class, interface, @interface, enum, or typealias; found: $token",
+                    tokenizer
+                )
             }
         }
         tokenizer.assertIdent(token)
@@ -1011,17 +1124,11 @@ private constructor(
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
-        token = tokenizer.current
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) =
-            if ("<" == token) {
-                parseTypeParameterList(tokenizer, classTypeItemFactory).also {
-                    token = tokenizer.requireToken()
-                }
-            } else {
-                TypeParameterListAndFactory(TypeParameterList.NONE, classTypeItemFactory)
-            }
+            parseTypeParameterList(tokenizer, classTypeItemFactory)
+        token = tokenizer.current
 
         tokenizer.assertIdent(token)
         val name: String =
@@ -1077,18 +1184,11 @@ private constructor(
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
-        token = tokenizer.current
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
-            if ("<" == token) {
-                parseTypeParameterList(tokenizer, classTypeItemFactory).also {
-                    token = tokenizer.requireToken()
-                }
-            } else {
-                TypeParameterListAndFactory(TypeParameterList.NONE, classTypeItemFactory)
-            }
-
+            parseTypeParameterList(tokenizer, classTypeItemFactory)
+        token = tokenizer.current
         tokenizer.assertIdent(token)
 
         val returnTypeString: String
@@ -1172,9 +1272,14 @@ private constructor(
 
         method.markForMainApiSurface()
 
-        // If the method already exists in the class item because it was defined in a previous
-        // signature file then replace it with this one, otherwise just add this method.
-        cl.replaceOrAddMethod(method)
+        if (appending) {
+            // If the method already exists in the class item because it was defined in a previous
+            // signature file then replace it with this one, otherwise just add this method.
+            cl.replaceOrAddMethod(method)
+        } else {
+            // Just add the method to the class.
+            cl.addMethod(method)
+        }
     }
 
     private fun parseField(
@@ -1444,27 +1549,27 @@ private constructor(
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
+
+        // Get a TypeParameterList and accompanying TypeParameterScope
+        val (typeParameterList, typeItemFactory) =
+            parseTypeParameterList(tokenizer, classTypeItemFactory)
         token = tokenizer.current
-        tokenizer.assertIdent(token)
 
         val typeString: String
-        val name: String
+        val receiverNamePair: Pair<TypeItem?, String>
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
-            name = parseNameWithColon(token, tokenizer)
-            token = tokenizer.requireToken()
-            tokenizer.assertIdent(token)
+            receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
+            token = tokenizer.current
             typeString = scanForTypeString(tokenizer, token)
             token = tokenizer.current
         } else {
             // Java style: parse the type, then the name.
             typeString = scanForTypeString(tokenizer, token)
+            receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
             token = tokenizer.current
-            tokenizer.assertIdent(token)
-            name = token
-            token = tokenizer.requireToken()
         }
-        val type = classTypeItemFactory.getGeneralType(typeString)
+        val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
 
         if (";" != token) {
@@ -1474,19 +1579,73 @@ private constructor(
             itemFactory.createPropertyItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                name = name,
+                name = receiverNamePair.second,
                 containingClass = cl,
                 type = type,
+                receiver = receiverNamePair.first,
+                typeParameterList = typeParameterList,
             )
         property.markForMainApiSurface()
         cl.addProperty(property)
     }
 
+    /**
+     * Starting from the current token of [tokenizer], parses the optional receiver type and then
+     * the name of a property.
+     *
+     * After the method returns, the caller should continue processing at the new current token of
+     * [tokenizer], which will be the token after
+     */
+    private fun parsePropertyReceiverAndName(
+        tokenizer: Tokenizer,
+        typeItemFactory: TextTypeItemFactory
+    ): Pair<TypeItem?, String> {
+        // If there's no receiver, scanning for the type string should just return the name.
+        // If there is a receiver, because of how the tokens are broken up, it should return
+        // "receiver.name", which can then be split on the last "." to the receiver and name.
+        val receiverAndName = scanForTypeString(tokenizer, tokenizer.current)
+        val namePossiblyWithColon: String
+        val receiverTypeString: String?
+        if (receiverAndName.contains(".")) {
+            namePossiblyWithColon = receiverAndName.substringAfterLast(".")
+            receiverTypeString = receiverAndName.substringBeforeLast(".")
+        } else {
+            namePossiblyWithColon = receiverAndName
+            receiverTypeString = null
+        }
+
+        val name =
+            if (format.kotlinNameTypeOrder) {
+                parseNameWithColon(namePossiblyWithColon, tokenizer)
+            } else {
+                tokenizer.assertIdent(namePossiblyWithColon)
+                namePossiblyWithColon
+            }
+        val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
+
+        return receiverType to name
+    }
+
+    /**
+     * Parses a type parameter list enclosed in "<>", if one exists.
+     *
+     * Starts processing from the current token of [tokenizer]. If that token is not "<", returns an
+     * empty type parameter list.
+     *
+     * After the method returns, the caller should continue processing at the new current token of
+     * [tokenizer], which will be the token after the type parameter list, if it exists, or the same
+     * as the original current token, if there was no type parameter list.
+     */
     private fun parseTypeParameterList(
         tokenizer: Tokenizer,
         enclosingTypeItemFactory: TextTypeItemFactory,
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        var token: String
+        var token: String = tokenizer.current
+        // No type parameters to parse. The current token is unchanged
+        if ("<" != token) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+        }
+
         val start = tokenizer.offset() - 1
         var balance = 1
         while (balance > 0) {
@@ -1498,6 +1657,9 @@ private constructor(
             }
         }
         val typeParameterListString = tokenizer.getStringFromOffset(start)
+        // Set the tokenizer to the next token, so that the caller should continue processing at
+        // tokenizer.current (in alignment with the no type parameter case).
+        tokenizer.requireToken()
         return if (typeParameterListString.isEmpty()) {
             TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         } else {
@@ -1608,9 +1770,9 @@ private constructor(
                 return parameters
             }
 
-            // Each item can be
-            // optional annotations optional-modifiers type-with-use-annotations-and-generics
-            // optional-name optional-equals-default-value
+            // Each item can be:
+            //   optional-"optional" annotations optional-modifiers
+            //   type-with-use-annotations-and-generics optional-name
 
             // Used to represent the presence of a default value, instead of showing the entire
             // default value
@@ -1656,52 +1818,6 @@ private constructor(
                 }
             }
 
-            var defaultValueString: String? = null
-            if ("=" == token) {
-                if (hasOptionalKeyword) {
-                    throw ApiParseException(
-                        "cannot have both optional keyword and default value",
-                        tokenizer
-                    )
-                }
-                defaultValueString = tokenizer.requireToken(true)
-                val sb = StringBuilder(defaultValueString)
-                if (defaultValueString == "{") {
-                    var balance = 1
-                    while (balance > 0) {
-                        token = tokenizer.requireToken(parenIsSep = false, eatWhitespace = false)
-                        sb.append(token)
-                        if (token == "{") {
-                            balance++
-                        } else if (token == "}") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
-                        }
-                    }
-                    token = tokenizer.requireToken()
-                } else {
-                    var balance = if (defaultValueString == "(") 1 else 0
-                    while (true) {
-                        token = tokenizer.requireToken(parenIsSep = true, eatWhitespace = false)
-                        if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
-                            if (token.length > 1) {
-                                sb.append(token, 0, token.length - 1)
-                                token = token[token.length - 1].toString()
-                            }
-                            break
-                        }
-                        sb.append(token)
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                        }
-                    }
-                }
-                defaultValueString = sb.toString()
-            }
             when (token) {
                 "," -> {
                     token = tokenizer.requireToken()
@@ -1716,17 +1832,13 @@ private constructor(
 
             // Select the DefaultValue for the parameter.
             val defaultValue =
-                when {
-                    hasOptionalKeyword ->
-                        // It has an optional keyword, so it has a default value but the actual
-                        // value is not known.
-                        DefaultValue.UNKNOWN
-                    defaultValueString == null ->
-                        // It has neither an optional keyword nor an actual default value.
-                        DefaultValue.NONE
-                    else ->
-                        // It has an actual default value.
-                        DefaultValue.fixedDefaultValue(defaultValueString)
+                if (hasOptionalKeyword) {
+                    // It has an optional keyword, so it has a default value but the actual value is
+                    // not known.
+                    ParameterDefaultValue.UNKNOWN
+                } else {
+                    // It does not have an optional keyword so it has no default value.
+                    ParameterDefaultValue.NONE
                 }
             parameters.add(
                 ParameterInfo(
@@ -1752,7 +1864,7 @@ private constructor(
     private inner class ParameterInfo(
         val name: String,
         val publicName: String?,
-        val defaultValue: DefaultValue,
+        val defaultValue: ParameterDefaultValue,
         val typeString: String,
         val modifiers: MutableModifierList,
         val location: FileLocation,

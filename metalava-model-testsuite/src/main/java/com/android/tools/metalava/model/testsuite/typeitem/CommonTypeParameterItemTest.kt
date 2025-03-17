@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -41,7 +43,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
@@ -76,7 +78,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T extends Comparable<T>> {
                         ctor public Foo();
@@ -113,7 +115,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T extends Object & Comparable<T>> {
                         ctor public Foo();
@@ -304,6 +306,12 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             // There's an expected space between "java.lang.Integer" and "java.lang.String"
             assertThat(typeParameter.toSource())
                 .isEqualTo("T extends java.util.Map<java.lang.Integer, java.lang.String>")
+
+            // There's no expected space between "Integer" and "String"
+            val configuration =
+                TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS)
+            assertThat(typeParameter.toSource(configuration))
+                .isEqualTo("T extends java.util.Map<Integer,String>")
         }
     }
 

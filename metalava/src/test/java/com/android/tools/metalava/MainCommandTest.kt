@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import java.io.File
-import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
 
@@ -47,9 +46,6 @@ Usage: metalava main [options] [flags]...
   The default sub-command that is run if no sub-command is specified.
 
 Options:
-  --config-file <file>                       A configuration file that can be consumed by Metalava. This can be
-                                             specified multiple times in which case later config files will
-                                             override/merge with earlier ones.
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
                                              files. Any classes that cannot be found will be treated as empty.",
@@ -83,6 +79,8 @@ $ISSUE_REPORTING_OPTIONS_HELP
 $COMMON_BASELINE_OPTIONS_HELP
 
 $GENERAL_REPORTING_OPTIONS_HELP
+
+$CONFIG_FILE_OPTIONS_HELP
 
 $API_SELECTION_OPTIONS_HELP
 
@@ -182,9 +180,6 @@ Generating Stubs:
                                              recently marked as non null, whereas in the documentation stubs we'll just
                                              list this as @NonNull. Another difference is that @doconly elements are
                                              included in documentation stubs, but not regular stubs, etc.
---kotlin-stubs
-                                             [CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source
-                                             code will be written in Kotlin rather than the Java programming language.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.

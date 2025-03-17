@@ -118,8 +118,11 @@ data class FileFormat(
      * `\n` (because it is the terminator of the signature format line).
      */
     val migrating: String? = null,
-    val conciseDefaultValues: Boolean,
+    val includeDefaultParameterValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
+
+    /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
+    val specifiedNormalizeFinalModifier: Boolean? = null,
 
     /**
      * Indicates whether the whole extends list for an interface is sorted.
@@ -139,7 +142,12 @@ data class FileFormat(
      * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
      * [StripJavaLangPrefix] is used when outputting types to signature files.
      */
-    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null
+    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null,
+
+    /**
+     * Indicates how type arguments should be formatted when outputting types to signature files.
+     */
+    val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -192,12 +200,20 @@ data class FileFormat(
         get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
 
     // This defaults to false but can be overridden on the command line.
+    val normalizeFinalModifier
+        get() = effectiveValue({ specifiedNormalizeFinalModifier }, false)
+
+    // This defaults to false but can be overridden on the command line.
     val sortWholeExtendsList
         get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
 
     // This defaults to LEGACY but can be overridden on the command line.
     val stripJavaLangPrefix
         get() = effectiveValue({ specifiedStripJavaLangPrefix }, StripJavaLangPrefix.LEGACY)
+
+    // This defaults to LEGACY but can be overridden on the command line.
+    val typeArgumentSpacing
+        get() = effectiveValue({ specifiedTypeArgumentSpacing }, TypeArgumentSpacing.LEGACY)
 
     /** The base version of the file format. */
     enum class Version(
@@ -224,7 +240,7 @@ data class FileFormat(
                 FileFormat(
                     version = version,
                     kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                 )
             },
             help =
@@ -233,26 +249,7 @@ data class FileFormat(
                     are based. It sets the properties as follows:
                     ```
                     + kotlin-style-nulls = no
-                    + concise-default-values = no
-                    ```
-                """,
-        ),
-        V3(
-            versionNumber = "3.0",
-            legacyCommandLineAlias = "v3",
-            factory = { version ->
-                V2.defaults.copy(
-                    version = version,
-                    // This adds kotlinStyleNulls = true
-                    kotlinStyleNulls = true,
-                )
-            },
-            help =
-                """
-                    This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
-                    ```
-                    + kotlin-style-nulls = yes
-                    + concise-default-values = no
+                    + include-default-parameter-values = no
                     ```
                 """,
         ),
@@ -260,19 +257,21 @@ data class FileFormat(
             versionNumber = "4.0",
             legacyCommandLineAlias = "v4",
             factory = { version ->
-                V3.defaults.copy(
+                V2.defaults.copy(
                     version = version,
+                    // This adds kotlinStyleNulls = true
+                    kotlinStyleNulls = true,
                     // This adds conciseDefaultValues = true
-                    conciseDefaultValues = true,
+                    includeDefaultParameterValues = true,
                 )
             },
             help =
                 """
-                    This is `3.0` plus `concise-default-values = yes` giving the following
-                    properties:
+                    This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes`
+                    giving the following properties:
                     ```
                     + kotlin-style-nulls = yes
-                    + concise-default-values = yes
+                    + include-default-parameter-values = yes
                     ```
                 """,
         ),
@@ -339,15 +338,15 @@ data class FileFormat(
      * This is independent of the [Version].
      */
     enum class Language(
-        private val conciseDefaultValues: Boolean,
+        private val includeDefaultParameterValues: Boolean,
         private val kotlinStyleNulls: Boolean,
     ) {
-        JAVA(conciseDefaultValues = false, kotlinStyleNulls = false),
-        KOTLIN(conciseDefaultValues = true, kotlinStyleNulls = true);
+        JAVA(includeDefaultParameterValues = false, kotlinStyleNulls = false),
+        KOTLIN(includeDefaultParameterValues = true, kotlinStyleNulls = true);
 
         internal fun applyLanguageDefaults(builder: Builder) {
-            if (builder.conciseDefaultValues == null) {
-                builder.conciseDefaultValues = conciseDefaultValues
+            if (builder.includeDefaultParameterValues == null) {
+                builder.includeDefaultParameterValues = includeDefaultParameterValues
             }
             if (builder.kotlinStyleNulls == null) {
                 builder.kotlinStyleNulls = kotlinStyleNulls
@@ -361,6 +360,21 @@ data class FileFormat(
 
         /** Sort overloaded methods by their signature. */
         SIGNATURE(CallableItem.comparator)
+    }
+
+    /** Different ways of spacing out type arguments in [TypeItem.toTypeString]. */
+    enum class TypeArgumentSpacing {
+        /** No spacing added between type arguments. */
+        NONE,
+
+        /**
+         * No spacing added between type arguments unless they are in the bounds of a type
+         * parameter.
+         */
+        LEGACY,
+
+        /** A single space added after the comma that separates type arguments. */
+        SPACE,
     }
 
     /**
@@ -466,9 +480,6 @@ data class FileFormat(
 
         // The defaults associated with version 2.0.
         val V2 = Version.V2.defaults
-
-        // The defaults associated with version 3.0.
-        val V3 = Version.V3.defaults
 
         // The defaults associated with version 4.0.
         val V4 = Version.V4.defaults
@@ -753,23 +764,26 @@ data class FileFormat(
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
     internal class Builder(private val base: FileFormat) {
         var addAdditionalOverrides: Boolean? = null
-        var conciseDefaultValues: Boolean? = null
+        var includeDefaultParameterValues: Boolean? = null
         var includeTypeUseAnnotations: Boolean? = null
         var kotlinNameTypeOrder: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
         var language: Language? = null
         var migrating: String? = null
         var name: String? = null
+        var normalizeFinalModifier: Boolean? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var sortWholeExtendsList: Boolean? = null
         var stripJavaLangPrefix: StripJavaLangPrefix? = null
+        var typeArgumentSpacing: TypeArgumentSpacing? = null
         var surface: String? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
             language?.applyLanguageDefaults(this)
             return base.copy(
-                conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
+                includeDefaultParameterValues = includeDefaultParameterValues
+                        ?: base.includeDefaultParameterValues,
                 includeTypeUseAnnotations = includeTypeUseAnnotations
                         ?: base.includeTypeUseAnnotations,
                 kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
@@ -779,12 +793,16 @@ data class FileFormat(
                 name = name ?: base.name,
                 specifiedAddAdditionalOverrides = addAdditionalOverrides
                         ?: base.specifiedAddAdditionalOverrides,
+                specifiedNormalizeFinalModifier = normalizeFinalModifier
+                        ?: base.specifiedNormalizeFinalModifier,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
                 specifiedSortWholeExtendsList = sortWholeExtendsList
                         ?: base.specifiedSortWholeExtendsList,
                 specifiedStripJavaLangPrefix = stripJavaLangPrefix
                         ?: base.specifiedStripJavaLangPrefix,
+                specifiedTypeArgumentSpacing = typeArgumentSpacing
+                        ?: base.specifiedTypeArgumentSpacing,
                 surface = surface ?: base.surface,
             )
         }
@@ -838,22 +856,22 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
         },
-        /** concise-default-values=[yes|no] */
-        CONCISE_DEFAULT_VALUES(
+        /** include-default-parameter-values=[yes|no] */
+        INCLUDE_DEFAULT_PARAMETER_VALUES(
             valueSyntax = "yes|no",
             help =
                 """
-                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
-                    to indicate that the annotated item accepts `null` and does not accept `null`
-                    respectively and neither indicates that it's not defined.
+                    If `no` then the signature file will not include any information about default
+                    parameter values. If `yes` then it will use the pseudo modifier `optional` to
+                    indicate a parameter that has a default value.
                 """,
         ) {
             override fun setFromString(builder: Builder, value: String) {
-                builder.conciseDefaultValues = yesNo(value)
+                builder.includeDefaultParameterValues = yesNo(value)
             }
 
             override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.conciseDefaultValues)
+                yesNo(format.includeDefaultParameterValues)
         },
         /** include-type-use-annotations=[yes|no] */
         INCLUDE_TYPE_USE_ANNOTATIONS {
@@ -901,6 +919,23 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? = format.migrating
         },
+        NORMALIZE_FINAL_MODIFIER(
+            defaultable = true,
+            valueSyntax = "yes|no",
+            help =
+                """
+                    Specifies how the `final` modifier is handled on `final` methods. If this is
+                    `yes` and the method's containing class is `final` then the `final` modifier is
+                    not written out, otherwise it is.
+                """,
+        ) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.normalizeFinalModifier = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedNormalizeFinalModifier?.let { yesNo(it) }
+        },
         /** overloaded-method-other=[source|signature] */
         OVERLOADED_METHOD_ORDER(
             defaultable = true,
@@ -941,7 +976,35 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedStripJavaLangPrefix?.stringFromEnum()
-        };
+        },
+        TYPE_ARGUMENT_SPACING(
+            defaultable = true,
+            valueSyntax = "legacy|none|space",
+            help =
+                """
+                    Specifies the spacing between the type arguments of a generic type. e.g.
+                    `Map<String, Integer>`. The default is `legacy`.
+
+                    `legacy` - adds no spaces between type arguments except those used in the bounds
+                    of a type parameter. e.g. `Map<String,Integer>` will have no space except in
+                    `class Foo<M extends Map<String, Integer>`.
+
+                    `none` - adds no spaces between any type arguments.
+
+                    `space` - adds a single space between every type argument.
+
+                    Note: This does not affect the spacing of type parameters in a type parameter
+                    list, e.g. `interface Map<K, V>`. They always have a space separator.
+                """,
+        ) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.typeArgumentSpacing = enumFromString<TypeArgumentSpacing>(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedTypeArgumentSpacing?.stringFromEnum()
+        },
+        ;
 
         /** The property name in the [parseSpecifier] input. */
         val propertyName: String = name.lowercase(Locale.US).replace("_", "-")

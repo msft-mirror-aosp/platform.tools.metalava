@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /**
@@ -88,6 +88,9 @@ interface Codebase {
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
 
+    /** Returns a typealias identified by fully qualified name, if in the codebase */
+    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
+
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean
 
@@ -130,6 +133,12 @@ interface Codebase {
         return getPackages().packages.isEmpty()
     }
 
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
+
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
+
     /**
      * Contains configuration for [Codebase] that can, or at least could, come from command line
      * options.
@@ -142,7 +151,7 @@ interface Codebase {
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
 
         /** The reporter to use for issues found during processing of the [Codebase]. */
-        val reporter: Reporter = BasicReporter.ERR,
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
     ) {
         companion object {
             /**

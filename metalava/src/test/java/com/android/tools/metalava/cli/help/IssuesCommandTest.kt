@@ -25,7 +25,6 @@ class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
     fun `Test help`() {
         commandTest {
             args += listOf("help", "issues")
-
             expectedStdout =
                 """
 Usage: metalava help issues <issue>?
@@ -81,6 +80,7 @@ Available Issues                             |  Category                |   Defa
   ConfigFieldName                            |  api_lint                |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
+  DataClassDefinition                        |  api_lint                |   hidden
   DefaultValueChange                         |  compatibility           |   error
   Deprecated                                 |  documentation           |   hidden
   DeprecationMismatch                        |  documentation           |   error
@@ -111,6 +111,7 @@ Available Issues                             |  Category                |   Defa
   IgnoringSymlink                            |  unknown                 |   info
   InconsistentMergeAnnotation                |  api_lint                |   warning_error_when_new
   InfixRemoval                               |  compatibility           |   error
+  InheritChangesSignature                    |  unknown                 |   warning_error_when_new
   IntDef                                     |  documentation           |   hidden
   IntentBuilderName                          |  api_lint                |   warning
   IntentName                                 |  api_lint                |   error
@@ -198,6 +199,7 @@ Available Issues                             |  Category                |   Defa
   ServiceName                                |  api_lint                |   error
   SetterReturnsThis                          |  api_lint                |   warning
   ShowingMemberInHiddenClass                 |  api_lint                |   error
+  SignatureFileError                         |  unknown                 |   error
   SingleMethodInterface                      |  api_lint                |   error
   SingletonConstructor                       |  api_lint                |   error
   SingularCallback                           |  api_lint                |   error
@@ -214,6 +216,7 @@ Available Issues                             |  Category                |   Defa
   UnhiddenSystemApi                          |  api_lint                |   error
   UniqueKotlinOperator                       |  api_lint                |   error
   UnmatchedMergeAnnotation                   |  api_lint                |   error
+  UnqualifiedTypeError                       |  unknown                 |   hidden
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   error
   UseIcu                                     |  api_lint                |   warning

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.config
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
@@ -26,47 +25,36 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
 // Ignore the xsi:schemaLocation property if present on the root <config> element.
 @JsonIgnoreProperties("schemaLocation")
 data class Config(
+    @field:JacksonXmlProperty(localName = "api-flags", namespace = CONFIG_NAMESPACE)
+    val apiFlags: ApiFlagsConfig? = null,
     @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
     val apiSurfaces: ApiSurfacesConfig? = null,
-) {
+) : CombinableConfig<Config> {
+
+    /** Combine this [Config] with another returning a [Config] object that combines them both. */
+    override fun combineWith(other: Config): Config =
+        Config(
+            apiFlags = combine(apiFlags, other.apiFlags),
+            apiSurfaces = combine(apiSurfaces, other.apiSurfaces),
+        )
+
+    /**
+     * Combined two possibly nullable objects, if either are null then return the other, otherwise
+     * invoke [CombinableConfig.combineWith].
+     */
+    internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
+        return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
+    }
+
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     internal fun validate() {
+        apiFlags?.validate()
         apiSurfaces?.validate()
     }
 }
 
-/** A set of [ApiSurfaceConfig]s. */
-data class ApiSurfacesConfig(
-    @field:JacksonXmlProperty(localName = "api-surface", namespace = CONFIG_NAMESPACE)
-    val apiSurfaceList: List<ApiSurfaceConfig> = emptyList(),
-) {
-    /**
-     * Map of [ApiSurfaceConfig]s by [ApiSurfaceConfig.name].
-     *
-     * Groups them by name, throws an exception if there are two surfaces with the same name.
-     */
-    @get:JsonIgnore
-    val byName by
-        lazy(LazyThreadSafetyMode.NONE) {
-            apiSurfaceList
-                .groupingBy { it.name }
-                .reduce { name, surface1, surface2 ->
-                    error("Found duplicate surfaces called `$name`")
-                }
-        }
-
-    /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
-    fun validate() {
-        // Force check for duplicates.
-        byName
-    }
+/** Implemented by config objects that can be combined when loaded in separate files. */
+interface CombinableConfig<T : CombinableConfig<T>> {
+    /** Combine this with [other] returning a new instance. */
+    fun combineWith(other: T): T
 }
-
-/** An API surface that Metalava could generate. */
-data class ApiSurfaceConfig(
-    /** The name of the API surface, e.g. `public`, `restricted`, etc. */
-    @field:JacksonXmlProperty(isAttribute = true) val name: String,
-
-    /** The optional name of the API surface that this surface extends, e.g. `public`. */
-    @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,
-)
