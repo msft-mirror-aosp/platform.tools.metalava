@@ -16,9 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
+import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueUseSite.FIELD_VALUE
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import org.junit.ClassRule
 import org.junit.runners.Parameterized
 
@@ -31,5 +35,20 @@ class CommonParameterizedFieldValueTest :
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters fun params() = testParameters
+    }
+
+    override fun TestCaseContext.runTestCase() {
+        val field = testClassItem.assertField(FIELD_NAME)
+        val fieldValue = assertNotNull(field.fieldValue, "No field value")
+
+        val expected =
+            expectation.expectationFor(
+                producerKind,
+                FIELD_VALUE,
+                codebase,
+            )
+
+        val actual = fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
+        assertEquals(expected, actual)
     }
 }

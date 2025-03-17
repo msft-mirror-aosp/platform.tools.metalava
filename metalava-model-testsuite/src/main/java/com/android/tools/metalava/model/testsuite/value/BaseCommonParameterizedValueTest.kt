@@ -17,13 +17,9 @@
 package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.AnnotationAttributeValue
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -32,16 +28,11 @@ import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedV
 import com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest.Companion.testParameters
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
-import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
-import java.io.PrintWriter
-import java.io.StringWriter
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -53,12 +44,14 @@ import org.junit.runners.Parameterized
  * [CodebaseProducer]s. A [TestCase] defines the test to run and the [CodebaseProducer] defines the
  * [Codebase] it will be run on, either jar or source based.
  *
- * [TestCase] is an abstract class with multiple implementations, each of which tests a different
- * value, e.g. annotation value, method default value, field value. This approach was taken instead
- * of having methods for each use of a value or separate classes because the values should be being
- * handled consistently irrespective of where they are being used, but currently they are not.
- * Having all the tests for them in the same place highlights the inconsistencies and makes it
- * easier to migrate to consistent handling of the values.
+ * [TestCase] provides the details of the test to run but the actual test logic is provided by
+ * subclasses of this class. Each subclass selects the [TestCase]s that apply to it and then runs
+ * the test to check different [ValueUseSite]s, e.g. annotation value, method default value, field
+ * value. This approach was taken instead of having methods for each use of a value because the
+ * values should be being handled consistently irrespective of where they are being used, but
+ * currently they are not. Having all the tests for them being run on the same [TestCase]s
+ * highlights the inconsistencies and makes it easier to migrate to consistent handling of the
+ * values.
  *
  * Each [TestCase] runs against a [TestClass] which specifies the class name to use and the set of
  * [TestFile]s to use. The jar tests run against a jar constructed from all the distinct [TestFile]
@@ -99,11 +92,15 @@ abstract class BaseCommonParameterizedValueTest(
         abstract fun BaseCommonParameterizedValueTest.runCodebaseProducerTest(
             testFileCache: TestFileCache,
             testCase: TestCase,
+            test: TestCaseContext.() -> Unit,
         )
 
-        protected fun CodebaseContext.runTestCase(testCase: TestCase) {
+        protected fun CodebaseContext.runTestCase(
+            testCase: TestCase,
+            test: TestCaseContext.() -> Unit
+        ) {
             val testCaseContext = TestCaseContext(this, testCase, kind)
-            with(testCase) { testCaseContext.checkCodebase() }
+            testCaseContext.test()
         }
 
         final override fun toString() = kind.toString().lowercase()
@@ -112,7 +109,7 @@ abstract class BaseCommonParameterizedValueTest(
     /**
      * Base of classes that perform a specific test on a [Codebase] produced by [CodebaseProducer].
      */
-    sealed class TestCase(
+    class TestCase(
         /** The [ValueExample] on which this test case is based. */
         val valueExample: ValueExample,
 
@@ -123,15 +120,13 @@ abstract class BaseCommonParameterizedValueTest(
          * The test class against which the test case will be run.
          *
          * Each subclass will check different aspects of this, e.g.
-         * [AnnotationAttributeDefaultValueTestCase] assumes it as an annotation class and checks
-         * the default values on method [ATTRIBUTE_NAME], [FieldValueTestCase] assumes it is a class
-         * with a field called [FIELD_NAME] and will check its value.
+         * [CommonParameterizedAttributeDefaultValueTest] assumes it as an annotation class and
+         * checks the default values on method [ATTRIBUTE_NAME], [CommonParameterizedFieldValueTest]
+         * assumes it is a class with a field called [FIELD_NAME] and will check its value.
          */
         val testClass: TestClass,
     ) : Assertions {
-        abstract fun TestCaseContext.checkCodebase()
-
-        final override fun toString() = valueExample.name
+        override fun toString() = valueExample.name
     }
 
     /**
@@ -179,8 +174,9 @@ abstract class BaseCommonParameterizedValueTest(
                         )
 
                     add(
-                        AnnotationAttributeDefaultValueTestCase(
+                        TestCase(
                             valueExample,
+                            ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
                             annotationWithDefaults,
                         )
                     )
@@ -208,15 +204,17 @@ abstract class BaseCommonParameterizedValueTest(
                         )
 
                     add(
-                        AnnotationAttributeValueToSourceTestCase(
+                        TestCase(
                             valueExample,
+                            ValueUseSite.ATTRIBUTE_VALUE,
                             annotationTestClass,
                         )
                     )
 
                     add(
-                        AnnotationItemToSourceTestCase(
+                        TestCase(
                             valueExample,
+                            ValueUseSite.ANNOTATION_TO_SOURCE,
                             annotationTestClass,
                         )
                     )
@@ -232,15 +230,17 @@ abstract class BaseCommonParameterizedValueTest(
                         )
 
                     add(
-                        FieldValueTestCase(
+                        TestCase(
                             valueExample,
+                            ValueUseSite.FIELD_VALUE,
                             fieldTestClass,
                         )
                     )
 
                     add(
-                        FieldWriteValueWithSemicolonTestCase(
+                        TestCase(
                             valueExample,
+                            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
                             fieldTestClass,
                         )
                     )
@@ -275,12 +275,13 @@ abstract class BaseCommonParameterizedValueTest(
         override fun BaseCommonParameterizedValueTest.runCodebaseProducerTest(
             testFileCache: TestFileCache,
             testCase: TestCase,
+            test: TestCaseContext.() -> Unit
         ) {
             // Cache the sources so that they can be reused.
             val sources = testCase.testClass.testFileSet.map { it.cacheIn(testFileCache) }
 
             // Run the test on the sources.
-            runSourceCodebaseTest(inputSet(sources.toList())) { runTestCase(testCase) }
+            runSourceCodebaseTest(inputSet(sources.toList())) { runTestCase(testCase, test) }
         }
     }
 
@@ -289,6 +290,7 @@ abstract class BaseCommonParameterizedValueTest(
         override fun BaseCommonParameterizedValueTest.runCodebaseProducerTest(
             testFileCache: TestFileCache,
             testCase: TestCase,
+            test: TestCaseContext.() -> Unit
         ) {
             // Cache the jar file so that it will be reused.
             val cachedJarFile = testJarFile.cacheIn(testFileCache)
@@ -307,7 +309,7 @@ abstract class BaseCommonParameterizedValueTest(
                         additionalClassPath = listOf(cachedJarFile.createFile(temporaryFolder.root))
                     ),
             ) {
-                runTestCase(testCase)
+                runTestCase(testCase, test)
             }
         }
     }
@@ -344,169 +346,6 @@ abstract class BaseCommonParameterizedValueTest(
         }
     }
 
-    /**
-     * Test [AnnotationAttributeValue.toSource] method.
-     *
-     * @param valueExample the [ValueExample] on which this test case is based.
-     * @param testClass a [TestClass] with an annotation.
-     */
-    private class AnnotationAttributeValueToSourceTestCase(
-        valueExample: ValueExample,
-        testClass: TestClass,
-    ) :
-        TestCase(
-            valueExample,
-            ValueUseSite.ATTRIBUTE_VALUE,
-            testClass,
-        ) {
-        override fun TestCaseContext.checkCodebase() {
-            val annotation = testClassItem.modifiers.annotations().first()
-            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
-
-            // Get the expected value.
-            val expected =
-                expectation.expectationFor(
-                    producerKind,
-                    ValueUseSite.ATTRIBUTE_VALUE,
-                    codebase,
-                )
-            assertEquals(expected, annotationAttribute.value.toSource())
-        }
-    }
-
-    /**
-     * Test [AnnotationItem.toSource] method.
-     *
-     * @param valueExample the [ValueExample] on which this test case is based.
-     * @param testClass a [TestClass] with an annotation.
-     */
-    private class AnnotationItemToSourceTestCase(
-        valueExample: ValueExample,
-        testClass: TestClass,
-    ) :
-        TestCase(
-            valueExample,
-            ValueUseSite.ANNOTATION_TO_SOURCE,
-            testClass,
-        ) {
-        override fun TestCaseContext.checkCodebase() {
-            val annotation = testClassItem.modifiers.annotations().first()
-
-            // Get the expected value.
-            val expected =
-                expectation.expectationFor(
-                    producerKind,
-                    ValueUseSite.ANNOTATION_TO_SOURCE,
-                    codebase,
-                )
-
-            val wholeAnnotation = annotation.toSource()
-            // Extract the value from the whole annotation.
-            val actual = wholeAnnotation.substringAfter("=").substringBeforeLast(")")
-            assertEquals(expected, actual)
-        }
-    }
-
-    /**
-     * Test an annotation attribute's default value, i.e. [MethodItem.defaultValue], for the
-     * annotation's class's method.
-     *
-     * @param valueExample the [ValueExample] on which this test case is based.
-     * @param testClass the name of an annotation [TestClass].
-     */
-    private class AnnotationAttributeDefaultValueTestCase(
-        valueExample: ValueExample,
-        testClass: TestClass,
-    ) :
-        TestCase(
-            valueExample,
-            ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
-            testClass,
-        ) {
-        override fun TestCaseContext.checkCodebase() {
-            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
-
-            // Get the expected value.
-            val expected =
-                expectation.expectationFor(
-                    producerKind,
-                    ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
-                    codebase,
-                )
-            assertEquals(expected, annotationMethod.defaultValue())
-        }
-    }
-
-    /**
-     * Test a field value, i.e. [FieldItem.fieldValue], for the class's field.
-     *
-     * @param valueExample the [ValueExample] on which this test case is based.
-     * @param testClass the name of a class with the field.
-     */
-    private class FieldValueTestCase(
-        valueExample: ValueExample,
-        testClass: TestClass,
-    ) :
-        TestCase(
-            valueExample,
-            ValueUseSite.FIELD_VALUE,
-            testClass,
-        ) {
-        override fun TestCaseContext.checkCodebase() {
-            val field = testClassItem.assertField(FIELD_NAME)
-            val fieldValue = assertNotNull(field.fieldValue, "No field value")
-
-            val expected =
-                expectation.expectationFor(
-                    producerKind,
-                    ValueUseSite.FIELD_VALUE,
-                    codebase,
-                )
-
-            val actual = fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
-            assertEquals(expected, actual)
-        }
-    }
-
-    /**
-     * Test writing a field value, i.e. [FieldItem.writeValueWithSemicolon], for the class's field.
-     *
-     * @param valueExample the [ValueExample] on which this test case is based.
-     * @param testClass the name of a class with the field.
-     */
-    private class FieldWriteValueWithSemicolonTestCase(
-        valueExample: ValueExample,
-        testClass: TestClass,
-    ) :
-        TestCase(
-            valueExample,
-            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
-            testClass,
-        ) {
-        override fun TestCaseContext.checkCodebase() {
-            val field = testClassItem.assertField(FIELD_NAME)
-
-            val expected =
-                expectation.expectationFor(
-                    producerKind,
-                    ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
-                    codebase,
-                )
-
-            // Print the field with semicolon.
-            val stringWriter = StringWriter()
-            PrintWriter(stringWriter).use { writer -> field.writeValueWithSemicolon(writer) }
-            val withSemicolon = stringWriter.toString()
-
-            // Extract the value from the " = ...; // ...." string.
-            val actual =
-                if (withSemicolon == ";") NO_INITIAL_FIELD_VALUE
-                else withSemicolon.substringAfter(" = ").substringBefore(";")
-
-            assertEquals(expected, actual)
-        }
-    }
-
     /** Context within which test cases will be run. */
     class TestCaseContext(
         delegate: CodebaseContext,
@@ -524,11 +363,15 @@ abstract class BaseCommonParameterizedValueTest(
             }
     }
 
+    /** Run the test case. */
+    protected abstract fun TestCaseContext.runTestCase()
+
     @RequiresCapabilities(Capability.JAVA)
     @Test
     fun test() {
-        codebaseProducer.apply {
-            this@BaseCommonParameterizedValueTest.runCodebaseProducerTest(testFileCache, testCase)
+        val test = this
+        with(codebaseProducer) {
+            test.runCodebaseProducerTest(testFileCache, testCase) { runTestCase() }
         }
     }
 }
