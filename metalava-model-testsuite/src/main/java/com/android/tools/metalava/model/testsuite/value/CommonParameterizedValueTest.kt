@@ -419,6 +419,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
                 )
                 .asTestClass(className)
                 .dependsOn(otherAnnotationClass)
+                .dependsOn(testConstantsClass)
         }
 
         /** The jar includes all the distinct [TestFile]s used by [testCases]. */

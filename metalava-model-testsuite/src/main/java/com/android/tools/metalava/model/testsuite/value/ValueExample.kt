@@ -687,10 +687,12 @@ data class ValueExample(
                                 common = "test.pkg.Constants.STRING_CONSTANT"
                                 // TODO(b/354633349): Fully qualified is better.
                                 attributeValue = "Constants.STRING_CONSTANT"
-                                // TODO(b/354633349): Should at least be the constant string, if not
+                                // TODO(b/354633349): Should have surrounding quotes, if not
                                 //   a field reference.
-                                fieldValue = NO_INITIAL_FIELD_VALUE
-                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+                                fieldValue = "constant"
+                                // TODO(b/354633349): Should probably be a field reference, at least
+                                //   in some cases.
+                                fieldWriteWithSemicolon = "\"constant\""
                             }
                         },
                 )
