@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
+import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestClass
 import com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest.Companion.testParameters
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
@@ -148,48 +149,6 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     companion object {
-        private fun TestFile.asTestClass(className: String): TestClass {
-            return TestClass(className, setOf(this))
-        }
-
-        private val testEnumClass =
-            java(
-                """
-                    package test.pkg;
-                    public enum TestEnum {
-                        DEFAULT,
-                        VALUE1,
-                    }
-                """
-            )
-
-        private val testConstantsClass =
-            java(
-                """
-                    package test.pkg;
-                    public interface Constants {
-                        String STRING_CONSTANT = "constant";
-                    }
-                """
-            )
-
-        private val otherAnnotationClass =
-            java(
-                    """
-                        package test.pkg;
-
-                        public @interface OtherAnnotation {
-                            Class<?> classType() default void.class;
-                            TestEnum enumType() default TestEnum.DEFAULT;
-                            int intType() default -1;
-                            String stringType() default "default";
-                            String[] stringArrayType() default {};
-                        }
-                    """
-                )
-                .asTestClass("OtherAnnotation")
-                .dependsOn(testEnumClass)
-
         /** Names of constant types used in [ValueExample.javaType]. */
         private val constantTypeNames = buildSet {
             for (kind in PrimitiveTypeItem.Primitive.entries) {
@@ -211,6 +170,8 @@ abstract class BaseCommonParameterizedValueTest(
                 error("Duplicate value examples: $duplicates")
             }
 
+            val testClassCreator = JavaTestClassCreator
+
             // Construct [TestCase]s from [ValueExample].
             for (valueExample in valueExamples) {
                 val attributeName = "attr"
@@ -220,7 +181,8 @@ abstract class BaseCommonParameterizedValueTest(
                     // Create a [TestClass] for an annotation class that has an attribute for this
                     // [ValueExample], setting its expression as the default.
                     val annotationWithDefaults =
-                        valueExample.generateAnnotationClass(
+                        testClassCreator.generateAnnotationClass(
+                            valueExample,
                             "AnnotationWithDefaults",
                             attributeName,
                             withDefaults = true,
@@ -241,7 +203,8 @@ abstract class BaseCommonParameterizedValueTest(
                     // [ValueExample] but does not set a default. Used by the following class for
                     // checking annotation attribute values.
                     val annotationWithoutDefaults =
-                        valueExample.generateAnnotationClass(
+                        testClassCreator.generateAnnotationClass(
+                            valueExample,
                             "AnnotationWithoutDefaults",
                             attributeName,
                             withDefaults = false,
@@ -250,7 +213,8 @@ abstract class BaseCommonParameterizedValueTest(
                     // Create a [TestClass] that is annotated with `AnnotationWithoutDefaults`
                     // which uses this [ValueExample]'s expression.
                     val annotationTestClass =
-                        valueExample.generateAnnotatedTestClass(
+                        testClassCreator.generateAnnotatedTestClass(
+                            valueExample,
                             "AnnotationTestClass",
                             attributeName,
                             annotationWithoutDefaults
@@ -280,7 +244,8 @@ abstract class BaseCommonParameterizedValueTest(
 
                     // Create a [TestClass] that has a field for each suitable [ValueExample].
                     val fieldTestClass =
-                        valueExample.generateFieldTestClass(
+                        testClassCreator.generateFieldTestClass(
+                            valueExample,
                             "FieldTestClass",
                             fieldName,
                         )
@@ -308,113 +273,6 @@ abstract class BaseCommonParameterizedValueTest(
                     )
                 }
             }
-        }
-
-        /** Append all the imports provided by this list to [buffer]. */
-        private fun ValueExample.appendImportsTo(buffer: StringBuilder) {
-            for (javaImport in javaImports) {
-                buffer.append("import ")
-                buffer.append(javaImport)
-                buffer.append(";\n")
-            }
-        }
-
-        /**
-         * Create an annotation [TestClass] for this [ValueExample].
-         *
-         * @param classNamePrefix the prefix of the class.
-         * @param attributeName the name of the annotation attribute.
-         * @param withDefaults true if defaults should be added, false otherwise.
-         */
-        private fun ValueExample.generateAnnotationClass(
-            classNamePrefix: String,
-            attributeName: String,
-            withDefaults: Boolean
-        ): TestClass {
-            val className = "${classNamePrefix}_$classSuffix"
-            return java(
-                    buildString {
-                        append("package test.pkg;\n")
-                        appendImportsTo(this)
-                        append("public @interface $className {\n")
-                        append("    ")
-                        append(javaType)
-                        append(" ")
-                        append(attributeName)
-                        append("()")
-                        if (withDefaults) {
-                            append(" default ")
-                            append(javaExpression)
-                        }
-                        append(";\n")
-                        append("}\n")
-                    }
-                )
-                .asTestClass(className)
-                .dependsOn(otherAnnotationClass)
-                .dependsOn(testConstantsClass)
-        }
-
-        /**
-         * Create a normal [TestClass] annotated with [annotationTestClass].
-         *
-         * The annotation uses the appropriate values from this [ValueExample].
-         *
-         * @param classNamePrefix the prefix of the class.
-         * @param annotationTestClass the annotation [TestClass] to annotate the class with.
-         */
-        private fun ValueExample.generateAnnotatedTestClass(
-            classNamePrefix: String,
-            attributeName: String,
-            annotationTestClass: TestClass,
-        ): TestClass {
-            val className = "${classNamePrefix}_$classSuffix"
-            return java(
-                    buildString {
-                        append("package test.pkg;\n")
-                        appendImportsTo(this)
-                        append("@")
-                        append(annotationTestClass.className)
-                        append("(")
-                        append(attributeName)
-                        append(" = ")
-                        append(javaExpression)
-                        append(")")
-                        append("public class $className {}\n")
-                    }
-                )
-                .asTestClass(className)
-                .dependsOn(annotationTestClass)
-        }
-
-        /**
-         * Create a [TestClass] containing a "constant" field for this [ValueExample].
-         *
-         * @param classNamePrefix the prefix of the class.
-         */
-        private fun ValueExample.generateFieldTestClass(
-            classNamePrefix: String,
-            fieldName: String,
-        ): TestClass {
-            val className = "${classNamePrefix}_$classSuffix"
-            return java(
-                    buildString {
-                        append("package test.pkg;\n")
-                        appendImportsTo(this)
-                        append("public class $className {\n")
-                        append("    public static final ")
-                        append(javaType)
-                        append(" ")
-                        append(fieldName)
-                        append(" = ")
-                        append(javaExpression)
-                        append(";\n")
-                        append("}\n")
-                    }
-                )
-                .asTestClass(className)
-                .dependsOn(otherAnnotationClass)
-                .dependsOn(testConstantsClass)
         }
 
         /** The list of [CodebaseProducer]s for which all the [testCases] will be run. */
@@ -723,5 +581,214 @@ abstract class BaseCommonParameterizedValueTest(
         codebaseProducer.apply {
             this@BaseCommonParameterizedValueTest.runCodebaseProducerTest(testFileCache, testCase)
         }
+    }
+}
+
+/** Interface for objects that create [TestClass] instances. */
+interface TestClassCreator {
+    /**
+     * Create an annotation [TestClass] for [valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param attributeName the name of the annotation attribute.
+     * @param withDefaults true if defaults should be added, false otherwise.
+     */
+    fun generateAnnotationClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        attributeName: String,
+        withDefaults: Boolean
+    ): TestClass
+
+    /**
+     * Create a normal [TestClass] annotated with [annotationTestClass].
+     *
+     * The annotation uses the appropriate values from this [valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param attributeName the name of the annotation attribute.
+     * @param annotationTestClass the annotation [TestClass] to annotate the class with.
+     */
+    fun generateAnnotatedTestClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        attributeName: String,
+        annotationTestClass: TestClass,
+    ): TestClass
+
+    /**
+     * Create a [TestClass] containing a "constant" field for this [[valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param fieldName the name of the field.
+     */
+    fun generateFieldTestClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        fieldName: String,
+    ): TestClass
+
+    /** Create a [TestClass] for [className] containing this [TestFile]. */
+    fun TestFile.asTestClass(className: String): TestClass {
+        return TestClass(className, setOf(this))
+    }
+}
+
+/** Create java [TestClass]es for use by [BaseCommonParameterizedValueTest]. */
+object JavaTestClassCreator : TestClassCreator {
+    private val testConstantsClass =
+        java(
+            """
+                package test.pkg;
+                public interface Constants {
+                    String STRING_CONSTANT = "constant";
+                }
+            """
+        )
+
+    private val testEnumClass =
+        java(
+            """
+                package test.pkg;
+                public enum TestEnum {
+                    DEFAULT,
+                    VALUE1,
+                }
+            """
+        )
+
+    private val otherAnnotationClass =
+        java(
+                """
+                    package test.pkg;
+
+                    public @interface OtherAnnotation {
+                        Class<?> classType() default void.class;
+                        TestEnum enumType() default TestEnum.DEFAULT;
+                        int intType() default -1;
+                        String stringType() default "default";
+                        String[] stringArrayType() default {};
+                    }
+                """
+            )
+            .asTestClass("OtherAnnotation")
+            .dependsOn(testEnumClass)
+
+    /** Append all the imports provided by this list to [buffer]. */
+    private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
+        for (javaImport in valueExample.javaImports) {
+            buffer.append("import ")
+            buffer.append(javaImport)
+            buffer.append(";\n")
+        }
+    }
+
+    /**
+     * Create an annotation [TestClass] for [valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param attributeName the name of the annotation attribute.
+     * @param withDefaults true if defaults should be added, false otherwise.
+     */
+    override fun generateAnnotationClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        attributeName: String,
+        withDefaults: Boolean
+    ): TestClass {
+        val className = "${classNamePrefix}_${valueExample.classSuffix}"
+        return java(
+                buildString {
+                    append("package test.pkg;\n")
+                    appendImportsTo(valueExample, this)
+                    append("public @interface $className {\n")
+                    append("    ")
+                    append(valueExample.javaType)
+                    append(" ")
+                    append(attributeName)
+                    append("()")
+                    if (withDefaults) {
+                        append(" default ")
+                        append(valueExample.javaExpression)
+                    }
+                    append(";\n")
+                    append("}\n")
+                }
+            )
+            .asTestClass(className)
+            .dependsOn(otherAnnotationClass)
+            .dependsOn(testConstantsClass)
+    }
+
+    /**
+     * Create a normal [TestClass] annotated with [annotationTestClass].
+     *
+     * The annotation uses the appropriate values from this [valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param attributeName the name of the annotation attribute.
+     * @param annotationTestClass the annotation [TestClass] to annotate the class with.
+     */
+    override fun generateAnnotatedTestClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        attributeName: String,
+        annotationTestClass: TestClass,
+    ): TestClass {
+        val className = "${classNamePrefix}_${valueExample.classSuffix}"
+        return java(
+                buildString {
+                    append("package test.pkg;\n")
+                    appendImportsTo(valueExample, this)
+                    append("@")
+                    append(annotationTestClass.className)
+                    append("(")
+                    append(attributeName)
+                    append(" = ")
+                    append(valueExample.javaExpression)
+                    append(")\n")
+                    append("public class $className {}\n")
+                }
+            )
+            .asTestClass(className)
+            .dependsOn(annotationTestClass)
+    }
+
+    /**
+     * Create a [TestClass] containing a "constant" field for this [[valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param fieldName the name of the field.
+     */
+    override fun generateFieldTestClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        fieldName: String,
+    ): TestClass {
+        val className = "${classNamePrefix}_${valueExample.classSuffix}"
+        return java(
+                buildString {
+                    append("package test.pkg;\n")
+                    appendImportsTo(valueExample, this)
+                    append("public class $className {\n")
+                    append("    public static final ")
+                    append(valueExample.javaType)
+                    append(" ")
+                    append(fieldName)
+                    append(" = ")
+                    append(valueExample.javaExpression)
+                    append(";\n")
+                    append("}\n")
+                }
+            )
+            .asTestClass(className)
+            .dependsOn(otherAnnotationClass)
+            .dependsOn(testConstantsClass)
     }
 }
