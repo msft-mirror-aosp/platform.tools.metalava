@@ -86,7 +86,10 @@ class CommonParameterizedValueTest : BaseModelTest() {
          * Run with [CommonParameterizedValueTest] as the receiver so it can access
          * [runSourceCodebaseTest].
          */
-        abstract fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase<*>)
+        abstract fun CommonParameterizedValueTest.runCodebaseProducerTest(
+            testFileCache: TestFileCache,
+            testCase: TestCase<*>,
+        )
 
         protected fun CodebaseContext.runTestCase(testCase: TestCase<*>) {
             val codebaseProducerContext = CodebaseProducerContext(this, this@CodebaseProducer)
@@ -151,32 +154,29 @@ class CommonParameterizedValueTest : BaseModelTest() {
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
 
         private fun TestFile.asTestClass(className: String): TestClass {
-            val cached = cacheIn(testFileCacheRule)
-            return TestClass(className, setOf(cached))
+            return TestClass(className, setOf(this))
         }
 
         private val testEnumClass =
             java(
-                    """
-                        package test.pkg;
-                        public enum TestEnum {
-                            DEFAULT,
-                            VALUE1,
-                        }
-                    """
-                )
-                .cacheIn(testFileCacheRule)
+                """
+                    package test.pkg;
+                    public enum TestEnum {
+                        DEFAULT,
+                        VALUE1,
+                    }
+                """
+            )
 
         private val testConstantsClass =
             java(
-                    """
-                        package test.pkg;
-                        public interface Constants {
-                            String STRING_CONSTANT = "constant";
-                        }
-                    """
-                )
-                .cacheIn(testFileCacheRule)
+                """
+                    package test.pkg;
+                    public interface Constants {
+                        String STRING_CONSTANT = "constant";
+                    }
+                """
+            )
 
         private val otherAnnotationClass =
             java(
@@ -431,11 +431,9 @@ class CommonParameterizedValueTest : BaseModelTest() {
         /** Jar file containing compiled versions of [sourcesForJar]. */
         private val testJarFile =
             jarFromSources(
-                    "binary-class.jar",
-                    *sourcesForJar.toTypedArray(),
-                )
-                // Cache to reuse in all of this class' tests.
-                .cacheIn(testFileCacheRule)
+                "binary-class.jar",
+                *sourcesForJar.toTypedArray(),
+            )
 
         /** The list of [CodebaseProducer]s for which all the [testCases] will be run. */
         private val codebaseProducers =
@@ -462,8 +460,14 @@ class CommonParameterizedValueTest : BaseModelTest() {
      * [TestCase] against it.
      */
     private object SourceCodebaseProducer : CodebaseProducer(ProducerKind.SOURCE) {
-        override fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase<*>) {
-            val sources = testCase.testClass.testFileSet
+        override fun CommonParameterizedValueTest.runCodebaseProducerTest(
+            testFileCache: TestFileCache,
+            testCase: TestCase<*>,
+        ) {
+            // Cache the sources so that they can be reused.
+            val sources = testCase.testClass.testFileSet.map { it.cacheIn(testFileCache) }
+
+            // Run the test on the sources.
             runSourceCodebaseTest(inputSet(sources.toList())) { runTestCase(testCase) }
         }
     }
@@ -471,7 +475,13 @@ class CommonParameterizedValueTest : BaseModelTest() {
     /** Produce a [Codebase] from [testJarFile]. */
     private class JarCodebaseProducer(private val testJarFile: TestFile) :
         CodebaseProducer(ProducerKind.JAR) {
-        override fun CommonParameterizedValueTest.runCodebaseProducerTest(testCase: TestCase<*>) {
+        override fun CommonParameterizedValueTest.runCodebaseProducerTest(
+            testFileCache: TestFileCache,
+            testCase: TestCase<*>,
+        ) {
+            // Cache the jar file so that it will be reused.
+            val cachedJarFile = testJarFile.cacheIn(testFileCache)
+
             runSourceCodebaseTest(
                 // Unused class, present simply to force the test to be run against models that
                 // support Java.
@@ -483,7 +493,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
                 ),
                 testFixture =
                     TestFixture(
-                        additionalClassPath = listOf(testJarFile.createFile(temporaryFolder.root))
+                        additionalClassPath = listOf(cachedJarFile.createFile(temporaryFolder.root))
                     ),
             ) {
                 runTestCase(testCase)
@@ -702,7 +712,10 @@ class CommonParameterizedValueTest : BaseModelTest() {
     @Test
     fun test() {
         codebaseProducer.apply {
-            this@CommonParameterizedValueTest.runCodebaseProducerTest(testCase)
+            this@CommonParameterizedValueTest.runCodebaseProducerTest(
+                testFileCacheRule.cache,
+                testCase
+            )
         }
     }
 }
