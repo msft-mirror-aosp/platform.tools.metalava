@@ -107,9 +107,10 @@ abstract class BaseCommonParameterizedValueTest(
 
         protected fun CodebaseContext.runTestCase(
             testCase: TestCase,
+            valueUseSite: ValueUseSite,
             test: TestCaseContext.() -> Unit
         ) {
-            val testCaseContext = TestCaseContext(this, testCase, kind)
+            val testCaseContext = TestCaseContext(this, testCase, kind, valueUseSite)
             testCaseContext.test()
         }
 
@@ -122,23 +123,12 @@ abstract class BaseCommonParameterizedValueTest(
     class TestCase(
         /** The [ValueExample] on which this test case is based. */
         val valueExample: ValueExample,
-
-        /** The [ValueUseSite] that this is testing. */
-        val valueUseSite: ValueUseSite,
-
-        /** Provider of the [TestClass] needed for this test. */
-        private val testClasses: TestClasses,
     ) : Assertions {
-        /**
-         * The test class against which the test case will be run.
-         *
-         * Each subclass will check different aspects of this, e.g.
-         * [CommonParameterizedAttributeDefaultValueTest] assumes it as an annotation class and
-         * checks the default values on method [ATTRIBUTE_NAME], [CommonParameterizedFieldValueTest]
-         * assumes it is a class with a field called [FIELD_NAME] and will check its value.
-         */
-        val testClass
-            get() = testClasses.testClassFor(valueUseSite)
+        /** Provider of the [TestClass] needed for this test. */
+        private val testClasses = TestClasses(JavaTestClassCreator, valueExample)
+
+        /** Get the [TestClass] appropriate for [valueUseSite]. */
+        fun testClassFor(valueUseSite: ValueUseSite) = testClasses.testClassFor(valueUseSite)
 
         override fun toString() = valueExample.name
     }
@@ -244,7 +234,7 @@ abstract class BaseCommonParameterizedValueTest(
             config.inputFormat == InputFormat.JAVA
 
         /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
-        private val testCases = buildList {
+        private val testCases = run {
             // Verify that all the ValueExamples have distinct names.
             val duplicates =
                 valueExamples
@@ -257,13 +247,7 @@ abstract class BaseCommonParameterizedValueTest(
             }
 
             // Construct [TestCase]s from [ValueExample].
-            for (valueExample in valueExamples) {
-                val testClasses = TestClasses(JavaTestClassCreator, valueExample)
-
-                for (valueUseSite in ValueUseSite.entries) {
-                    add(TestCase(valueExample, valueUseSite, testClasses))
-                }
-            }
+            valueExamples.map { TestCase(it) }
         }
 
         /** The list of [CodebaseProducer]s for which all the [testCases] will be run. */
@@ -275,10 +259,9 @@ abstract class BaseCommonParameterizedValueTest(
 
         internal fun testCasesForValueUseSite(valueUseSite: ValueUseSite) =
             testCases.filter {
-                it.valueUseSite == valueUseSite &&
-                    // Only select TestCase's whose ValueExample is suitable for the specified
-                    // ValueUseSite.
-                    valueUseSite in it.valueExample.suitableFor
+                // Only select TestCase's whose ValueExample is suitable for the specified
+                // ValueUseSite.
+                valueUseSite in it.valueExample.suitableFor
             }
 
         /** Create cross product of [codebaseProducers] and [testCases]. */
@@ -291,7 +274,7 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     /**
-     * Produce a [Codebase] from [TestCase.testClass]'s [TestClass.testFileSet] and then run
+     * Produce a [Codebase] from [TestCase.testClassFor]'s [TestClass.testFileSet] and then run
      * [TestCase] against it.
      */
     private object SourceCodebaseProducer : CodebaseProducer(ProducerKind.SOURCE) {
@@ -301,10 +284,13 @@ abstract class BaseCommonParameterizedValueTest(
             test: TestCaseContext.() -> Unit
         ) {
             // Cache the sources so that they can be reused.
-            val sources = testCase.testClass.testFileSet.map { it.cacheIn(testFileCache) }
+            val sources =
+                testCase.testClassFor(valueUseSite).testFileSet.map { it.cacheIn(testFileCache) }
 
             // Run the test on the sources.
-            runSourceCodebaseTest(inputSet(sources.toList())) { runTestCase(testCase, test) }
+            runSourceCodebaseTest(inputSet(sources.toList())) {
+                runTestCase(testCase, valueUseSite, test)
+            }
         }
     }
 
@@ -332,7 +318,7 @@ abstract class BaseCommonParameterizedValueTest(
                         additionalClassPath = listOf(cachedJarFile.createFile(temporaryFolder.root))
                     ),
             ) {
-                runTestCase(testCase, test)
+                runTestCase(testCase, valueUseSite, test)
             }
         }
     }
@@ -357,7 +343,7 @@ abstract class BaseCommonParameterizedValueTest(
             // The jar includes all the distinct [TestFile]s used by [testCases].
             val sourcesForJar = buildSet {
                 for (testCase in testCases) {
-                    addAll(testCase.testClass.testFileSet)
+                    addAll(testCase.testClassFor(valueUseSite).testFileSet)
                 }
             }
 
@@ -374,11 +360,12 @@ abstract class BaseCommonParameterizedValueTest(
         delegate: CodebaseContext,
         private val testCase: TestCase,
         val producerKind: ProducerKind,
+        private val valueUseSite: ValueUseSite,
     ) : CodebaseContext by delegate {
         /** Get the [ClassItem] to be tested from this [Codebase]. */
         val testClassItem
             get(): ClassItem {
-                val qualifiedName = "test.pkg.${testCase.testClass.className}"
+                val qualifiedName = "test.pkg.${testCase.testClassFor(valueUseSite).className}"
                 return codebase.resolveClass(qualifiedName)
                     ?: error("Expected $qualifiedName to be defined")
             }
