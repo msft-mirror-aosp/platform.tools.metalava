@@ -33,6 +33,7 @@ import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -71,10 +72,15 @@ import org.junit.runners.Parameterized
  *   will be cached.
  * @param testJarFile the [TestFile] for the jar file built from all the java source files used by
  *   this test class.
+ * @param valueUseSite the [ValueUseSite] being tested by this class.
+ * @param legacySourceGetter gets the legacy source representation as expected by
+ *   [ValueExample.expectedLegacySource].
  */
 abstract class BaseCommonParameterizedValueTest(
     private val testFileCache: TestFileCache,
     private val testJarFile: TestFile,
+    private val valueUseSite: ValueUseSite,
+    private val legacySourceGetter: TestCaseContext.() -> String,
 ) : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
@@ -352,8 +358,6 @@ abstract class BaseCommonParameterizedValueTest(
         private val testCase: TestCase,
         val producerKind: ProducerKind,
     ) : CodebaseContext by delegate {
-        val expectation = testCase.valueExample.expectedLegacySource
-
         /** Get the [ClassItem] to be tested from this [Codebase]. */
         val testClassItem
             get(): ClassItem {
@@ -363,15 +367,27 @@ abstract class BaseCommonParameterizedValueTest(
             }
     }
 
-    /** Run the test case. */
-    protected abstract fun TestCaseContext.runTestCase()
+    /** Test the legacy source. */
+    private fun TestCaseContext.testLegacySource() {
+        // Get the legacy source representation.
+        val actual = legacySourceGetter()
+
+        // Get the legacy source expectation.
+        val expectation = testCase.valueExample.expectedLegacySource
+
+        // Get the expected value.
+        val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+
+        // Compare the two.
+        assertEquals(expected, actual)
+    }
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
     fun test() {
         val test = this
         with(codebaseProducer) {
-            test.runCodebaseProducerTest(testFileCache, testCase) { runTestCase() }
+            test.runCodebaseProducerTest(testFileCache, testCase) { testLegacySource() }
         }
     }
 }

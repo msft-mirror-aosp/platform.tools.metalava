@@ -19,35 +19,31 @@ package com.android.tools.metalava.model.testsuite.value
 import com.android.tools.metalava.model.testsuite.value.ValueUseSite.ANNOTATION_TO_SOURCE
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
-import kotlin.test.assertEquals
 import org.junit.ClassRule
 import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [ANNOTATION_TO_SOURCE]. */
 class CommonParameterizedAnnotationToSourceValueTest :
-    BaseCommonParameterizedValueTest(testFileCacheRule.cache, testJarFile) {
+    BaseCommonParameterizedValueTest(
+        testFileCacheRule.cache,
+        testJarFile,
+        ANNOTATION_TO_SOURCE,
+        legacySourceGetter = {
+            // Get the annotation to test.
+            val annotation = testClassItem.modifiers.annotations().first()
+
+            // Generate the whole annotation representation.
+            val wholeAnnotation = annotation.toSource()
+
+            // Extract the value from the whole annotation.
+            wholeAnnotation.substringAfter("=").substringBeforeLast(")")
+        },
+    ) {
     companion object : BaseCompanion(ANNOTATION_TO_SOURCE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters fun params() = testParameters
-    }
-
-    override fun TestCaseContext.runTestCase() {
-        val annotation = testClassItem.modifiers.annotations().first()
-
-        // Get the expected value.
-        val expected =
-            expectation.expectationFor(
-                producerKind,
-                ANNOTATION_TO_SOURCE,
-                codebase,
-            )
-
-        val wholeAnnotation = annotation.toSource()
-        // Extract the value from the whole annotation.
-        val actual = wholeAnnotation.substringAfter("=").substringBeforeLast(")")
-        assertEquals(expected, actual)
     }
 }
