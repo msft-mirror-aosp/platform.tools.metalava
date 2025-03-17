@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.testsuite.value.CommonParameterizedValueTest.CodebaseProducer
 
 /**
  * Encapsulates information about a value example.
@@ -73,7 +72,7 @@ data class ValueExample(
         internal const val NO_INITIAL_FIELD_VALUE = "NO INITIAL FIELD VALUE"
 
         /**
-         * The list of all [ValueExample]s that could be tested across [CodebaseProducer] and
+         * The list of all [ValueExample]s that could be tested across [ProducerKind] and
          * [ValueUseSite]s.
          */
         private val allValueExamples =
@@ -699,7 +698,7 @@ data class ValueExample(
             )
 
         /**
-         * The list of [ValueExample]s that will be tested across [CodebaseProducer] and
+         * The list of [ValueExample]s that will be tested across [ProducerKind] and
          * [ValueUseSite]s.
          */
         internal val valueExamples =

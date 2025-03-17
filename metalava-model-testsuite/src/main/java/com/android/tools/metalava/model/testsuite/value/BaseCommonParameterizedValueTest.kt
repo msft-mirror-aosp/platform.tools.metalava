@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.testing.TestFileCache
-import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
@@ -39,13 +38,12 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
 /**
- * Parameterized test that will run test cases against both jars and sources to check the behavior
- * of values.
+ * Base class of parameterized tests that will run test cases against both jars and sources to check
+ * the behavior of values.
  *
  * This only has a single test method which runs a list of [TestCase]s against a list of
  * [CodebaseProducer]s. A [TestCase] defines the test to run and the [CodebaseProducer] defines the
@@ -71,8 +69,13 @@ import org.junit.runners.Parameterized
  * [ValueExample] is tested in all possible [ValueUseSite] (although some examples do not work on
  * some sites). The aim is to create an exhaustive set of tests that first map out the existing
  * inconsistencies and eventually ensure consistent behavior.
+ *
+ * @param testFileCache the [TestFileCache] in which all the [TestFile]s used by this test class
+ *   will be cached.
  */
-class CommonParameterizedValueTest : BaseModelTest() {
+abstract class BaseCommonParameterizedValueTest(
+    private val testFileCache: TestFileCache,
+) : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
 
@@ -83,10 +86,10 @@ class CommonParameterizedValueTest : BaseModelTest() {
         /**
          * Produce a [Codebase] and run [test] on it.
          *
-         * Run with [CommonParameterizedValueTest] as the receiver so it can access
+         * Run with [BaseCommonParameterizedValueTest] as the receiver so it can access
          * [runSourceCodebaseTest].
          */
-        abstract fun CommonParameterizedValueTest.runCodebaseProducerTest(
+        abstract fun BaseCommonParameterizedValueTest.runCodebaseProducerTest(
             testFileCache: TestFileCache,
             testCase: TestCase<*>,
         )
@@ -103,8 +106,11 @@ class CommonParameterizedValueTest : BaseModelTest() {
      * Base of classes that perform a specific test on a [Codebase] produced by [CodebaseProducer].
      */
     sealed class TestCase<T>(
-        /** The name of the test case. */
-        private val testCaseName: String,
+        /** The [ValueExample] on which this test case is based. */
+        private val valueExample: ValueExample,
+
+        /** The [ValueUseSite] that this is testing. */
+        val valueUseSite: ValueUseSite,
 
         /**
          * The test class against which the test case will be run.
@@ -131,7 +137,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
             return retrieveClass("test.pkg.${testClass.className}")
         }
 
-        final override fun toString() = "$testCaseName,${testClass.className}"
+        final override fun toString() = valueExample.name
     }
 
     /**
@@ -150,9 +156,6 @@ class CommonParameterizedValueTest : BaseModelTest() {
     }
 
     companion object {
-        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
-        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
-
         private fun TestFile.asTestClass(className: String): TestClass {
             return TestClass(className, setOf(this))
         }
@@ -233,6 +236,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                     add(
                         AnnotationAttributeDefaultValueTestCase(
+                            valueExample,
                             annotationWithDefaults,
                             attributeName,
                             expectation = valueExample.expectedLegacySource,
@@ -263,6 +267,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                     add(
                         AnnotationAttributeValueToSourceTestCase(
+                            valueExample,
                             annotationTestClass,
                             annotationWithoutDefaults,
                             attributeName,
@@ -272,6 +277,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                     add(
                         AnnotationItemToSourceTestCase(
+                            valueExample,
                             annotationTestClass,
                             annotationWithoutDefaults,
                             expectation = valueExample.expectedLegacySource,
@@ -296,6 +302,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                     add(
                         FieldValueTestCase(
+                            valueExample,
                             fieldTestClass,
                             fieldName,
                             expectation = valueExample.expectedLegacySource,
@@ -305,6 +312,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                     add(
                         FieldWriteValueWithSemicolonTestCase(
+                            valueExample,
                             fieldTestClass,
                             fieldName,
                             expectation = valueExample.expectedLegacySource,
@@ -443,17 +451,15 @@ class CommonParameterizedValueTest : BaseModelTest() {
                 SourceCodebaseProducer,
             )
 
-        /**
-         * The list of test parameters.
-         *
-         * The cross product of all [testCases] and all the [codebaseProducers].
-         */
-        @JvmStatic
-        @Parameterized.Parameters
-        fun params() =
-            codebaseProducers.flatMap { codebaseProducer ->
-                testCases.map { testCase -> arrayOf(codebaseProducer, testCase) }
+        /** Create cross product of [CodebaseProducer] and the test cases for [valueUseSite]. */
+        internal fun testCasesForValueUseSite(
+            valueUseSite: ValueUseSite,
+        ): List<Array<Any>> {
+            val filteredCases = testCases.filter { it.valueUseSite == valueUseSite }
+            return codebaseProducers.flatMap { codebaseProducer ->
+                filteredCases.map { testCase -> arrayOf(codebaseProducer, testCase) }
             }
+        }
     }
 
     /**
@@ -461,7 +467,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
      * [TestCase] against it.
      */
     private object SourceCodebaseProducer : CodebaseProducer(ProducerKind.SOURCE) {
-        override fun CommonParameterizedValueTest.runCodebaseProducerTest(
+        override fun BaseCommonParameterizedValueTest.runCodebaseProducerTest(
             testFileCache: TestFileCache,
             testCase: TestCase<*>,
         ) {
@@ -476,7 +482,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
     /** Produce a [Codebase] from [testJarFile]. */
     private class JarCodebaseProducer(private val testJarFile: TestFile) :
         CodebaseProducer(ProducerKind.JAR) {
-        override fun CommonParameterizedValueTest.runCodebaseProducerTest(
+        override fun BaseCommonParameterizedValueTest.runCodebaseProducerTest(
             testFileCache: TestFileCache,
             testCase: TestCase<*>,
         ) {
@@ -520,21 +526,34 @@ class CommonParameterizedValueTest : BaseModelTest() {
     }
 
     /**
+     * Base class for the subclass companion objects.
+     *
+     * Makes it easy to share behavior between them.
+     */
+    open class BaseCompanion(private val valueUseSite: ValueUseSite) {
+        /** The list of parameters for this test class. */
+        val testParameters = testCasesForValueUseSite(valueUseSite)
+    }
+
+    /**
      * Test [AnnotationAttributeValue.toSource] method.
      *
+     * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass a [TestClass] annotated with an [annotationTestClass]
      * @param annotationTestClass the annotation [TestClass].
      * @param attributeName the name of the annotation attribute.
      * @param expectation expected results of calling [AnnotationAttributeValue.toSource].
      */
     private class AnnotationAttributeValueToSourceTestCase(
+        valueExample: ValueExample,
         testClass: TestClass,
         private val annotationTestClass: TestClass,
         private val attributeName: String,
         expectation: Expectation<String>,
     ) :
         TestCase<String>(
-            "AnnotationAttributeValue.toSource()",
+            valueExample,
+            ValueUseSite.ATTRIBUTE_VALUE,
             testClass,
             expectation,
         ) {
@@ -557,17 +576,20 @@ class CommonParameterizedValueTest : BaseModelTest() {
     /**
      * Test [AnnotationItem.toSource] method.
      *
+     * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass a [TestClass] annotated with an [annotationTestClass]
      * @param annotationTestClass the annotation [TestClass].
      * @param expectation expected results of calling [AnnotationItem.toSource].
      */
     private class AnnotationItemToSourceTestCase(
+        valueExample: ValueExample,
         testClass: TestClass,
         private val annotationTestClass: TestClass,
         expectation: Expectation<String>,
     ) :
         TestCase<String>(
-            "AnnotationItem.toSource()",
+            valueExample,
+            ValueUseSite.ANNOTATION_TO_SOURCE,
             testClass,
             expectation,
         ) {
@@ -594,17 +616,20 @@ class CommonParameterizedValueTest : BaseModelTest() {
      * Test an annotation attribute's default value, i.e. [MethodItem.defaultValue], for the
      * annotation's class's method.
      *
+     * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass the name of an annotation [TestClass].
      * @param attributeName the name of the annotation attribute.
      * @param expectation expected results of calling [MethodItem.defaultValue].
      */
     private class AnnotationAttributeDefaultValueTestCase(
+        valueExample: ValueExample,
         testClass: TestClass,
         private val attributeName: String,
         expectation: Expectation<String>,
     ) :
         TestCase<String>(
-            "MethodItem.defaultValue()",
+            valueExample,
+            ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
             testClass,
             expectation,
         ) {
@@ -626,18 +651,21 @@ class CommonParameterizedValueTest : BaseModelTest() {
     /**
      * Test a field value, i.e. [FieldItem.fieldValue], for the class's field.
      *
+     * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass the name of a class with the field.
      * @param fieldName the name of the field whose value is to be checked.
      * @param expectation expected results of calling [FieldItem.fieldValue].
      */
     private class FieldValueTestCase(
+        valueExample: ValueExample,
         testClass: TestClass,
         private val fieldName: String,
         expectation: Expectation<String>,
         private val isConstant: Boolean,
     ) :
         TestCase<String>(
-            "FieldItem.fieldValue",
+            valueExample,
+            ValueUseSite.FIELD_VALUE,
             testClass,
             expectation,
         ) {
@@ -665,18 +693,21 @@ class CommonParameterizedValueTest : BaseModelTest() {
     /**
      * Test writing a field value, i.e. [FieldItem.writeValueWithSemicolon], for the class's field.
      *
+     * @param valueExample the [ValueExample] on which this test case is based.
      * @param testClass the name of a class with the field.
      * @param fieldName the name of the field whose value is to be checked.
      * @param expectation expected results of calling [FieldItem.fieldValue].
      */
     private class FieldWriteValueWithSemicolonTestCase(
+        valueExample: ValueExample,
         testClass: TestClass,
         private val fieldName: String,
         expectation: Expectation<String>,
         private val isConstant: Boolean,
     ) :
         TestCase<String>(
-            "FieldItem.writeWithSemicolon",
+            valueExample,
+            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
             testClass,
             expectation,
         ) {
@@ -713,10 +744,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
     @Test
     fun test() {
         codebaseProducer.apply {
-            this@CommonParameterizedValueTest.runCodebaseProducerTest(
-                testFileCacheRule.cache,
-                testCase
-            )
+            this@BaseCommonParameterizedValueTest.runCodebaseProducerTest(testFileCache, testCase)
         }
     }
 }
