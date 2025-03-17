@@ -95,8 +95,8 @@ abstract class BaseCommonParameterizedValueTest(
         )
 
         protected fun CodebaseContext.runTestCase(testCase: TestCase<*>) {
-            val codebaseProducerContext = CodebaseProducerContext(this, this@CodebaseProducer)
-            codebaseProducerContext.apply { testCase.apply { checkCodebase() } }
+            val testCaseContext = TestCaseContext(this, testCase, kind)
+            with(testCase) { testCaseContext.checkCodebase() }
         }
 
         final override fun toString() = kind.toString().lowercase()
@@ -125,17 +125,7 @@ abstract class BaseCommonParameterizedValueTest(
         /** The expectations of the test case. */
         val expectation: Expectation<T>,
     ) : Assertions {
-        abstract fun CodebaseProducerContext.checkCodebase()
-
-        /**
-         * Get the [ClassItem] to be tested.
-         *
-         * Runs with [CodebaseProducerContext] as the receiver so it can access
-         * [CodebaseProducerContext.retrieveClass] to retrieve the [ClassItem].
-         */
-        protected fun CodebaseProducerContext.classForTestCase(): ClassItem {
-            return retrieveClass("test.pkg.${testClass.className}")
-        }
+        abstract fun TestCaseContext.checkCodebase()
 
         final override fun toString() = valueExample.name
     }
@@ -508,23 +498,6 @@ abstract class BaseCommonParameterizedValueTest(
         }
     }
 
-    /** Augment [BaseModelTest.CodebaseContext] with [codebaseProducer]. */
-    class CodebaseProducerContext(
-        delegate: CodebaseContext,
-        val codebaseProducer: CodebaseProducer,
-    ) : CodebaseContext by delegate {
-        /**
-         * Get the class from the [Codebase].
-         *
-         * Resolves it if it does not exist so that it will work for both source classes and jar
-         * classes.
-         */
-        fun retrieveClass(qualifiedName: String): ClassItem {
-            return codebase.resolveClass(qualifiedName)
-                ?: error("Expected $qualifiedName to be defined")
-        }
-    }
-
     /**
      * Base class for the subclass companion objects.
      *
@@ -557,15 +530,15 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
             expectation,
         ) {
-        override fun CodebaseProducerContext.checkCodebase() {
-            val testClass = classForTestCase()
-            val annotation = testClass.assertAnnotation("test.pkg.${annotationTestClass.className}")
+        override fun TestCaseContext.checkCodebase() {
+            val annotation =
+                testClassItem.assertAnnotation("test.pkg.${annotationTestClass.className}")
             val annotationAttribute = annotation.assertAttribute(attributeName)
 
             // Get the expected value.
             val expected =
                 expectation.expectationFor(
-                    codebaseProducer.kind,
+                    producerKind,
                     ValueUseSite.ATTRIBUTE_VALUE,
                     codebase,
                 )
@@ -593,14 +566,14 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
             expectation,
         ) {
-        override fun CodebaseProducerContext.checkCodebase() {
-            val testClass = classForTestCase()
-            val annotation = testClass.assertAnnotation("test.pkg.${annotationTestClass.className}")
+        override fun TestCaseContext.checkCodebase() {
+            val annotation =
+                testClassItem.assertAnnotation("test.pkg.${annotationTestClass.className}")
 
             // Get the expected value.
             val expected =
                 expectation.expectationFor(
-                    codebaseProducer.kind,
+                    producerKind,
                     ValueUseSite.ANNOTATION_TO_SOURCE,
                     codebase,
                 )
@@ -633,14 +606,13 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
             expectation,
         ) {
-        override fun CodebaseProducerContext.checkCodebase() {
-            val annotationClass = classForTestCase()
-            val annotationMethod = annotationClass.assertMethod(attributeName, "")
+        override fun TestCaseContext.checkCodebase() {
+            val annotationMethod = testClassItem.assertMethod(attributeName, "")
 
             // Get the expected value.
             val expected =
                 expectation.expectationFor(
-                    codebaseProducer.kind,
+                    producerKind,
                     ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
                     codebase,
                 )
@@ -669,9 +641,8 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
             expectation,
         ) {
-        override fun CodebaseProducerContext.checkCodebase() {
-            val testClass = classForTestCase()
-            val field = testClass.assertField(fieldName)
+        override fun TestCaseContext.checkCodebase() {
+            val field = testClassItem.assertField(fieldName)
             val fieldValue = assertNotNull(field.fieldValue, "No field value")
 
             // If this is a constant then get the expectation, otherwise, expect it to have no
@@ -679,7 +650,7 @@ abstract class BaseCommonParameterizedValueTest(
             val expected =
                 if (isConstant)
                     expectation.expectationFor(
-                        codebaseProducer.kind,
+                        producerKind,
                         ValueUseSite.FIELD_VALUE,
                         codebase,
                     )
@@ -711,16 +682,15 @@ abstract class BaseCommonParameterizedValueTest(
             testClass,
             expectation,
         ) {
-        override fun CodebaseProducerContext.checkCodebase() {
-            val testClass = classForTestCase()
-            val field = testClass.assertField(fieldName)
+        override fun TestCaseContext.checkCodebase() {
+            val field = testClassItem.assertField(fieldName)
 
             // If this is a constant then get the expectation, otherwise, expect it to have no
             // value.
             val expected =
                 if (isConstant)
                     expectation.expectationFor(
-                        codebaseProducer.kind,
+                        producerKind,
                         ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
                         codebase,
                     )
@@ -738,6 +708,23 @@ abstract class BaseCommonParameterizedValueTest(
 
             assertEquals(expected, actual)
         }
+    }
+
+    /** Context within which test cases will be run. */
+    class TestCaseContext(
+        delegate: CodebaseContext,
+        private val testCase: TestCase<*>,
+        val producerKind: ProducerKind,
+    ) : CodebaseContext by delegate {
+        val expectation = testCase.expectation
+
+        /** Get the [ClassItem] to be tested from this [Codebase]. */
+        val testClassItem
+            get(): ClassItem {
+                val qualifiedName = "test.pkg.${testCase.testClass.className}"
+                return codebase.resolveClass(qualifiedName)
+                    ?: error("Expected $qualifiedName to be defined")
+            }
     }
 
     @RequiresCapabilities(Capability.JAVA)
