@@ -20,9 +20,13 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestClass
 import com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest.Companion.testParameters
@@ -151,6 +155,17 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     companion object {
+        /** Filter the parameters. */
+        @JvmStatic
+        @ParameterFilter
+        fun parameterFilter(
+            config: CodebaseCreatorConfig<ModelSuiteRunner>,
+            producer: CodebaseProducer,
+            testCase: TestCase,
+        ) =
+            // Only supports java input formats at the moment.
+            config.inputFormat == InputFormat.JAVA
+
         /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
         private val testCases = buildList {
             // Verify that all the ValueExamples have distinct names.

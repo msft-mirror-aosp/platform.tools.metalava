@@ -36,7 +36,7 @@ abstract class ParameterizedRunner<A : Any>(
 ) : ParentRunner<Runner>(testClass) {
 
     /** The set of test arguments to use. */
-    class TestArguments<A : Any>(
+    data class TestArguments<A : Any>(
         /**
          * The pattern describing how to construct the test name suffix for a set of arguments.
          *

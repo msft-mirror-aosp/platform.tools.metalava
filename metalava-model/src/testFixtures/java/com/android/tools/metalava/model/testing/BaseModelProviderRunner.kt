@@ -101,6 +101,22 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     }
 
     /**
+     * Apply [parametersFilterMethod] to [argument] by combining
+     * [ModelProviderWrapper.codebaseCreatorConfig] and [ModelProviderWrapper.additionalArgumentSet]
+     * into a single list of arguments and the invoking [parametersFilterMethod] with them.
+     */
+    override fun invokeFilterMethod(
+        parametersFilterMethod: FrameworkMethod,
+        argument: ModelProviderWrapper<C>
+    ): Boolean {
+        val args = buildList {
+            add(argument.codebaseCreatorConfig)
+            addAll(argument.additionalArgumentSet)
+        }
+        return parametersFilterMethod.invokeExplosively(null, *args.toTypedArray()) as Boolean
+    }
+
+    /**
      * A wrapper around a [CodebaseCreatorConfig] that tunnels information needed by
      * [InstanceRunnerFactory] through [TestWithParameters].
      */

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.junit4.ParameterizedRunner.TestArguments
 import org.junit.runner.Runner
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
+import org.junit.runners.model.FrameworkMethod
 import org.junit.runners.model.TestClass
 import org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParametersFactory
 import org.junit.runners.parameterized.ParametersRunnerFactory
@@ -51,7 +52,38 @@ abstract class CustomizableParameterizedRunner<A : Any>(
         // [RunnersFactory.allParametersField].
         val testArguments = argumentsProvider(testClass, additionalArguments)
 
-        return testArguments
+        // Check to see if there is a parameters filter method provided.
+        val parametersFilterMethod =
+            testClass.getAnnotatedMethods(ParameterFilter::class.java).firstOrNull {
+                it.isPublic && it.isStatic
+            }
+
+        // If there is then apply it to the testArguments, otherwise return it unfiltered.
+        val filteredArguments =
+            if (parametersFilterMethod == null) {
+                testArguments
+            } else {
+                testArguments.copy(
+                    argumentSets =
+                        testArguments.argumentSets.filter {
+                            invokeFilterMethod(parametersFilterMethod, it)
+                        }
+                )
+            }
+
+        return filteredArguments
+    }
+
+    /**
+     * Invoke the [parametersFilterMethod] on [argument].
+     *
+     * Subclasses that wish to use filters must override this.
+     */
+    protected open fun invokeFilterMethod(
+        parametersFilterMethod: FrameworkMethod,
+        argument: A
+    ): Boolean {
+        error("Subclass does not implement invokeFilterMethod(...) method")
     }
 
     companion object {
