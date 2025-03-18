@@ -382,28 +382,43 @@ abstract class BaseCommonParameterizedValueTest(
             }
     }
 
-    /** Test the legacy source. */
-    private fun TestCaseContext.testLegacySource() {
-        // Get the legacy source representation.
-        val actual = legacySourceGetter()
+    /** Run a test on the [Codebase] produced by [codebaseProducer]. */
+    private fun runTestOnCodebase(function: TestCaseContext.() -> Unit) {
+        val thisClass = this
+        with(codebaseProducer) {
+            thisClass.runCodebaseProducerTest(testFileCache, testCase, function)
+        }
+    }
 
-        // Get the legacy source expectation.
-        val expectation = testCase.valueExample.expectedLegacySource
+    /**
+     * Run an expectation test.
+     *
+     * Invokes [actualGetter] to get the actual value to compare and compares it against the
+     * expected value retrieved from [expectation].
+     *
+     * @param expectation the [Expectation] that will provide the expected value.
+     * @param actualGetter lambda to get the actual value to test.
+     */
+    private fun <T> runExpectationTest(
+        expectation: Expectation<T>,
+        actualGetter: TestCaseContext.() -> T,
+    ) {
+        runTestOnCodebase {
+            // Get the actual value.
+            val actual = actualGetter()
 
-        // Get the expected value.
-        val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+            // Get the expected value.
+            val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
 
-        // Compare the two.
-        assertEquals(expected, actual)
+            // Compare the two.
+            assertEquals(expected, actual)
+        }
     }
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun test() {
-        val test = this
-        with(codebaseProducer) {
-            test.runCodebaseProducerTest(testFileCache, testCase) { testLegacySource() }
-        }
+    fun testLegacySource() {
+        runExpectationTest(testCase.valueExample.expectedLegacySource, legacySourceGetter)
     }
 }
 
