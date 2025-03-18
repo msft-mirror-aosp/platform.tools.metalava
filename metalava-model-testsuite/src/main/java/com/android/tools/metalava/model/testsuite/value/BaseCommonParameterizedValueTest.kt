@@ -124,11 +124,21 @@ abstract class BaseCommonParameterizedValueTest(
         /** The [ValueExample] on which this test case is based. */
         val valueExample: ValueExample,
     ) : Assertions {
-        /** Provider of the [TestClass] needed for this test. */
-        private val testClasses = TestClasses(JavaTestClassCreator, valueExample)
+        private val testClassesByInputFormat = mutableMapOf<InputFormat, TestClasses>()
 
         /** Get the [TestClass] appropriate for [valueUseSite]. */
-        fun testClassFor(valueUseSite: ValueUseSite) = testClasses.testClassFor(valueUseSite)
+        fun testClassFor(inputFormat: InputFormat, valueUseSite: ValueUseSite) =
+            testClassesByInputFormat
+                .computeIfAbsent(inputFormat) {
+                    val creator =
+                        when (it) {
+                            InputFormat.JAVA -> JavaTestClassCreator
+                            else -> error("Unknown input format: $inputFormat")
+                        }
+
+                    TestClasses(creator, valueExample)
+                }
+                .testClassFor(valueUseSite)
 
         override fun toString() = valueExample.name
     }
@@ -285,7 +295,9 @@ abstract class BaseCommonParameterizedValueTest(
         ) {
             // Cache the sources so that they can be reused.
             val sources =
-                testCase.testClassFor(valueUseSite).testFileSet.map { it.cacheIn(testFileCache) }
+                testCase.testClassFor(inputFormat, valueUseSite).testFileSet.map {
+                    it.cacheIn(testFileCache)
+                }
 
             // Run the test on the sources.
             runSourceCodebaseTest(inputSet(sources.toList())) {
@@ -343,7 +355,7 @@ abstract class BaseCommonParameterizedValueTest(
             // The jar includes all the distinct [TestFile]s used by [testCases].
             val sourcesForJar = buildSet {
                 for (testCase in testCases) {
-                    addAll(testCase.testClassFor(valueUseSite).testFileSet)
+                    addAll(testCase.testClassFor(InputFormat.JAVA, valueUseSite).testFileSet)
                 }
             }
 
@@ -365,7 +377,8 @@ abstract class BaseCommonParameterizedValueTest(
         /** Get the [ClassItem] to be tested from this [Codebase]. */
         val testClassItem
             get(): ClassItem {
-                val qualifiedName = "test.pkg.${testCase.testClassFor(valueUseSite).className}"
+                val qualifiedName =
+                    "test.pkg.${testCase.testClassFor(inputFormat, valueUseSite).className}"
                 return codebase.resolveClass(qualifiedName)
                     ?: error("Expected $qualifiedName to be defined")
             }
