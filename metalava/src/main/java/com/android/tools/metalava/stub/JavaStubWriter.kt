@@ -314,7 +314,7 @@ internal class JavaStubWriter(
         generateThrowsList(method)
 
         if (containingClass.isAnnotationType()) {
-            val default = method.defaultValue()
+            val default = method.legacyDefaultValue()
             if (default.isNotEmpty()) {
                 writer.print(" default ")
                 writer.print(default)

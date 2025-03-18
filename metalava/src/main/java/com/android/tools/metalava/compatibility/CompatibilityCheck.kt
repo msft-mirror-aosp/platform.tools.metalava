@@ -562,9 +562,9 @@ class CompatibilityCheck(
         if (
             new.containingClass().isAnnotationType() &&
                 old.containingClass().isAnnotationType() &&
-                new.defaultValue() != old.defaultValue()
+                new.legacyDefaultValue() != old.legacyDefaultValue()
         ) {
-            val prevValue = old.defaultValue()
+            val prevValue = old.legacyDefaultValue()
             val prevString =
                 if (prevValue.isEmpty()) {
                     "nothing"
@@ -572,7 +572,7 @@ class CompatibilityCheck(
                     prevValue
                 }
 
-            val newValue = new.defaultValue()
+            val newValue = new.legacyDefaultValue()
             val newString =
                 if (newValue.isEmpty()) {
                     "nothing"
@@ -587,7 +587,7 @@ class CompatibilityCheck(
 
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
-                new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+                new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
 
             if (!annotationMethodAddingDefaultValue) {
                 report(Issues.CHANGED_VALUE, new, message)
@@ -892,7 +892,7 @@ class CompatibilityCheck(
             // two interfaces that each now define methods with the same signature.
             // Annotation types cannot implement other interfaces, however, so it is permitted to
             // add new default methods to annotation types.
-            if (new.containingClass().isAnnotationType() && new.defaultValue() != "") {
+            if (new.containingClass().isAnnotationType() && new.legacyDefaultValue() != "") {
                 return
             }
         }

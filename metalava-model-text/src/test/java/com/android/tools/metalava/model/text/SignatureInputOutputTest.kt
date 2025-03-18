@@ -256,7 +256,7 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
             assertThat(method.parameters()).isEmpty()
 
-            assertThat(method.defaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
+            assertThat(method.legacyDefaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
         }
     }
 

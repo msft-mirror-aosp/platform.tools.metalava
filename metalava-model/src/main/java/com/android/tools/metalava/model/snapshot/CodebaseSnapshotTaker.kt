@@ -317,7 +317,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
-                    annotationDefault = methodToSnapshot.defaultValue(),
+                    annotationDefault = methodToSnapshot.legacyDefaultValue(),
                 )
             }
         newMethod.copySelectedApiVariants(methodToSnapshot)
