@@ -512,9 +512,9 @@ private constructor(
             item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
         val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
 
-        if (attr.value.resolve() == null) {
-            val value = attr.value.value() as? String
-            if (value == attr.value.toSource()) {
+        if (attr.legacyValue.resolve() == null) {
+            val value = attr.legacyValue.value() as? String
+            if (value == attr.legacyValue.toSource()) {
                 // For a string literal, source and value are never the same, so this happens only
                 // when a reference isn't resolvable.
                 return

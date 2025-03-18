@@ -34,7 +34,7 @@ class CommonParameterizedAttributeValueTest :
             val annotation = testClassItem.modifiers.annotations().first()
             val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
 
-            annotationAttribute.value.toSource()
+            annotationAttribute.legacyValue.toSource()
         }
     ) {
     companion object : BaseCompanion(ATTRIBUTE_VALUE) {
