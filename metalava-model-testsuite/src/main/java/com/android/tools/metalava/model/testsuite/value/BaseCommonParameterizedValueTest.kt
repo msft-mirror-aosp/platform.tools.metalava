@@ -260,53 +260,8 @@ abstract class BaseCommonParameterizedValueTest(
             for (valueExample in valueExamples) {
                 val testClasses = TestClasses(JavaTestClassCreator, valueExample)
 
-                // If suitable add a test for [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
-                if (ValueUseSite.ATTRIBUTE_DEFAULT_VALUE in valueExample.suitableFor) {
-                    add(
-                        TestCase(
-                            valueExample,
-                            ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
-                            testClasses,
-                        )
-                    )
-                }
-
-                // If suitable add a test for [ValueUseSite.ATTRIBUTE_VALUE].
-                if (ValueUseSite.ATTRIBUTE_VALUE in valueExample.suitableFor) {
-                    add(
-                        TestCase(
-                            valueExample,
-                            ValueUseSite.ATTRIBUTE_VALUE,
-                            testClasses,
-                        )
-                    )
-
-                    add(
-                        TestCase(
-                            valueExample,
-                            ValueUseSite.ANNOTATION_TO_SOURCE,
-                            testClasses,
-                        )
-                    )
-                }
-
-                // If suitable add a test for [ValueUseSite.FIELD_VALUE].
-                if (ValueUseSite.FIELD_VALUE in valueExample.suitableFor) {
-                    add(
-                        TestCase(
-                            valueExample,
-                            ValueUseSite.FIELD_VALUE,
-                            testClasses,
-                        )
-                    )
-
-                    add(
-                        TestCase(
-                            valueExample,
-                            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
-                            testClasses,
-                        )
-                    )
+                for (valueUseSite in ValueUseSite.entries) {
+                    add(TestCase(valueExample, valueUseSite, testClasses))
                 }
             }
         }
@@ -319,7 +274,12 @@ abstract class BaseCommonParameterizedValueTest(
             )
 
         internal fun testCasesForValueUseSite(valueUseSite: ValueUseSite) =
-            testCases.filter { it.valueUseSite == valueUseSite }
+            testCases.filter {
+                it.valueUseSite == valueUseSite &&
+                    // Only select TestCase's whose ValueExample is suitable for the specified
+                    // ValueUseSite.
+                    valueUseSite in it.valueExample.suitableFor
+            }
 
         /** Create cross product of [codebaseProducers] and [testCases]. */
         internal fun testCasesForCodebaseProducers(
