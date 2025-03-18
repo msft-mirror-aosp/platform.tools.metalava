@@ -105,13 +105,10 @@ class CommonParameterizedValueTest : BaseModelTest() {
          *
          * Each subclass will check different aspects of this, e.g.
          * [AnnotationAttributeDefaultValueTestCase] assumes it as an annotation class and checks
-         * the default values on method called [memberName], [FieldValueTestCase] assumes it is a
-         * class with a field called [memberName] and will check its value.
+         * the default values on method "attr", [FieldValueTestCase] assumes it is a class with a
+         * field called "FIELD" and will check its value.
          */
         val testClass: TestClass,
-
-        /** The name of the class member whose value is to be retrieved. */
-        val memberName: String,
 
         /** The expectations of the test case. */
         val expectation: Expectation<T>,
@@ -128,7 +125,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
             return retrieveClass("test.pkg.${testClass.className}")
         }
 
-        final override fun toString() = "$testCaseName,${testClass.className}.$memberName"
+        final override fun toString() = "$testCaseName,${testClass.className}"
     }
 
     /**
@@ -216,42 +213,25 @@ class CommonParameterizedValueTest : BaseModelTest() {
                 error("Duplicate value examples: $duplicates")
             }
 
-            // Create a [TestClass] for an annotation class that has attributes for each suitable
-            // [ValueExample], setting its expression as the default.
-            val annotationWithDefaults =
-                valueExamples.generateAnnotationClass(
-                    "AnnotationWithDefaults",
-                    withDefaults = true,
-                )
-
-            // Create a [TestClass] for an annotation class that has attributes for each suitable
-            // [ValueExample] but does not set a default. Used in tests for checking annotation
-            // attribute values.
-            val annotationWithoutDefaults =
-                valueExamples.generateAnnotationClass(
-                    "AnnotationWithoutDefaults",
-                    withDefaults = false,
-                )
-
-            // Create a [TestClass] that is annotated with [annotationWithoutDefaults] using the
-            // suitable [ValueExample]s as the value of the attributes.
-            val annotationTestClass =
-                valueExamples.generateAnnotatedTestClass(
-                    "AnnotationTestClass",
-                    annotationWithoutDefaults
-                )
-
-            // Create a [TestClass] that has a field for each suitable [ValueExample].
-            val fieldTestClass = valueExamples.generateFieldTestClass("FieldTestClass")
-
             // Construct [TestCase]s from [ValueExample].
             for (valueExample in valueExamples) {
+                val attributeName = "attr"
+
                 // If suitable add a test for [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
                 if (ValueUseSite.ATTRIBUTE_DEFAULT_VALUE in valueExample.suitableFor) {
+                    // Create a [TestClass] for an annotation class that has an attribute for this
+                    // [ValueExample], setting its expression as the default.
+                    val annotationWithDefaults =
+                        valueExample.generateAnnotationClass(
+                            "AnnotationWithDefaults",
+                            attributeName,
+                            withDefaults = true,
+                        )
+
                     add(
                         AnnotationAttributeDefaultValueTestCase(
                             annotationWithDefaults,
-                            valueExample.attributeName,
+                            attributeName,
                             expectation = valueExample.expectedLegacySource,
                         )
                     )
@@ -259,11 +239,30 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                 // If suitable add a test for [ValueUseSite.ATTRIBUTE_VALUE].
                 if (ValueUseSite.ATTRIBUTE_VALUE in valueExample.suitableFor) {
+                    // Create a [TestClass] for an annotation class that has an attribute for this
+                    // [ValueExample] but does not set a default. Used by the following class for
+                    // checking annotation attribute values.
+                    val annotationWithoutDefaults =
+                        valueExample.generateAnnotationClass(
+                            "AnnotationWithoutDefaults",
+                            attributeName,
+                            withDefaults = false,
+                        )
+
+                    // Create a [TestClass] that is annotated with `AnnotationWithoutDefaults`
+                    // which uses this [ValueExample]'s expression.
+                    val annotationTestClass =
+                        valueExample.generateAnnotatedTestClass(
+                            "AnnotationTestClass",
+                            attributeName,
+                            annotationWithoutDefaults
+                        )
+
                     add(
                         AnnotationAttributeValueToSourceTestCase(
                             annotationTestClass,
                             annotationWithoutDefaults,
-                            valueExample.attributeName,
+                            attributeName,
                             expectation = valueExample.expectedLegacySource,
                         )
                     )
@@ -271,6 +270,15 @@ class CommonParameterizedValueTest : BaseModelTest() {
 
                 // If suitable add a test for [ValueUseSite.FIELD_VALUE].
                 if (ValueUseSite.FIELD_VALUE in valueExample.suitableFor) {
+                    val fieldName = "FIELD"
+
+                    // Create a [TestClass] that has a field for each suitable [ValueExample].
+                    val fieldTestClass =
+                        valueExample.generateFieldTestClass(
+                            "FieldTestClass",
+                            fieldName,
+                        )
+
                     // If the type is suitable for use in a constant field then assume the field is
                     // constant.
                     val isConstant = valueExample.javaType in constantTypeNames
@@ -278,7 +286,7 @@ class CommonParameterizedValueTest : BaseModelTest() {
                     add(
                         FieldValueTestCase(
                             fieldTestClass,
-                            valueExample.fieldName,
+                            fieldName,
                             expectation = valueExample.expectedLegacySource,
                             isConstant,
                         )
@@ -288,42 +296,42 @@ class CommonParameterizedValueTest : BaseModelTest() {
         }
 
         /** Append all the imports provided by this list to [buffer]. */
-        private fun List<ValueExample>.appendImportsTo(buffer: StringBuilder) {
-            val imports = flatMap { it.javaImports }.toSortedSet()
-            for (i in imports) {
+        private fun ValueExample.appendImportsTo(buffer: StringBuilder) {
+            for (javaImport in javaImports) {
                 buffer.append("import ")
-                buffer.append(i)
+                buffer.append(javaImport)
                 buffer.append(";\n")
             }
         }
 
         /**
-         * Create an annotation [TestClass] from this list of [ValueExample]s.
+         * Create an annotation [TestClass] for this [ValueExample].
          *
-         * @param className the name of the class.
+         * @param classNamePrefix the prefix of the class.
+         * @param attributeName the name of the annotation attribute.
          * @param withDefaults true if defaults should be added, false otherwise.
          */
-        private fun List<ValueExample>.generateAnnotationClass(
-            className: String,
+        private fun ValueExample.generateAnnotationClass(
+            classNamePrefix: String,
+            attributeName: String,
             withDefaults: Boolean
         ): TestClass {
+            val className = "${classNamePrefix}_$classSuffix"
             return java(
                     buildString {
                         append("package test.pkg;\n")
                         appendImportsTo(this)
                         append("public @interface $className {\n")
-                        for (example in this@generateAnnotationClass) {
-                            append("    ")
-                            append(example.javaType)
-                            append(" ")
-                            append(example.attributeName)
-                            append("()")
-                            if (withDefaults) {
-                                append(" default ")
-                                append(example.javaExpression)
-                            }
-                            append(";\n")
+                        append("    ")
+                        append(javaType)
+                        append(" ")
+                        append(attributeName)
+                        append("()")
+                        if (withDefaults) {
+                            append(" default ")
+                            append(javaExpression)
                         }
+                        append(";\n")
                         append("}\n")
                     }
                 )
@@ -335,26 +343,28 @@ class CommonParameterizedValueTest : BaseModelTest() {
         /**
          * Create a normal [TestClass] annotated with [annotationTestClass].
          *
-         * The annotation uses the appropriate values from this.
+         * The annotation uses the appropriate values from this [ValueExample].
          *
-         * @param className the name of the class.
+         * @param classNamePrefix the prefix of the class.
          * @param annotationTestClass the annotation [TestClass] to annotate the class with.
          */
-        private fun List<ValueExample>.generateAnnotatedTestClass(
-            className: String,
+        private fun ValueExample.generateAnnotatedTestClass(
+            classNamePrefix: String,
+            attributeName: String,
             annotationTestClass: TestClass,
         ): TestClass {
+            val className = "${classNamePrefix}_$classSuffix"
             return java(
                     buildString {
                         append("package test.pkg;\n")
-                        this@generateAnnotatedTestClass.appendImportsTo(this)
+                        appendImportsTo(this)
                         append("@")
                         append(annotationTestClass.className)
                         append("(")
-                        joinTo(this, ",") { example ->
-                            "\n    ${example.attributeName} = ${example.javaExpression}"
-                        }
-                        append("\n)")
+                        append(attributeName)
+                        append(" = ")
+                        append(javaExpression)
+                        append(")")
                         append("public class $className {}\n")
                     }
                 )
@@ -363,26 +373,27 @@ class CommonParameterizedValueTest : BaseModelTest() {
         }
 
         /**
-         * Create a [TestClass] containing "constant" fields for each of the suitable items in this
-         * list using the value as the field value.
+         * Create a [TestClass] containing a "constant" field for this [ValueExample].
+         *
+         * @param classNamePrefix the prefix of the class.
          */
-        private fun List<ValueExample>.generateFieldTestClass(className: String): TestClass {
+        private fun ValueExample.generateFieldTestClass(
+            classNamePrefix: String,
+            fieldName: String,
+        ): TestClass {
+            val className = "${classNamePrefix}_$classSuffix"
             return java(
                     buildString {
                         append("package test.pkg;\n")
-                        this@generateFieldTestClass.appendImportsTo(this)
+                        appendImportsTo(this)
                         append("public class $className {\n")
-                        for (example in this@generateFieldTestClass) {
-                            if (ValueUseSite.FIELD_VALUE in example.suitableFor) {
-                                append("    public static final ")
-                                append(example.javaType)
-                                append(" ")
-                                append(example.fieldName)
-                                append(" = ")
-                                append(example.javaExpression)
-                                append(";\n")
-                            }
-                        }
+                        append("    public static final ")
+                        append(javaType)
+                        append(" ")
+                        append(fieldName)
+                        append(" = ")
+                        append(javaExpression)
+                        append(";\n")
                         append("}\n")
                     }
                 )
@@ -480,26 +491,26 @@ class CommonParameterizedValueTest : BaseModelTest() {
     /**
      * Test [AnnotationAttributeValue.toSource] method.
      *
-     * @param testClass a [TestClass] with an `@TestAnnotation` on it.
+     * @param testClass a [TestClass] annotated with an [annotationTestClass]
+     * @param annotationTestClass the annotation [TestClass].
      * @param attributeName the name of the annotation attribute.
      * @param expectation expected results of calling [AnnotationAttributeValue.toSource].
      */
     private class AnnotationAttributeValueToSourceTestCase(
         testClass: TestClass,
         private val annotationTestClass: TestClass,
-        attributeName: String,
+        private val attributeName: String,
         expectation: Expectation<String>,
     ) :
         TestCase<String>(
             "AnnotationAttributeValue.toSource()",
             testClass,
-            attributeName,
             expectation,
         ) {
         override fun CodebaseProducerContext.checkCodebase() {
             val testClass = classForTestCase()
             val annotation = testClass.assertAnnotation("test.pkg.${annotationTestClass.className}")
-            val annotationAttribute = annotation.assertAttribute(memberName)
+            val annotationAttribute = annotation.assertAttribute(attributeName)
 
             // Get the expected value.
             val expected =
@@ -522,18 +533,17 @@ class CommonParameterizedValueTest : BaseModelTest() {
      */
     private class AnnotationAttributeDefaultValueTestCase(
         testClass: TestClass,
-        attributeName: String,
+        private val attributeName: String,
         expectation: Expectation<String>,
     ) :
         TestCase<String>(
             "MethodItem.defaultValue()",
             testClass,
-            attributeName,
             expectation,
         ) {
         override fun CodebaseProducerContext.checkCodebase() {
             val annotationClass = classForTestCase()
-            val annotationMethod = annotationClass.assertMethod(memberName, "")
+            val annotationMethod = annotationClass.assertMethod(attributeName, "")
 
             // Get the expected value.
             val expected =
@@ -549,25 +559,24 @@ class CommonParameterizedValueTest : BaseModelTest() {
     /**
      * Test a field value, i.e. [FieldItem.fieldValue], for the class's field.
      *
-     * @param testClass the name of a class with fields.
+     * @param testClass the name of a class with the field.
      * @param fieldName the name of the field whose value is to be checked.
      * @param expectation expected results of calling [FieldItem.fieldValue].
      */
     private class FieldValueTestCase(
         testClass: TestClass,
-        fieldName: String,
+        private val fieldName: String,
         expectation: Expectation<String>,
         private val isConstant: Boolean,
     ) :
         TestCase<String>(
             "FieldItem.fieldValue",
             testClass,
-            fieldName,
             expectation,
         ) {
         override fun CodebaseProducerContext.checkCodebase() {
             val testClass = classForTestCase()
-            val field = testClass.assertField(memberName)
+            val field = testClass.assertField(fieldName)
             val fieldValue = assertNotNull(field.fieldValue, "No field value")
 
             // If this is a constant then get the expectation, otherwise, expect it to have no

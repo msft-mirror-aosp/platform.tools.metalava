@@ -65,11 +65,8 @@ data class ValueExample(
      */
     val testThis: Boolean = false,
 ) {
-    /** The name of the annotation attribute that this example will use in any generated classes. */
-    val attributeName = name.replace(" ", "_") + "_attr"
-
-    /** The name of the field that this example will use in any generated classes. */
-    val fieldName = attributeName.uppercase()
+    /** The suffix to add to class names to make them specific to this example. */
+    val classSuffix = name.replace(" ", "_")
 
     companion object {
         /** A special value used for fields for whom [FieldItem.initialValue] returns `null`. */
